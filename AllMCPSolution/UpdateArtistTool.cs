@@ -36,7 +36,7 @@ public class UpdateArtistTool : IToolBase
             throw new ArgumentException("Artist name cannot be empty");
         }
 
-        var artist = await _dbContext.Artists.FirstOrDefaultAsync(a => a.Id == id);
+        var artist = await _dbContext.Artists.FirstOrDefaultAsync(a => a.Name == "");
 
         if (artist == null)
         {
@@ -55,7 +55,7 @@ public class UpdateArtistTool : IToolBase
             success = true,
             artist = new
             {
-                id = artist.Id,
+                //id = artist.Id,
                 name = artist.Name
             }
         };
