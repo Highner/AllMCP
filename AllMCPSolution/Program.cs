@@ -77,22 +77,30 @@ app.MapGet("/openapi.json", () =>
 });
 
 // Tools discovery endpoint
-app.MapGet("/tools", () =>
+app.MapGet("/tools", (IServiceProvider serviceProvider) =>
 {
-    var tools = toolRegistry.GetAllTools()
+    var toolRegistry = serviceProvider.GetRequiredService<ToolRegistry>();
+    var tools = toolRegistry.GetAllTools(serviceProvider)
         .Select(t => t.GetToolDefinition())
         .ToArray();
     
     return Results.Json(new { tools });
 });
 
+
 // Dynamic tool endpoints for direct access
-foreach (var tool in toolRegistry.GetAllTools())
+foreach (var toolType in toolRegistry.GetAllToolTypes())
 {
-    var toolName = tool.Name;
-    app.MapPost($"/tools/{toolName}", async (HttpContext context) =>
+    var tempTool = Activator.CreateInstance(toolType, new object[] { null! }) as IToolBase;
+    if (tempTool == null) continue;
+    
+    var toolName = tempTool.Name;
+    var toolDescription = tempTool.Description;
+    
+    app.MapPost($"/tools/{toolName}", async (HttpContext context, IServiceProvider serviceProvider) =>
         {
-            var t = toolRegistry.GetTool(toolName);
+            var toolRegistry = serviceProvider.GetRequiredService<ToolRegistry>();
+            var t = toolRegistry.GetTool(toolName, serviceProvider);
             if (t == null)
             {
                 return Results.NotFound();
@@ -108,8 +116,9 @@ foreach (var tool in toolRegistry.GetAllTools())
             return Results.Ok(new { result });
         })
         .WithName(toolName)
-        .WithDescription(tool.Description);
+        .WithDescription(toolDescription);
 }
+
 
 
 

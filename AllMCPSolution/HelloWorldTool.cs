@@ -2,7 +2,7 @@ using AllMCPSolution.Attributes;
 
 namespace AllMCPSolution.Tools;
 
-[McpTool("hello_world", "A simple test tool that returns 'Hello World'")]
+//[McpTool("hello_world", "A simple test tool that returns 'Hello World'")]
 public class HelloWorldTool : IToolBase
 {
     public string Name => "hello_world";

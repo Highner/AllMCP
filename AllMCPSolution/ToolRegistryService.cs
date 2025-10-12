@@ -20,9 +20,9 @@ public class ToolRegistry
         var assembly = Assembly.GetExecutingAssembly();
         var toolTypes = assembly.GetTypes()
             .Where(t => t.GetCustomAttribute<McpToolAttribute>() != null && 
-                       typeof(IToolBase).IsAssignableFrom(t) &&
-                       !t.IsAbstract &&
-                       !t.IsInterface);
+                        typeof(IToolBase).IsAssignableFrom(t) &&
+                        !t.IsAbstract &&
+                        !t.IsInterface);
 
         foreach (var toolType in toolTypes)
         {
@@ -34,25 +34,27 @@ public class ToolRegistry
         }
     }
 
-    public IEnumerable<IToolBase> GetAllTools()
+    public IEnumerable<IToolBase> GetAllTools(IServiceProvider? scopedProvider = null)
     {
-        using var scope = _serviceProvider.CreateScope();
+        var provider = scopedProvider ?? _serviceProvider;
         return _toolTypes.Values
-            .Select(type => scope.ServiceProvider.GetService(type) as IToolBase)
+            .Select(type => provider.GetService(type) as IToolBase)
             .Where(tool => tool != null)
             .ToList()!;
     }
 
-    public IToolBase? GetTool(string name)
+    public IToolBase? GetTool(string name, IServiceProvider? scopedProvider = null)
     {
         if (!_toolTypes.TryGetValue(name, out var toolType))
         {
             return null;
         }
 
-        using var scope = _serviceProvider.CreateScope();
-        return scope.ServiceProvider.GetService(toolType) as IToolBase;
+        var provider = scopedProvider ?? _serviceProvider;
+        return provider.GetService(toolType) as IToolBase;
     }
 
     public bool HasTool(string name) => _toolTypes.ContainsKey(name);
+    
+    public IEnumerable<Type> GetAllToolTypes() => _toolTypes.Values;
 }
