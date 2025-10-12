@@ -16,6 +16,7 @@ public class DeleteArtistTool : IToolBase
 
     public string Name => "delete_artist";
     public string Description => "Deletes an artist from the database";
+    public string? SafetyLevel => "non_critical";
 
     public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
@@ -66,6 +67,11 @@ public class DeleteArtistTool : IToolBase
         {
             name = Name,
             description = Description,
+            safety = new
+            {
+                level = SafetyLevel
+            },
+
             inputSchema = new
             {
                 type = "object",

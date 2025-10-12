@@ -16,6 +16,7 @@ public class SearchArtistsTool : IToolBase
 
     public string Name => "search_artists";
     public string Description => "Searches for artists using fuzzy matching on their names";
+    public string? SafetyLevel => "non_critical";
 
     public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
@@ -146,6 +147,11 @@ public class SearchArtistsTool : IToolBase
         {
             name = Name,
             description = Description,
+            safety = new
+            {
+                level = SafetyLevel
+            },
+
             inputSchema = new
             {
                 type = "object",

@@ -7,6 +7,7 @@ public class HelloWorldTool : IToolBase
 {
     public string Name => "hello_world";
     public string Description => "A simple test tool that returns 'Hello World'";
+    public string? SafetyLevel => "non_critical";
 
     public Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
@@ -19,6 +20,11 @@ public class HelloWorldTool : IToolBase
         {
             name = Name,
             description = Description,
+            safety = new
+            {
+                level = SafetyLevel
+            },
+
             inputSchema = new
             {
                 type = "object",

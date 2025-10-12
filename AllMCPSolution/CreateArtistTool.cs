@@ -15,6 +15,7 @@ public class CreateArtistTool : IToolBase
 
     public string Name => "create_artist";
     public string Description => "Creates a new artist in the database";
+    public string? SafetyLevel => "non_critical";
 
     public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
@@ -60,6 +61,11 @@ public class CreateArtistTool : IToolBase
         {
             name = Name,
             description = Description,
+            safety = new
+            {
+                level = SafetyLevel
+            },
+
             inputSchema = new
             {
                 type = "object",

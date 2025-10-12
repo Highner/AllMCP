@@ -16,6 +16,7 @@ public class UpdateArtistTool : IToolBase
 
     public string Name => "update_artist";
     public string Description => "Updates an existing artist in the database";
+    public string? SafetyLevel => "non_critical";
 
     public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
@@ -82,6 +83,11 @@ public class UpdateArtistTool : IToolBase
         {
             name = Name,
             description = Description,
+            safety = new
+            {
+                level = SafetyLevel
+            },
+
             inputSchema = new
             {
                 type = "object",

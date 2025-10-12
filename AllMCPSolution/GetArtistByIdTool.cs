@@ -16,6 +16,7 @@ public class GetArtistByIdTool : IToolBase
 
     public string Name => "get_artist_by_id";
     public string Description => "Retrieves a specific artist by their ID";
+    public string? SafetyLevel => "non_critical";
 
     public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
@@ -59,6 +60,11 @@ public class GetArtistByIdTool : IToolBase
         {
             name = Name,
             description = Description,
+            safety = new
+            {
+                level = SafetyLevel
+            },
+
             inputSchema = new
             {
                 type = "object",
