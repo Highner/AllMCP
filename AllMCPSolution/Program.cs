@@ -15,12 +15,13 @@ builder.Services.AddEndpointsApiExplorer();
 // Register all tools (auto-discovered by ToolRegistry)
 builder.Services.AddSingleton<HelloWorldTool>();
 
-builder.Services.AddTransient<CreateArtistTool>();
-builder.Services.AddTransient<GetAllArtistsTool>();
-builder.Services.AddTransient<GetArtistByIdTool>();
-builder.Services.AddTransient<UpdateArtistTool>();
-builder.Services.AddTransient<DeleteArtistTool>();
-builder.Services.AddTransient<SearchArtistsTool>();
+builder.Services.AddScoped<CreateArtistTool>();
+builder.Services.AddScoped<GetAllArtistsTool>();
+builder.Services.AddScoped<GetArtistByIdTool>();
+builder.Services.AddScoped<UpdateArtistTool>();
+builder.Services.AddScoped<DeleteArtistTool>();
+builder.Services.AddScoped<SearchArtistsTool>();
+
 
 
 
@@ -59,6 +60,8 @@ app.MapPost("/mcp", async (HttpContext context) =>
     return Results.Json(response);
 });
 
+
+
 app.MapGet("/", () => "MCP Server is running!");
 
 // MCP Manifest endpoint
@@ -88,24 +91,26 @@ foreach (var tool in toolRegistry.GetAllTools())
 {
     var toolName = tool.Name;
     app.MapPost($"/tools/{toolName}", async (HttpContext context) =>
-    {
-        var t = toolRegistry.GetTool(toolName);
-        if (t == null)
         {
-            return Results.NotFound();
-        }
+            var t = toolRegistry.GetTool(toolName);
+            if (t == null)
+            {
+                return Results.NotFound();
+            }
 
-        Dictionary<string, object>? parameters = null;
-        if (context.Request.ContentLength > 0)
-        {
-            parameters = await context.Request.ReadFromJsonAsync<Dictionary<string, object>>();
-        }
+            Dictionary<string, object>? parameters = null;
+            if (context.Request.ContentLength > 0)
+            {
+                parameters = await context.Request.ReadFromJsonAsync<Dictionary<string, object>>();
+            }
 
-        var result = await t.ExecuteAsync(parameters);
-        return Results.Ok(new { result });
-    })
-    .WithName(toolName)
-    .WithDescription(tool.Description);
+            var result = await t.ExecuteAsync(parameters);
+            return Results.Ok(new { result });
+        })
+        .WithName(toolName)
+        .WithDescription(tool.Description);
 }
+
+
 
 app.Run();
