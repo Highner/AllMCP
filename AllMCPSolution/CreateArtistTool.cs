@@ -36,8 +36,16 @@ public class CreateArtistTool : IToolBase
             Name = name
         };
 
-        _dbContext.Artists.Add(artist);
-        await _dbContext.SaveChangesAsync();
+        try
+        {
+            _dbContext.Artists.Add(artist);
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (Exception e)
+        {
+            return e.Message + e.StackTrace;
+        }
+
 
         return new
         {
