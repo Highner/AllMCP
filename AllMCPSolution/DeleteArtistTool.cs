@@ -41,8 +41,16 @@ public class DeleteArtistTool : IToolBase
             };
         }
 
-        _dbContext.Artists.Remove(artist);
-        await _dbContext.SaveChangesAsync();
+        try
+        {
+            _dbContext.Artists.Remove(artist);
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (Exception e)
+        {
+            return e.Message + e.StackTrace;
+        }
+
 
         return new
         {

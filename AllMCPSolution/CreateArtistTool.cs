@@ -1,10 +1,9 @@
-
 using AllMCPSolution.Attributes;
 using AllMCPSolution.Tools;
 
 namespace AllMCPSolution.Artists;
 
-[McpTool("create_artist", "Creates a new artist with the specified name")]
+[McpTool("create_artist", "Creates a new artist in the database")]
 public class CreateArtistTool : IToolBase
 {
     private readonly ApplicationDbContext _dbContext;
@@ -15,45 +14,42 @@ public class CreateArtistTool : IToolBase
     }
 
     public string Name => "create_artist";
-    public string Description => "Creates a new artist with the specified name";
+    public string Description => "Creates a new artist in the database";
 
     public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
-        if (parameters == null || !parameters.ContainsKey("name"))
+        if (parameters == null || !parameters.ContainsKey("firstName") || !parameters.ContainsKey("lastName"))
         {
-            throw new ArgumentException("Parameter 'name' is required");
+            throw new ArgumentException("Parameters 'firstName' and 'lastName' are required");
         }
 
-        var name = parameters["name"]?.ToString();
-        if (string.IsNullOrWhiteSpace(name))
+        var firstName = parameters["firstName"]?.ToString();
+        var lastName = parameters["lastName"]?.ToString();
+
+        if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
         {
-            throw new ArgumentException("Artist name cannot be empty");
+            throw new ArgumentException("First name and last name cannot be empty");
         }
 
         var artist = new Artist
         {
             Id = Guid.NewGuid(),
-            Name = name
+            FirstName = firstName,
+            LastName = lastName
         };
 
-        try
-        {
-            _dbContext.Artists.Add(artist);
-            await _dbContext.SaveChangesAsync();
-        }
-        catch (Exception e)
-        {
-            return e.Message + e.StackTrace;
-        }
-
+        _dbContext.Artists.Add(artist);
+        await _dbContext.SaveChangesAsync();
 
         return new
         {
             success = true,
+            message = "Artist created successfully",
             artist = new
             {
                 id = artist.Id,
-                name = artist.Name
+                firstName = artist.FirstName,
+                lastName = artist.LastName
             }
         };
     }
@@ -69,13 +65,18 @@ public class CreateArtistTool : IToolBase
                 type = "object",
                 properties = new
                 {
-                    name = new
+                    firstName = new
                     {
                         type = "string",
-                        description = "The name of the artist"
+                        description = "The first name of the artist"
+                    },
+                    lastName = new
+                    {
+                        type = "string",
+                        description = "The last name of the artist"
                     }
                 },
-                required = new[] { "name" }
+                required = new[] { "firstName", "lastName" }
             }
         };
     }
@@ -98,12 +99,16 @@ public class CreateArtistTool : IToolBase
                             ["type"] = "object",
                             ["properties"] = new Dictionary<string, object>
                             {
-                                ["name"] = new Dictionary<string, object>
+                                ["firstName"] = new Dictionary<string, object>
+                                {
+                                    ["type"] = "string"
+                                },
+                                ["lastName"] = new Dictionary<string, object>
                                 {
                                     ["type"] = "string"
                                 }
                             },
-                            ["required"] = new[] { "name" }
+                            ["required"] = new[] { "firstName", "lastName" }
                         }
                     }
                 }
@@ -125,6 +130,10 @@ public class CreateArtistTool : IToolBase
                                     ["success"] = new Dictionary<string, object>
                                     {
                                         ["type"] = "boolean"
+                                    },
+                                    ["message"] = new Dictionary<string, object>
+                                    {
+                                        ["type"] = "string"
                                     },
                                     ["artist"] = new Dictionary<string, object>
                                     {

@@ -28,7 +28,8 @@ public class GetAllArtistsTool : IToolBase
             artists = artists.Select(a => new
             {
                 id = a.Id,
-                name = a.Name
+                firstName = a.FirstName,
+                lastName = a.LastName
             }).ToList()
         };
     }

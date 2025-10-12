@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AllMCPSolution.Artists;
 
-[McpTool("update_artist", "Updates an existing artist's information")]
+[McpTool("update_artist", "Updates an existing artist in the database")]
 public class UpdateArtistTool : IToolBase
 {
     private readonly ApplicationDbContext _dbContext;
@@ -15,13 +15,13 @@ public class UpdateArtistTool : IToolBase
     }
 
     public string Name => "update_artist";
-    public string Description => "Updates an existing artist's information";
+    public string Description => "Updates an existing artist in the database";
 
     public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
-        if (parameters == null || !parameters.ContainsKey("id") || !parameters.ContainsKey("name"))
+        if (parameters == null || !parameters.ContainsKey("id"))
         {
-            throw new ArgumentException("Parameters 'id' and 'name' are required");
+            throw new ArgumentException("Parameter 'id' is required");
         }
 
         var idString = parameters["id"]?.ToString();
@@ -30,13 +30,7 @@ public class UpdateArtistTool : IToolBase
             throw new ArgumentException("Invalid ID format. Must be a valid GUID");
         }
 
-        var name = parameters["name"]?.ToString();
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            throw new ArgumentException("Artist name cannot be empty");
-        }
-
-        var artist = await _dbContext.Artists.FirstOrDefaultAsync(a => a.Name == "");
+        var artist = await _dbContext.Artists.FirstOrDefaultAsync(a => a.Id == id);
 
         if (artist == null)
         {
@@ -47,16 +41,37 @@ public class UpdateArtistTool : IToolBase
             };
         }
 
-        artist.Name = name;
+        // Update firstName if provided
+        if (parameters.ContainsKey("firstName"))
+        {
+            var firstName = parameters["firstName"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(firstName))
+            {
+                artist.FirstName = firstName;
+            }
+        }
+
+        // Update lastName if provided
+        if (parameters.ContainsKey("lastName"))
+        {
+            var lastName = parameters["lastName"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(lastName))
+            {
+                artist.LastName = lastName;
+            }
+        }
+
         await _dbContext.SaveChangesAsync();
 
         return new
         {
             success = true,
+            message = "Artist updated successfully",
             artist = new
             {
-                //id = artist.Id,
-                name = artist.Name
+                id = artist.Id,
+                firstName = artist.FirstName,
+                lastName = artist.LastName
             }
         };
     }
@@ -77,13 +92,18 @@ public class UpdateArtistTool : IToolBase
                         type = "string",
                         description = "The GUID of the artist to update"
                     },
-                    name = new
+                    firstName = new
                     {
                         type = "string",
-                        description = "The new name for the artist"
+                        description = "The new first name of the artist (optional)"
+                    },
+                    lastName = new
+                    {
+                        type = "string",
+                        description = "The new last name of the artist (optional)"
                     }
                 },
-                required = new[] { "id", "name" }
+                required = new[] { "id" }
             }
         };
     }
@@ -111,12 +131,16 @@ public class UpdateArtistTool : IToolBase
                                     ["type"] = "string",
                                     ["format"] = "uuid"
                                 },
-                                ["name"] = new Dictionary<string, object>
+                                ["firstName"] = new Dictionary<string, object>
+                                {
+                                    ["type"] = "string"
+                                },
+                                ["lastName"] = new Dictionary<string, object>
                                 {
                                     ["type"] = "string"
                                 }
                             },
-                            ["required"] = new[] { "id", "name" }
+                            ["required"] = new[] { "id" }
                         }
                     }
                 }
@@ -138,6 +162,10 @@ public class UpdateArtistTool : IToolBase
                                     ["success"] = new Dictionary<string, object>
                                     {
                                         ["type"] = "boolean"
+                                    },
+                                    ["message"] = new Dictionary<string, object>
+                                    {
+                                        ["type"] = "string"
                                     },
                                     ["artist"] = new Dictionary<string, object>
                                     {

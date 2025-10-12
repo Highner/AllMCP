@@ -39,22 +39,36 @@ public class SearchArtistsTool : IToolBase
 
         var allArtists = await _dbContext.Artists.ToListAsync();
 
-        // Perform fuzzy search
+        // Perform fuzzy search on both first name, last name, and full name
         var searchResults = allArtists
             .Select(artist => new
             {
                 artist,
-                distance = CalculateLevenshteinDistance(query.ToLower(), artist.Name.ToLower()),
-                containsMatch = artist.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+                fullName = $"{artist.FirstName} {artist.LastName}",
+                firstNameDistance = CalculateLevenshteinDistance(query.ToLower(), artist.FirstName.ToLower()),
+                lastNameDistance = CalculateLevenshteinDistance(query.ToLower(), artist.LastName.ToLower()),
+                fullNameDistance = CalculateLevenshteinDistance(query.ToLower(), $"{artist.FirstName} {artist.LastName}".ToLower()),
+                firstNameContains = artist.FirstName.Contains(query, StringComparison.OrdinalIgnoreCase),
+                lastNameContains = artist.LastName.Contains(query, StringComparison.OrdinalIgnoreCase),
+                fullNameContains = $"{artist.FirstName} {artist.LastName}".Contains(query, StringComparison.OrdinalIgnoreCase)
             })
-            .Where(x => x.containsMatch || x.distance <= threshold)
+            .Select(x => new
+            {
+                x.artist,
+                x.fullName,
+                bestDistance = Math.Min(x.firstNameDistance, Math.Min(x.lastNameDistance, x.fullNameDistance)),
+                containsMatch = x.firstNameContains || x.lastNameContains || x.fullNameContains
+            })
+            .Where(x => x.containsMatch || x.bestDistance <= threshold)
             .OrderBy(x => x.containsMatch ? 0 : 1) // Prioritize contains matches
-            .ThenBy(x => x.distance) // Then sort by similarity
+            .ThenBy(x => x.bestDistance) // Then sort by similarity
             .Select(x => new
             {
                 id = x.artist.Id,
-                name = x.artist.Name,
-                relevanceScore = CalculateRelevanceScore(x.distance, query.Length, x.containsMatch)
+                firstName = x.artist.FirstName,
+                lastName = x.artist.LastName,
+                fullName = x.fullName,
+                relevanceScore = CalculateRelevanceScore(x.bestDistance, query.Length, x.containsMatch)
             })
             .ToList();
 
@@ -225,7 +239,15 @@ public class SearchArtistsTool : IToolBase
                                                     ["type"] = "string",
                                                     ["format"] = "uuid"
                                                 },
-                                                ["name"] = new Dictionary<string, object>
+                                                ["firstName"] = new Dictionary<string, object>
+                                                {
+                                                    ["type"] = "string"
+                                                },
+                                                ["lastName"] = new Dictionary<string, object>
+                                                {
+                                                    ["type"] = "string"
+                                                },
+                                                ["fullName"] = new Dictionary<string, object>
                                                 {
                                                     ["type"] = "string"
                                                 },

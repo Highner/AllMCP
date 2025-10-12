@@ -17,7 +17,9 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Artist>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
         });
+
     }
 }

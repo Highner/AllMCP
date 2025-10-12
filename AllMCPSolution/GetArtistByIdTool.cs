@@ -1,4 +1,3 @@
-
 using AllMCPSolution.Attributes;
 using AllMCPSolution.Tools;
 using Microsoft.EntityFrameworkCore;
@@ -48,7 +47,8 @@ public class GetArtistByIdTool : IToolBase
             artist = new
             {
                 id = artist.Id,
-                name = artist.Name
+                firstName = artist.FirstName,
+                lastName = artist.LastName
             }
         };
     }
