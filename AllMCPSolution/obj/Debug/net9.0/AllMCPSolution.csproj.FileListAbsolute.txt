@@ -25,3 +25,4 @@
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/AllMCPSolution.pdb
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/AllMCPSolution.genruntimeconfig.cache
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/ref/AllMCPSolution.dll
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/AllMCPSolution.sourcelink.json
