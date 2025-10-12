@@ -1,3 +1,4 @@
+using AllMCPSolution.Artists;
 using AllMCPSolution.Services;
 using AllMCPSolution.Tools;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,15 @@ builder.Services.AddEndpointsApiExplorer();
 
 // Register all tools (auto-discovered by ToolRegistry)
 builder.Services.AddSingleton<HelloWorldTool>();
+
+builder.Services.AddTransient<CreateArtistTool>();
+builder.Services.AddTransient<GetAllArtistsTool>();
+builder.Services.AddTransient<GetArtistByIdTool>();
+builder.Services.AddTransient<UpdateArtistTool>();
+builder.Services.AddTransient<DeleteArtistTool>();
+builder.Services.AddTransient<SearchArtistsTool>();
+
+
 
 // Register MCP services
 builder.Services.AddSingleton<ToolRegistry>();

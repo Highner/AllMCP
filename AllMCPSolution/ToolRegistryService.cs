@@ -6,7 +6,7 @@ namespace AllMCPSolution.Services;
 
 public class ToolRegistry
 {
-    private readonly Dictionary<string, IToolBase> _tools = new();
+    private readonly Dictionary<string, Type> _toolTypes = new();
     private readonly IServiceProvider _serviceProvider;
 
     public ToolRegistry(IServiceProvider serviceProvider)
@@ -26,17 +26,33 @@ public class ToolRegistry
 
         foreach (var toolType in toolTypes)
         {
-            var tool = _serviceProvider.GetService(toolType) as IToolBase;
-            if (tool != null)
+            var attribute = toolType.GetCustomAttribute<McpToolAttribute>();
+            if (attribute != null)
             {
-                _tools[tool.Name] = tool;
+                _toolTypes[attribute.Name] = toolType;
             }
         }
     }
 
-    public IEnumerable<IToolBase> GetAllTools() => _tools.Values;
+    public IEnumerable<IToolBase> GetAllTools()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        return _toolTypes.Values
+            .Select(type => scope.ServiceProvider.GetService(type) as IToolBase)
+            .Where(tool => tool != null)
+            .ToList()!;
+    }
 
-    public IToolBase? GetTool(string name) => _tools.TryGetValue(name, out var tool) ? tool : null;
+    public IToolBase? GetTool(string name)
+    {
+        if (!_toolTypes.TryGetValue(name, out var toolType))
+        {
+            return null;
+        }
 
-    public bool HasTool(string name) => _tools.ContainsKey(name);
+        using var scope = _serviceProvider.CreateScope();
+        return scope.ServiceProvider.GetService(toolType) as IToolBase;
+    }
+
+    public bool HasTool(string name) => _toolTypes.ContainsKey(name);
 }
