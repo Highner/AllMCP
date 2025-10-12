@@ -47,9 +47,9 @@ public class ManifestGenerator
         };
     }
 
-    public object GenerateOpenApiManifest()
+    public object GenerateOpenApiManifest(IServiceProvider? scopedProvider = null)
     {
-        var tools = _toolRegistry.GetAllTools().ToList();
+        var tools = _toolRegistry.GetAllTools(scopedProvider).ToList();
         var paths = new Dictionary<string, object>();
 
         foreach (var tool in tools)

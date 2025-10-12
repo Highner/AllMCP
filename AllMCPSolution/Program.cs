@@ -71,9 +71,11 @@ app.MapGet("/.well-known/mcp-manifest", () =>
 });
 
 // OpenAPI manifest for ChatGPT Custom GPT
-app.MapGet("/openapi.json", () =>
+app.MapGet("/openapi.json", (IServiceProvider serviceProvider) =>
 {
-    return Results.Json(manifestGenerator.GenerateOpenApiManifest());
+    using var scope = serviceProvider.CreateScope();
+    var manifestGenerator = scope.ServiceProvider.GetRequiredService<ManifestGenerator>();
+    return Results.Json(manifestGenerator.GenerateOpenApiManifest(scope.ServiceProvider));
 });
 
 // Tools discovery endpoint
