@@ -1,4 +1,5 @@
 using AllMCPSolution.Artists;
+using AllMCPSolution.Artworks;
 using AllMCPSolution.Services;
 using AllMCPSolution.Tools;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,12 @@ builder.Services.AddScoped<UpdateArtistTool>();
 builder.Services.AddScoped<DeleteArtistTool>();
 builder.Services.AddScoped<SearchArtistsTool>();
 
+builder.Services.AddScoped<CreateArtworkTool>();
+builder.Services.AddScoped<GetAllArtworksTool>();
+builder.Services.AddScoped<GetArtworkByIdTool>();
+builder.Services.AddScoped<UpdateArtworkTool>();
+builder.Services.AddScoped<DeleteArtworkTool>();
+builder.Services.AddScoped<SearchArtworksTool>();
 
 
 

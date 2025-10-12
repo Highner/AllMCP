@@ -10,7 +10,6 @@ public class CreateArtworkTool : IToolBase
 
     public CreateArtworkTool(ApplicationDbContext dbContext)
     {
-        
         _dbContext = dbContext;
     }
 
