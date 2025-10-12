@@ -2,8 +2,8 @@ public class ArtworkSale
 {
     public Guid Id { get; set; }
     public string Name { get; set; }
-    public int Height { get; set; }
-    public int Width { get; set; }
+    public decimal Height { get; set; }
+    public decimal Width { get; set; }
     public int YearCreated { get; set; }
     public DateTime SaleDate { get; set; }
     public string Technique { get; set; }

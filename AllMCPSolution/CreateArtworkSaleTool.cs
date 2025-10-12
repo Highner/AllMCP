@@ -38,8 +38,8 @@ public class CreateArtworkSaleTool : IToolBase
         }
 
         // Optional parameters with defaults
-        var height = parameters.ContainsKey("height") ? Convert.ToInt32(parameters["height"]) : 0;
-        var width = parameters.ContainsKey("width") ? Convert.ToInt32(parameters["width"]) : 0;
+        var height = parameters.ContainsKey("height") ? Convert.ToDecimal(parameters["height"]) : 0;
+        var width = parameters.ContainsKey("width") ? Convert.ToDecimal(parameters["width"]) : 0;
         var yearCreated = parameters.ContainsKey("yearCreated") ? Convert.ToInt32(parameters["yearCreated"]) : 0;
         var saleDate = parameters.ContainsKey("saleDate") ? Convert.ToDateTime(parameters["saleDate"]) : DateTime.Now;
         var technique = parameters.ContainsKey("technique") ? parameters["technique"]?.ToString() : "";

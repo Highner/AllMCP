@@ -90,11 +90,11 @@ public class BatchUpdateArtworkSalesTool : IToolBase
                 }
                 if (saleData.ContainsKey("height"))
                 {
-                    artworkSale.Height = Convert.ToInt32(saleData["height"]);
+                    artworkSale.Height = Convert.ToDecimal(saleData["height"]);
                 }
                 if (saleData.ContainsKey("width"))
                 {
-                    artworkSale.Width = Convert.ToInt32(saleData["width"]);
+                    artworkSale.Width = Convert.ToDecimal(saleData["width"]);
                 }
                 if (saleData.ContainsKey("yearCreated"))
                 {
@@ -219,12 +219,12 @@ public class BatchUpdateArtworkSalesTool : IToolBase
                                 },
                                 height = new
                                 {
-                                    type = "integer",
+                                    type = "number",
                                     description = "The height of the artwork in centimeters (optional)"
                                 },
                                 width = new
                                 {
-                                    type = "integer",
+                                    type = "number",
                                     description = "The width of the artwork in centimeters (optional)"
                                 },
                                 yearCreated = new
@@ -311,8 +311,8 @@ public class BatchUpdateArtworkSalesTool : IToolBase
                                             ["id"] = new Dictionary<string, object> { ["type"] = "string", ["format"] = "uuid" },
                                             ["name"] = new Dictionary<string, object> { ["type"] = "string" },
                                             ["artistId"] = new Dictionary<string, object> { ["type"] = "string", ["format"] = "uuid" },
-                                            ["height"] = new Dictionary<string, object> { ["type"] = "integer" },
-                                            ["width"] = new Dictionary<string, object> { ["type"] = "integer" },
+                                            ["height"] = new Dictionary<string, object> { ["type"] = "number" },
+                                            ["width"] = new Dictionary<string, object> { ["type"] = "number" },
                                             ["yearCreated"] = new Dictionary<string, object> { ["type"] = "integer" },
                                             ["saleDate"] = new Dictionary<string, object> { ["type"] = "string", ["format"] = "date-time" },
                                             ["technique"] = new Dictionary<string, object> { ["type"] = "string" },
