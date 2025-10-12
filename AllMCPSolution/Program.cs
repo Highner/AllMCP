@@ -23,12 +23,20 @@ builder.Services.AddScoped<UpdateArtistTool>();
 builder.Services.AddScoped<DeleteArtistTool>();
 builder.Services.AddScoped<SearchArtistsTool>();
 
-builder.Services.AddScoped<CreateArtworkTool>();
-builder.Services.AddScoped<GetAllArtworksTool>();
-builder.Services.AddScoped<GetArtworkByIdTool>();
-builder.Services.AddScoped<UpdateArtworkTool>();
-builder.Services.AddScoped<DeleteArtworkTool>();
-builder.Services.AddScoped<SearchArtworksTool>();
+//builder.Services.AddScoped<CreateArtworkTool>();
+//builder.Services.AddScoped<GetAllArtworksTool>();
+//builder.Services.AddScoped<GetArtworkByIdTool>();
+//builder.Services.AddScoped<UpdateArtworkTool>();
+//builder.Services.AddScoped<DeleteArtworkTool>();
+//builder.Services.AddScoped<SearchArtworksTool>();
+
+builder.Services.AddScoped<CreateArtworkSaleTool>();
+builder.Services.AddScoped<GetAllArtworkSalesTool>();
+builder.Services.AddScoped<GetArtworkSaleByIdTool>();
+builder.Services.AddScoped<UpdateArtworkSaleTool>();
+builder.Services.AddScoped<DeleteArtworkSaleTool>();
+builder.Services.AddScoped<SearchArtworkSalesTool>();
+
 
 
 
