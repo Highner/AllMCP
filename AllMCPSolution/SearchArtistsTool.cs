@@ -1,0 +1,248 @@
+using AllMCPSolution.Attributes;
+using AllMCPSolution.Tools;
+using Microsoft.EntityFrameworkCore;
+
+namespace AllMCPSolution.Artists;
+
+[McpTool("search_artists", "Searches for artists using fuzzy matching on their names")]
+public class SearchArtistsTool : IToolBase
+{
+    private readonly ApplicationDbContext _dbContext;
+
+    public SearchArtistsTool(ApplicationDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
+    public string Name => "search_artists";
+    public string Description => "Searches for artists using fuzzy matching on their names";
+
+    public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
+    {
+        if (parameters == null || !parameters.ContainsKey("query"))
+        {
+            throw new ArgumentException("Parameter 'query' is required");
+        }
+
+        var query = parameters["query"]?.ToString();
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            throw new ArgumentException("Search query cannot be empty");
+        }
+
+        // Get threshold for fuzzy matching (default to 3 for moderate tolerance)
+        var threshold = 3;
+        if (parameters.ContainsKey("threshold") && int.TryParse(parameters["threshold"]?.ToString(), out var parsedThreshold))
+        {
+            threshold = parsedThreshold;
+        }
+
+        var allArtists = await _dbContext.Artists.ToListAsync();
+
+        // Perform fuzzy search
+        var searchResults = allArtists
+            .Select(artist => new
+            {
+                artist,
+                distance = CalculateLevenshteinDistance(query.ToLower(), artist.Name.ToLower()),
+                containsMatch = artist.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+            })
+            .Where(x => x.containsMatch || x.distance <= threshold)
+            .OrderBy(x => x.containsMatch ? 0 : 1) // Prioritize contains matches
+            .ThenBy(x => x.distance) // Then sort by similarity
+            .Select(x => new
+            {
+                id = x.artist.Id,
+                name = x.artist.Name,
+                relevanceScore = CalculateRelevanceScore(x.distance, query.Length, x.containsMatch)
+            })
+            .ToList();
+
+        return new
+        {
+            success = true,
+            query,
+            count = searchResults.Count,
+            results = searchResults
+        };
+    }
+
+    private static int CalculateLevenshteinDistance(string source, string target)
+    {
+        if (string.IsNullOrEmpty(source))
+        {
+            return string.IsNullOrEmpty(target) ? 0 : target.Length;
+        }
+
+        if (string.IsNullOrEmpty(target))
+        {
+            return source.Length;
+        }
+
+        var sourceLength = source.Length;
+        var targetLength = target.Length;
+        var distance = new int[sourceLength + 1, targetLength + 1];
+
+        // Initialize first column and row
+        for (var i = 0; i <= sourceLength; i++)
+        {
+            distance[i, 0] = i;
+        }
+
+        for (var j = 0; j <= targetLength; j++)
+        {
+            distance[0, j] = j;
+        }
+
+        // Calculate distances
+        for (var i = 1; i <= sourceLength; i++)
+        {
+            for (var j = 1; j <= targetLength; j++)
+            {
+                var cost = target[j - 1] == source[i - 1] ? 0 : 1;
+
+                distance[i, j] = Math.Min(
+                    Math.Min(
+                        distance[i - 1, j] + 1,      // Deletion
+                        distance[i, j - 1] + 1),     // Insertion
+                    distance[i - 1, j - 1] + cost);  // Substitution
+            }
+        }
+
+        return distance[sourceLength, targetLength];
+    }
+
+    private static double CalculateRelevanceScore(int distance, int queryLength, bool containsMatch)
+    {
+        if (containsMatch)
+        {
+            return 1.0; // Perfect match or contains the query
+        }
+
+        // Calculate similarity as a percentage (lower distance = higher score)
+        var maxLength = Math.Max(distance, queryLength);
+        if (maxLength == 0) return 1.0;
+
+        return Math.Max(0, 1.0 - (double)distance / maxLength);
+    }
+
+    public object GetToolDefinition()
+    {
+        return new
+        {
+            name = Name,
+            description = Description,
+            inputSchema = new
+            {
+                type = "object",
+                properties = new
+                {
+                    query = new
+                    {
+                        type = "string",
+                        description = "The search query to match against artist names"
+                    },
+                    threshold = new
+                    {
+                        type = "integer",
+                        description = "Maximum edit distance for fuzzy matching (default: 3). Lower values are more strict.",
+                        @default = 3
+                    }
+                },
+                required = new[] { "query" }
+            }
+        };
+    }
+
+    public object GetOpenApiSchema()
+    {
+        return new Dictionary<string, object>
+        {
+            ["operationId"] = Name,
+            ["summary"] = Description,
+            ["parameters"] = new[]
+            {
+                new Dictionary<string, object>
+                {
+                    ["name"] = "query",
+                    ["in"] = "query",
+                    ["required"] = true,
+                    ["schema"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "string"
+                    },
+                    ["description"] = "The search query to match against artist names"
+                },
+                new Dictionary<string, object>
+                {
+                    ["name"] = "threshold",
+                    ["in"] = "query",
+                    ["required"] = false,
+                    ["schema"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "integer",
+                        ["default"] = 3
+                    },
+                    ["description"] = "Maximum edit distance for fuzzy matching"
+                }
+            },
+            ["responses"] = new Dictionary<string, object>
+            {
+                ["200"] = new Dictionary<string, object>
+                {
+                    ["description"] = "Search results with fuzzy matching",
+                    ["content"] = new Dictionary<string, object>
+                    {
+                        ["application/json"] = new Dictionary<string, object>
+                        {
+                            ["schema"] = new Dictionary<string, object>
+                            {
+                                ["type"] = "object",
+                                ["properties"] = new Dictionary<string, object>
+                                {
+                                    ["success"] = new Dictionary<string, object>
+                                    {
+                                        ["type"] = "boolean"
+                                    },
+                                    ["query"] = new Dictionary<string, object>
+                                    {
+                                        ["type"] = "string"
+                                    },
+                                    ["count"] = new Dictionary<string, object>
+                                    {
+                                        ["type"] = "integer"
+                                    },
+                                    ["results"] = new Dictionary<string, object>
+                                    {
+                                        ["type"] = "array",
+                                        ["items"] = new Dictionary<string, object>
+                                        {
+                                            ["type"] = "object",
+                                            ["properties"] = new Dictionary<string, object>
+                                            {
+                                                ["id"] = new Dictionary<string, object>
+                                                {
+                                                    ["type"] = "string",
+                                                    ["format"] = "uuid"
+                                                },
+                                                ["name"] = new Dictionary<string, object>
+                                                {
+                                                    ["type"] = "string"
+                                                },
+                                                ["relevanceScore"] = new Dictionary<string, object>
+                                                {
+                                                    ["type"] = "number",
+                                                    ["description"] = "Relevance score from 0 to 1 (1 being perfect match)"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+    }
+}

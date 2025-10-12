@@ -7,12 +7,17 @@ public class ApplicationDbContext : DbContext
     {
     }
 
-    // Add your DbSets here
-    // public DbSet<YourEntity> YourEntities { get; set; }
+    public DbSet<Artist> Artists { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        // Configure your entities here if needed
+        
+        // Configure Artist entity if needed
+        modelBuilder.Entity<Artist>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+        });
     }
 }
