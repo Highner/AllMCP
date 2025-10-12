@@ -1,15 +1,15 @@
+
 using AllMCPSolution.Models;
-using AllMCPSolution.Tools;
 
 namespace AllMCPSolution.Services;
 
 public class McpServer
 {
-    private readonly HelloWorldTool _helloWorldTool;
+    private readonly ToolRegistry _toolRegistry;
 
-    public McpServer(HelloWorldTool helloWorldTool)
+    public McpServer(ToolRegistry toolRegistry)
     {
-        _helloWorldTool = helloWorldTool;
+        _toolRegistry = toolRegistry;
     }
 
     public async Task<McpResponse> HandleRequestAsync(Dictionary<string, object>? request)
@@ -85,10 +85,9 @@ public class McpServer
 
     private Task<McpResponse> HandleToolsListAsync(string? id)
     {
-        var tools = new[]
-        {
-            _helloWorldTool.GetToolDefinition()
-        };
+        var tools = _toolRegistry.GetAllTools()
+            .Select(t => t.GetToolDefinition())
+            .ToArray();
 
         return Task.FromResult(new McpResponse
         {
@@ -118,33 +117,52 @@ public class McpServer
         var paramsDict = request["params"] as Dictionary<string, object>;
         var toolName = paramsDict?.ContainsKey("name") == true ? paramsDict["name"]?.ToString() : null;
 
-        if (toolName == _helloWorldTool.Name)
+        if (string.IsNullOrEmpty(toolName))
         {
-            var result = await _helloWorldTool.ExecuteAsync();
             return new McpResponse
             {
                 Id = id,
-                Result = new
+                Error = new McpError
                 {
-                    content = new[]
-                    {
-                        new
-                        {
-                            type = "text",
-                            text = result
-                        }
-                    }
+                    Code = -32602,
+                    Message = "Tool name is required"
                 }
             };
         }
 
+        var tool = _toolRegistry.GetTool(toolName);
+        if (tool == null)
+        {
+            return new McpResponse
+            {
+                Id = id,
+                Error = new McpError
+                {
+                    Code = -32602,
+                    Message = $"Unknown tool: {toolName}"
+                }
+            };
+        }
+
+        var arguments = paramsDict?.ContainsKey("arguments") == true 
+            ? paramsDict["arguments"] as Dictionary<string, object> 
+            : null;
+
+        var result = await tool.ExecuteAsync(arguments);
+        
         return new McpResponse
         {
             Id = id,
-            Error = new McpError
+            Result = new
             {
-                Code = -32602,
-                Message = $"Unknown tool: {toolName}"
+                content = new[]
+                {
+                    new
+                    {
+                        type = "text",
+                        text = result.ToString()
+                    }
+                }
             }
         };
     }

@@ -6,11 +6,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-//builder.Services.AddSwaggerGen();
+
+// Register all tools (auto-discovered by ToolRegistry)
+builder.Services.AddSingleton<HelloWorldTool>();
 
 // Register MCP services
+builder.Services.AddSingleton<ToolRegistry>();
+builder.Services.AddSingleton<ManifestGenerator>();
 builder.Services.AddSingleton<McpServer>();
-builder.Services.AddSingleton<HelloWorldTool>();
 
 // Add CORS for AI agent access
 builder.Services.AddCors(options =>
@@ -25,20 +28,16 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
-{
-    //app.UseSwagger();
-    //app.UseSwaggerUI();
-}
-
 app.UseHttpsRedirection();
 app.UseCors("AllowAIAgents");
 app.UseAuthorization();
 
-// MCP endpoint
+// Get services
 var mcpServer = app.Services.GetRequiredService<McpServer>();
+var manifestGenerator = app.Services.GetRequiredService<ManifestGenerator>();
+var toolRegistry = app.Services.GetRequiredService<ToolRegistry>();
 
+// MCP endpoint
 app.MapPost("/mcp", async (HttpContext context) =>
 {
     var request = await context.Request.ReadFromJsonAsync<Dictionary<string, object>>();
@@ -48,55 +47,51 @@ app.MapPost("/mcp", async (HttpContext context) =>
 
 app.MapGet("/", () => "MCP Server is running!");
 
-// Discovery endpoint - returns server manifest and capabilities
+// MCP Manifest endpoint
 app.MapGet("/.well-known/mcp-manifest", () =>
 {
-    var baseUrl = "https://allmcp-azfthzccbub7a3e5.northeurope-01.azurewebsites.net";
-    
-    return Results.Json(new
-    {
-        schemaVersion = "1.0",
-        name = "AllMCPSolution",
-        version = "1.0.0",
-        description = "A simple MCP server with a Hello World test tool",
-        protocol = "mcp",
-        protocolVersion = "2024-11-05",
-        endpoints = new
-        {
-            mcp = new
-            {
-                url = $"{baseUrl}/mcp",
-                transport = "http",
-                methods = new[] { "POST" }
-            }
-        },
-        capabilities = new
-        {
-            tools = true,
-            prompts = false,
-            resources = false
-        },
-        metadata = new
-        {
-            author = "Your Name",
-            homepage = baseUrl,
-            documentation = $"{baseUrl}/docs"
-        }
-    });
+    return Results.Json(manifestGenerator.GenerateMcpManifest());
 });
 
-// Tools discovery endpoint - lists all available tools
-app.MapGet("/tools", async () =>
+// OpenAPI manifest for ChatGPT Custom GPT
+app.MapGet("/openapi.json", () =>
 {
-    var helloWorldTool = app.Services.GetRequiredService<HelloWorldTool>();
-    
-    return Results.Json(new
-    {
-        tools = new[]
-        {
-            helloWorldTool.GetToolDefinition()
-        }
-    });
+    return Results.Json(manifestGenerator.GenerateOpenApiManifest());
 });
+
+// Tools discovery endpoint
+app.MapGet("/tools", () =>
+{
+    var tools = toolRegistry.GetAllTools()
+        .Select(t => t.GetToolDefinition())
+        .ToArray();
+    
+    return Results.Json(new { tools });
+});
+
+// Dynamic tool endpoints for direct access
+foreach (var tool in toolRegistry.GetAllTools())
+{
+    var toolName = tool.Name;
+    app.MapPost($"/tools/{toolName}", async (HttpContext context) =>
+    {
+        var t = toolRegistry.GetTool(toolName);
+        if (t == null)
+        {
+            return Results.NotFound();
+        }
+
+        Dictionary<string, object>? parameters = null;
+        if (context.Request.ContentLength > 0)
+        {
+            parameters = await context.Request.ReadFromJsonAsync<Dictionary<string, object>>();
+        }
+
+        var result = await t.ExecuteAsync(parameters);
+        return Results.Ok(new { result });
+    })
+    .WithName(toolName)
+    .WithDescription(tool.Description);
+}
 
 app.Run();
