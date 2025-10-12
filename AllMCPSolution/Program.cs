@@ -108,10 +108,25 @@ foreach (var toolType in toolRegistry.GetAllToolTypes())
                 return Results.NotFound();
             }
 
-            Dictionary<string, object>? parameters = null;
+            Dictionary<string, object>? parameters = new();
+            
+            // Read from request body if present
             if (context.Request.ContentLength > 0)
             {
-                parameters = await context.Request.ReadFromJsonAsync<Dictionary<string, object>>();
+                var bodyParams = await context.Request.ReadFromJsonAsync<Dictionary<string, object>>();
+                if (bodyParams != null)
+                {
+                    foreach (var kvp in bodyParams)
+                    {
+                        parameters[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+            
+            // Also read from query parameters
+            foreach (var queryParam in context.Request.Query)
+            {
+                parameters[queryParam.Key] = queryParam.Value.ToString() ?? "";
             }
 
             var result = await t.ExecuteAsync(parameters);
