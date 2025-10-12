@@ -74,17 +74,17 @@ public class BatchCreateArtworkSalesTool : IToolBase
                     continue;
                 }
 
-                var height = saleData.ContainsKey("height") ? Convert.ToInt32(saleData["height"]) : 0;
-                var width = saleData.ContainsKey("width") ? Convert.ToInt32(saleData["width"]) : 0;
-                var yearCreated = saleData.ContainsKey("yearCreated") ? Convert.ToInt32(saleData["yearCreated"]) : 0;
-                var saleDate = saleData.ContainsKey("saleDate") ? Convert.ToDateTime(saleData["saleDate"]) : DateTime.Now;
-                var technique = saleData.ContainsKey("technique") ? saleData["technique"]?.ToString() : "";
-                var category = saleData.ContainsKey("category") ? saleData["category"]?.ToString() : "";
-                var currency = saleData.ContainsKey("currency") ? saleData["currency"]?.ToString() : "USD";
-                var lowEstimate = saleData.ContainsKey("lowEstimate") ? Convert.ToDecimal(saleData["lowEstimate"]) : 0m;
-                var highEstimate = saleData.ContainsKey("highEstimate") ? Convert.ToDecimal(saleData["highEstimate"]) : 0m;
-                var hammerPrice = saleData.ContainsKey("hammerPrice") ? Convert.ToDecimal(saleData["hammerPrice"]) : 0m;
-                var sold = saleData.ContainsKey("sold") ? Convert.ToBoolean(saleData["sold"]) : false;
+                var height = GetIntValue(saleData, "height", 0);
+                var width = GetIntValue(saleData, "width", 0);
+                var yearCreated = GetIntValue(saleData, "yearCreated", 0);
+                var saleDate = GetDateTimeValue(saleData, "saleDate", DateTime.Now);
+                var technique = GetStringValue(saleData, "technique", "");
+                var category = GetStringValue(saleData, "category", "");
+                var currency = GetStringValue(saleData, "currency", "USD");
+                var lowEstimate = GetDecimalValue(saleData, "lowEstimate", 0m);
+                var highEstimate = GetDecimalValue(saleData, "highEstimate", 0m);
+                var hammerPrice = GetDecimalValue(saleData, "hammerPrice", 0m);
+                var sold = GetBoolValue(saleData, "sold", false);
 
                 var artworkSale = new ArtworkSale
                 {
@@ -323,4 +323,78 @@ public class BatchCreateArtworkSalesTool : IToolBase
             }
         };
     }
+    private static int GetIntValue(Dictionary<string, object> data, string key, int defaultValue)
+    {
+        if (!data.ContainsKey(key)) return defaultValue;
+        
+        var value = data[key];
+        if (value is JsonElement jsonElement)
+        {
+            if (jsonElement.ValueKind == JsonValueKind.Number)
+                return jsonElement.GetInt32();
+            if (jsonElement.ValueKind == JsonValueKind.String && int.TryParse(jsonElement.GetString(), out var intValue))
+                return intValue;
+        }
+        return Convert.ToInt32(value);
+    }
+
+    private static decimal GetDecimalValue(Dictionary<string, object> data, string key, decimal defaultValue)
+    {
+        if (!data.ContainsKey(key)) return defaultValue;
+        
+        var value = data[key];
+        if (value is JsonElement jsonElement)
+        {
+            if (jsonElement.ValueKind == JsonValueKind.Number)
+                return jsonElement.GetDecimal();
+            if (jsonElement.ValueKind == JsonValueKind.String && decimal.TryParse(jsonElement.GetString(), out var decimalValue))
+                return decimalValue;
+        }
+        return Convert.ToDecimal(value);
+    }
+
+    private static bool GetBoolValue(Dictionary<string, object> data, string key, bool defaultValue)
+    {
+        if (!data.ContainsKey(key)) return defaultValue;
+        
+        var value = data[key];
+        if (value is JsonElement jsonElement)
+        {
+            if (jsonElement.ValueKind == JsonValueKind.True) return true;
+            if (jsonElement.ValueKind == JsonValueKind.False) return false;
+            if (jsonElement.ValueKind == JsonValueKind.String && bool.TryParse(jsonElement.GetString(), out var boolValue))
+                return boolValue;
+        }
+        return Convert.ToBoolean(value);
+    }
+
+    private static string GetStringValue(Dictionary<string, object> data, string key, string defaultValue)
+    {
+        if (!data.ContainsKey(key)) return defaultValue;
+        
+        var value = data[key];
+        if (value is JsonElement jsonElement)
+        {
+            return jsonElement.GetString() ?? defaultValue;
+        }
+        return value?.ToString() ?? defaultValue;
+    }
+
+    private static DateTime GetDateTimeValue(Dictionary<string, object> data, string key, DateTime defaultValue)
+    {
+        if (!data.ContainsKey(key)) return defaultValue;
+        
+        var value = data[key];
+        if (value is JsonElement jsonElement)
+        {
+            if (jsonElement.ValueKind == JsonValueKind.String)
+            {
+                var dateString = jsonElement.GetString();
+                if (DateTime.TryParse(dateString, out var dateValue))
+                    return dateValue;
+            }
+        }
+        return Convert.ToDateTime(value);
+    }
+
 }
