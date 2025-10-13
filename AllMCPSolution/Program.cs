@@ -32,7 +32,7 @@ builder.Services.AddScoped<SearchArtistsTool>();
 //builder.Services.AddScoped<SearchArtworksTool>();
 
 builder.Services.AddScoped<CreateArtworkSaleTool>();
-builder.Services.AddScoped<GetAllArtworkSalesTool>();
+//builder.Services.AddScoped<GetAllArtworkSalesTool>();
 builder.Services.AddScoped<GetArtworkSaleByIdTool>();
 builder.Services.AddScoped<UpdateArtworkSaleTool>();
 builder.Services.AddScoped<DeleteArtworkSaleTool>();
