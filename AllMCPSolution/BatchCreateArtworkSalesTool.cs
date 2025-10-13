@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace AllMCPSolution.Artworks;
 
-[McpTool("batch_create_artwork_sales", "Creates multiple artwork sales in a single batch operation")]
+[McpTool("batch_create_artwork_sales", "Creates multiple artwork sales in a single batch operation. you can use up to 30 sales per batch.")]
 public class BatchCreateArtworkSalesTool : IToolBase
 {
     private readonly ApplicationDbContext _dbContext;
