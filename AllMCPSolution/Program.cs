@@ -1,5 +1,6 @@
 using AllMCPSolution.Artists;
 using AllMCPSolution.Artworks;
+using AllMCPSolution.Charts;
 using AllMCPSolution.Services;
 using AllMCPSolution.Tools;
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +42,7 @@ builder.Services.AddScoped<BatchCreateArtworkSalesTool>();
 builder.Services.AddScoped<BatchUpdateArtworkSalesTool>();
 builder.Services.AddScoped<BatchDeleteArtworkSalesTool>();
 
-
+builder.Services.AddScoped<RenderLineChartTool>();
 
 
 // Register MCP services
