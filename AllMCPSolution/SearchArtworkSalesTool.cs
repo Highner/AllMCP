@@ -18,18 +18,16 @@ public class SearchArtworkSalesTool : IToolBase
     public string Description => "Searches for artwork sales by name using fuzzy matching with optional filters";
     public string? SafetyLevel => "non_critical";
 
-    public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
+        public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
-        if (parameters == null || !parameters.ContainsKey("query"))
+        if (parameters == null)
         {
-            throw new ArgumentException("Parameter 'query' is required");
+            throw new ArgumentException("Parameters are required");
         }
 
-        var query = parameters["query"]?.ToString()?.ToLower();
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            throw new ArgumentException("Query cannot be empty");
-        }
+        // Query is now optional when other filters are provided
+        var query = parameters.ContainsKey("query") ? parameters["query"]?.ToString()?.ToLower()?.Trim() : null;
+        var hasQuery = !string.IsNullOrWhiteSpace(query);
 
         // Parse optional parameters
         Guid? artistId = null;
@@ -119,6 +117,16 @@ public class SearchArtworkSalesTool : IToolBase
             }
         }
 
+        // Check if at least one filter is provided
+        if (!hasQuery && !artistId.HasValue && string.IsNullOrWhiteSpace(category) &&
+            !minHammerPrice.HasValue && !maxHammerPrice.HasValue &&
+            !minHeight.HasValue && !maxHeight.HasValue &&
+            !minWidth.HasValue && !maxWidth.HasValue &&
+            !minYearCreated.HasValue && !maxYearCreated.HasValue)
+        {
+            throw new ArgumentException("At least one search parameter (query or filter) is required");
+        }
+
         var artworkSales = await _dbContext.ArtworkSales
             .Include(a => a.Artist)
             .ToListAsync();
@@ -177,42 +185,78 @@ public class SearchArtworkSalesTool : IToolBase
             filteredSales = filteredSales.Where(a => a.YearCreated <= maxYearCreated.Value);
         }
 
-        // Perform fuzzy matching
-        var results = filteredSales
-            .Select(a => new
-            {
-                artworkSale = a,
-                distance = CalculateLevenshteinDistance(query, a.Name.ToLower()),
-                containsMatch = a.Name.ToLower().Contains(query)
-            })
-            .Where(x => x.distance <= query.Length || x.containsMatch)
-            .OrderBy(x => CalculateRelevanceScore(x.distance, query.Length, x.containsMatch))
-            .Take(10)
-            .Select(x => new
-            {
-                id = x.artworkSale.Id,
-                name = x.artworkSale.Name,
-                height = x.artworkSale.Height,
-                width = x.artworkSale.Width,
-                yearCreated = x.artworkSale.YearCreated,
-                saleDate = x.artworkSale.SaleDate,
-                technique = x.artworkSale.Technique,
-                category = x.artworkSale.Category,
-                currency = x.artworkSale.Currency,
-                lowEstimate = x.artworkSale.LowEstimate,
-                highEstimate = x.artworkSale.HighEstimate,
-                hammerPrice = x.artworkSale.HammerPrice,
-                sold = x.artworkSale.Sold,
-                artistId = x.artworkSale.ArtistId,
-                artist = x.artworkSale.Artist != null ? new
+        // Perform fuzzy matching only if query is provided
+        IEnumerable<dynamic> results;
+        
+        if (hasQuery)
+        {
+            results = filteredSales
+                .Select(a => new
                 {
-                    id = x.artworkSale.Artist.Id,
-                    firstName = x.artworkSale.Artist.FirstName,
-                    lastName = x.artworkSale.Artist.LastName
-                } : null,
-                relevanceScore = CalculateRelevanceScore(x.distance, query.Length, x.containsMatch)
-            })
-            .ToList();
+                    artworkSale = a,
+                    distance = CalculateLevenshteinDistance(query!, a.Name.ToLower()),
+                    containsMatch = a.Name.ToLower().Contains(query!)
+                })
+                .Where(x => x.distance <= query!.Length || x.containsMatch)
+                .OrderBy(x => CalculateRelevanceScore(x.distance, query!.Length, x.containsMatch))
+                .Take(10)
+                .Select(x => new
+                {
+                    id = x.artworkSale.Id,
+                    name = x.artworkSale.Name,
+                    height = x.artworkSale.Height,
+                    width = x.artworkSale.Width,
+                    yearCreated = x.artworkSale.YearCreated,
+                    saleDate = x.artworkSale.SaleDate,
+                    technique = x.artworkSale.Technique,
+                    category = x.artworkSale.Category,
+                    currency = x.artworkSale.Currency,
+                    lowEstimate = x.artworkSale.LowEstimate,
+                    highEstimate = x.artworkSale.HighEstimate,
+                    hammerPrice = x.artworkSale.HammerPrice,
+                    sold = x.artworkSale.Sold,
+                    artistId = x.artworkSale.ArtistId,
+                    artist = x.artworkSale.Artist != null ? new
+                    {
+                        id = x.artworkSale.Artist.Id,
+                        firstName = x.artworkSale.Artist.FirstName,
+                        lastName = x.artworkSale.Artist.LastName
+                    } : null,
+                    relevanceScore = CalculateRelevanceScore(x.distance, query!.Length, x.containsMatch)
+                })
+                .ToList<dynamic>();
+        }
+        else
+        {
+            // No query, just return filtered results (limited to 10)
+            results = filteredSales
+                .Take(10)
+                .Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    height = a.Height,
+                    width = a.Width,
+                    yearCreated = a.YearCreated,
+                    saleDate = a.SaleDate,
+                    technique = a.Technique,
+                    category = a.Category,
+                    currency = a.Currency,
+                    lowEstimate = a.LowEstimate,
+                    highEstimate = a.HighEstimate,
+                    hammerPrice = a.HammerPrice,
+                    sold = a.Sold,
+                    artistId = a.ArtistId,
+                    artist = a.Artist != null ? new
+                    {
+                        id = a.Artist.Id,
+                        firstName = a.Artist.FirstName,
+                        lastName = a.Artist.LastName
+                    } : null,
+                    relevanceScore = (double?)null
+                })
+                .ToList<dynamic>();
+        }
 
         return new
         {
@@ -235,10 +279,12 @@ public class SearchArtworkSalesTool : IToolBase
                     ? new { min = minYearCreated, max = maxYearCreated } 
                     : null
             },
-            count = results.Count,
+            count = results.Count(),
             artworkSales = results
         };
     }
+
+ 
 
     private int CalculateLevenshteinDistance(string source, string target)
     {
@@ -284,6 +330,7 @@ public class SearchArtworkSalesTool : IToolBase
         return containsMatch ? score - 0.5 : score; // Boost exact substring matches
     }
 
+   
     public object GetToolDefinition()
     {
         return new
@@ -303,7 +350,7 @@ public class SearchArtworkSalesTool : IToolBase
                     query = new
                     {
                         type = "string",
-                        description = "The search query to match against artwork sale names"
+                        description = "Optional: The search query to match against artwork sale names"
                     },
                     artistId = new
                     {
@@ -356,7 +403,7 @@ public class SearchArtworkSalesTool : IToolBase
                         description = "Optional: Maximum year created"
                     }
                 },
-                required = new[] { "query" }
+                required = new string[] { }  // No required parameters now
             }
         };
     }
