@@ -15,8 +15,9 @@ public class SearchArtworkSalesTool : IToolBase
     }
 
     public string Name => "search_artwork_sales";
-    public string Description => "Searches for artwork sales by name using fuzzy matching with optional filters";
+    public string Description => "Searches for artwork sales by name using fuzzy matching with optional filters and pagination. Returns results ordered by relevance.";
     public string? SafetyLevel => "non_critical";
+
 
         public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
@@ -29,11 +30,21 @@ public class SearchArtworkSalesTool : IToolBase
         var query = parameters.ContainsKey("query") ? parameters["query"]?.ToString()?.ToLower()?.Trim() : null;
         var hasQuery = !string.IsNullOrWhiteSpace(query);
 
+        // Default pagination values
+        int page = 1;
+        int pageSize = 10;
+
+        if (parameters.ContainsKey("page") && int.TryParse(parameters["page"]?.ToString(), out int p))
+            page = Math.Max(1, p);
+        
+        if (parameters.ContainsKey("pageSize") && int.TryParse(parameters["pageSize"]?.ToString(), out int ps))
+            pageSize = Math.Clamp(ps, 1, 50);
+
         // Parse optional parameters
         Guid? artistId = null;
         if (parameters.ContainsKey("artistId") && parameters["artistId"] != null)
         {
-            if (Guid.TryParse(parameters["artistId"].ToString(), out var parsedArtistId))
+            if (Guid.TryParse(parameters["artistId"]?.ToString(), out var parsedArtistId))
             {
                 artistId = parsedArtistId;
             }
@@ -42,78 +53,78 @@ public class SearchArtworkSalesTool : IToolBase
         string? category = null;
         if (parameters.ContainsKey("category") && parameters["category"] != null)
         {
-            category = parameters["category"].ToString();
+            category = parameters["category"]?.ToString()?.Trim();
         }
 
         decimal? minHammerPrice = null;
         if (parameters.ContainsKey("minHammerPrice") && parameters["minHammerPrice"] != null)
         {
-            if (decimal.TryParse(parameters["minHammerPrice"].ToString(), out var parsedMin))
+            if (decimal.TryParse(parameters["minHammerPrice"]?.ToString(), out var parsedMinHammerPrice))
             {
-                minHammerPrice = parsedMin;
+                minHammerPrice = parsedMinHammerPrice;
             }
         }
 
         decimal? maxHammerPrice = null;
         if (parameters.ContainsKey("maxHammerPrice") && parameters["maxHammerPrice"] != null)
         {
-            if (decimal.TryParse(parameters["maxHammerPrice"].ToString(), out var parsedMax))
+            if (decimal.TryParse(parameters["maxHammerPrice"]?.ToString(), out var parsedMaxHammerPrice))
             {
-                maxHammerPrice = parsedMax;
+                maxHammerPrice = parsedMaxHammerPrice;
             }
         }
 
         decimal? minHeight = null;
         if (parameters.ContainsKey("minHeight") && parameters["minHeight"] != null)
         {
-            if (decimal.TryParse(parameters["minHeight"].ToString(), out var parsedMin))
+            if (decimal.TryParse(parameters["minHeight"]?.ToString(), out var parsedMinHeight))
             {
-                minHeight = parsedMin;
+                minHeight = parsedMinHeight;
             }
         }
 
         decimal? maxHeight = null;
         if (parameters.ContainsKey("maxHeight") && parameters["maxHeight"] != null)
         {
-            if (decimal.TryParse(parameters["maxHeight"].ToString(), out var parsedMax))
+            if (decimal.TryParse(parameters["maxHeight"]?.ToString(), out var parsedMaxHeight))
             {
-                maxHeight = parsedMax;
+                maxHeight = parsedMaxHeight;
             }
         }
 
         decimal? minWidth = null;
         if (parameters.ContainsKey("minWidth") && parameters["minWidth"] != null)
         {
-            if (decimal.TryParse(parameters["minWidth"].ToString(), out var parsedMin))
+            if (decimal.TryParse(parameters["minWidth"]?.ToString(), out var parsedMinWidth))
             {
-                minWidth = parsedMin;
+                minWidth = parsedMinWidth;
             }
         }
 
         decimal? maxWidth = null;
         if (parameters.ContainsKey("maxWidth") && parameters["maxWidth"] != null)
         {
-            if (decimal.TryParse(parameters["maxWidth"].ToString(), out var parsedMax))
+            if (decimal.TryParse(parameters["maxWidth"]?.ToString(), out var parsedMaxWidth))
             {
-                maxWidth = parsedMax;
+                maxWidth = parsedMaxWidth;
             }
         }
 
         int? minYearCreated = null;
         if (parameters.ContainsKey("minYearCreated") && parameters["minYearCreated"] != null)
         {
-            if (int.TryParse(parameters["minYearCreated"].ToString(), out var parsedMin))
+            if (int.TryParse(parameters["minYearCreated"]?.ToString(), out var parsedMinYearCreated))
             {
-                minYearCreated = parsedMin;
+                minYearCreated = parsedMinYearCreated;
             }
         }
 
         int? maxYearCreated = null;
         if (parameters.ContainsKey("maxYearCreated") && parameters["maxYearCreated"] != null)
         {
-            if (int.TryParse(parameters["maxYearCreated"].ToString(), out var parsedMax))
+            if (int.TryParse(parameters["maxYearCreated"]?.ToString(), out var parsedMaxYearCreated))
             {
-                maxYearCreated = parsedMax;
+                maxYearCreated = parsedMaxYearCreated;
             }
         }
 
@@ -124,7 +135,7 @@ public class SearchArtworkSalesTool : IToolBase
             !minWidth.HasValue && !maxWidth.HasValue &&
             !minYearCreated.HasValue && !maxYearCreated.HasValue)
         {
-            throw new ArgumentException("At least one search parameter (query or filter) is required");
+            throw new ArgumentException("At least one search parameter (query, artistId, category, or price/dimension filters) must be provided");
         }
 
         var artworkSales = await _dbContext.ArtworkSales
@@ -186,51 +197,49 @@ public class SearchArtworkSalesTool : IToolBase
         }
 
         // Perform fuzzy matching only if query is provided
-        IEnumerable<dynamic> results;
+        IEnumerable<dynamic> allResults;
         
         if (hasQuery)
         {
-            results = filteredSales
+            allResults = filteredSales
                 .Select(a => new
                 {
-                    artworkSale = a,
+                    artwork = a,
                     distance = CalculateLevenshteinDistance(query!, a.Name.ToLower()),
                     containsMatch = a.Name.ToLower().Contains(query!)
                 })
                 .Where(x => x.distance <= query!.Length || x.containsMatch)
                 .OrderBy(x => CalculateRelevanceScore(x.distance, query!.Length, x.containsMatch))
-                //.Take(10)
                 .Select(x => new
                 {
-                    id = x.artworkSale.Id,
-                    name = x.artworkSale.Name,
-                    height = x.artworkSale.Height,
-                    width = x.artworkSale.Width,
-                    yearCreated = x.artworkSale.YearCreated,
-                    saleDate = x.artworkSale.SaleDate,
-                    technique = x.artworkSale.Technique,
-                    category = x.artworkSale.Category,
-                    currency = x.artworkSale.Currency,
-                    lowEstimate = x.artworkSale.LowEstimate,
-                    highEstimate = x.artworkSale.HighEstimate,
-                    hammerPrice = x.artworkSale.HammerPrice,
-                    sold = x.artworkSale.Sold,
-                    artistId = x.artworkSale.ArtistId,
-                    artist = x.artworkSale.Artist != null ? new
+                    id = x.artwork.Id,
+                    name = x.artwork.Name,
+                    height = x.artwork.Height,
+                    width = x.artwork.Width,
+                    yearCreated = x.artwork.YearCreated,
+                    saleDate = x.artwork.SaleDate,
+                    technique = x.artwork.Technique,
+                    category = x.artwork.Category,
+                    currency = x.artwork.Currency,
+                    lowEstimate = x.artwork.LowEstimate,
+                    highEstimate = x.artwork.HighEstimate,
+                    hammerPrice = x.artwork.HammerPrice,
+                    sold = x.artwork.Sold,
+                    artistId = x.artwork.ArtistId,
+                    artist = x.artwork.Artist != null ? new
                     {
-                        id = x.artworkSale.Artist.Id,
-                        firstName = x.artworkSale.Artist.FirstName,
-                        lastName = x.artworkSale.Artist.LastName
+                        id = x.artwork.Artist.Id,
+                        firstName = x.artwork.Artist.FirstName,
+                        lastName = x.artwork.Artist.LastName
                     } : null,
                     relevanceScore = CalculateRelevanceScore(x.distance, query!.Length, x.containsMatch)
                 })
-                .OrderByDescending(x => x.saleDate).ToList<dynamic>();
+                .ToList();
         }
         else
         {
-            // No query, just return filtered results (limited to 10)
-            results = filteredSales
-                //.Take(10)
+            allResults = filteredSales
+                .OrderBy(a => a.Name)
                 .Select(a => new
                 {
                     id = a.Id,
@@ -255,8 +264,16 @@ public class SearchArtworkSalesTool : IToolBase
                     } : null,
                     relevanceScore = (double?)null
                 })
-                .OrderByDescending(x => x.saleDate).ToList<dynamic>();
+                .ToList();
         }
+
+        var totalCount = allResults.Count();
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        var results = allResults
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
 
         return new
         {
@@ -279,10 +296,20 @@ public class SearchArtworkSalesTool : IToolBase
                     ? new { min = minYearCreated, max = maxYearCreated } 
                     : null
             },
-            count = results.Count(),
+            pagination = new
+            {
+                currentPage = page,
+                pageSize = pageSize,
+                totalItems = totalCount,
+                totalPages = totalPages,
+                hasNextPage = page < totalPages,
+                hasPreviousPage = page > 1
+            },
+            count = results.Count,
             artworkSales = results
         };
     }
+
 
  
 
@@ -341,7 +368,6 @@ public class SearchArtworkSalesTool : IToolBase
             {
                 level = SafetyLevel
             },
-
             inputSchema = new
             {
                 type = "object",
@@ -350,63 +376,78 @@ public class SearchArtworkSalesTool : IToolBase
                     query = new
                     {
                         type = "string",
-                        description = "Optional: The search query to match against artwork sale names"
+                        description = "The search query to match against artwork names (optional if other filters provided)"
                     },
                     artistId = new
                     {
                         type = "string",
-                        description = "Optional: Filter by artist ID (GUID format)"
+                        format = "uuid",
+                        description = "Filter by artist ID"
                     },
                     category = new
                     {
                         type = "string",
-                        description = "Optional: Filter by category"
+                        description = "Filter by category"
                     },
                     minHammerPrice = new
                     {
                         type = "number",
-                        description = "Optional: Minimum hammer price"
+                        description = "Minimum hammer price filter"
                     },
                     maxHammerPrice = new
                     {
                         type = "number",
-                        description = "Optional: Maximum hammer price"
+                        description = "Maximum hammer price filter"
                     },
                     minHeight = new
                     {
                         type = "number",
-                        description = "Optional: Minimum height"
+                        description = "Minimum height filter"
                     },
                     maxHeight = new
                     {
                         type = "number",
-                        description = "Optional: Maximum height"
+                        description = "Maximum height filter"
                     },
                     minWidth = new
                     {
                         type = "number",
-                        description = "Optional: Minimum width"
+                        description = "Minimum width filter"
                     },
                     maxWidth = new
                     {
                         type = "number",
-                        description = "Optional: Maximum width"
+                        description = "Maximum width filter"
                     },
                     minYearCreated = new
                     {
                         type = "integer",
-                        description = "Optional: Minimum year created"
+                        description = "Minimum year created filter"
                     },
                     maxYearCreated = new
                     {
                         type = "integer",
-                        description = "Optional: Maximum year created"
+                        description = "Maximum year created filter"
+                    },
+                    page = new
+                    {
+                        type = "integer",
+                        description = "Page number to retrieve (default: 1)",
+                        minimum = 1
+                    },
+                    pageSize = new
+                    {
+                        type = "integer",
+                        description = "Number of items per page (default: 10, max: 50)",
+                        minimum = 1,
+                        maximum = 50
                     }
                 },
-                required = new string[] { }  // No required parameters now
+                required = new string[] { }
             }
         };
     }
+
 
     public object GetOpenApiSchema()
     {
