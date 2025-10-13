@@ -8,6 +8,7 @@ namespace AllMCPSolution.Artworks;
 public class SearchArtworkSalesTool : IToolBase
 {
     private readonly ApplicationDbContext _dbContext;
+    private const int PageSize = 20; // Fixed page size
 
     public SearchArtworkSalesTool(ApplicationDbContext dbContext)
     {
@@ -15,11 +16,10 @@ public class SearchArtworkSalesTool : IToolBase
     }
 
     public string Name => "search_artwork_sales";
-    public string Description => "Searches for artwork sales by name using fuzzy matching with optional filters and pagination. Returns results ordered by relevance.";
+    public string Description => "Searches for artwork sales by name using fuzzy matching with optional filters and pagination. Returns 20 results per page ordered by relevance.";
     public string? SafetyLevel => "non_critical";
 
-
-        public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
+    public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
         if (parameters == null)
         {
@@ -30,15 +30,11 @@ public class SearchArtworkSalesTool : IToolBase
         var query = parameters.ContainsKey("query") ? parameters["query"]?.ToString()?.ToLower()?.Trim() : null;
         var hasQuery = !string.IsNullOrWhiteSpace(query);
 
-        // Default pagination values
+        // Default page value
         int page = 1;
-        int pageSize = 10;
 
         if (parameters.ContainsKey("page") && int.TryParse(parameters["page"]?.ToString(), out int p))
             page = Math.Max(1, p);
-        
-        if (parameters.ContainsKey("pageSize") && int.TryParse(parameters["pageSize"]?.ToString(), out int ps))
-            pageSize = Math.Clamp(ps, 1, 50);
 
         // Parse optional parameters
         Guid? artistId = null;
@@ -268,11 +264,11 @@ public class SearchArtworkSalesTool : IToolBase
         }
 
         var totalCount = allResults.Count();
-        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+        var totalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
 
         var results = allResults
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
             .ToList();
 
         return new
@@ -299,7 +295,7 @@ public class SearchArtworkSalesTool : IToolBase
             pagination = new
             {
                 currentPage = page,
-                pageSize = pageSize,
+                pageSize = PageSize,
                 totalItems = totalCount,
                 totalPages = totalPages,
                 hasNextPage = page < totalPages,
@@ -309,9 +305,6 @@ public class SearchArtworkSalesTool : IToolBase
             artworkSales = results
         };
     }
-
-
- 
 
     private int CalculateLevenshteinDistance(string source, string target)
     {
@@ -354,10 +347,9 @@ public class SearchArtworkSalesTool : IToolBase
     private double CalculateRelevanceScore(int distance, int queryLength, bool containsMatch)
     {
         var score = (double)distance / queryLength;
-        return containsMatch ? score - 0.5 : score; // Boost exact substring matches
+        return containsMatch ? score - 0.5 : score;
     }
 
-   
     public object GetToolDefinition()
     {
         return new
@@ -432,22 +424,14 @@ public class SearchArtworkSalesTool : IToolBase
                     page = new
                     {
                         type = "integer",
-                        description = "Page number to retrieve (default: 1)",
+                        description = "Page number to retrieve (default: 1). Returns 20 results per page.",
                         minimum = 1
-                    },
-                    pageSize = new
-                    {
-                        type = "integer",
-                        description = "Number of items per page (default: 10, max: 50)",
-                        minimum = 1,
-                        maximum = 50
                     }
                 },
                 required = new string[] { }
             }
         };
     }
-
 
     public object GetOpenApiSchema()
     {
@@ -461,12 +445,12 @@ public class SearchArtworkSalesTool : IToolBase
                 {
                     ["name"] = "query",
                     ["in"] = "query",
-                    ["required"] = true,
+                    ["required"] = false,
                     ["schema"] = new Dictionary<string, object>
                     {
                         ["type"] = "string"
                     },
-                    ["description"] = "The search query to match against artwork sale names"
+                    ["description"] = "The search query to match against artwork names"
                 },
                 new Dictionary<string, object>
                 {
@@ -475,9 +459,10 @@ public class SearchArtworkSalesTool : IToolBase
                     ["required"] = false,
                     ["schema"] = new Dictionary<string, object>
                     {
-                        ["type"] = "string"
+                        ["type"] = "string",
+                        ["format"] = "uuid"
                     },
-                    ["description"] = "Optional: Filter by artist ID (GUID format)"
+                    ["description"] = "Filter by artist ID"
                 },
                 new Dictionary<string, object>
                 {
@@ -488,7 +473,7 @@ public class SearchArtworkSalesTool : IToolBase
                     {
                         ["type"] = "string"
                     },
-                    ["description"] = "Optional: Filter by category"
+                    ["description"] = "Filter by category"
                 },
                 new Dictionary<string, object>
                 {
@@ -499,7 +484,7 @@ public class SearchArtworkSalesTool : IToolBase
                     {
                         ["type"] = "number"
                     },
-                    ["description"] = "Optional: Minimum hammer price"
+                    ["description"] = "Minimum hammer price filter"
                 },
                 new Dictionary<string, object>
                 {
@@ -510,7 +495,7 @@ public class SearchArtworkSalesTool : IToolBase
                     {
                         ["type"] = "number"
                     },
-                    ["description"] = "Optional: Maximum hammer price"
+                    ["description"] = "Maximum hammer price filter"
                 },
                 new Dictionary<string, object>
                 {
@@ -521,7 +506,7 @@ public class SearchArtworkSalesTool : IToolBase
                     {
                         ["type"] = "number"
                     },
-                    ["description"] = "Optional: Minimum height"
+                    ["description"] = "Minimum height filter"
                 },
                 new Dictionary<string, object>
                 {
@@ -532,7 +517,7 @@ public class SearchArtworkSalesTool : IToolBase
                     {
                         ["type"] = "number"
                     },
-                    ["description"] = "Optional: Maximum height"
+                    ["description"] = "Maximum height filter"
                 },
                 new Dictionary<string, object>
                 {
@@ -543,7 +528,7 @@ public class SearchArtworkSalesTool : IToolBase
                     {
                         ["type"] = "number"
                     },
-                    ["description"] = "Optional: Minimum width"
+                    ["description"] = "Minimum width filter"
                 },
                 new Dictionary<string, object>
                 {
@@ -554,7 +539,7 @@ public class SearchArtworkSalesTool : IToolBase
                     {
                         ["type"] = "number"
                     },
-                    ["description"] = "Optional: Maximum width"
+                    ["description"] = "Maximum width filter"
                 },
                 new Dictionary<string, object>
                 {
@@ -565,7 +550,7 @@ public class SearchArtworkSalesTool : IToolBase
                     {
                         ["type"] = "integer"
                     },
-                    ["description"] = "Optional: Minimum year created"
+                    ["description"] = "Minimum year created filter"
                 },
                 new Dictionary<string, object>
                 {
@@ -576,14 +561,27 @@ public class SearchArtworkSalesTool : IToolBase
                     {
                         ["type"] = "integer"
                     },
-                    ["description"] = "Optional: Maximum year created"
+                    ["description"] = "Maximum year created filter"
+                },
+                new Dictionary<string, object>
+                {
+                    ["name"] = "page",
+                    ["in"] = "query",
+                    ["required"] = false,
+                    ["schema"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "integer",
+                        ["default"] = 1,
+                        ["minimum"] = 1
+                    },
+                    ["description"] = "Page number to retrieve. Returns 20 results per page."
                 }
             },
             ["responses"] = new Dictionary<string, object>
             {
                 ["200"] = new Dictionary<string, object>
                 {
-                    ["description"] = "Search results for artwork sales",
+                    ["description"] = "Paginated search results for artwork sales (20 per page)",
                     ["content"] = new Dictionary<string, object>
                     {
                         ["application/json"] = new Dictionary<string, object>
@@ -604,6 +602,38 @@ public class SearchArtworkSalesTool : IToolBase
                                     ["filters"] = new Dictionary<string, object>
                                     {
                                         ["type"] = "object"
+                                    },
+                                    ["pagination"] = new Dictionary<string, object>
+                                    {
+                                        ["type"] = "object",
+                                        ["properties"] = new Dictionary<string, object>
+                                        {
+                                            ["currentPage"] = new Dictionary<string, object>
+                                            {
+                                                ["type"] = "integer"
+                                            },
+                                            ["pageSize"] = new Dictionary<string, object>
+                                            {
+                                                ["type"] = "integer",
+                                                ["enum"] = new[] { 20 }
+                                            },
+                                            ["totalItems"] = new Dictionary<string, object>
+                                            {
+                                                ["type"] = "integer"
+                                            },
+                                            ["totalPages"] = new Dictionary<string, object>
+                                            {
+                                                ["type"] = "integer"
+                                            },
+                                            ["hasNextPage"] = new Dictionary<string, object>
+                                            {
+                                                ["type"] = "boolean"
+                                            },
+                                            ["hasPreviousPage"] = new Dictionary<string, object>
+                                            {
+                                                ["type"] = "boolean"
+                                            }
+                                        }
                                     },
                                     ["count"] = new Dictionary<string, object>
                                     {
