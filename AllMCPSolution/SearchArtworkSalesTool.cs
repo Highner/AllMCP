@@ -230,7 +230,7 @@ public class SearchArtworkSalesTool : IToolBase
         {
             // No query, just return filtered results (limited to 10)
             results = filteredSales
-                .Take(10)
+                //.Take(10)
                 .Select(a => new
                 {
                     id = a.Id,
@@ -255,7 +255,7 @@ public class SearchArtworkSalesTool : IToolBase
                     } : null,
                     relevanceScore = (double?)null
                 })
-                .ToList<dynamic>();
+                .OrderByDescending(x => x.saleDate).ToList<dynamic>();
         }
 
         return new
