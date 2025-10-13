@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AllMCPSolution.Artworks;
 
-[McpTool("search_artwork_sales", "Searches for artwork sales by name using fuzzy matching with optional filters")]
+[McpTool("search_artwork_sales", "Searches for artwork sales using filters")]
 public class SearchArtworkSalesTool : IToolBase
 {
     private readonly ApplicationDbContext _dbContext;
@@ -16,7 +16,7 @@ public class SearchArtworkSalesTool : IToolBase
     }
 
     public string Name => "search_artwork_sales";
-    public string Description => "Searches for artwork sales by name using fuzzy matching with optional filters and pagination. Returns 20 results per page ordered by relevance.";
+    public string Description => "Searches for artwork sales using optional filters and pagination. Returns 20 results per page ordered by sale date.";
     public string? SafetyLevel => "non_critical";
 
     public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
@@ -25,10 +25,6 @@ public class SearchArtworkSalesTool : IToolBase
         {
             throw new ArgumentException("Parameters are required");
         }
-
-        // Query is now optional when other filters are provided
-        var query = parameters.ContainsKey("query") ? parameters["query"]?.ToString()?.ToLower()?.Trim() : null;
-        var hasQuery = !string.IsNullOrWhiteSpace(query);
 
         // Default page value
         int page = 1;
@@ -125,13 +121,13 @@ public class SearchArtworkSalesTool : IToolBase
         }
 
         // Check if at least one filter is provided
-        if (!hasQuery && !artistId.HasValue && string.IsNullOrWhiteSpace(category) &&
+        if (!artistId.HasValue && string.IsNullOrWhiteSpace(category) &&
             !minHammerPrice.HasValue && !maxHammerPrice.HasValue &&
             !minHeight.HasValue && !maxHeight.HasValue &&
             !minWidth.HasValue && !maxWidth.HasValue &&
             !minYearCreated.HasValue && !maxYearCreated.HasValue)
         {
-            throw new ArgumentException("At least one search parameter (query, artistId, category, or price/dimension filters) must be provided");
+            throw new ArgumentException("At least one search parameter (artistId, category, or price/dimension filters) must be provided");
         }
 
         var artworkSales = await _dbContext.ArtworkSales
@@ -192,78 +188,35 @@ public class SearchArtworkSalesTool : IToolBase
             filteredSales = filteredSales.Where(a => a.YearCreated <= maxYearCreated.Value);
         }
 
-        // Perform fuzzy matching only if query is provided
-        IEnumerable<dynamic> allResults;
-        
-        if (hasQuery)
-        {
-            allResults = filteredSales
-                .Select(a => new
+        // Order by name and create results
+        var allResults = filteredSales
+            .OrderBy(a => a.Name)
+            .Select(a => new
+            {
+                id = a.Id,
+                name = a.Name,
+                height = a.Height,
+                width = a.Width,
+                yearCreated = a.YearCreated,
+                saleDate = a.SaleDate,
+                technique = a.Technique,
+                category = a.Category,
+                currency = a.Currency,
+                lowEstimate = a.LowEstimate,
+                highEstimate = a.HighEstimate,
+                hammerPrice = a.HammerPrice,
+                sold = a.Sold,
+                artistId = a.ArtistId,
+                artist = a.Artist != null ? new
                 {
-                    artwork = a,
-                    distance = CalculateLevenshteinDistance(query!, a.Name.ToLower()),
-                    containsMatch = a.Name.ToLower().Contains(query!)
-                })
-                .Where(x => x.distance <= query!.Length || x.containsMatch)
-                .OrderBy(x => CalculateRelevanceScore(x.distance, query!.Length, x.containsMatch))
-                .Select(x => new
-                {
-                    id = x.artwork.Id,
-                    name = x.artwork.Name,
-                    height = x.artwork.Height,
-                    width = x.artwork.Width,
-                    yearCreated = x.artwork.YearCreated,
-                    saleDate = x.artwork.SaleDate,
-                    technique = x.artwork.Technique,
-                    category = x.artwork.Category,
-                    currency = x.artwork.Currency,
-                    lowEstimate = x.artwork.LowEstimate,
-                    highEstimate = x.artwork.HighEstimate,
-                    hammerPrice = x.artwork.HammerPrice,
-                    sold = x.artwork.Sold,
-                    artistId = x.artwork.ArtistId,
-                    artist = x.artwork.Artist != null ? new
-                    {
-                        id = x.artwork.Artist.Id,
-                        firstName = x.artwork.Artist.FirstName,
-                        lastName = x.artwork.Artist.LastName
-                    } : null,
-                    relevanceScore = CalculateRelevanceScore(x.distance, query!.Length, x.containsMatch)
-                })
-                .ToList();
-        }
-        else
-        {
-            allResults = filteredSales
-                .OrderBy(a => a.Name)
-                .Select(a => new
-                {
-                    id = a.Id,
-                    name = a.Name,
-                    height = a.Height,
-                    width = a.Width,
-                    yearCreated = a.YearCreated,
-                    saleDate = a.SaleDate,
-                    technique = a.Technique,
-                    category = a.Category,
-                    currency = a.Currency,
-                    lowEstimate = a.LowEstimate,
-                    highEstimate = a.HighEstimate,
-                    hammerPrice = a.HammerPrice,
-                    sold = a.Sold,
-                    artistId = a.ArtistId,
-                    artist = a.Artist != null ? new
-                    {
-                        id = a.Artist.Id,
-                        firstName = a.Artist.FirstName,
-                        lastName = a.Artist.LastName
-                    } : null,
-                    relevanceScore = (double?)null
-                })
-                .ToList();
-        }
+                    id = a.Artist.Id,
+                    firstName = a.Artist.FirstName,
+                    lastName = a.Artist.LastName
+                } : null
+            })
+            .OrderByDescending(x => x.saleDate).ToList();
 
-        var totalCount = allResults.Count();
+        var totalCount = allResults.Count;
         var totalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
 
         var results = allResults
@@ -274,7 +227,6 @@ public class SearchArtworkSalesTool : IToolBase
         return new
         {
             success = true,
-            query = query,
             filters = new
             {
                 artistId,
@@ -306,50 +258,6 @@ public class SearchArtworkSalesTool : IToolBase
         };
     }
 
-    private int CalculateLevenshteinDistance(string source, string target)
-    {
-        if (string.IsNullOrEmpty(source))
-        {
-            return string.IsNullOrEmpty(target) ? 0 : target.Length;
-        }
-
-        if (string.IsNullOrEmpty(target))
-        {
-            return source.Length;
-        }
-
-        var distance = new int[source.Length + 1, target.Length + 1];
-
-        for (var i = 0; i <= source.Length; i++)
-        {
-            distance[i, 0] = i;
-        }
-
-        for (var j = 0; j <= target.Length; j++)
-        {
-            distance[0, j] = j;
-        }
-
-        for (var i = 1; i <= source.Length; i++)
-        {
-            for (var j = 1; j <= target.Length; j++)
-            {
-                var cost = target[j - 1] == source[i - 1] ? 0 : 1;
-                distance[i, j] = Math.Min(
-                    Math.Min(distance[i - 1, j] + 1, distance[i, j - 1] + 1),
-                    distance[i - 1, j - 1] + cost);
-            }
-        }
-
-        return distance[source.Length, target.Length];
-    }
-
-    private double CalculateRelevanceScore(int distance, int queryLength, bool containsMatch)
-    {
-        var score = (double)distance / queryLength;
-        return containsMatch ? score - 0.5 : score;
-    }
-
     public object GetToolDefinition()
     {
         return new
@@ -365,11 +273,6 @@ public class SearchArtworkSalesTool : IToolBase
                 type = "object",
                 properties = new
                 {
-                    query = new
-                    {
-                        type = "string",
-                        description = "The search query to match against artwork names (optional if other filters provided)"
-                    },
                     artistId = new
                     {
                         type = "string",
@@ -441,17 +344,6 @@ public class SearchArtworkSalesTool : IToolBase
             ["summary"] = Description,
             ["parameters"] = new[]
             {
-                new Dictionary<string, object>
-                {
-                    ["name"] = "query",
-                    ["in"] = "query",
-                    ["required"] = false,
-                    ["schema"] = new Dictionary<string, object>
-                    {
-                        ["type"] = "string"
-                    },
-                    ["description"] = "The search query to match against artwork names"
-                },
                 new Dictionary<string, object>
                 {
                     ["name"] = "artistId",
@@ -594,10 +486,6 @@ public class SearchArtworkSalesTool : IToolBase
                                     ["success"] = new Dictionary<string, object>
                                     {
                                         ["type"] = "boolean"
-                                    },
-                                    ["query"] = new Dictionary<string, object>
-                                    {
-                                        ["type"] = "string"
                                     },
                                     ["filters"] = new Dictionary<string, object>
                                     {
