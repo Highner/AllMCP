@@ -37,6 +37,8 @@ builder.Services.AddScoped<GetArtworkSaleByIdTool>();
 builder.Services.AddScoped<UpdateArtworkSaleTool>();
 builder.Services.AddScoped<DeleteArtworkSaleTool>();
 builder.Services.AddScoped<SearchArtworkSalesTool>();
+builder.Services.AddScoped<SearchArtworkSalesSimpleTool>();
+
 
 builder.Services.AddScoped<BatchCreateArtworkSalesTool>();
 builder.Services.AddScoped<BatchUpdateArtworkSalesTool>();
