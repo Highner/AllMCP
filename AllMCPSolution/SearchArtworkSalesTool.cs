@@ -199,7 +199,7 @@ public class SearchArtworkSalesTool : IToolBase
                 })
                 .Where(x => x.distance <= query!.Length || x.containsMatch)
                 .OrderBy(x => CalculateRelevanceScore(x.distance, query!.Length, x.containsMatch))
-                .Take(10)
+                //.Take(10)
                 .Select(x => new
                 {
                     id = x.artworkSale.Id,
@@ -224,7 +224,7 @@ public class SearchArtworkSalesTool : IToolBase
                     } : null,
                     relevanceScore = CalculateRelevanceScore(x.distance, query!.Length, x.containsMatch)
                 })
-                .ToList<dynamic>();
+                .OrderByDescending(x => x.saleDate).ToList<dynamic>();
         }
         else
         {
