@@ -187,7 +187,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
                 result.currentPage,
                 result.hasMoreResults,
                 nextPageInstructions =
-                    $"To get the next page of results, call this tool again with page={page + 1}. Each page contains up to {MaxResults} items.",
+                    $"To get the next page of results, call this tool again with page={page + 1}.",
                 result.description
             };
         }
@@ -216,7 +216,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
                     response.currentPage,
                     response.hasMoreResults,
                     mergeInstructions =
-                        $"This is the final page (page {page} of {totalPages}). If you retrieved multiple pages, merge all timeSeries arrays from all pages into one large dataset for analysis.",
+                        $"This is the final page (page {page} of {totalPages}). If you retrieved multiple pages, merge all timeSeries arrays from all pages into one large dataset for analysis. Do not leave out any items from any of the pages. Do not summarize or aggregate the data unless explicitly asked to do so.",
                     response.description
                 };
             }
