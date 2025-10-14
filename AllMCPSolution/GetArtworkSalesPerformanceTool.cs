@@ -20,178 +20,210 @@ public class GetArtworkSalesPerformanceTool : IToolBase
     public string? SafetyLevel => "non_critical";
 
     public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
-{
-    parameters ??= new Dictionary<string, object>();
+    {
+        parameters ??= new Dictionary<string, object>();
 
-    // Extract parameters using helper methods that support both naming conventions
-    var artistId = ParameterHelpers.GetGuidParameter(parameters, "artistId", "artist_id");
-    var name = ParameterHelpers.GetStringParameter(parameters, "name", "name");
-    var minHeight = ParameterHelpers.GetDecimalParameter(parameters, "minHeight", "min_height");
-    var maxHeight = ParameterHelpers.GetDecimalParameter(parameters, "maxHeight", "max_height");
-    var minWidth = ParameterHelpers.GetDecimalParameter(parameters, "minWidth", "min_width");
-    var maxWidth = ParameterHelpers.GetDecimalParameter(parameters, "maxWidth", "max_width");
-    var yearCreatedFrom = ParameterHelpers.GetIntParameter(parameters, "yearCreatedFrom", "year_created_from");
-    var yearCreatedTo = ParameterHelpers.GetIntParameter(parameters, "yearCreatedTo", "year_created_to");
-    var saleDateFrom = ParameterHelpers.GetDateTimeParameter(parameters, "saleDateFrom", "sale_date_from");
-    var saleDateTo = ParameterHelpers.GetDateTimeParameter(parameters, "saleDateTo", "sale_date_to");
-    var technique = ParameterHelpers.GetStringParameter(parameters, "technique", "technique");
-    var category = ParameterHelpers.GetStringParameter(parameters, "category", "category");
-    var currency = ParameterHelpers.GetStringParameter(parameters, "currency", "currency");
-    var minLowEstimate = ParameterHelpers.GetDecimalParameter(parameters, "minLowEstimate", "min_low_estimate");
-    var maxLowEstimate = ParameterHelpers.GetDecimalParameter(parameters, "maxLowEstimate", "max_low_estimate");
-    var minHighEstimate = ParameterHelpers.GetDecimalParameter(parameters, "minHighEstimate", "min_high_estimate");
-    var maxHighEstimate = ParameterHelpers.GetDecimalParameter(parameters, "maxHighEstimate", "max_high_estimate");
-    var minHammerPrice = ParameterHelpers.GetDecimalParameter(parameters, "minHammerPrice", "min_hammer_price");
-    var maxHammerPrice = ParameterHelpers.GetDecimalParameter(parameters, "maxHammerPrice", "max_hammer_price");
-    var sold = ParameterHelpers.GetBoolParameter(parameters, "sold", "sold");
-    var page = ParameterHelpers.GetIntParameter(parameters, "page", "page") ?? 1;
+        // Extract parameters using helper methods that support both naming conventions
+        var artistId = ParameterHelpers.GetGuidParameter(parameters, "artistId", "artist_id");
+        var name = ParameterHelpers.GetStringParameter(parameters, "name", "name");
+        var minHeight = ParameterHelpers.GetDecimalParameter(parameters, "minHeight", "min_height");
+        var maxHeight = ParameterHelpers.GetDecimalParameter(parameters, "maxHeight", "max_height");
+        var minWidth = ParameterHelpers.GetDecimalParameter(parameters, "minWidth", "min_width");
+        var maxWidth = ParameterHelpers.GetDecimalParameter(parameters, "maxWidth", "max_width");
+        var yearCreatedFrom = ParameterHelpers.GetIntParameter(parameters, "yearCreatedFrom", "year_created_from");
+        var yearCreatedTo = ParameterHelpers.GetIntParameter(parameters, "yearCreatedTo", "year_created_to");
+        var saleDateFrom = ParameterHelpers.GetDateTimeParameter(parameters, "saleDateFrom", "sale_date_from");
+        var saleDateTo = ParameterHelpers.GetDateTimeParameter(parameters, "saleDateTo", "sale_date_to");
+        var technique = ParameterHelpers.GetStringParameter(parameters, "technique", "technique");
+        var category = ParameterHelpers.GetStringParameter(parameters, "category", "category");
+        var currency = ParameterHelpers.GetStringParameter(parameters, "currency", "currency");
+        var minLowEstimate = ParameterHelpers.GetDecimalParameter(parameters, "minLowEstimate", "min_low_estimate");
+        var maxLowEstimate = ParameterHelpers.GetDecimalParameter(parameters, "maxLowEstimate", "max_low_estimate");
+        var minHighEstimate = ParameterHelpers.GetDecimalParameter(parameters, "minHighEstimate", "min_high_estimate");
+        var maxHighEstimate = ParameterHelpers.GetDecimalParameter(parameters, "maxHighEstimate", "max_high_estimate");
+        var minHammerPrice = ParameterHelpers.GetDecimalParameter(parameters, "minHammerPrice", "min_hammer_price");
+        var maxHammerPrice = ParameterHelpers.GetDecimalParameter(parameters, "maxHammerPrice", "max_hammer_price");
+        var sold = ParameterHelpers.GetBoolParameter(parameters, "sold", "sold");
+        var page = ParameterHelpers.GetIntParameter(parameters, "page", "page") ?? 1;
 
-    // Build query
-    var query = _dbContext.ArtworkSales
-        .Include(a => a.Artist)
-        .AsQueryable();
+        // Build query
+        var query = _dbContext.ArtworkSales
+            .Include(a => a.Artist)
+            .AsQueryable();
 
-    // Apply filters
-    if (artistId.HasValue)
-        query = query.Where(a => a.ArtistId == artistId.Value);
+        // Apply filters
+        if (artistId.HasValue)
+            query = query.Where(a => a.ArtistId == artistId.Value);
 
-    if (!string.IsNullOrWhiteSpace(name))
-        query = query.Where(a => a.Name.Contains(name));
+        if (!string.IsNullOrWhiteSpace(name))
+            query = query.Where(a => a.Name.Contains(name));
 
-    if (minHeight.HasValue)
-        query = query.Where(a => a.Height >= minHeight.Value);
+        if (minHeight.HasValue)
+            query = query.Where(a => a.Height >= minHeight.Value);
 
-    if (maxHeight.HasValue)
-        query = query.Where(a => a.Height <= maxHeight.Value);
+        if (maxHeight.HasValue)
+            query = query.Where(a => a.Height <= maxHeight.Value);
 
-    if (minWidth.HasValue)
-        query = query.Where(a => a.Width >= minWidth.Value);
+        if (minWidth.HasValue)
+            query = query.Where(a => a.Width >= minWidth.Value);
 
-    if (maxWidth.HasValue)
-        query = query.Where(a => a.Width <= maxWidth.Value);
+        if (maxWidth.HasValue)
+            query = query.Where(a => a.Width <= maxWidth.Value);
 
-    if (yearCreatedFrom.HasValue)
-        query = query.Where(a => a.YearCreated >= yearCreatedFrom.Value);
+        if (yearCreatedFrom.HasValue)
+            query = query.Where(a => a.YearCreated >= yearCreatedFrom.Value);
 
-    if (yearCreatedTo.HasValue)
-        query = query.Where(a => a.YearCreated <= yearCreatedTo.Value);
+        if (yearCreatedTo.HasValue)
+            query = query.Where(a => a.YearCreated <= yearCreatedTo.Value);
 
-    if (saleDateFrom.HasValue)
-        query = query.Where(a => a.SaleDate >= saleDateFrom.Value);
+        if (saleDateFrom.HasValue)
+            query = query.Where(a => a.SaleDate >= saleDateFrom.Value);
 
-    if (saleDateTo.HasValue)
-        query = query.Where(a => a.SaleDate <= saleDateTo.Value);
+        if (saleDateTo.HasValue)
+            query = query.Where(a => a.SaleDate <= saleDateTo.Value);
 
-    if (!string.IsNullOrWhiteSpace(technique))
-        query = query.Where(a => a.Technique.Contains(technique));
+        if (!string.IsNullOrWhiteSpace(technique))
+            query = query.Where(a => a.Technique.Contains(technique));
 
-    if (!string.IsNullOrWhiteSpace(category))
-        query = query.Where(a => a.Category.Contains(category));
+        if (!string.IsNullOrWhiteSpace(category))
+            query = query.Where(a => a.Category.Contains(category));
 
-    if (!string.IsNullOrWhiteSpace(currency))
-        query = query.Where(a => a.Currency == currency);
+        if (!string.IsNullOrWhiteSpace(currency))
+            query = query.Where(a => a.Currency == currency);
 
-    if (minLowEstimate.HasValue)
-        query = query.Where(a => a.LowEstimate >= minLowEstimate.Value);
+        if (minLowEstimate.HasValue)
+            query = query.Where(a => a.LowEstimate >= minLowEstimate.Value);
 
-    if (maxLowEstimate.HasValue)
-        query = query.Where(a => a.LowEstimate <= maxLowEstimate.Value);
+        if (maxLowEstimate.HasValue)
+            query = query.Where(a => a.LowEstimate <= maxLowEstimate.Value);
 
-    if (minHighEstimate.HasValue)
-        query = query.Where(a => a.HighEstimate >= minHighEstimate.Value);
+        if (minHighEstimate.HasValue)
+            query = query.Where(a => a.HighEstimate >= minHighEstimate.Value);
 
-    if (maxHighEstimate.HasValue)
-        query = query.Where(a => a.HighEstimate <= maxHighEstimate.Value);
+        if (maxHighEstimate.HasValue)
+            query = query.Where(a => a.HighEstimate <= maxHighEstimate.Value);
 
-    if (minHammerPrice.HasValue)
-        query = query.Where(a => a.HammerPrice >= minHammerPrice.Value);
+        if (minHammerPrice.HasValue)
+            query = query.Where(a => a.HammerPrice >= minHammerPrice.Value);
 
-    if (maxHammerPrice.HasValue)
-        query = query.Where(a => a.HammerPrice <= maxHammerPrice.Value);
+        if (maxHammerPrice.HasValue)
+            query = query.Where(a => a.HammerPrice <= maxHammerPrice.Value);
 
-    if (sold.HasValue)
-        query = query.Where(a => a.Sold == sold.Value);
+        if (sold.HasValue)
+            query = query.Where(a => a.Sold == sold.Value);
 
-    // Only include sold items with valid estimates and hammer prices
-    //query = query.Where(a => a.Sold == true && a.LowEstimate > 0 && a.HighEstimate > 0 && a.HammerPrice > 0);
+        // Only include sold items with valid estimates and hammer prices
+        //query = query.Where(a => a.Sold == true && a.LowEstimate > 0 && a.HighEstimate > 0 && a.HammerPrice > 0);
 
-    // Get total count before pagination
-    var totalCount = await query.CountAsync();
+        // Get total count before pagination
+        var totalCount = await query.CountAsync();
 
-    // Calculate skip based on page number
-    var skip = (page - 1) * MaxResults;
+        // Calculate skip based on page number
+        var skip = (page - 1) * MaxResults;
 
-    // Get results ordered by sale date with skip and take
-    var sales = await query
-        .OrderByDescending(a => a.SaleDate)
-        .Skip(skip)
-        .Take(MaxResults)
-        .Select(a => new
+        // Get results ordered by sale date with skip and take
+        var sales = await query
+            .OrderByDescending(a => a.SaleDate)
+            .Skip(skip)
+            .Take(MaxResults)
+            .Select(a => new
+            {
+                a.Name,
+                a.Category,
+                a.Technique,
+                a.YearCreated,
+                a.SaleDate,
+                a.LowEstimate,
+                a.HighEstimate,
+                a.HammerPrice,
+                a.Height,
+                a.Width
+            })
+            .ToListAsync();
+
+        // Transform into time series with performance factor
+        var timeSeries = sales.Select(sale => new
         {
-            a.Name,
-            a.Category,
-            a.Technique,
-            a.YearCreated,
-            a.SaleDate,
-            a.LowEstimate,
-            a.HighEstimate,
-            a.HammerPrice,
-            a.Height,
-            a.Width
-        })
-        .ToListAsync();
+            Title = sale.Name,
+            Category = sale.Category,
+            Technique = sale.Technique,
+            YearCreated = sale.YearCreated,
+            Time = sale.SaleDate,
+            HammerPrice = sale.HammerPrice,
+            sale.Height,
+            sale.Width,
+            area = sale.Height * sale.Width,
+            PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
+                sale.HammerPrice,
+                sale.LowEstimate,
+                sale.HighEstimate
+            )
+        }).ToList();
 
-    // Transform into time series with performance factor
-    var timeSeries = sales.Select(sale => new
-    {
-        Title = sale.Name,
-        Category = sale.Category,
-        Technique = sale.Technique,
-        YearCreated = sale.YearCreated,
-        Time = sale.SaleDate,
-        HammerPrice = sale.HammerPrice,
-        sale.Height,
-        sale.Width,
-        area = sale.Height * sale.Width,
-        PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
-            sale.HammerPrice,
-            sale.LowEstimate,
-            sale.HighEstimate
-        )
-    }).ToList();
+        var totalPages = (int)Math.Ceiling((double)totalCount / MaxResults);
+        var hasMoreResults = page < totalPages;
 
-    var totalPages = (int)Math.Ceiling((double)totalCount / MaxResults);
-    var hasMoreResults = page < totalPages;
-
-    var result = new
-    {
-        timeSeries,
-        count = timeSeries.Count,
-        totalCount,
-        totalPages,
-        currentPage = page,
-        hasMoreResults,
-        description = "Performance factor: 0-1 if within estimate range, >1 if above high estimate, <0 if below low estimate"
-    };
-
-    // Add pagination instructions if there are more results
-    if (hasMoreResults)
-    {
-        return new
+        var result = new
         {
-            result.timeSeries,
-            result.count,
-            result.totalCount,
-            result.totalPages,
-            result.currentPage,
-            result.hasMoreResults,
-            nextPageInstructions = $"To get the next page of results, call this tool again with page={page + 1}. Each page contains up to {MaxResults} items.",
-            result.description
+            timeSeries,
+            count = timeSeries.Count,
+            totalCount,
+            totalPages,
+            currentPage = page,
+            hasMoreResults,
+            description =
+                "Performance factor: 0-1 if within estimate range, >1 if above high estimate, <0 if below low estimate"
         };
-    }
 
-    return result;
-}
+        // Add pagination instructions if there are more results
+        if (hasMoreResults)
+        {
+            return new
+            {
+                result.timeSeries,
+                result.count,
+                result.totalCount,
+                result.totalPages,
+                result.currentPage,
+                result.hasMoreResults,
+                nextPageInstructions =
+                    $"To get the next page of results, call this tool again with page={page + 1}. Each page contains up to {MaxResults} items.",
+                result.description
+            };
+        }
+        else
+        {
+            // Last page - include merge instructions if there were multiple pages
+            var response = new
+            {
+                result.timeSeries,
+                result.count,
+                result.totalCount,
+                result.totalPages,
+                result.currentPage,
+                result.hasMoreResults,
+                result.description
+            };
+
+            if (totalPages > 1)
+            {
+                return new
+                {
+                    response.timeSeries,
+                    response.count,
+                    response.totalCount,
+                    response.totalPages,
+                    response.currentPage,
+                    response.hasMoreResults,
+                    mergeInstructions =
+                        $"This is the final page (page {page} of {totalPages}). If you retrieved multiple pages, merge all timeSeries arrays from all pages into one large dataset for analysis.",
+                    response.description
+                };
+            }
+
+            return response;
+        }
+    }
 
     public object GetToolDefinition()
 {
