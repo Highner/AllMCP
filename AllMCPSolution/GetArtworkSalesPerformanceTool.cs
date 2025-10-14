@@ -120,6 +120,10 @@ public class GetArtworkSalesPerformanceTool : IToolBase
             .Take(MaxResults)
             .Select(a => new
             {
+                a.Name,
+                a.Category,
+                a.Technique,
+                a.YearCreated,
                 a.SaleDate,
                 a.LowEstimate,
                 a.HighEstimate,
@@ -130,6 +134,10 @@ public class GetArtworkSalesPerformanceTool : IToolBase
         // Transform into time series with performance factor
         var timeSeries = sales.Select(sale => new
         {
+            Title = sale.Name,
+            Category = sale.Category,
+            Technique = sale.Technique,
+            YearCreated = sale.YearCreated,
             Time = sale.SaleDate,
             PerformanceFactor = CalculatePerformanceFactor(
                 sale.HammerPrice,
@@ -341,6 +349,10 @@ public class GetArtworkSalesPerformanceTool : IToolBase
                                                     type = "object",
                                                     properties = new
                                                     {
+                                                        title = new { type = "string" },
+                                                        category = new { type = "string" },
+                                                        technique = new { type = "string" },
+                                                        yearCreated = new { type = "integer" },
                                                         time = new { type = "string", format = "date-time" },
                                                         performanceFactor = new { type = "number" }
                                                     }
