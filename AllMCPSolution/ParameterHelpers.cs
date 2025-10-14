@@ -1,5 +1,7 @@
 
 
+using System.Text.Json;
+
 namespace AllMCPSolution.Tools;
 
 public static class ParameterHelpers
@@ -87,6 +89,17 @@ public static class ParameterHelpers
             obj => 
             {
                 if (obj == null) return null;
+                
+                // Handle JsonElement
+                if (obj is JsonElement jsonElement)
+                {
+                    if (jsonElement.ValueKind == JsonValueKind.Number)
+                    {
+                        if (jsonElement.TryGetDecimal(out var decimalValue))
+                            return decimalValue;
+                    }
+                }
+                
                 try
                 {
                     return Convert.ToDecimal(obj);
@@ -104,6 +117,17 @@ public static class ParameterHelpers
             obj => 
             {
                 if (obj == null) return null;
+                
+                // Handle JsonElement (common when deserializing JSON)
+                if (obj is JsonElement jsonElement)
+                {
+                    if (jsonElement.ValueKind == JsonValueKind.Number)
+                    {
+                        if (jsonElement.TryGetInt32(out var intValue))
+                            return intValue;
+                    }
+                }
+                
                 try
                 {
                     return Convert.ToInt32(obj);
@@ -132,6 +156,16 @@ public static class ParameterHelpers
             obj => 
             {
                 if (obj == null) return null;
+                
+                // Handle JsonElement
+                if (obj is JsonElement jsonElement)
+                {
+                    if (jsonElement.ValueKind == JsonValueKind.True)
+                        return true;
+                    if (jsonElement.ValueKind == JsonValueKind.False)
+                        return false;
+                }
+                
                 try
                 {
                     return Convert.ToBoolean(obj);
