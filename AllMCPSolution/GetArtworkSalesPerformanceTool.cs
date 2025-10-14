@@ -160,8 +160,19 @@ public class GetArtworkSalesPerformanceTool : IToolBase
         };
     }
 
-    public object GetToolDefinition()
+   public object GetToolDefinition()
     {
+        // Get distinct categories from the database
+        var categories = _dbContext.ArtworkSales
+            .Select(a => a.Category)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToList();
+        
+        var categoryDescription = categories.Any() 
+            ? $"Filter by category (partial match). Available options: {string.Join(", ", categories)}"
+            : "Filter by category (partial match)";
+
         return new
         {
             name = Name,
@@ -231,7 +242,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
                     category = new
                     {
                         type = "string",
-                        description = "Filter by category (partial match)"
+                        description = categoryDescription
                     },
                     currency = new
                     {
@@ -277,9 +288,6 @@ public class GetArtworkSalesPerformanceTool : IToolBase
             }
         };
     }
-
-    
-   
     public object GetOpenApiSchema()
     {
         return new
