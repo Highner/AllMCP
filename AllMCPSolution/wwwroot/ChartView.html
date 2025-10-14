@@ -393,8 +393,6 @@
             }
         });
 
-
-
         function renderChart(sales) {
             if (chartInstance) {
                 chartInstance.destroy();
@@ -402,6 +400,30 @@
 
             // Sort sales by date
             sales.sort((a, b) => new Date(a.saleDate) - new Date(b.saleDate));
+
+            // Calculate 3-month rolling average
+            const rollingAverageData = [];
+            const threeMonthsMs = 90 * 24 * 60 * 60 * 1000; // approximately 3 months in milliseconds
+
+            for (let i = 0; i < sales.length; i++) {
+                const currentDate = new Date(sales[i].saleDate);
+                const windowStart = new Date(currentDate.getTime() - threeMonthsMs);
+                const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
+
+                // Get all sales within the 3-month window
+                const windowSales = sales.filter(s => {
+                    const saleDate = new Date(s.saleDate);
+                    return saleDate >= windowStart && saleDate <= windowEnd;
+                });
+
+                if (windowSales.length > 0) {
+                    const avg = windowSales.reduce((sum, s) => sum + s.hammerPrice, 0) / windowSales.length;
+                    rollingAverageData.push({
+                        x: currentDate,
+                        y: avg
+                    });
+                }
+            }
 
             const ctx = document.getElementById('salesChart').getContext('2d');
 
@@ -418,6 +440,16 @@
                             pointRadius: 3,
                             pointHoverRadius: 5,
                             pointStyle: 'circle'
+                        },
+                        {
+                            label: '3-Month Rolling Average',
+                            data: rollingAverageData,
+                            borderColor: '#ff6b6b',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            showLine: true,
+                            fill: false,
+                            tension: 0.4
                         }
                     ]
                 },
@@ -455,11 +487,14 @@
                                     return label;
                                 },
                                 afterLabel: function(context) {
-                                    const sale = sales[context.dataIndex];
-                                    return [
-                                        `Artwork: ${sale.name}`,
-                                        `Category: ${sale.category}`
-                                    ];
+                                    if (context.datasetIndex === 0) {
+                                        const sale = sales[context.dataIndex];
+                                        return [
+                                            `Artwork: ${sale.name}`,
+                                            `Category: ${sale.category}`
+                                        ];
+                                    }
+                                    return null;
                                 }
                             }
                         }
@@ -505,26 +540,52 @@
             // Sort by date
             timeSeries.sort((a, b) => new Date(a.time) - new Date(b.time));
 
-            // Calculate rolling average (window of 5 data points)
-            const windowSize = 5;
+            // Calculate 3-month rolling average
             const rollingAverageData = [];
+            const threeMonthsMs = 90 * 24 * 60 * 60 * 1000;
 
             for (let i = 0; i < timeSeries.length; i++) {
-                const start = Math.max(0, i - Math.floor(windowSize / 2));
-                const end = Math.min(timeSeries.length, i + Math.ceil(windowSize / 2));
-                const window = timeSeries.slice(start, end);
-                const avg = window.reduce((sum, t) => sum + t.performanceFactor, 0) / window.length;
+                const currentDate = new Date(timeSeries[i].time);
+                const windowStart = new Date(currentDate.getTime() - threeMonthsMs);
+                const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
 
-                rollingAverageData.push({
-                    x: new Date(timeSeries[i].time),
-                    y: avg
+                const windowData = timeSeries.filter(t => {
+                    const tDate = new Date(t.time);
+                    return tDate >= windowStart && tDate <= windowEnd;
                 });
+
+                if (windowData.length > 0) {
+                    const avg = windowData.reduce((sum, t) => sum + t.performanceFactor, 0) / windowData.length;
+                    rollingAverageData.push({
+                        x: currentDate,
+                        y: avg
+                    });
+                }
             }
+
+            // Create datasets for the gray area between 0 and 1
+            const estimateRangeData = timeSeries.map(t => ({
+                x: new Date(t.time),
+                y: 1
+            }));
 
             performanceChartInstance = new Chart(ctx, {
                 type: 'scatter',
                 data: {
                     datasets: [
+                        {
+                            label: 'Estimate Range Background',
+                            data: estimateRangeData,
+                            borderColor: 'transparent',
+                            backgroundColor: 'rgba(200, 200, 200, 0.2)',
+                            pointRadius: 0,
+                            showLine: true,
+                            fill: {
+                                target: 'origin',
+                                above: 'rgba(200, 200, 200, 0.2)'
+                            },
+                            order: 10
+                        },
                         {
                             label: 'Performance Factor',
                             data: timeSeries.map(t => ({
@@ -535,17 +596,19 @@
                             backgroundColor: '#667eea',
                             pointRadius: 3,
                             pointHoverRadius: 5,
-                            showLine: false
+                            showLine: false,
+                            order: 1
                         },
                         {
-                            label: 'Rolling Average (5-point)',
+                            label: '3-Month Rolling Average',
                             data: rollingAverageData,
                             borderColor: '#ff6b6b',
                             borderWidth: 2,
                             pointRadius: 0,
                             showLine: true,
                             fill: false,
-                            tension: 0.4
+                            tension: 0.4,
+                            order: 2
                         },
                         {
                             label: 'Within Estimate Range (0-1)',
@@ -555,7 +618,8 @@
                             borderDash: [5, 5],
                             pointRadius: 0,
                             fill: false,
-                            showLine: true
+                            showLine: true,
+                            order: 3
                         },
                         {
                             label: 'High Estimate Threshold (1.0)',
@@ -565,7 +629,8 @@
                             borderDash: [5, 5],
                             pointRadius: 0,
                             fill: false,
-                            showLine: true
+                            showLine: true,
+                            order: 3
                         }
                     ]
                 },
@@ -587,12 +652,17 @@
                         },
                         legend: {
                             display: true,
-                            position: 'top'
+                            position: 'top',
+                            labels: {
+                                filter: function(item) {
+                                    return item.text !== 'Estimate Range Background';
+                                }
+                            }
                         },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    if (context.datasetIndex === 0) {
+                                    if (context.datasetIndex === 1) {
                                         const value = context.parsed.y;
                                         let interpretation = '';
 
@@ -605,14 +675,14 @@
                                         }
 
                                         return 'Factor: ' + value.toFixed(3) + interpretation;
-                                    } else if (context.datasetIndex === 1) {
+                                    } else if (context.datasetIndex === 2) {
                                         return 'Rolling Avg: ' + context.parsed.y.toFixed(3);
                                     }
                                     return context.dataset.label;
                                 }
                             },
                             filter: function(tooltipItem) {
-                                return tooltipItem.datasetIndex === 0 || tooltipItem.datasetIndex === 1;
+                                return tooltipItem.datasetIndex === 1 || tooltipItem.datasetIndex === 2;
                             }
                         }
                     },
