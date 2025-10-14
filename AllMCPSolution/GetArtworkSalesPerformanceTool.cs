@@ -116,7 +116,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
 
         // Get results ordered by sale date
         var sales = await query
-            .OrderBy(a => a.SaleDate)
+            .OrderByDescending(a => a.SaleDate)
             .Take(MaxResults)
             .Select(a => new
             {
