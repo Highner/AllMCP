@@ -4,26 +4,26 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AllMCPSolution.Artworks;
 
-[McpTool("search_artwork_sales_simple", "Searches for artwork sales and returns simplified results")]
-public class SearchArtworkSalesSimpleTool : IToolBase
+[McpTool("get_artwork_sales_performance_timeseries", "Returns a time series of artwork sales performance relative to estimates")]
+public class GetArtworkSalesPerformanceTool : IToolBase
 {
     private readonly ApplicationDbContext _dbContext;
-    private const int PageSize = 20; // Fixed page size
+    private const int MaxResults = 1000; // Limit for time series
 
-    public SearchArtworkSalesSimpleTool(ApplicationDbContext dbContext)
+    public GetArtworkSalesPerformanceTool(ApplicationDbContext dbContext)
     {
         _dbContext = dbContext;
     }
 
-    public string Name => "search_artwork_sales_simple";
-    public string Description => "Searches for artwork sales using optional filters and pagination. Returns only sale date, category, low estimate, high estimate, and hammer price. Returns 20 results per page ordered by sale date.";
+    public string Name => "get_artwork_sales_performance_timeseries";
+    public string Description => "Returns a time series showing how hammer prices performed relative to estimate ranges. Performance factor: 0-1 if within range, >1 if above ceiling, <0 if below floor.";
     public string? SafetyLevel => "non_critical";
 
     public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
         parameters ??= new Dictionary<string, object>();
 
-        // Extract parameters - using exact same parameters as SearchArtworkSalesTool
+        // Extract parameters - same as ListArtworkSalesTool
         var artistId = parameters.ContainsKey("artistId") ? Guid.Parse(parameters["artistId"]?.ToString() ?? "") : (Guid?)null;
         var name = parameters.ContainsKey("name") ? parameters["name"]?.ToString() : null;
         var minHeight = parameters.ContainsKey("minHeight") ? Convert.ToDecimal(parameters["minHeight"]) : (decimal?)null;
@@ -44,140 +44,133 @@ public class SearchArtworkSalesSimpleTool : IToolBase
         var minHammerPrice = parameters.ContainsKey("minHammerPrice") ? Convert.ToDecimal(parameters["minHammerPrice"]) : (decimal?)null;
         var maxHammerPrice = parameters.ContainsKey("maxHammerPrice") ? Convert.ToDecimal(parameters["maxHammerPrice"]) : (decimal?)null;
         var sold = parameters.ContainsKey("sold") ? Convert.ToBoolean(parameters["sold"]) : (bool?)null;
-        var page = parameters.ContainsKey("page") ? Convert.ToInt32(parameters["page"]) : 1;
 
         // Build query
         var query = _dbContext.ArtworkSales
             .Include(a => a.Artist)
             .AsQueryable();
 
-        // Apply filters - same logic as SearchArtworkSalesTool
+        // Apply filters
         if (artistId.HasValue)
-        {
             query = query.Where(a => a.ArtistId == artistId.Value);
-        }
 
         if (!string.IsNullOrWhiteSpace(name))
-        {
             query = query.Where(a => a.Name.Contains(name));
-        }
 
         if (minHeight.HasValue)
-        {
             query = query.Where(a => a.Height >= minHeight.Value);
-        }
 
         if (maxHeight.HasValue)
-        {
             query = query.Where(a => a.Height <= maxHeight.Value);
-        }
 
         if (minWidth.HasValue)
-        {
             query = query.Where(a => a.Width >= minWidth.Value);
-        }
 
         if (maxWidth.HasValue)
-        {
             query = query.Where(a => a.Width <= maxWidth.Value);
-        }
 
         if (yearCreatedFrom.HasValue)
-        {
             query = query.Where(a => a.YearCreated >= yearCreatedFrom.Value);
-        }
 
         if (yearCreatedTo.HasValue)
-        {
             query = query.Where(a => a.YearCreated <= yearCreatedTo.Value);
-        }
 
         if (saleDateFrom.HasValue)
-        {
             query = query.Where(a => a.SaleDate >= saleDateFrom.Value);
-        }
 
         if (saleDateTo.HasValue)
-        {
             query = query.Where(a => a.SaleDate <= saleDateTo.Value);
-        }
 
         if (!string.IsNullOrWhiteSpace(technique))
-        {
             query = query.Where(a => a.Technique.Contains(technique));
-        }
 
         if (!string.IsNullOrWhiteSpace(category))
-        {
             query = query.Where(a => a.Category.Contains(category));
-        }
 
         if (!string.IsNullOrWhiteSpace(currency))
-        {
             query = query.Where(a => a.Currency == currency);
-        }
 
         if (minLowEstimate.HasValue)
-        {
             query = query.Where(a => a.LowEstimate >= minLowEstimate.Value);
-        }
 
         if (maxLowEstimate.HasValue)
-        {
             query = query.Where(a => a.LowEstimate <= maxLowEstimate.Value);
-        }
 
         if (minHighEstimate.HasValue)
-        {
             query = query.Where(a => a.HighEstimate >= minHighEstimate.Value);
-        }
 
         if (maxHighEstimate.HasValue)
-        {
             query = query.Where(a => a.HighEstimate <= maxHighEstimate.Value);
-        }
 
         if (minHammerPrice.HasValue)
-        {
             query = query.Where(a => a.HammerPrice >= minHammerPrice.Value);
-        }
 
         if (maxHammerPrice.HasValue)
-        {
             query = query.Where(a => a.HammerPrice <= maxHammerPrice.Value);
-        }
 
         if (sold.HasValue)
-        {
             query = query.Where(a => a.Sold == sold.Value);
-        }
 
-        // Get total count
-        var totalCount = await query.CountAsync();
+        // Only include sold items with valid estimates and hammer prices
+        query = query.Where(a => a.Sold == true && a.LowEstimate > 0 && a.HighEstimate > 0 && a.HammerPrice > 0);
 
-        // Apply ordering and pagination
-        var results = await query
-            .OrderByDescending(a => a.SaleDate)
-            .Skip((page - 1) * PageSize)
-            .Take(PageSize)
+        // Get results ordered by sale date
+        var sales = await query
+            .OrderBy(a => a.SaleDate)
+            .Take(MaxResults)
             .Select(a => new
             {
-                SaleDate = a.SaleDate,
-                Category = a.Category,
-                LowEstimate = a.LowEstimate,
-                HighEstimate = a.HighEstimate,
-                HammerPrice = a.HammerPrice
+                a.SaleDate,
+                a.LowEstimate,
+                a.HighEstimate,
+                a.HammerPrice
             })
             .ToListAsync();
 
+        // Transform into time series with performance factor
+        var timeSeries = sales.Select(sale => new
+        {
+            Time = sale.SaleDate,
+            PerformanceFactor = CalculatePerformanceFactor(
+                sale.HammerPrice,
+                sale.LowEstimate,
+                sale.HighEstimate
+            )
+        }).ToList();
+
         return new
         {
-            data = results,
-            page,
-            pageSize = PageSize,
-            totalCount,
-            totalPages = (int)Math.Ceiling((double)totalCount / PageSize)
+            timeSeries,
+            count = timeSeries.Count,
+            description = "Performance factor: 0-1 if within estimate range, >1 if above high estimate, <0 if below low estimate"
         };
+    }
+
+    private static double CalculatePerformanceFactor(decimal hammerPrice, decimal lowEstimate, decimal highEstimate)
+    {
+        // If hammer price is below low estimate
+        if (hammerPrice < lowEstimate)
+        {
+            // Return negative factor: how far below as a fraction of low estimate
+            // E.g., if hammer is 80 and low is 100, factor = -0.2
+            return (double)((hammerPrice - lowEstimate) / lowEstimate);
+        }
+
+        // If hammer price is above high estimate
+        if (hammerPrice > highEstimate)
+        {
+            // Return factor > 1: 1 + how far above as a fraction of high estimate
+            // E.g., if hammer is 150 and high is 100, factor = 1.5
+            return (double)(hammerPrice / highEstimate);
+        }
+
+        // If hammer price is within range
+        // Map linearly from low (0) to high (1)
+        var range = highEstimate - lowEstimate;
+        if (range == 0)
+            return 0.5; // Edge case: if low == high, return midpoint
+
+        return (double)((hammerPrice - lowEstimate) / range);
     }
 
     public object GetToolDefinition()
@@ -292,11 +285,6 @@ public class SearchArtworkSalesSimpleTool : IToolBase
                     {
                         type = "boolean",
                         description = "Filter by sold status"
-                    },
-                    page = new
-                    {
-                        type = "integer",
-                        description = "Page number (default: 1)"
                     }
                 }
             }
@@ -340,8 +328,7 @@ public class SearchArtworkSalesSimpleTool : IToolBase
                                 maxHighEstimate = new { type = "number" },
                                 minHammerPrice = new { type = "number" },
                                 maxHammerPrice = new { type = "number" },
-                                sold = new { type = "boolean" },
-                                page = new { type = "integer" }
+                                sold = new { type = "boolean" }
                             }
                         }
                     }
@@ -366,7 +353,7 @@ public class SearchArtworkSalesSimpleTool : IToolBase
                                         type = "object",
                                         properties = new
                                         {
-                                            data = new
+                                            timeSeries = new
                                             {
                                                 type = "array",
                                                 items = new
@@ -374,18 +361,13 @@ public class SearchArtworkSalesSimpleTool : IToolBase
                                                     type = "object",
                                                     properties = new
                                                     {
-                                                        saleDate = new { type = "string", format = "date-time" },
-                                                        category = new { type = "string" },
-                                                        lowEstimate = new { type = "number" },
-                                                        highEstimate = new { type = "number" },
-                                                        hammerPrice = new { type = "number" }
+                                                        time = new { type = "string", format = "date-time" },
+                                                        performanceFactor = new { type = "number" }
                                                     }
                                                 }
                                             },
-                                            page = new { type = "integer" },
-                                            pageSize = new { type = "integer" },
-                                            totalCount = new { type = "integer" },
-                                            totalPages = new { type = "integer" }
+                                            count = new { type = "integer" },
+                                            description = new { type = "string" }
                                         }
                                     }
                                 }

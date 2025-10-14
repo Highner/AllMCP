@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #333;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 16px;
+            background-color: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        .form-group select:hover {
+            border-color: #764ba2;
+        }
+
+        .form-group select:focus {
+            outline: none;
+            border-color: #764ba2;
+        }
+
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 16px;
+            background-color: white;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input[type="text"]:focus {
+            outline: none;
+            border-color: #764ba2;
+        }
+
+        .artist-input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .artist-input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .artist-input-group input:focus {
+            outline: none;
+            border-color: #764ba2;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background-color: #f8f9ff;
+        }
+
+        .upload-area.drag-over {
+            border-color: #764ba2;
+            background-color: #f0f0ff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-small {
+            width: auto;
+            padding: 12px 20px;
+            margin: 0;
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9ff;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .file-info.visible {
+            display: block;
+        }
+
+        .file-name {
+            color: #333;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .file-size {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            display: none;
+        }
+
+        .message.visible {
+            display: block;
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .progress-bar.visible {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 10px;
+            color: #666;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 20px 0;
+            color: #999;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📤 Upload File</h1>
+
+    <div class="form-group">
+        <label for="artistSelect">Select Artist *</label>
+        <select id="artistSelect" required>
+            <option value="">-- Select an artist --</option>
+        </select>
+    </div>
+
+    <div class="divider">— or —</div>
+
+    <div class="form-group">
+        <label>Add New Artist</label>
+        <div class="artist-input-group">
+            <input type="text" id="artistFirstName" placeholder="First Name">
+            <input type="text" id="artistLastName" placeholder="Last Name">
+            <button type="button" class="btn btn-small" id="addArtistBtn">Add Artist</button>
+        </div>
+    </div>
+
+    <div style="border-top: 2px solid #f0f0f0; margin: 30px 0;"></div>
+
+    <div class="upload-area" id="uploadArea">
+        <div class="upload-icon">📁</div>
+        <div class="upload-text">
+            <strong>Click to browse</strong> or drag and drop your file here
+        </div>
+        <small style="color: #999;">Maximum file size: 10MB</small>
+    </div>
+
+    <input type="file" id="fileInput" accept="*/*" multiple>
+
+    <div class="file-info" id="fileInfo">
+        <div class="file-name" id="fileName"></div>
+        <div class="file-size" id="fileSize"></div>
+    </div>
+
+    <button class="btn" id="uploadBtn" disabled>Upload File</button>
+
+    <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="message" id="message"></div>
+</div>
+
+<script>
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const message = document.getElementById('message');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const artistSelect = document.getElementById('artistSelect');
+    const artistFirstName = document.getElementById('artistFirstName');
+    const artistLastName = document.getElementById('artistLastName');
+    const addArtistBtn = document.getElementById('addArtistBtn');
+
+    let selectedFiles = [];
+
+    // Load artists on page load
+    async function loadArtists() {
+        try {
+            const response = await fetch('/api/artists');
+            if (response.ok) {
+                const artists = await response.json();
+                artistSelect.innerHTML = '<option value="">-- Select an artist --</option>';
+                artists.forEach(artist => {
+                    const option = document.createElement('option');
+                    option.value = artist.id;
+                    option.textContent = `${artist.firstName} ${artist.lastName}`;
+                    artistSelect.appendChild(option);
+                });
+            } else {
+                showMessage('Failed to load artists', 'error');
+            }
+        } catch (error) {
+            showMessage('Error loading artists: ' + error.message, 'error');
+        }
+    }
+
+    // Add new artist
+    addArtistBtn.addEventListener('click', async () => {
+        const firstName = artistFirstName.value.trim();
+        const lastName = artistLastName.value.trim();
+
+        if (!firstName || !lastName) {
+            showMessage('Please enter both first name and last name', 'error');
+            return;
+        }
+
+        addArtistBtn.disabled = true;
+        message.classList.remove('visible');
+
+        try {
+            const response = await fetch('/api/artists', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    firstName: firstName,
+                    lastName: lastName
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showMessage(result.message || 'Artist added successfully!', 'success');
+
+                // Clear input fields
+                artistFirstName.value = '';
+                artistLastName.value = '';
+
+                // Reload artists and select the newly added one
+                await loadArtists();
+                artistSelect.value = result.artistId;
+                updateUploadButtonState();
+            } else {
+                showMessage(result.message || 'Failed to add artist', 'error');
+            }
+        } catch (error) {
+            showMessage('Error adding artist: ' + error.message, 'error');
+        } finally {
+            addArtistBtn.disabled = false;
+        }
+    });
+
+    // Load artists when page loads
+    loadArtists();
+
+    // Enable upload button only when both artist and file are selected
+    // Enable upload button only when both artist and file are selected
+    function updateUploadButtonState() {
+        uploadBtn.disabled = !(selectedFiles.length > 0 && artistSelect.value); // Changed condition
+    }
+
+    artistSelect.addEventListener('change', updateUploadButtonState);
+
+    // Click to browse
+    uploadArea.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    // File selection
+    fileInput.addEventListener('change', (e) => {
+        handleFileSelect(e.target.files); // Changed to pass files array
+    });
+
+    // Drag and drop
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('drag-over');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('drag-over');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        handleFileSelect(e.dataTransfer.files); // Changed to pass files array
+    });
+
+    function handleFileSelect(files) {
+        if (!files || files.length === 0) return;
+
+        selectedFiles = Array.from(files); // Convert FileList to Array
+
+        if (selectedFiles.length === 1) {
+            fileName.textContent = `File: ${selectedFiles[0].name}`;
+            fileSize.textContent = `Size: ${formatFileSize(selectedFiles[0].size)}`;
+        } else {
+            const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+            fileName.textContent = `Files: ${selectedFiles.length} files selected`;
+            fileSize.textContent = `Total Size: ${formatFileSize(totalSize)}`;
+        }
+
+        fileInfo.classList.add('visible');
+        updateUploadButtonState();
+        message.classList.remove('visible');
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    // Upload file
+    uploadBtn.addEventListener('click', async () => {
+        if (selectedFiles.length === 0 || !artistSelect.value) return;
+
+        const formData = new FormData();
+
+        // Append all files
+        selectedFiles.forEach(file => {
+            formData.append('files', file); // Changed to 'files' (plural)
+        });
+
+        formData.append('artistId', artistSelect.value);
+
+        uploadBtn.disabled = true;
+        progressBar.classList.add('visible');
+        message.classList.remove('visible');
+
+        try {
+            const xhr = new XMLHttpRequest();
+
+            // Progress tracking
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressFill.style.width = percentComplete + '%';
+                }
+            });
+
+            // Upload complete
+            xhr.addEventListener('load', () => {
+                progressBar.classList.remove('visible');
+                progressFill.style.width = '0%';
+
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    let detailMessage = `Files uploaded successfully!\n`;
+                    detailMessage += `${response.filesProcessed} files processed, `;
+                    detailMessage += `${response.inserted} records inserted, ${response.skipped} skipped.\n\n`;
+
+                    // Show details for each file
+                    if (response.fileDetails && response.fileDetails.length > 1) {
+                        detailMessage += `File Details:\n`;
+                        response.fileDetails.forEach(detail => {
+                            detailMessage += `• ${detail.fileName}: ${detail.parsed} records`;
+                            if (!detail.success) {
+                                detailMessage += ` (Error: ${detail.error})`;
+                            }
+                            detailMessage += '\n';
+                        });
+                    }
+
+                    showMessage(detailMessage, 'success');
+                    fileInfo.classList.remove('visible');
+                    selectedFiles = [];
+                    fileInput.value = '';
+                    updateUploadButtonState();
+                } else {
+                    showMessage('Upload failed: ' + xhr.statusText, 'error');
+                    uploadBtn.disabled = false;
+                }
+            });
+
+            // Upload error
+            xhr.addEventListener('error', () => {
+                progressBar.classList.remove('visible');
+                progressFill.style.width = '0%';
+                showMessage('Upload failed. Please try again.', 'error');
+                uploadBtn.disabled = false;
+            });
+
+            xhr.open('POST', '/api/upload', true);
+            xhr.send(formData);
+
+        } catch (error) {
+            progressBar.classList.remove('visible');
+            progressFill.style.width = '0%';
+            showMessage('Error: ' + error.message, 'error');
+            uploadBtn.disabled = false;
+        }
+    });
+
+    function showMessage(text, type) {
+        message.textContent = text;
+        message.className = 'message visible ' + type;
+    }
+</script>
+</body>
+</html>

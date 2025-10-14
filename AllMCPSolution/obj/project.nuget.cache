@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "vqv93ilxs6c=",
+  "dgSpecHash": "OCFVTzSg5Rw=",
   "success": true,
   "projectFilePath": "/Users/johann/RiderProjects/AllMCP/AllMCPSolution/AllMCPSolution.csproj",
   "expectedPackageFiles": [
     "/Users/johann/.nuget/packages/azure.core/1.38.0/azure.core.1.38.0.nupkg.sha512",
     "/Users/johann/.nuget/packages/azure.identity/1.11.4/azure.identity.1.11.4.nupkg.sha512",
+    "/Users/johann/.nuget/packages/htmlagilitypack/1.12.4/htmlagilitypack.1.12.4.nupkg.sha512",
     "/Users/johann/.nuget/packages/humanizer.core/2.14.1/humanizer.core.2.14.1.nupkg.sha512",
     "/Users/johann/.nuget/packages/microsoft.bcl.asyncinterfaces/7.0.0/microsoft.bcl.asyncinterfaces.7.0.0.nupkg.sha512",
     "/Users/johann/.nuget/packages/microsoft.build.framework/17.8.3/microsoft.build.framework.17.8.3.nupkg.sha512",

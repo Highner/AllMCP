@@ -1,0 +1,675 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artwork Sales Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 8px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            color: #333;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-group select,
+        .form-group input {
+            padding: 10px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 14px;
+            background-color: white;
+            transition: border-color 0.3s;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #764ba2;
+        }
+
+        .form-group select[multiple] {
+            min-height: 120px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 500px;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 8px;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            display: none;
+        }
+
+        .message.visible {
+            display: block;
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 8px;
+        }
+
+        .stat-card {
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Artwork Sales Analysis</h1>
+        
+        <div class="filters">
+            <div class="form-group">
+                <label for="artistSelect">Select Artist *</label>
+                <select id="artistSelect" required>
+                    <option value="">-- Select an artist --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="categorySelect">Select Categories (hold Ctrl/Cmd)</label>
+                <select id="categorySelect" multiple>
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="dateFrom">From Date</label>
+                <input type="date" id="dateFrom">
+            </div>
+
+            <div class="form-group">
+                <label for="dateTo">To Date</label>
+                <input type="date" id="dateTo">
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn" id="generateChartBtn" disabled>Generate Chart</button>
+            <button class="btn btn-secondary" id="clearBtn">Clear Filters</button>
+        </div>
+
+        <div class="message" id="message"></div>
+
+        <div class="stats" id="statsContainer" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-label">Total Sales</div>
+                <div class="stat-value" id="statTotalSales">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Low Estimate</div>
+                <div class="stat-value" id="statAvgLow">€0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg High Estimate</div>
+                <div class="stat-value" id="statAvgHigh">€0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Hammer Price</div>
+                <div class="stat-value" id="statAvgHammer">€0</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="salesChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="performanceChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const artistSelect = document.getElementById('artistSelect');
+        const categorySelect = document.getElementById('categorySelect');
+        const dateFrom = document.getElementById('dateFrom');
+        const dateTo = document.getElementById('dateTo');
+        const generateChartBtn = document.getElementById('generateChartBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const message = document.getElementById('message');
+        const statsContainer = document.getElementById('statsContainer');
+
+        let chartInstance = null;
+        let performanceChartInstance = null;
+
+        // Load artists on page load
+        async function loadArtists() {
+            try {
+                const response = await fetch('/api/artists');
+                if (response.ok) {
+                    const artists = await response.json();
+                    artistSelect.innerHTML = '<option value="">-- Select an artist --</option>';
+                    artists.forEach(artist => {
+                        const option = document.createElement('option');
+                        option.value = artist.id;
+                        option.textContent = `${artist.firstName} ${artist.lastName}`;
+                        artistSelect.appendChild(option);
+                    });
+                } else {
+                    showMessage('Failed to load artists', 'error');
+                }
+            } catch (error) {
+                showMessage('Error loading artists: ' + error.message, 'error');
+            }
+        }
+
+        // Load categories on page load
+        async function loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                if (response.ok) {
+                    const categories = await response.json();
+                    categorySelect.innerHTML = '';
+                    categories.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category;
+                        option.textContent = category;
+                        categorySelect.appendChild(option);
+                    });
+                } else {
+                    showMessage('Failed to load categories', 'error');
+                }
+            } catch (error) {
+                showMessage('Error loading categories: ' + error.message, 'error');
+            }
+        }
+
+        // Set default date range (last year)
+        function setDefaultDates() {
+            const today = new Date();
+            const lastYear = new Date(today);
+            lastYear.setFullYear(today.getFullYear() - 1);
+            
+            dateTo.valueAsDate = today;
+            dateFrom.valueAsDate = lastYear;
+        }
+
+        // Enable generate button when artist is selected
+        artistSelect.addEventListener('change', () => {
+            generateChartBtn.disabled = !artistSelect.value;
+        });
+
+        // Clear filters
+        clearBtn.addEventListener('click', () => {
+            artistSelect.value = '';
+            categorySelect.selectedIndex = -1;
+            setDefaultDates();
+            generateChartBtn.disabled = true;
+            if (chartInstance) {
+                chartInstance.destroy();
+                chartInstance = null;
+            }
+            if (performanceChartInstance) {
+                performanceChartInstance.destroy();
+                performanceChartInstance = null;
+            }
+            statsContainer.style.display = 'none';
+            message.classList.remove('visible');
+        });
+
+        // Generate chart
+        generateChartBtn.addEventListener('click', async () => {
+            if (!artistSelect.value) {
+                showMessage('Please select an artist', 'error');
+                return;
+            }
+
+            const selectedCategories = Array.from(categorySelect.selectedOptions).map(opt => opt.value);
+
+            const params = new URLSearchParams({
+                artistId: artistSelect.value,
+                dateFrom: dateFrom.value || '',
+                dateTo: dateTo.value || ''
+            });
+
+            // Add multiple categories
+            selectedCategories.forEach(cat => {
+                params.append('categories', cat);
+            });
+
+            generateChartBtn.disabled = true;
+            showMessage('Loading chart data...', 'info');
+
+            try {
+                // Fetch both datasets in parallel
+                const [salesResponse, performanceResponse] = await Promise.all([
+                    fetch(`/api/chart-data?${params}`),
+                    fetch(`/api/performance-data?${params}`)
+                ]);
+
+                if (!salesResponse.ok || !performanceResponse.ok) {
+                    throw new Error(`HTTP error! status: ${salesResponse.status}`);
+                }
+
+                const salesData = await salesResponse.json();
+                const performanceData = await performanceResponse.json();
+
+                if (salesData.sales.length === 0) {
+                    showMessage('No sales data found for the selected filters', 'info');
+                    generateChartBtn.disabled = false;
+                    statsContainer.style.display = 'none';
+                    return;
+                }
+
+                renderChart(salesData.sales);
+                renderPerformanceChart(performanceData.timeSeries);
+                updateStats(salesData.sales);
+                message.classList.remove('visible');
+            } catch (error) {
+                showMessage('Error loading chart data: ' + error.message, 'error');
+            } finally {
+                generateChartBtn.disabled = false;
+            }
+        });
+
+        function renderChart(sales) {
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            // Sort sales by date
+            sales.sort((a, b) => new Date(a.saleDate) - new Date(b.saleDate));
+
+            const ctx = document.getElementById('salesChart').getContext('2d');
+
+            chartInstance = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Low Estimate',
+                            data: sales.map(s => ({ x: new Date(s.saleDate), y: s.lowEstimate })),
+                            borderColor: '#4CAF50',
+                            backgroundColor: '#4CAF50',
+                            showLine: true,
+                            tension: 0,
+                            fill: false,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        },
+                        {
+                            label: 'High Estimate',
+                            data: sales.map(s => ({ x: new Date(s.saleDate), y: s.highEstimate })),
+                            borderColor: '#FFC107',
+                            backgroundColor: '#FFC107',
+                            showLine: true,
+                            tension: 0,
+                            fill: false,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        },
+                        {
+                            label: 'Hammer Price',
+                            data: sales.map(s => ({ x: new Date(s.saleDate), y: s.hammerPrice })),
+                            borderColor: '#667eea',
+                            backgroundColor: '#667eea',
+                            showLine: true,
+                            tension: 0,
+                            fill: false,
+                            borderWidth: 2,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            pointStyle: 'circle'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: true,
+                        axis: 'xy'
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Artwork Sales Price Trends',
+                            font: {
+                                size: 18
+                            }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += '€' + context.parsed.y.toLocaleString('en-US', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    });
+                                    return label;
+                                },
+                                afterLabel: function(context) {
+                                    const sale = sales[context.dataIndex];
+                                    return [
+                                        `Artwork: ${sale.name}`,
+                                        `Category: ${sale.category}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'month',
+                                displayFormats: {
+                                    month: 'MMM yyyy'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Sale Date'
+                            }
+                        },
+                        y: {
+                            type: 'logarithmic',
+                            title: {
+                                display: true,
+                                text: 'Price (€)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return '€' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderPerformanceChart(timeSeries) {
+            if (performanceChartInstance) {
+                performanceChartInstance.destroy();
+            }
+
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+
+            // Sort by date
+            timeSeries.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+            performanceChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Performance Factor',
+                            data: timeSeries.map(t => ({
+                                x: new Date(t.time),
+                                y: t.performanceFactor
+                            })),
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: true,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Within Estimate Range (0-1)',
+                            data: timeSeries.map(t => ({ x: new Date(t.time), y: 0 })),
+                            borderColor: '#4CAF50',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'High Estimate Threshold (1.0)',
+                            data: timeSeries.map(t => ({ x: new Date(t.time), y: 1 })),
+                            borderColor: '#FFC107',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false,
+                        axis: 'x'
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Sales Performance Relative to Estimates',
+                            font: {
+                                size: 18
+                            }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.datasetIndex === 0) {
+                                        const value = context.parsed.y;
+                                        let interpretation = '';
+
+                                        if (value < 0) {
+                                            interpretation = ' (Below low estimate)';
+                                        } else if (value <= 1) {
+                                            interpretation = ' (Within estimate range)';
+                                        } else {
+                                            interpretation = ' (Above high estimate)';
+                                        }
+
+                                        return 'Factor: ' + value.toFixed(3) + interpretation;
+                                    }
+                                    return context.dataset.label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'month',
+                                displayFormats: {
+                                    month: 'MMM yyyy'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Sale Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Performance Factor'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateStats(sales) {
+            const totalSales = sales.length;
+            const avgLow = sales.reduce((sum, s) => sum + s.lowEstimate, 0) / totalSales;
+            const avgHigh = sales.reduce((sum, s) => sum + s.highEstimate, 0) / totalSales;
+            const avgHammer = sales.reduce((sum, s) => sum + s.hammerPrice, 0) / totalSales;
+
+            document.getElementById('statTotalSales').textContent = totalSales;
+            document.getElementById('statAvgLow').textContent = '€' + avgLow.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            document.getElementById('statAvgHigh').textContent = '€' + avgHigh.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            document.getElementById('statAvgHammer').textContent = '€' + avgHammer.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            statsContainer.style.display = 'grid';
+        }
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = 'message visible ' + type;
+        }
+
+        // Initialize
+        loadArtists();
+        loadCategories();
+        setDefaultDates();
+    </script>
+</body>
+</html>

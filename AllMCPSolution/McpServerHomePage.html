@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Server - Home</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h2 {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .navbar nav a {
+            color: #333;
+            text-decoration: none;
+            margin-left: 20px;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .navbar nav a:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .hero {
+            background: white;
+            padding: 60px 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .hero h1 {
+            color: #333;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .hero p {
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .hero .emoji {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .card h3 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .card .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+
+        .card .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .features {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .features h2 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: start;
+            padding: 15px;
+            background: #f8f9ff;
+            border-radius: 8px;
+        }
+
+        .feature-item .icon {
+            font-size: 32px;
+            margin-right: 15px;
+        }
+
+        .feature-item .content h4 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .feature-item .content p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: white;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="navbar">
+            <h2>🚀 MCP Server</h2>
+            <nav>
+                <a href="/">Home</a>
+                <a href="/FileUploadComponent.html">Upload</a>
+                <a href="/tools">Tools API</a>
+                <a href="/.well-known/mcp-manifest">Manifest</a>
+            </nav>
+        </div>
+
+        <div class="hero">
+            <div class="emoji">🎨</div>
+            <h1>Welcome to MCP Server</h1>
+            <p>A powerful Model Context Protocol server for managing artists, artworks, and sales data.<br>
+            Explore our tools, upload files, and interact with our API endpoints.</p>
+        </div>
+
+        <div class="cards">
+            <a href="/FileUploadComponent.html" class="card">
+                <div class="icon">📤</div>
+                <h3>Upload Files</h3>
+                <p>Upload and manage your files with our intuitive drag-and-drop interface. Supports multiple file formats with progress tracking.</p>
+                <span class="btn">Go to Upload →</span>
+            </a>
+
+            <a href="/tools" class="card">
+                <div class="icon">🔧</div>
+                <h3>API Tools</h3>
+                <p>Discover and interact with all available MCP tools. Full CRUD operations for artists, artworks, and sales management.</p>
+                <span class="btn">View Tools →</span>
+            </a>
+
+            <a href="/.well-known/mcp-manifest" class="card">
+                <div class="icon">📋</div>
+                <h3>MCP Manifest</h3>
+                <p>View the server's MCP manifest with all available tools, their schemas, and endpoint configurations.</p>
+                <span class="btn">View Manifest →</span>
+            </a>
+        </div>
+
+        <div class="features">
+            <h2>Available Features</h2>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <div class="icon">👨‍🎨</div>
+                    <div class="content">
+                        <h4>Artist Management</h4>
+                        <p>Create, read, update, and delete artist records</p>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="icon">🖼️</div>
+                    <div class="content">
+                        <h4>Artwork Tracking</h4>
+                        <p>Manage artwork inventory and details</p>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="icon">💰</div>
+                    <div class="content">
+                        <h4>Sales Records</h4>
+                        <p>Track and analyze artwork sales data</p>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="icon">🔍</div>
+                    <div class="content">
+                        <h4>Search & Filter</h4>
+                        <p>Powerful search capabilities across all entities</p>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="icon">📊</div>
+                    <div class="content">
+                        <h4>Data Visualization</h4>
+                        <p>Render charts and analyze trends</p>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="icon">⚡</div>
+                    <div class="content">
+                        <h4>Batch Operations</h4>
+                        <p>Perform bulk create, update, and delete operations</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>MCP Server © 2025 | Built with ASP.NET Core</p>
+        </div>
+    </div>
+</body>
+</html>

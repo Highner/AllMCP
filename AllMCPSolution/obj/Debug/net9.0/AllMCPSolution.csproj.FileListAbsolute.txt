@@ -160,3 +160,8 @@
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/runtimes/win/lib/net6.0/System.Windows.Extensions.dll
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/AllMCPSolution.csproj.AssemblyReference.cache
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/AllMCPSo.96AD8D32.Up2Date
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/AllMCPSolution.staticwebassets.runtime.json
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/HtmlAgilityPack.dll
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/ha6umacg54-7dvl6r0vtd.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/swd2nrnfww-e8grmmxf3f.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/m5t10pc0pi-2jy6nwdykw.gz
