@@ -139,7 +139,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
             Technique = sale.Technique,
             YearCreated = sale.YearCreated,
             Time = sale.SaleDate,
-            PerformanceFactor = CalculatePerformanceFactor(
+            PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
                 sale.HammerPrice,
                 sale.LowEstimate,
                 sale.HighEstimate
@@ -152,33 +152,6 @@ public class GetArtworkSalesPerformanceTool : IToolBase
             count = timeSeries.Count,
             description = "Performance factor: 0-1 if within estimate range, >1 if above high estimate, <0 if below low estimate"
         };
-    }
-
-    private static double CalculatePerformanceFactor(decimal hammerPrice, decimal lowEstimate, decimal highEstimate)
-    {
-        // If hammer price is below low estimate
-        if (hammerPrice < lowEstimate)
-        {
-            // Return negative factor: how far below as a fraction of low estimate
-            // E.g., if hammer is 80 and low is 100, factor = -0.2
-            return (double)((hammerPrice - lowEstimate) / lowEstimate);
-        }
-
-        // If hammer price is above high estimate
-        if (hammerPrice > highEstimate)
-        {
-            // Return factor > 1: 1 + how far above as a fraction of high estimate
-            // E.g., if hammer is 150 and high is 100, factor = 1.5
-            return (double)(hammerPrice / highEstimate);
-        }
-
-        // If hammer price is within range
-        // Map linearly from low (0) to high (1)
-        var range = highEstimate - lowEstimate;
-        if (range == 0)
-            return 0.5; // Edge case: if low == high, return midpoint
-
-        return (double)((hammerPrice - lowEstimate) / range);
     }
 
     public object GetToolDefinition()

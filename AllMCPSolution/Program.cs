@@ -348,7 +348,7 @@ app.MapGet("/api/performance-data", async (
     var timeSeries = sales.Select(sale => new
     {
         Time = sale.SaleDate,
-        PerformanceFactor = CalculatePerformanceFactor(
+        PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
             sale.HammerPrice,
             sale.LowEstimate,
             sale.HighEstimate
@@ -357,26 +357,6 @@ app.MapGet("/api/performance-data", async (
 
     return Results.Ok(new { timeSeries });
 });
-
-static double CalculatePerformanceFactor(decimal hammerPrice, decimal lowEstimate, decimal highEstimate)
-{
-    if (hammerPrice < lowEstimate)
-    {
-        return (double)((hammerPrice - lowEstimate) / lowEstimate);
-    }
-
-    if (hammerPrice > highEstimate)
-    {
-        return (double)(hammerPrice / highEstimate);
-    }
-
-    var range = highEstimate - lowEstimate;
-    if (range == 0)
-        return 0.5;
-
-    return (double)((hammerPrice - lowEstimate) / range);
-}
-
 
 // MCP endpoint
 app.MapPost("/mcp", async (HttpContext context) =>
