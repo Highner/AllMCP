@@ -76,4 +76,25 @@ public class ManifestGenerator
             paths = paths
         };
     }
+    
+    public object GenerateAnthropicManifest(IServiceProvider? scopedProvider = null)
+    {
+        var tools = _toolRegistry.GetAllTools(scopedProvider)
+            .Select(tool => tool.GetToolDefinition())
+            .ToList();
+
+        return new
+        {
+            model = "claude-3-5-sonnet-20241022",
+            max_tokens = 4096,
+            tools = tools,
+            metadata = new
+            {
+                name = "AllMCPSolution",
+                version = "1.0.0",
+                description = "MCP server with auto-discovered tools for Anthropic Claude",
+                endpoint = $"{_baseUrl}/mcp"
+            }
+        };
+    }
 }

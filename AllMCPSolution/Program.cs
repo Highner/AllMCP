@@ -398,6 +398,12 @@ app.MapGet("/openapi.json", (IServiceProvider serviceProvider) =>
     return Results.Json(manifestGenerator.GenerateOpenApiManifest(scope.ServiceProvider));
 });
 
+app.MapGet("/.well-known/anthropic-manifest", (ManifestGenerator manifestGenerator, IServiceProvider serviceProvider) =>
+{
+    using var scope = serviceProvider.CreateScope();
+    return Results.Ok(manifestGenerator.GenerateAnthropicManifest(scope.ServiceProvider));
+});
+
 // Tools discovery endpoint
 app.MapGet("/tools", (IServiceProvider serviceProvider) =>
 {
