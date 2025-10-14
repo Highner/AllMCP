@@ -1,8 +1,9 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
+using AllMCPSolution.Models;
 
-namespace AllMCPSolution;
+namespace AllMCPSolution.Repositories;
 
 public static class ArtworkSaleParser
 {

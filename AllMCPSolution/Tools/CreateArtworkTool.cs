@@ -6,11 +6,11 @@ namespace AllMCPSolution.Artworks;
 [McpTool("create_artwork", "Creates a new artwork in the database")]
 public class CreateArtworkTool : IToolBase
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IArtworkRepository _artworks;
 
-    public CreateArtworkTool(ApplicationDbContext dbContext)
+    public CreateArtworkTool(IArtworkRepository artworks)
     {
-        _dbContext = dbContext;
+        _artworks = artworks;
     }
 
     public string Name => "create_artwork";
@@ -52,8 +52,7 @@ public class CreateArtworkTool : IToolBase
             ArtistId = artistId
         };
 
-        _dbContext.Artworks.Add(artwork);
-        await _dbContext.SaveChangesAsync();
+        await _artworks.AddAsync(artwork);
 
         return new
         {

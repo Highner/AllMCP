@@ -1,3 +1,5 @@
+namespace AllMCPSolution.Models;
+
 public class Artist
 {
     public Guid Id { get; set; }

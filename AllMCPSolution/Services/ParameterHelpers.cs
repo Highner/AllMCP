@@ -2,7 +2,9 @@
 
 using System.Text.Json;
 
-namespace AllMCPSolution.Tools;
+using AllMCPSolution.Data;
+
+namespace AllMCPSolution.Services;
 
 public static class ParameterHelpers
 {

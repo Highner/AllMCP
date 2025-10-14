@@ -1,3 +1,5 @@
+namespace AllMCPSolution.Models;
+
 public class ArtworkSale
 {
     public Guid Id { get; set; }

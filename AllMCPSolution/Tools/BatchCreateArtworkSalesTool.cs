@@ -2,7 +2,7 @@ using AllMCPSolution.Attributes;
 using AllMCPSolution.Tools;
 using System.Text.Json;
 
-namespace AllMCPSolution.Artworks;
+namespace AllMCPSolution.Tools;
 
 [McpTool("batch_create_artwork_sales", "Creates multiple artwork sales in a single batch operation.")]
 public class BatchCreateArtworkSalesTool : IToolBase

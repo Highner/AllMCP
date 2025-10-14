@@ -1,8 +1,8 @@
 using AllMCPSolution.Attributes;
-using AllMCPSolution.Tools;
+using AllMCPSolution.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace AllMCPSolution.Artists;
+namespace AllMCPSolution.Tools;
 
 [McpTool("get_artist_by_id", "Retrieves a specific artist by their ID")]
 public class GetArtistByIdTool : IToolBase

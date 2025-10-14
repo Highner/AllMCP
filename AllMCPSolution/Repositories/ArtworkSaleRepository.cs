@@ -1,11 +1,16 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
-using AllMCPSolution.Artworks; // ArtworkSale, Artist
-using AllMCPSolution;          // ApplicationDbContext
+using AllMCPSolution.Data;
+using AllMCPSolution.Models;
+
+namespace AllMCPSolution.Repositories;
 
 public interface IArtworkSaleRepository
 {
     Task<int> AddRangeIfNotExistsAsync(IEnumerable<ArtworkSale> sales, CancellationToken ct = default);
+    Task<List<string>> GetCategoriesAsync(CancellationToken ct = default);
+    Task<List<ArtworkSale>> GetSalesAsync(Guid artistId, DateTime? dateFrom, DateTime? dateTo, List<string> categories, CancellationToken ct = default);
+    Task<List<(DateTime SaleDate, decimal LowEstimate, decimal HighEstimate, decimal HammerPrice)>> GetPerformanceSalesAsync(Guid artistId, DateTime? dateFrom, DateTime? dateTo, List<string> categories, CancellationToken ct = default);
 }
 
 public class ArtworkSaleRepository : IArtworkSaleRepository
@@ -49,6 +54,50 @@ public class ArtworkSaleRepository : IArtworkSaleRepository
 
         await _db.ArtworkSales.AddRangeAsync(toInsert, ct);
         return await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<string>> GetCategoriesAsync(CancellationToken ct = default)
+    {
+        return await _db.ArtworkSales
+            .AsNoTracking()
+            .Select(a => a.Category)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<ArtworkSale>> GetSalesAsync(Guid artistId, DateTime? dateFrom, DateTime? dateTo, List<string> categories, CancellationToken ct = default)
+    {
+        var q = _db.ArtworkSales.AsNoTracking().Where(a => a.ArtistId == artistId);
+
+        if (dateFrom.HasValue)
+            q = q.Where(a => a.SaleDate >= dateFrom.Value);
+        if (dateTo.HasValue)
+            q = q.Where(a => a.SaleDate <= dateTo.Value);
+        if (categories != null && categories.Count > 0)
+            q = q.Where(a => categories.Contains(a.Category));
+
+        return await q.OrderBy(a => a.SaleDate).ToListAsync(ct);
+    }
+
+    public async Task<List<(DateTime SaleDate, decimal LowEstimate, decimal HighEstimate, decimal HammerPrice)>> GetPerformanceSalesAsync(Guid artistId, DateTime? dateFrom, DateTime? dateTo, List<string> categories, CancellationToken ct = default)
+    {
+        var q = _db.ArtworkSales.AsNoTracking()
+            .Where(a => a.ArtistId == artistId && a.Sold == true && a.LowEstimate > 0 && a.HighEstimate > 0 && a.HammerPrice > 0);
+
+        if (dateFrom.HasValue)
+            q = q.Where(a => a.SaleDate >= dateFrom.Value);
+        if (dateTo.HasValue)
+            q = q.Where(a => a.SaleDate <= dateTo.Value);
+        if (categories != null && categories.Count > 0)
+            q = q.Where(a => categories.Contains(a.Category));
+
+        var list = await q.OrderBy(a => a.SaleDate)
+            .Take(1000)
+            .Select(a => new { a.SaleDate, a.LowEstimate, a.HighEstimate, a.HammerPrice })
+            .ToListAsync(ct);
+
+        return list.Select(a => (a.SaleDate, a.LowEstimate, a.HighEstimate, a.HammerPrice)).ToList();
     }
 
     private static ArtworkSale Normalize(ArtworkSale s)

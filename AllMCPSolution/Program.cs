@@ -1,7 +1,7 @@
-using AllMCPSolution;
 using AllMCPSolution.Artists;
 using AllMCPSolution.Artworks;
-using AllMCPSolution.Charts;
+using AllMCPSolution.Data;
+using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
 using AllMCPSolution.Tools;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +15,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IArtistRepository, ArtistRepository>();
+builder.Services.AddScoped<IArtworkRepository, ArtworkRepository>();
+builder.Services.AddScoped<IArtworkSaleRepository, ArtworkSaleRepository>();
 
 // Register all tools (auto-discovered by ToolRegistry)
 builder.Services.AddSingleton<HelloWorldTool>();
@@ -22,8 +27,8 @@ builder.Services.AddSingleton<HelloWorldTool>();
 builder.Services.AddScoped<CreateArtistTool>();
 builder.Services.AddScoped<GetAllArtistsTool>();
 builder.Services.AddScoped<GetArtistByIdTool>();
-builder.Services.AddScoped<UpdateArtistTool>();
-builder.Services.AddScoped<DeleteArtistTool>();
+//builder.Services.AddScoped<UpdateArtistTool>();
+//builder.Services.AddScoped<DeleteArtistTool>();
 builder.Services.AddScoped<SearchArtistsTool>();
 
 //builder.Services.AddScoped<CreateArtworkTool>();
@@ -33,14 +38,17 @@ builder.Services.AddScoped<SearchArtistsTool>();
 //builder.Services.AddScoped<DeleteArtworkTool>();
 //builder.Services.AddScoped<SearchArtworksTool>();
 
-builder.Services.AddScoped<CreateArtworkSaleTool>();
+//builder.Services.AddScoped<CreateArtworkSaleTool>();
 //builder.Services.AddScoped<GetAllArtworkSalesTool>();
-builder.Services.AddScoped<GetArtworkSaleByIdTool>();
+//builder.Services.AddScoped<GetArtworkSaleByIdTool>();
 //builder.Services.AddScoped<UpdateArtworkSaleTool>();
 //builder.Services.AddScoped<DeleteArtworkSaleTool>();
 //builder.Services.AddScoped<SearchArtworkSalesTool>();
-builder.Services.AddScoped<ListArtworkSalesTool>();
+//builder.Services.AddScoped<ListArtworkSalesTool>();
 builder.Services.AddScoped<GetArtworkSalesPerformanceTool>();
+builder.Services.AddScoped<GetArtworkSalesHammerPriceTool>();
+builder.Services.AddScoped<GetArtworkSalesPriceVsEstimateTool>();
+builder.Services.AddScoped<GetArtworkSalesHammerPerAreaTool>();
 
 
 //builder.Services.AddScoped<BatchCreateArtworkSalesTool>();
@@ -50,11 +58,14 @@ builder.Services.AddScoped<GetArtworkSalesPerformanceTool>();
 //builder.Services.AddScoped<RenderLineChartTool>();
 
 
+// Inflation and related services
+builder.Services.AddScoped<IInflationService, EcbInflationService>();
+
 // Register MCP services
 builder.Services.AddSingleton<ToolRegistry>();
 builder.Services.AddSingleton<ManifestGenerator>();
 builder.Services.AddSingleton<McpServer>();
-builder.Services.AddScoped<IArtworkSaleRepository, ArtworkSaleRepository>();
+
 
 
 // Add CORS for AI agent access
@@ -76,289 +87,18 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseCors("AllowAIAgents");
 app.UseAuthorization();
+app.MapControllers();
 
 // Get services
 var mcpServer = app.Services.GetRequiredService<McpServer>();
 var manifestGenerator = app.Services.GetRequiredService<ManifestGenerator>();
 var toolRegistry = app.Services.GetRequiredService<ToolRegistry>();
 
-// File upload endpoint
-app.MapPost("/api/upload", async (HttpContext context, IArtworkSaleRepository repo, CancellationToken ct) =>
-{
-    try
-    {
-        var form = await context.Request.ReadFormAsync();
-        var files = form.Files.GetFiles("files"); // Changed from "file" to "files"
-        
-        // Get the selected artist ID from the form
-        var artistIdString = form["artistId"].ToString();
-        
-        if (string.IsNullOrEmpty(artistIdString) || !Guid.TryParse(artistIdString, out var artistId))
-            return Results.BadRequest(new { message = "Valid Artist ID is required" });
 
-        if (files == null || files.Count == 0)
-            return Results.BadRequest(new { message = "No files uploaded" });
 
-        var allSales = new List<ArtworkSale>();
-        var fileResults = new List<object>();
-        
-        // Process each file
-        foreach (var file in files)
-        {
-            try
-            {
-                using var stream = file.OpenReadStream();
-                
-                // Parse directly from stream
-                var sales = ArtworkSaleParser.ParseFromStream(stream);
-                
-                // Set the artist ID for all sales
-                foreach (var sale in sales)
-                {
-                    sale.ArtistId = artistId;
-                }
-                
-                allSales.AddRange(sales);
-                
-                fileResults.Add(new
-                {
-                    fileName = file.FileName,
-                    parsed = sales.Count,
-                    success = true
-                });
-            }
-            catch (Exception ex)
-            {
-                fileResults.Add(new
-                {
-                    fileName = file.FileName,
-                    parsed = 0,
-                    success = false,
-                    error = ex.Message
-                });
-            }
-        }
-        
-        // Insert all sales from all files
-        var inserted = await repo.AddRangeIfNotExistsAsync(allSales, ct);
 
-        return Results.Ok(new
-        {
-            message = "Files processed and saved",
-            filesProcessed = files.Count,
-            fileDetails = fileResults,
-            totalParsed = allSales.Count,
-            inserted,
-            skipped = allSales.Count - inserted
-        });
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem($"Error uploading files: {ex.Message} {ex.StackTrace}");
-    }
-});
 
-app.MapGet("/api/artists", async (ApplicationDbContext db, CancellationToken ct) =>
-{
-    var artists = await db.Artists
-        .Select(a => new { a.Id, a.FirstName, a.LastName })
-        .ToListAsync(ct);
-    return Results.Ok(artists);
-});
 
-// Add new artist endpoint with validation
-app.MapPost("/api/artists", async (
-    [FromBody] CreateArtistRequest request,
-    ApplicationDbContext db,
-    CancellationToken ct) =>
-{
-    try
-    {
-        // Validate input
-        if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
-        {
-            return Results.BadRequest(new { message = "First name and last name are required" });
-        }
-
-        // Check if artist already exists (case-insensitive)
-        var existingArtist = await db.Artists
-            .FirstOrDefaultAsync(a => 
-                a.FirstName.ToLower() == request.FirstName.ToLower() && 
-                a.LastName.ToLower() == request.LastName.ToLower(), ct);
-
-        if (existingArtist != null)
-        {
-            return Results.Conflict(new 
-            { 
-                message = $"Artist '{request.FirstName} {request.LastName}' already exists",
-                artistId = existingArtist.Id
-            });
-        }
-
-        // Create new artist
-        var newArtist = new Artist
-        {
-            Id = Guid.NewGuid(),
-            FirstName = request.FirstName.Trim(),
-            LastName = request.LastName.Trim()
-        };
-
-        db.Artists.Add(newArtist);
-        await db.SaveChangesAsync(ct);
-
-        return Results.Ok(new 
-        { 
-            message = $"Artist '{newArtist.FirstName} {newArtist.LastName}' added successfully",
-            artistId = newArtist.Id,
-            firstName = newArtist.FirstName,
-            lastName = newArtist.LastName
-        });
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem($"Error adding artist: {ex.Message}");
-    }
-});
-
-// Add endpoint to get distinct categories
-app.MapGet("/api/categories", async (ApplicationDbContext db, CancellationToken ct) =>
-{
-    var categories = await db.ArtworkSales
-        .Select(a => a.Category)
-        .Distinct()
-        .OrderBy(c => c)
-        .ToListAsync(ct);
-    return Results.Ok(categories);
-});
-
-// Add endpoint to get chart data
-app.MapGet("/api/chart-data", async (
-    ApplicationDbContext db,
-    HttpContext context,
-    CancellationToken ct) =>
-{
-    // Manual parameter extraction
-    var query = context.Request.Query;
-    
-    if (!query.TryGetValue("artistId", out var artistIdStr) || 
-        !Guid.TryParse(artistIdStr.ToString(), out var artistId) ||
-        artistId == Guid.Empty)
-    {
-        return Results.BadRequest(new { message = "Valid Artist ID is required" });
-    }
-
-    var dateFrom = query.TryGetValue("dateFrom", out var dateFromStr) ? dateFromStr.ToString() : null;
-    var dateTo = query.TryGetValue("dateTo", out var dateToStr) ? dateToStr.ToString() : null;
-    var categories = query.TryGetValue("categories", out var categoriesStr) 
-        ? categoriesStr.ToList() 
-        : new List<string>();
-
-    var salesQuery = db.ArtworkSales
-        .Where(a => a.ArtistId == artistId);
-
-    // Apply date filters
-    if (!string.IsNullOrEmpty(dateFrom) && DateTime.TryParse(dateFrom, out var fromDate))
-    {
-        salesQuery = salesQuery.Where(a => a.SaleDate >= fromDate);
-    }
-
-    if (!string.IsNullOrEmpty(dateTo) && DateTime.TryParse(dateTo, out var toDate))
-    {
-        // Include the entire end date
-        toDate = toDate.AddDays(1).AddSeconds(-1);
-        salesQuery = salesQuery.Where(a => a.SaleDate <= toDate);
-    }
-
-    // Apply category filter
-    if (categories.Any())
-    {
-        salesQuery = salesQuery.Where(a => categories.Contains(a.Category));
-    }
-
-    var sales = await salesQuery
-        .OrderBy(a => a.SaleDate)
-        .Select(a => new
-        {
-            a.Id,
-            a.Name,
-            a.Category,
-            a.SaleDate,
-            a.LowEstimate,
-            a.HighEstimate,
-            a.HammerPrice,
-            a.Currency,
-            a.Height,
-            a.Width
-        })
-        .ToListAsync(ct);
-
-    return Results.Ok(new { sales });
-});
-
-app.MapGet("/api/performance-data", async (
-    ApplicationDbContext db,
-    HttpContext context,
-    CancellationToken ct) =>
-{
-    var query = context.Request.Query;
-    
-    if (!query.TryGetValue("artistId", out var artistIdStr) || 
-        !Guid.TryParse(artistIdStr.ToString(), out var artistId) ||
-        artistId == Guid.Empty)
-    {
-        return Results.BadRequest(new { message = "Valid Artist ID is required" });
-    }
-
-    var dateFrom = query.TryGetValue("dateFrom", out var dateFromStr) ? dateFromStr.ToString() : null;
-    var dateTo = query.TryGetValue("dateTo", out var dateToStr) ? dateToStr.ToString() : null;
-    var categories = query.TryGetValue("categories", out var categoriesStr) 
-        ? categoriesStr.ToList() 
-        : new List<string>();
-
-    var salesQuery = db.ArtworkSales
-        .Where(a => a.ArtistId == artistId && a.Sold == true && 
-                    a.LowEstimate > 0 && a.HighEstimate > 0 && a.HammerPrice > 0);
-
-    if (!string.IsNullOrEmpty(dateFrom) && DateTime.TryParse(dateFrom, out var fromDate))
-    {
-        salesQuery = salesQuery.Where(a => a.SaleDate >= fromDate);
-    }
-
-    if (!string.IsNullOrEmpty(dateTo) && DateTime.TryParse(dateTo, out var toDate))
-    {
-        toDate = toDate.AddDays(1).AddSeconds(-1);
-        salesQuery = salesQuery.Where(a => a.SaleDate <= toDate);
-    }
-
-    if (categories.Any())
-    {
-        salesQuery = salesQuery.Where(a => categories.Contains(a.Category));
-    }
-
-    var sales = await salesQuery
-        .OrderBy(a => a.SaleDate)
-        .Take(1000)
-        .Select(a => new
-        {
-            a.SaleDate,
-            a.LowEstimate,
-            a.HighEstimate,
-            a.HammerPrice
-        })
-        .ToListAsync(ct);
-
-    var timeSeries = sales.Select(sale => new
-    {
-        Time = sale.SaleDate,
-        PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
-            sale.HammerPrice,
-            sale.LowEstimate,
-            sale.HighEstimate
-        )
-    }).ToList();
-
-    return Results.Ok(new { timeSeries });
-});
 
 // MCP endpoint
 app.MapPost("/mcp", async (HttpContext context) =>
@@ -419,15 +159,16 @@ app.MapGet("/tools", (IServiceProvider serviceProvider) =>
 
 
 // Dynamic tool endpoints for direct access
-foreach (var toolType in toolRegistry.GetAllToolTypes())
+using (var scope = app.Services.CreateScope())
 {
-    var tempTool = Activator.CreateInstance(toolType, new object[] { null! }) as IToolBase;
-    if (tempTool == null) continue;
+    var toolsForMetadata = toolRegistry.GetAllTools(scope.ServiceProvider);
     
-    var toolName = tempTool.Name;
-    var toolDescription = tempTool.Description;
-    
-    app.MapPost($"/tools/{toolName}", async (HttpContext context, IServiceProvider serviceProvider) =>
+    foreach (var tool in toolsForMetadata)
+    {
+        var toolName = tool.Name;
+        var toolDescription = tool.Description;
+        
+        app.MapPost($"/tools/{toolName}", async (HttpContext context, IServiceProvider serviceProvider) =>
         {
             var toolRegistry = serviceProvider.GetRequiredService<ToolRegistry>();
             var t = toolRegistry.GetTool(toolName, serviceProvider);
@@ -470,12 +211,10 @@ foreach (var toolType in toolRegistry.GetAllToolTypes())
         })
         .WithName(toolName)
         .WithDescription(toolDescription);
+    }
 }
 
 
 
 
 app.Run();
-
-// Request models
-record CreateArtistRequest(string FirstName, string LastName);

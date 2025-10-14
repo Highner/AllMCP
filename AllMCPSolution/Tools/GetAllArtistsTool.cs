@@ -1,8 +1,8 @@
 using AllMCPSolution.Attributes;
-using AllMCPSolution.Tools;
+using AllMCPSolution.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace AllMCPSolution.Artists;
+namespace AllMCPSolution.Tools;
 
 [McpTool("get_all_artists", "Retrieves all artists from the database with pagination")]
 public class GetAllArtistsTool : IToolBase

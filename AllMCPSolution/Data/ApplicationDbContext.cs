@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using AllMCPSolution.Models;
+
+namespace AllMCPSolution.Data;
 
 public class ApplicationDbContext : DbContext
 {

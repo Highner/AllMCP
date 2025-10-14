@@ -1,16 +1,17 @@
 using AllMCPSolution.Attributes;
-using AllMCPSolution.Tools;
+using AllMCPSolution.Repositories;
+using AllMCPSolution.Models;
 
-namespace AllMCPSolution.Artists;
+namespace AllMCPSolution.Tools;
 
 [McpTool("create_artist", "Creates a new artist in the database")]
 public class CreateArtistTool : IToolBase
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IArtistRepository _artists;
 
-    public CreateArtistTool(ApplicationDbContext dbContext)
+    public CreateArtistTool(IArtistRepository artists)
     {
-        _dbContext = dbContext;
+        _artists = artists;
     }
 
     public string Name => "create_artist";
@@ -39,8 +40,7 @@ public class CreateArtistTool : IToolBase
             LastName = lastName
         };
 
-        _dbContext.Artists.Add(artist);
-        await _dbContext.SaveChangesAsync();
+        await _artists.AddAsync(artist);
 
         return new
         {

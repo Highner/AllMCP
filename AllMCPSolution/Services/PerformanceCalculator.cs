@@ -1,5 +1,5 @@
 
-namespace AllMCPSolution.Tools;
+namespace AllMCPSolution.Services;
 
 /// <summary>
 /// Helper class for calculating artwork sales performance metrics
