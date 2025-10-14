@@ -54,15 +54,55 @@ public class ManifestGenerator
 
         foreach (var tool in tools)
         {
+            // Get the schema from the tool's GetOpenApiSchema method
+            var toolSchema = tool.GetOpenApiSchema() as dynamic;
+            
             paths[$"/tools/{tool.Name}"] = new
             {
-                post = tool.GetOpenApiSchema()
+                post = new
+                {
+                    operationId = tool.Name,
+                    summary = tool.Description,
+                    description = tool.Description,
+                    requestBody = new
+                    {
+                        required = false,
+                        content = new
+                        {
+                            application__json = new
+                            {
+                                schema = new
+                                {
+                                    type = "object",
+                                    properties = GetToolParameterProperties(tool)
+                                }
+                            }
+                        }
+                    },
+                    responses = new
+                    {
+                        _200 = new
+                        {
+                            description = "Successful response",
+                            content = new
+                            {
+                                application__json = new
+                                {
+                                    schema = new
+                                    {
+                                        type = "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             };
         }
 
         return new
         {
-            openapi = "3.0.0",
+            openapi = "3.1.0",
             info = new
             {
                 title = "AllMCPSolution API",
@@ -75,6 +115,17 @@ public class ManifestGenerator
             },
             paths = paths
         };
+    }
+
+    private Dictionary<string, object> GetToolParameterProperties(IToolBase tool)
+    {
+        // Get the tool definition which contains the inputSchema
+        var definition = tool.GetToolDefinition() as dynamic;
+        if (definition?.inputSchema?.properties != null)
+        {
+            return definition.inputSchema.properties as Dictionary<string, object> ?? new Dictionary<string, object>();
+        }
+        return new Dictionary<string, object>();
     }
     
     public object GenerateAnthropicManifest(IServiceProvider? scopedProvider = null)

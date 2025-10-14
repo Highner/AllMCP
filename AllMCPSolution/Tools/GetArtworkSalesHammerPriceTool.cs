@@ -167,14 +167,21 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
             operationId = Name,
             summary = Description,
             description = Description,
-            parameters = ParameterHelpers.CreateOpenApiProperties(_dbContext)
-                .Select(kv => new
+            requestBody = new
+            {
+                required = false,
+                content = new
                 {
-                    name = kv.Key,
-                    _in = "query",
-                    required = false,
-                    schema = kv.Value
-                }).ToArray(),
+                    application__json = new
+                    {
+                        schema = new
+                        {
+                            type = "object",
+                            properties = ParameterHelpers.CreateOpenApiProperties(_dbContext)
+                        }
+                    }
+                }
+            },
             responses = new
             {
                 _200 = new
