@@ -131,9 +131,39 @@ public class ManifestGenerator
     
     public object GenerateAnthropicManifest(IServiceProvider? scopedProvider = null)
     {
-        var tools = _toolRegistry.GetAllTools(scopedProvider)
+        var toolsRaw = _toolRegistry.GetAllTools(scopedProvider)
             .Select(tool => tool.GetToolDefinition())
             .ToList();
+
+        // Normalize tool definitions for Anthropic: it expects `input_schema` (snake_case)
+        var tools = new List<object>(toolsRaw.Count);
+        foreach (var def in toolsRaw)
+        {
+            dynamic d = def;
+            var name = d?.name;
+            var description = d?.description;
+            var safety = d?.safety;
+            var inputSchema = d?.inputSchema ?? d?.input_schema; // support both just in case
+
+            object toolObj;
+            if (inputSchema != null)
+            {
+                toolObj = new
+                {
+                    name = name,
+                    description = description,
+                    safety = safety,
+                    input_schema = inputSchema
+                };
+            }
+            else
+            {
+                // Fallback: pass-through without schema (not ideal, but prevents crashes)
+                toolObj = def;
+            }
+
+            tools.Add(toolObj);
+        }
 
         return new
         {
