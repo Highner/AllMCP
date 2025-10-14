@@ -36,18 +36,18 @@ builder.Services.AddScoped<SearchArtistsTool>();
 builder.Services.AddScoped<CreateArtworkSaleTool>();
 //builder.Services.AddScoped<GetAllArtworkSalesTool>();
 builder.Services.AddScoped<GetArtworkSaleByIdTool>();
-builder.Services.AddScoped<UpdateArtworkSaleTool>();
-builder.Services.AddScoped<DeleteArtworkSaleTool>();
+//builder.Services.AddScoped<UpdateArtworkSaleTool>();
+//builder.Services.AddScoped<DeleteArtworkSaleTool>();
 //builder.Services.AddScoped<SearchArtworkSalesTool>();
 builder.Services.AddScoped<ListArtworkSalesTool>();
 builder.Services.AddScoped<GetArtworkSalesPerformanceTool>();
 
 
-builder.Services.AddScoped<BatchCreateArtworkSalesTool>();
-builder.Services.AddScoped<BatchUpdateArtworkSalesTool>();
-builder.Services.AddScoped<BatchDeleteArtworkSalesTool>();
+//builder.Services.AddScoped<BatchCreateArtworkSalesTool>();
+//builder.Services.AddScoped<BatchUpdateArtworkSalesTool>();
+//builder.Services.AddScoped<BatchDeleteArtworkSalesTool>();
 
-builder.Services.AddScoped<RenderLineChartTool>();
+//builder.Services.AddScoped<RenderLineChartTool>();
 
 
 // Register MCP services
