@@ -74,7 +74,8 @@ public class ManifestGenerator
                                 schema = new
                                 {
                                     type = "object",
-                                    properties = GetToolParameterProperties(tool)
+                                    properties = GetToolParameterProperties(tool),
+                                    additionalProperties = true
                                 }
                             }
                         }
