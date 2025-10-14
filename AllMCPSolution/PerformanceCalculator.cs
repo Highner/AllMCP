@@ -22,13 +22,13 @@ public static class PerformanceCalculator
     {
         // Handle edge cases where estimates are zero or invalid
         if (lowEstimate == 0 && highEstimate == 0)
-            return 0; // No estimate data available
+            return -1; // No estimate data available
         
         // If hammer price is below low estimate
         if (hammerPrice < lowEstimate)
         {
             if (lowEstimate == 0)
-                return 0; // Can't calculate performance if low estimate is zero
+                return -1; // Can't calculate performance if low estimate is zero
             
             // Return negative factor: how far below as a fraction of low estimate
             // E.g., if hammer is 80 and low is 100, factor = -0.2
@@ -39,7 +39,7 @@ public static class PerformanceCalculator
         if (hammerPrice > highEstimate)
         {
             if (highEstimate == 0)
-                return 0; // Can't calculate performance if high estimate is zero
+                return 1; // Can't calculate performance if high estimate is zero
             
             // Return factor > 1: ratio of hammer price to high estimate
             // E.g., if hammer is 150 and high is 100, factor = 1.5
