@@ -127,7 +127,9 @@ public class GetArtworkSalesPerformanceTool : IToolBase
                 a.SaleDate,
                 a.LowEstimate,
                 a.HighEstimate,
-                a.HammerPrice
+                a.HammerPrice,
+                a.Height,
+                a.Width
             })
             .ToListAsync();
 
@@ -140,6 +142,9 @@ public class GetArtworkSalesPerformanceTool : IToolBase
             YearCreated = sale.YearCreated,
             Time = sale.SaleDate,
             HammerPrice = sale.HammerPrice,
+            sale.Height,
+            sale.Width,
+            area = sale.Height * sale.Width,
             PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
                 sale.HammerPrice,
                 sale.LowEstimate,
@@ -329,7 +334,10 @@ public class GetArtworkSalesPerformanceTool : IToolBase
                                                         yearCreated = new { type = "integer" },
                                                         time = new { type = "string", format = "date-time" },
                                                         performanceFactor = new { type = "number" },
-                                                        hammerPrice = new { type = "number" }
+                                                        hammerPrice = new { type = "number" },
+                                                        height = new { type = "number" },
+                                                        width = new { type = "number" },
+                                                        area = new { type = "number" }
                                                     }
                                                 }
                                             },
