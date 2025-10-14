@@ -469,8 +469,16 @@ foreach (var toolType in toolRegistry.GetAllToolTypes())
                 parameters[queryParam.Key] = queryParam.Value.ToString() ?? "";
             }
 
-            var result = await t.ExecuteAsync(parameters);
-            return Results.Ok(new { result });
+            try
+            {
+                var result = await t.ExecuteAsync(parameters);
+                return Results.Ok(new { result });
+            }
+            catch (Exception e)
+            {
+                return Results.Problem(e.Message + e.StackTrace);
+            }
+
         })
         .WithName(toolName)
         .WithDescription(toolDescription);
