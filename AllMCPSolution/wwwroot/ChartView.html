@@ -394,6 +394,7 @@
         });
 
 
+
         function renderChart(sales) {
             if (chartInstance) {
                 chartInstance.destroy();
@@ -409,35 +410,13 @@
                 data: {
                     datasets: [
                         {
-                            label: 'Estimate Range',
-                            data: sales.map(s => ({ x: new Date(s.saleDate), y: s.lowEstimate })),
-                            borderColor: 'rgba(76, 175, 80, 0.5)',
-                            backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                            showLine: true,
-                            tension: 0.3,
-                            fill: '+1',
-                            pointRadius: 0,
-                            borderWidth: 2
-                        },
-                        {
-                            label: '',
-                            data: sales.map(s => ({ x: new Date(s.saleDate), y: s.highEstimate })),
-                            borderColor: 'rgba(76, 175, 80, 0.5)',
-                            backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                            showLine: true,
-                            tension: 0.3,
-                            fill: false,
-                            pointRadius: 0,
-                            borderWidth: 2
-                        },
-                        {
                             label: 'Hammer Price',
                             data: sales.map(s => ({ x: new Date(s.saleDate), y: s.hammerPrice })),
                             borderColor: '#667eea',
                             backgroundColor: '#667eea',
                             showLine: false,
-                            pointRadius: 6,
-                            pointHoverRadius: 8,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
                             pointStyle: 'circle'
                         }
                     ]
@@ -460,42 +439,28 @@
                         },
                         legend: {
                             display: true,
-                            position: 'top',
-                            labels: {
-                                filter: function(item) {
-                                    return item.text !== '';
-                                }
-                            }
+                            position: 'top'
                         },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    if (context.datasetIndex === 2) {
-                                        let label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        label += '€' + context.parsed.y.toLocaleString('en-US', {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2
-                                        });
-                                        return label;
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
                                     }
-                                    return null;
+                                    label += '€' + context.parsed.y.toLocaleString('en-US', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    });
+                                    return label;
                                 },
                                 afterLabel: function(context) {
-                                    if (context.datasetIndex === 2) {
-                                        const sale = sales[context.dataIndex];
-                                        return [
-                                            `Artwork: ${sale.name}`,
-                                            `Category: ${sale.category}`
-                                        ];
-                                    }
-                                    return null;
+                                    const sale = sales[context.dataIndex];
+                                    return [
+                                        `Artwork: ${sale.name}`,
+                                        `Category: ${sale.category}`
+                                    ];
                                 }
-                            },
-                            filter: function(tooltipItem) {
-                                return tooltipItem.datasetIndex === 2;
                             }
                         }
                     },
@@ -540,25 +505,21 @@
             // Sort by date
             timeSeries.sort((a, b) => new Date(a.time) - new Date(b.time));
 
-            // Calculate linear regression for trendline
-            const dataPoints = timeSeries.map(t => ({
-                x: new Date(t.time).getTime(),
-                y: t.performanceFactor
-            }));
+            // Calculate rolling average (window of 5 data points)
+            const windowSize = 5;
+            const rollingAverageData = [];
 
-            const n = dataPoints.length;
-            const sumX = dataPoints.reduce((sum, p) => sum + p.x, 0);
-            const sumY = dataPoints.reduce((sum, p) => sum + p.y, 0);
-            const sumXY = dataPoints.reduce((sum, p) => sum + p.x * p.y, 0);
-            const sumXX = dataPoints.reduce((sum, p) => sum + p.x * p.x, 0);
+            for (let i = 0; i < timeSeries.length; i++) {
+                const start = Math.max(0, i - Math.floor(windowSize / 2));
+                const end = Math.min(timeSeries.length, i + Math.ceil(windowSize / 2));
+                const window = timeSeries.slice(start, end);
+                const avg = window.reduce((sum, t) => sum + t.performanceFactor, 0) / window.length;
 
-            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-            const intercept = (sumY - slope * sumX) / n;
-
-            const trendlineData = timeSeries.map(t => ({
-                x: new Date(t.time),
-                y: slope * new Date(t.time).getTime() + intercept
-            }));
+                rollingAverageData.push({
+                    x: new Date(timeSeries[i].time),
+                    y: avg
+                });
+            }
 
             performanceChartInstance = new Chart(ctx, {
                 type: 'scatter',
@@ -572,20 +533,19 @@
                             })),
                             borderColor: '#667eea',
                             backgroundColor: '#667eea',
-                            pointRadius: 6,
-                            pointHoverRadius: 8,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
                             showLine: false
                         },
                         {
-                            label: 'Trendline',
-                            data: trendlineData,
+                            label: 'Rolling Average (5-point)',
+                            data: rollingAverageData,
                             borderColor: '#ff6b6b',
                             borderWidth: 2,
-                            borderDash: [5, 5],
                             pointRadius: 0,
                             showLine: true,
                             fill: false,
-                            tension: 0
+                            tension: 0.4
                         },
                         {
                             label: 'Within Estimate Range (0-1)',
@@ -646,7 +606,7 @@
 
                                         return 'Factor: ' + value.toFixed(3) + interpretation;
                                     } else if (context.datasetIndex === 1) {
-                                        return 'Trend: ' + context.parsed.y.toFixed(3);
+                                        return 'Rolling Avg: ' + context.parsed.y.toFixed(3);
                                     }
                                     return context.dataset.label;
                                 }
