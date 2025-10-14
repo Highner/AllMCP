@@ -288,7 +288,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
             }
         };
     }
-    public object GetOpenApiSchema()
+       public object GetOpenApiSchema()
     {
         return new
         {
@@ -304,7 +304,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
                         schema = new
                         {
                             type = "object",
-                            properties = ParameterHelpers.CreateOpenApiProperties()
+                            properties = ParameterHelpers.CreateOpenApiProperties(_dbContext)
                         }
                     }
                 }

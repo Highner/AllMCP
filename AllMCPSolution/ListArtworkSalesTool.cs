@@ -322,7 +322,7 @@ public class ListArtworkSalesTool : IToolBase
                         schema = new
                         {
                             type = "object",
-                            properties = ParameterHelpers.CreateOpenApiProperties()
+                            properties = ParameterHelpers.CreateOpenApiProperties(_dbContext)
                         }
                     }
                 }

@@ -158,10 +158,38 @@ public static class ParameterHelpers
     }
 
     /// <summary>
+    /// Gets the category description with available options from the database
+    /// </summary>
+    private static string GetCategoryDescription(ApplicationDbContext? dbContext)
+    {
+        if (dbContext == null)
+            return "Filter by category (partial match)";
+
+        try
+        {
+            var categories = dbContext.ArtworkSales
+                .Select(a => a.Category)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToList();
+
+            return categories.Any()
+                ? $"Filter by category (partial match). Available options: {string.Join(", ", categories)}"
+                : "Filter by category (partial match)";
+        }
+        catch
+        {
+            return "Filter by category (partial match)";
+        }
+    }
+
+    /// <summary>
     /// Creates OpenAPI property definitions with snake_case naming
     /// </summary>
-    public static Dictionary<string, object> CreateOpenApiProperties()
+    public static Dictionary<string, object> CreateOpenApiProperties(ApplicationDbContext? dbContext = null)
     {
+        var categoryDescription = GetCategoryDescription(dbContext);
+
         return new Dictionary<string, object>
         {
             ["artist_id"] = new { type = "string", description = "Filter by artist ID (exact match)" },
@@ -175,7 +203,7 @@ public static class ParameterHelpers
             ["sale_date_from"] = new { type = "string", format = "date-time", description = "Start date for sale date filter (ISO 8601 format)" },
             ["sale_date_to"] = new { type = "string", format = "date-time", description = "End date for sale date filter (ISO 8601 format)" },
             ["technique"] = new { type = "string", description = "Filter by technique (partial match)" },
-            ["category"] = new { type = "string", description = "Filter by category (partial match)" },
+            ["category"] = new { type = "string", description = categoryDescription },
             ["currency"] = new { type = "string", description = "Filter by currency (exact match)" },
             ["min_low_estimate"] = new { type = "number", description = "Minimum low estimate" },
             ["max_low_estimate"] = new { type = "number", description = "Maximum low estimate" },
