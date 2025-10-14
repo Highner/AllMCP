@@ -393,6 +393,7 @@
             }
         });
 
+
         function renderChart(sales) {
             if (chartInstance) {
                 chartInstance.destroy();
@@ -408,36 +409,33 @@
                 data: {
                     datasets: [
                         {
-                            label: 'Low Estimate',
+                            label: 'Estimate Range',
                             data: sales.map(s => ({ x: new Date(s.saleDate), y: s.lowEstimate })),
-                            borderColor: '#4CAF50',
-                            backgroundColor: '#4CAF50',
+                            borderColor: 'rgba(76, 175, 80, 0.5)',
+                            backgroundColor: 'rgba(76, 175, 80, 0.2)',
                             showLine: true,
-                            tension: 0,
-                            fill: false,
-                            pointRadius: 5,
-                            pointHoverRadius: 7
+                            tension: 0.3,
+                            fill: '+1',
+                            pointRadius: 0,
+                            borderWidth: 2
                         },
                         {
-                            label: 'High Estimate',
+                            label: '',
                             data: sales.map(s => ({ x: new Date(s.saleDate), y: s.highEstimate })),
-                            borderColor: '#FFC107',
-                            backgroundColor: '#FFC107',
+                            borderColor: 'rgba(76, 175, 80, 0.5)',
+                            backgroundColor: 'rgba(76, 175, 80, 0.2)',
                             showLine: true,
-                            tension: 0,
+                            tension: 0.3,
                             fill: false,
-                            pointRadius: 5,
-                            pointHoverRadius: 7
+                            pointRadius: 0,
+                            borderWidth: 2
                         },
                         {
                             label: 'Hammer Price',
                             data: sales.map(s => ({ x: new Date(s.saleDate), y: s.hammerPrice })),
                             borderColor: '#667eea',
                             backgroundColor: '#667eea',
-                            showLine: true,
-                            tension: 0,
-                            fill: false,
-                            borderWidth: 2,
+                            showLine: false,
                             pointRadius: 6,
                             pointHoverRadius: 8,
                             pointStyle: 'circle'
@@ -463,27 +461,41 @@
                         legend: {
                             display: true,
                             position: 'top',
+                            labels: {
+                                filter: function(item) {
+                                    return item.text !== '';
+                                }
+                            }
                         },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
+                                    if (context.datasetIndex === 2) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        label += '€' + context.parsed.y.toLocaleString('en-US', {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        });
+                                        return label;
                                     }
-                                    label += '€' + context.parsed.y.toLocaleString('en-US', {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2
-                                    });
-                                    return label;
+                                    return null;
                                 },
                                 afterLabel: function(context) {
-                                    const sale = sales[context.dataIndex];
-                                    return [
-                                        `Artwork: ${sale.name}`,
-                                        `Category: ${sale.category}`
-                                    ];
+                                    if (context.datasetIndex === 2) {
+                                        const sale = sales[context.dataIndex];
+                                        return [
+                                            `Artwork: ${sale.name}`,
+                                            `Category: ${sale.category}`
+                                        ];
+                                    }
+                                    return null;
                                 }
+                            },
+                            filter: function(tooltipItem) {
+                                return tooltipItem.datasetIndex === 2;
                             }
                         }
                     },
@@ -528,8 +540,28 @@
             // Sort by date
             timeSeries.sort((a, b) => new Date(a.time) - new Date(b.time));
 
+            // Calculate linear regression for trendline
+            const dataPoints = timeSeries.map(t => ({
+                x: new Date(t.time).getTime(),
+                y: t.performanceFactor
+            }));
+
+            const n = dataPoints.length;
+            const sumX = dataPoints.reduce((sum, p) => sum + p.x, 0);
+            const sumY = dataPoints.reduce((sum, p) => sum + p.y, 0);
+            const sumXY = dataPoints.reduce((sum, p) => sum + p.x * p.y, 0);
+            const sumXX = dataPoints.reduce((sum, p) => sum + p.x * p.x, 0);
+
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+
+            const trendlineData = timeSeries.map(t => ({
+                x: new Date(t.time),
+                y: slope * new Date(t.time).getTime() + intercept
+            }));
+
             performanceChartInstance = new Chart(ctx, {
-                type: 'line',
+                type: 'scatter',
                 data: {
                     datasets: [
                         {
@@ -539,12 +571,21 @@
                                 y: t.performanceFactor
                             })),
                             borderColor: '#667eea',
-                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            backgroundColor: '#667eea',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            showLine: false
+                        },
+                        {
+                            label: 'Trendline',
+                            data: trendlineData,
+                            borderColor: '#ff6b6b',
                             borderWidth: 2,
-                            tension: 0.1,
-                            fill: true,
-                            pointRadius: 4,
-                            pointHoverRadius: 6
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            showLine: true,
+                            fill: false,
+                            tension: 0
                         },
                         {
                             label: 'Within Estimate Range (0-1)',
@@ -553,7 +594,8 @@
                             borderWidth: 1,
                             borderDash: [5, 5],
                             pointRadius: 0,
-                            fill: false
+                            fill: false,
+                            showLine: true
                         },
                         {
                             label: 'High Estimate Threshold (1.0)',
@@ -562,7 +604,8 @@
                             borderWidth: 1,
                             borderDash: [5, 5],
                             pointRadius: 0,
-                            fill: false
+                            fill: false,
+                            showLine: true
                         }
                     ]
                 },
@@ -571,8 +614,8 @@
                     maintainAspectRatio: false,
                     interaction: {
                         mode: 'nearest',
-                        intersect: false,
-                        axis: 'x'
+                        intersect: true,
+                        axis: 'xy'
                     },
                     plugins: {
                         title: {
@@ -602,9 +645,14 @@
                                         }
 
                                         return 'Factor: ' + value.toFixed(3) + interpretation;
+                                    } else if (context.datasetIndex === 1) {
+                                        return 'Trend: ' + context.parsed.y.toFixed(3);
                                     }
                                     return context.dataset.label;
                                 }
+                            },
+                            filter: function(tooltipItem) {
+                                return tooltipItem.datasetIndex === 0 || tooltipItem.datasetIndex === 1;
                             }
                         }
                     },
