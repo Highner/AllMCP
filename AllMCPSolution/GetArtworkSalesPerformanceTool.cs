@@ -112,7 +112,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
             query = query.Where(a => a.Sold == sold.Value);
 
         // Only include sold items with valid estimates and hammer prices
-        query = query.Where(a => a.Sold == true && a.LowEstimate > 0 && a.HighEstimate > 0 && a.HammerPrice > 0);
+        //query = query.Where(a => a.Sold == true && a.LowEstimate > 0 && a.HighEstimate > 0 && a.HammerPrice > 0);
 
         // Get results ordered by sale date
         var sales = await query
