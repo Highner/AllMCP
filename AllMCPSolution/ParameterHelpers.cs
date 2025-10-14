@@ -1,4 +1,5 @@
 
+
 namespace AllMCPSolution.Tools;
 
 public static class ParameterHelpers
@@ -6,57 +7,140 @@ public static class ParameterHelpers
     /// <summary>
     /// Gets a parameter value supporting both camelCase and snake_case naming conventions
     /// </summary>
-    public static T? GetParameter<T>(
+    private static T? GetParameter<T>(
         Dictionary<string, object>? parameters, 
         string camelCase, 
         string snakeCase,
-        Func<object, T> converter)
+        Func<object, T?> converter) where T : struct
     {
-        if (parameters == null) return default;
+        if (parameters == null) return null;
         
         if (parameters.ContainsKey(camelCase))
-            return converter(parameters[camelCase]);
+        {
+            try
+            {
+                return converter(parameters[camelCase]);
+            }
+            catch
+            {
+                return null;
+            }
+        }
         
         if (parameters.ContainsKey(snakeCase))
-            return converter(parameters[snakeCase]);
+        {
+            try
+            {
+                return converter(parameters[snakeCase]);
+            }
+            catch
+            {
+                return null;
+            }
+        }
         
-        return default;
+        return null;
+    }
+
+    /// <summary>
+    /// Gets a string parameter value supporting both camelCase and snake_case naming conventions
+    /// </summary>
+    private static string? GetStringParameterInternal(
+        Dictionary<string, object>? parameters, 
+        string camelCase, 
+        string snakeCase)
+    {
+        if (parameters == null) return null;
+        
+        if (parameters.ContainsKey(camelCase))
+        {
+            return parameters[camelCase]?.ToString();
+        }
+        
+        if (parameters.ContainsKey(snakeCase))
+        {
+            return parameters[snakeCase]?.ToString();
+        }
+        
+        return null;
     }
 
     public static Guid? GetGuidParameter(Dictionary<string, object>? parameters, string camelCase, string snakeCase)
     {
-        return GetParameter(parameters, camelCase, snakeCase, 
-            obj => Guid.Parse(obj?.ToString() ?? string.Empty));
+        return GetParameter<Guid>(parameters, camelCase, snakeCase, 
+            obj => 
+            {
+                var str = obj?.ToString();
+                if (string.IsNullOrWhiteSpace(str)) return null;
+                return Guid.TryParse(str, out var guid) ? guid : null;
+            });
     }
 
     public static string? GetStringParameter(Dictionary<string, object>? parameters, string camelCase, string snakeCase)
     {
-        return GetParameter(parameters, camelCase, snakeCase, 
-            obj => obj?.ToString());
+        return GetStringParameterInternal(parameters, camelCase, snakeCase);
     }
 
     public static decimal? GetDecimalParameter(Dictionary<string, object>? parameters, string camelCase, string snakeCase)
     {
-        return GetParameter(parameters, camelCase, snakeCase, 
-            obj => Convert.ToDecimal(obj));
+        return GetParameter<decimal>(parameters, camelCase, snakeCase, 
+            obj => 
+            {
+                if (obj == null) return null;
+                try
+                {
+                    return Convert.ToDecimal(obj);
+                }
+                catch
+                {
+                    return null;
+                }
+            });
     }
 
     public static int? GetIntParameter(Dictionary<string, object>? parameters, string camelCase, string snakeCase)
     {
-        return GetParameter(parameters, camelCase, snakeCase, 
-            obj => Convert.ToInt32(obj));
+        return GetParameter<int>(parameters, camelCase, snakeCase, 
+            obj => 
+            {
+                if (obj == null) return null;
+                try
+                {
+                    return Convert.ToInt32(obj);
+                }
+                catch
+                {
+                    return null;
+                }
+            });
     }
 
     public static DateTime? GetDateTimeParameter(Dictionary<string, object>? parameters, string camelCase, string snakeCase)
     {
-        return GetParameter(parameters, camelCase, snakeCase, 
-            obj => DateTime.Parse(obj?.ToString() ?? string.Empty));
+        return GetParameter<DateTime>(parameters, camelCase, snakeCase, 
+            obj => 
+            {
+                var str = obj?.ToString();
+                if (string.IsNullOrWhiteSpace(str)) return null;
+                return DateTime.TryParse(str, out var date) ? date : null;
+            });
     }
 
     public static bool? GetBoolParameter(Dictionary<string, object>? parameters, string camelCase, string snakeCase)
     {
-        return GetParameter(parameters, camelCase, snakeCase, 
-            obj => Convert.ToBoolean(obj));
+        return GetParameter<bool>(parameters, camelCase, snakeCase, 
+            obj => 
+            {
+                if (obj == null) return null;
+                try
+                {
+                    return Convert.ToBoolean(obj);
+                }
+                catch
+                {
+                    return null;
+                }
+            });
     }
 
     /// <summary>
