@@ -286,7 +286,9 @@ app.MapGet("/api/chart-data", async (
             a.LowEstimate,
             a.HighEstimate,
             a.HammerPrice,
-            a.Currency
+            a.Currency,
+            a.Height,
+            a.Width
         })
         .ToListAsync(ct);
 

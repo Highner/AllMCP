@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -119,6 +118,37 @@
             border-radius: 8px;
         }
 
+        .chart-controls {
+            position: absolute;
+            top: 10px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .chart-controls.left {
+            left: 20px;
+        }
+
+        .chart-controls.right {
+            right: 20px;
+        }
+
+        .btn-scale {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+
+        .btn-scale:hover {
+            transform: translateY(-2px);
+        }
+
         .message {
             margin-top: 20px;
             padding: 15px;
@@ -186,232 +216,458 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📊 Artwork Sales Analysis</h1>
-        
-        <div class="filters">
-            <div class="form-group">
-                <label for="artistSelect">Select Artist *</label>
-                <select id="artistSelect" required>
-                    <option value="">-- Select an artist --</option>
-                </select>
-            </div>
+<div class="container">
+    <h1>📊 Artwork Sales Analysis</h1>
 
-            <div class="form-group">
-                <label for="categorySelect">Select Categories (hold Ctrl/Cmd)</label>
-                <select id="categorySelect" multiple>
-                    <option value="">Loading...</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="dateFrom">From Date</label>
-                <input type="date" id="dateFrom">
-            </div>
-
-            <div class="form-group">
-                <label for="dateTo">To Date</label>
-                <input type="date" id="dateTo">
-            </div>
+    <div class="filters">
+        <div class="form-group">
+            <label for="artistSelect">Select Artist *</label>
+            <select id="artistSelect" required>
+                <option value="">-- Select an artist --</option>
+            </select>
         </div>
 
-        <div class="button-group">
-            <button class="btn" id="generateChartBtn" disabled>Generate Chart</button>
-            <button class="btn btn-secondary" id="clearBtn">Clear Filters</button>
+        <div class="form-group">
+            <label for="categorySelect">Select Categories (hold Ctrl/Cmd)</label>
+            <select id="categorySelect" multiple>
+                <option value="">Loading...</option>
+            </select>
         </div>
 
-        <div class="message" id="message"></div>
-
-        <div class="stats" id="statsContainer" style="display: none;">
-            <div class="stat-card">
-                <div class="stat-label">Total Sales</div>
-                <div class="stat-value" id="statTotalSales">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Avg Low Estimate</div>
-                <div class="stat-value" id="statAvgLow">€0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Avg High Estimate</div>
-                <div class="stat-value" id="statAvgHigh">€0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Avg Hammer Price</div>
-                <div class="stat-value" id="statAvgHammer">€0</div>
-            </div>
+        <div class="form-group">
+            <label for="dateFrom">From Date</label>
+            <input type="date" id="dateFrom">
         </div>
 
-        <div class="chart-container">
-            <canvas id="salesChart"></canvas>
-        </div>
-
-        <div class="chart-container">
-            <canvas id="performanceChart"></canvas>
+        <div class="form-group">
+            <label for="dateTo">To Date</label>
+            <input type="date" id="dateTo">
         </div>
     </div>
 
-    <script>
-        const artistSelect = document.getElementById('artistSelect');
-        const categorySelect = document.getElementById('categorySelect');
-        const dateFrom = document.getElementById('dateFrom');
-        const dateTo = document.getElementById('dateTo');
-        const generateChartBtn = document.getElementById('generateChartBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const message = document.getElementById('message');
-        const statsContainer = document.getElementById('statsContainer');
+    <div class="button-group">
+        <button class="btn" id="generateChartBtn" disabled>Generate Chart</button>
+        <button class="btn btn-secondary" id="clearBtn">Clear Filters</button>
+    </div>
 
-        let chartInstance = null;
-        let performanceChartInstance = null;
+    <div class="message" id="message"></div>
 
-        // Load artists on page load
-        async function loadArtists() {
-            try {
-                const response = await fetch('/api/artists');
-                if (response.ok) {
-                    const artists = await response.json();
-                    artistSelect.innerHTML = '<option value="">-- Select an artist --</option>';
-                    artists.forEach(artist => {
-                        const option = document.createElement('option');
-                        option.value = artist.id;
-                        option.textContent = `${artist.firstName} ${artist.lastName}`;
-                        artistSelect.appendChild(option);
-                    });
-                } else {
-                    showMessage('Failed to load artists', 'error');
-                }
-            } catch (error) {
-                showMessage('Error loading artists: ' + error.message, 'error');
-            }
+    <div class="stats" id="statsContainer" style="display: none;">
+        <div class="stat-card">
+            <div class="stat-label">Total Sales</div>
+            <div class="stat-value" id="statTotalSales">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Avg Low Estimate</div>
+            <div class="stat-value" id="statAvgLow">€0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Avg High Estimate</div>
+            <div class="stat-value" id="statAvgHigh">€0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Avg Hammer Price</div>
+            <div class="stat-value" id="statAvgHammer">€0</div>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-controls left" id="scaleToggleY1" style="display: none;">
+            <button class="btn-scale" id="toggleY1Scale">Y1: Log</button>
+        </div>
+        <div class="chart-controls right" id="scaleToggleY2" style="display: none;">
+            <button class="btn-scale" id="toggleY2Scale">Y2: Linear</button>
+        </div>
+        <canvas id="salesChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="performanceChart"></canvas>
+    </div>
+</div>
+
+<script>
+    const artistSelect = document.getElementById('artistSelect');
+    const categorySelect = document.getElementById('categorySelect');
+    const dateFrom = document.getElementById('dateFrom');
+    const dateTo = document.getElementById('dateTo');
+    const generateChartBtn = document.getElementById('generateChartBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const message = document.getElementById('message');
+    const statsContainer = document.getElementById('statsContainer');
+    const scaleToggleY1 = document.getElementById('scaleToggleY1');
+    const scaleToggleY2 = document.getElementById('scaleToggleY2');
+    const toggleY1Scale = document.getElementById('toggleY1Scale');
+    const toggleY2Scale = document.getElementById('toggleY2Scale');
+
+    let chartInstance = null;
+    let performanceChartInstance = null;
+    let currentY1Scale = 'logarithmic';
+    let currentY2Scale = 'linear';
+
+    // Parse URL parameters
+    function getUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        return {
+            artistId: params.get('artistId'),
+            categories: params.getAll('categories'),
+            dateFrom: params.get('dateFrom'),
+            dateTo: params.get('dateTo'),
+            y1Scale: params.get('y1Scale') || 'logarithmic',
+            y2Scale: params.get('y2Scale') || 'linear',
+            hiddenSeries: params.getAll('hiddenSeries')
+        };
+    }
+
+    // Update URL with current filter values
+    function updateUrl() {
+        const params = new URLSearchParams();
+
+        if (artistSelect.value) {
+            params.set('artistId', artistSelect.value);
         }
 
-        // Load categories on page load
-        async function loadCategories() {
-            try {
-                const response = await fetch('/api/categories');
-                if (response.ok) {
-                    const categories = await response.json();
-                    categorySelect.innerHTML = '';
-                    categories.forEach(category => {
-                        const option = document.createElement('option');
-                        option.value = category;
-                        option.textContent = category;
-                        categorySelect.appendChild(option);
-                    });
-                } else {
-                    showMessage('Failed to load categories', 'error');
-                }
-            } catch (error) {
-                showMessage('Error loading categories: ' + error.message, 'error');
-            }
+        const selectedCategories = Array.from(categorySelect.selectedOptions).map(opt => opt.value);
+        selectedCategories.forEach(cat => {
+            params.append('categories', cat);
+        });
+
+        if (dateFrom.value) {
+            params.set('dateFrom', dateFrom.value);
         }
 
-        // Set default date range (last year)
-        function setDefaultDates() {
+        if (dateTo.value) {
+            params.set('dateTo', dateTo.value);
+        }
+
+        // Add scale parameters
+        params.set('y1Scale', currentY1Scale);
+        params.set('y2Scale', currentY2Scale);
+
+        // Add hidden series
+        if (chartInstance) {
+            chartInstance.data.datasets.forEach((dataset, index) => {
+                if (chartInstance.getDatasetMeta(index).hidden) {
+                    params.append('hiddenSeries', dataset.label);
+                }
+            });
+        }
+
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.pushState({}, '', newUrl);
+    }
+
+    // Apply URL parameters to form
+    function applyUrlParams(urlParams) {
+        if (urlParams.artistId) {
+            artistSelect.value = urlParams.artistId;
+            generateChartBtn.disabled = false;
+        }
+
+        if (urlParams.categories && urlParams.categories.length > 0) {
+            Array.from(categorySelect.options).forEach(option => {
+                if (urlParams.categories.includes(option.value)) {
+                    option.selected = true;
+                }
+            });
+        }
+
+        if (urlParams.dateFrom) {
+            dateFrom.value = urlParams.dateFrom;
+        }
+
+        if (urlParams.dateTo) {
+            dateTo.value = urlParams.dateTo;
+        }
+
+        // Apply scale parameters
+        if (urlParams.y1Scale) {
+            currentY1Scale = urlParams.y1Scale;
+            toggleY1Scale.textContent = `Y1: ${currentY1Scale === 'logarithmic' ? 'Log' : 'Linear'}`;
+        }
+
+        if (urlParams.y2Scale) {
+            currentY2Scale = urlParams.y2Scale;
+            toggleY2Scale.textContent = `Y2: ${currentY2Scale === 'linear' ? 'Linear' : 'Log'}`;
+        }
+    }
+
+    // Apply hidden series from URL
+    function applyHiddenSeries(hiddenSeries) {
+        if (chartInstance && hiddenSeries && hiddenSeries.length > 0) {
+            chartInstance.data.datasets.forEach((dataset, index) => {
+                if (hiddenSeries.includes(dataset.label)) {
+                    chartInstance.getDatasetMeta(index).hidden = true;
+                }
+            });
+            chartInstance.update();
+        }
+    }
+
+    // Load artists on page load
+    async function loadArtists() {
+        try {
+            const response = await fetch('/api/artists');
+            if (response.ok) {
+                const artists = await response.json();
+                artistSelect.innerHTML = '<option value="">-- Select an artist --</option>';
+                artists.forEach(artist => {
+                    const option = document.createElement('option');
+                    option.value = artist.id;
+                    option.textContent = `${artist.firstName} ${artist.lastName}`;
+                    artistSelect.appendChild(option);
+                });
+
+                // Apply URL params after artists are loaded
+                const urlParams = getUrlParams();
+                applyUrlParams(urlParams);
+
+                // Auto-generate chart if artist is specified in URL
+                if (urlParams.artistId) {
+                    await generateChart();
+                    // Apply hidden series after chart is rendered
+                    applyHiddenSeries(urlParams.hiddenSeries);
+                }
+            } else {
+                showMessage('Failed to load artists', 'error');
+            }
+        } catch (error) {
+            showMessage('Error loading artists: ' + error.message, 'error');
+        }
+    }
+
+    // Load categories on page load
+    async function loadCategories() {
+        try {
+            const response = await fetch('/api/categories');
+            if (response.ok) {
+                const categories = await response.json();
+                categorySelect.innerHTML = '';
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    categorySelect.appendChild(option);
+                });
+
+                // Reapply category selections from URL after categories are loaded
+                const urlParams = getUrlParams();
+                if (urlParams.categories && urlParams.categories.length > 0) {
+                    Array.from(categorySelect.options).forEach(option => {
+                        if (urlParams.categories.includes(option.value)) {
+                            option.selected = true;
+                        }
+                    });
+                }
+            } else {
+                showMessage('Failed to load categories', 'error');
+            }
+        } catch (error) {
+            showMessage('Error loading categories: ' + error.message, 'error');
+        }
+    }
+
+    // Set default date range (last year)
+    function setDefaultDates() {
+        // Only set defaults if no dates are in URL
+        const urlParams = getUrlParams();
+        if (!urlParams.dateFrom && !urlParams.dateTo) {
             const today = new Date();
             const lastYear = new Date(today);
             lastYear.setFullYear(today.getFullYear() - 1);
-            
+
             dateTo.valueAsDate = today;
             dateFrom.valueAsDate = lastYear;
         }
+    }
 
-        // Enable generate button when artist is selected
-        artistSelect.addEventListener('change', () => {
-            generateChartBtn.disabled = !artistSelect.value;
+    // Enable generate button when artist is selected
+    artistSelect.addEventListener('change', () => {
+        generateChartBtn.disabled = !artistSelect.value;
+        updateUrl();
+    });
+
+    // Update URL when categories change
+    categorySelect.addEventListener('change', () => {
+        updateUrl();
+    });
+
+    // Update URL when dates change
+    dateFrom.addEventListener('change', () => {
+        updateUrl();
+    });
+
+    dateTo.addEventListener('change', () => {
+        updateUrl();
+    });
+
+    // Toggle Y1 scale
+    toggleY1Scale.addEventListener('click', () => {
+        currentY1Scale = currentY1Scale === 'logarithmic' ? 'linear' : 'logarithmic';
+        toggleY1Scale.textContent = `Y1: ${currentY1Scale === 'logarithmic' ? 'Log' : 'Linear'}`;
+        if (chartInstance) {
+            chartInstance.options.scales.y.type = currentY1Scale;
+            chartInstance.update();
+        }
+        updateUrl();
+    });
+
+    // Toggle Y2 scale
+    toggleY2Scale.addEventListener('click', () => {
+        currentY2Scale = currentY2Scale === 'linear' ? 'logarithmic' : 'linear';
+        toggleY2Scale.textContent = `Y2: ${currentY2Scale === 'linear' ? 'Linear' : 'Log'}`;
+        if (chartInstance) {
+            chartInstance.options.scales.y2.type = currentY2Scale;
+            chartInstance.update();
+        }
+        updateUrl();
+    });
+
+    // Clear filters
+    clearBtn.addEventListener('click', () => {
+        artistSelect.value = '';
+        categorySelect.selectedIndex = -1;
+        setDefaultDates();
+        generateChartBtn.disabled = true;
+        if (chartInstance) {
+            chartInstance.destroy();
+            chartInstance = null;
+        }
+        if (performanceChartInstance) {
+            performanceChartInstance.destroy();
+            performanceChartInstance = null;
+        }
+        statsContainer.style.display = 'none';
+        scaleToggleY1.style.display = 'none';
+        scaleToggleY2.style.display = 'none';
+        message.classList.remove('visible');
+
+        // Reset scales to defaults
+        currentY1Scale = 'logarithmic';
+        currentY2Scale = 'linear';
+        toggleY1Scale.textContent = 'Y1: Log';
+        toggleY2Scale.textContent = 'Y2: Linear';
+
+        // Clear URL parameters
+        window.history.pushState({}, '', window.location.pathname);
+    });
+
+    // Generate chart function (extracted for reuse)
+    async function generateChart() {
+        if (!artistSelect.value) {
+            showMessage('Please select an artist', 'error');
+            return;
+        }
+
+        const selectedCategories = Array.from(categorySelect.selectedOptions).map(opt => opt.value);
+
+        const params = new URLSearchParams({
+            artistId: artistSelect.value,
+            dateFrom: dateFrom.value || '',
+            dateTo: dateTo.value || ''
         });
 
-        // Clear filters
-        clearBtn.addEventListener('click', () => {
-            artistSelect.value = '';
-            categorySelect.selectedIndex = -1;
-            setDefaultDates();
-            generateChartBtn.disabled = true;
-            if (chartInstance) {
-                chartInstance.destroy();
-                chartInstance = null;
-            }
-            if (performanceChartInstance) {
-                performanceChartInstance.destroy();
-                performanceChartInstance = null;
-            }
-            statsContainer.style.display = 'none';
-            message.classList.remove('visible');
+        // Add multiple categories
+        selectedCategories.forEach(cat => {
+            params.append('categories', cat);
         });
 
-        // Generate chart
-        generateChartBtn.addEventListener('click', async () => {
-            if (!artistSelect.value) {
-                showMessage('Please select an artist', 'error');
+        generateChartBtn.disabled = true;
+        showMessage('Loading chart data...', 'info');
+
+        try {
+            // Fetch both datasets in parallel
+            const [salesResponse, performanceResponse] = await Promise.all([
+                fetch(`/api/chart-data?${params}`),
+                fetch(`/api/performance-data?${params}`)
+            ]);
+
+            if (!salesResponse.ok || !performanceResponse.ok) {
+                throw new Error(`HTTP error! status: ${salesResponse.status}`);
+            }
+
+            const salesData = await salesResponse.json();
+            const performanceData = await performanceResponse.json();
+
+            if (salesData.sales.length === 0) {
+                showMessage('No sales data found for the selected filters', 'info');
+                generateChartBtn.disabled = false;
+                statsContainer.style.display = 'none';
                 return;
             }
 
-            const selectedCategories = Array.from(categorySelect.selectedOptions).map(opt => opt.value);
+            renderChart(salesData.sales);
+            renderPerformanceChart(performanceData.timeSeries);
+            updateStats(salesData.sales);
+            scaleToggleY1.style.display = 'flex';
+            scaleToggleY2.style.display = 'flex';
+            message.classList.remove('visible');
+        } catch (error) {
+            showMessage('Error loading chart data: ' + error.message, 'error');
+        } finally {
+            generateChartBtn.disabled = false;
+        }
+    }
 
-            const params = new URLSearchParams({
-                artistId: artistSelect.value,
-                dateFrom: dateFrom.value || '',
-                dateTo: dateTo.value || ''
+    // Generate chart
+    generateChartBtn.addEventListener('click', async () => {
+        updateUrl();
+        await generateChart();
+    });
+
+    function renderChart(sales) {
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        // Sort sales by date
+        sales.sort((a, b) => new Date(a.saleDate) - new Date(b.saleDate));
+
+        // Group sales by category
+        const salesByCategory = sales.reduce((acc, sale) => {
+            if (!acc[sale.category]) {
+                acc[sale.category] = [];
+            }
+            acc[sale.category].push(sale);
+            return acc;
+        }, {});
+
+        const datasets = [];
+        const colors = [
+            '#667eea', '#ff6b6b', '#51cf66', '#ffd43b', '#748ffc',
+            '#ff8787', '#69db7c', '#ffa94d', '#a78bfa', '#f783ac'
+        ];
+        let colorIndex = 0;
+
+        // Calculate rolling average for each category
+        const threeMonthsMs = 90 * 24 * 60 * 60 * 1000;
+
+        // Create datasets for each category
+        Object.keys(salesByCategory).forEach(category => {
+            const categorySales = salesByCategory[category];
+            const color = colors[colorIndex % colors.length];
+            colorIndex++;
+
+            // Hammer price points for this category
+            datasets.push({
+                label: `${category} - Hammer Price`,
+                data: categorySales.map(s => ({ x: new Date(s.saleDate), y: s.hammerPrice })),
+                borderColor: color,
+                backgroundColor: color,
+                showLine: false,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                pointStyle: 'circle'
             });
 
-            // Add multiple categories
-            selectedCategories.forEach(cat => {
-                params.append('categories', cat);
-            });
-
-            generateChartBtn.disabled = true;
-            showMessage('Loading chart data...', 'info');
-
-            try {
-                // Fetch both datasets in parallel
-                const [salesResponse, performanceResponse] = await Promise.all([
-                    fetch(`/api/chart-data?${params}`),
-                    fetch(`/api/performance-data?${params}`)
-                ]);
-
-                if (!salesResponse.ok || !performanceResponse.ok) {
-                    throw new Error(`HTTP error! status: ${salesResponse.status}`);
-                }
-
-                const salesData = await salesResponse.json();
-                const performanceData = await performanceResponse.json();
-
-                if (salesData.sales.length === 0) {
-                    showMessage('No sales data found for the selected filters', 'info');
-                    generateChartBtn.disabled = false;
-                    statsContainer.style.display = 'none';
-                    return;
-                }
-
-                renderChart(salesData.sales);
-                renderPerformanceChart(performanceData.timeSeries);
-                updateStats(salesData.sales);
-                message.classList.remove('visible');
-            } catch (error) {
-                showMessage('Error loading chart data: ' + error.message, 'error');
-            } finally {
-                generateChartBtn.disabled = false;
-            }
-        });
-
-        function renderChart(sales) {
-            if (chartInstance) {
-                chartInstance.destroy();
-            }
-
-            // Sort sales by date
-            sales.sort((a, b) => new Date(a.saleDate) - new Date(b.saleDate));
-
-            // Calculate 3-month rolling average
+            // Rolling average for this category
             const rollingAverageData = [];
-            const threeMonthsMs = 90 * 24 * 60 * 60 * 1000; // approximately 3 months in milliseconds
-
-            for (let i = 0; i < sales.length; i++) {
-                const currentDate = new Date(sales[i].saleDate);
+            for (let i = 0; i < categorySales.length; i++) {
+                const currentDate = new Date(categorySales[i].saleDate);
                 const windowStart = new Date(currentDate.getTime() - threeMonthsMs);
                 const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
 
-                // Get all sales within the 3-month window
-                const windowSales = sales.filter(s => {
+                const windowSales = categorySales.filter(s => {
                     const saleDate = new Date(s.saleDate);
                     return saleDate >= windowStart && saleDate <= windowEnd;
                 });
@@ -425,131 +681,287 @@
                 }
             }
 
-            const ctx = document.getElementById('salesChart').getContext('2d');
+            datasets.push({
+                label: `${category} - Rolling Avg`,
+                data: rollingAverageData,
+                borderColor: color,
+                borderWidth: 2,
+                pointRadius: 0,
+                showLine: true,
+                fill: false,
+                tension: 0.4,
+                borderDash: [5, 5]
+            });
+        });
 
-            chartInstance = new Chart(ctx, {
-                type: 'scatter',
-                data: {
-                    datasets: [
-                        {
-                            label: 'Hammer Price',
-                            data: sales.map(s => ({ x: new Date(s.saleDate), y: s.hammerPrice })),
-                            borderColor: '#667eea',
-                            backgroundColor: '#667eea',
-                            showLine: false,
-                            pointRadius: 3,
-                            pointHoverRadius: 5,
-                            pointStyle: 'circle'
-                        },
-                        {
-                            label: '3-Month Rolling Average',
-                            data: rollingAverageData,
-                            borderColor: '#ff6b6b',
-                            borderWidth: 2,
-                            pointRadius: 0,
-                            showLine: true,
-                            fill: false,
-                            tension: 0.4
-                        }
-                    ]
+        // Add price per area dataset for all sales
+        const pricePerAreaData = sales
+            .filter(s => s.height && s.width && s.height > 0 && s.width > 0)
+            .map(s => ({
+                x: new Date(s.saleDate),
+                y: s.hammerPrice / (s.height * s.width),
+                sale: s
+            }));
+
+        datasets.push({
+            label: 'Price per Area (€/cm²)',
+            data: pricePerAreaData,
+            borderColor: '#e64980',
+            backgroundColor: '#e64980',
+            showLine: false,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointStyle: 'triangle',
+            yAxisID: 'y2'
+        });
+
+        // Calculate rolling average for price per area
+        const pricePerAreaSorted = [...pricePerAreaData].sort((a, b) => a.x - b.x);
+        const pricePerAreaRollingAvg = [];
+
+        for (let i = 0; i < pricePerAreaSorted.length; i++) {
+            const currentDate = pricePerAreaSorted[i].x;
+            const windowStart = new Date(currentDate.getTime() - threeMonthsMs);
+            const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
+
+            const windowData = pricePerAreaSorted.filter(d => {
+                return d.x >= windowStart && d.x <= windowEnd;
+            });
+
+            if (windowData.length > 0) {
+                const avg = windowData.reduce((sum, d) => sum + d.y, 0) / windowData.length;
+                pricePerAreaRollingAvg.push({
+                    x: currentDate,
+                    y: avg
+                });
+            }
+        }
+
+        datasets.push({
+            label: 'Price per Area - Rolling Avg',
+            data: pricePerAreaRollingAvg,
+            borderColor: '#e64980',
+            borderWidth: 2,
+            pointRadius: 0,
+            showLine: true,
+            fill: false,
+            tension: 0.4,
+            borderDash: [5, 5],
+            yAxisID: 'y2'
+        });
+
+        const ctx = document.getElementById('salesChart').getContext('2d');
+
+        chartInstance = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'nearest',
+                    intersect: true,
+                    axis: 'xy'
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'nearest',
-                        intersect: true,
-                        axis: 'xy'
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Artwork Sales Price Trends',
+                        font: {
+                            size: 18
+                        }
                     },
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Artwork Sales Price Trends',
-                            font: {
-                                size: 18
-                            }
-                        },
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        onClick: (e, legendItem, legend) => {
+                            const index = legendItem.datasetIndex;
+                            const ci = legend.chart;
+                            const meta = ci.getDatasetMeta(index);
+
+                            meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                            ci.update();
+
+                            // Update URL when legend item is clicked
+                            updateUrl();
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+
+                                if (context.dataset.yAxisID === 'y2') {
+                                    label += '€' + context.parsed.y.toLocaleString('en-US', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    }) + '/cm²';
+                                } else {
                                     label += '€' + context.parsed.y.toLocaleString('en-US', {
                                         minimumFractionDigits: 2,
                                         maximumFractionDigits: 2
                                     });
-                                    return label;
-                                },
-                                afterLabel: function(context) {
-                                    if (context.datasetIndex === 0) {
-                                        const sale = sales[context.dataIndex];
+                                }
+                                return label;
+                            },
+                            afterLabel: function(context) {
+                                if (context.dataset.label && !context.dataset.label.includes('Rolling Avg') && context.dataset.yAxisID !== 'y2') {
+                                    const dataIndex = context.dataIndex;
+                                    const categoryName = context.dataset.label.replace(' - Hammer Price', '');
+                                    const categorySales = salesByCategory[categoryName];
+                                    if (categorySales && categorySales[dataIndex]) {
+                                        const sale = categorySales[dataIndex];
                                         return [
                                             `Artwork: ${sale.name}`,
                                             `Category: ${sale.category}`
                                         ];
                                     }
-                                    return null;
                                 }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'month',
-                                displayFormats: {
-                                    month: 'MMM yyyy'
+                                if (context.dataset.yAxisID === 'y2') {
+                                    const sale = context.raw.sale;
+                                    if (sale) {
+                                        return [
+                                            `Artwork: ${sale.name}`,
+                                            `Size: ${sale.height} × ${sale.width} cm`,
+                                            `Total: €${sale.hammerPrice.toLocaleString()}`
+                                        ];
+                                    }
                                 }
-                            },
-                            title: {
-                                display: true,
-                                text: 'Sale Date'
-                            }
-                        },
-                        y: {
-                            type: 'logarithmic',
-                            title: {
-                                display: true,
-                                text: 'Price (€)'
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return '€' + value.toLocaleString();
-                                }
+                                return null;
                             }
                         }
                     }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'month',
+                            displayFormats: {
+                                month: 'MMM yyyy'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Sale Date'
+                        }
+                    },
+                    y: {
+                        type: currentY1Scale,
+                        title: {
+                            display: true,
+                            text: 'Price (€)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '€' + value.toLocaleString();
+                            }
+                        },
+                        position: 'left'
+                    },
+                    y2: {
+                        type: currentY2Scale,
+                        title: {
+                            display: true,
+                            text: 'Price per Area (€/cm²)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '€' + value.toLocaleString();
+                            }
+                        },
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
                 }
-            });
+            }
+        });
+    }
+
+    function renderPerformanceChart(timeSeries) {
+        if (performanceChartInstance) {
+            performanceChartInstance.destroy();
         }
 
-        function renderPerformanceChart(timeSeries) {
-            if (performanceChartInstance) {
-                performanceChartInstance.destroy();
+        const ctx = document.getElementById('performanceChart').getContext('2d');
+
+        // Sort by date
+        timeSeries.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+        // Group by category
+        const seriesByCategory = timeSeries.reduce((acc, item) => {
+            if (!acc[item.category]) {
+                acc[item.category] = [];
             }
+            acc[item.category].push(item);
+            return acc;
+        }, {});
 
-            const ctx = document.getElementById('performanceChart').getContext('2d');
+        const datasets = [];
+        const colors = [
+            '#667eea', '#ff6b6b', '#51cf66', '#ffd43b', '#748ffc',
+            '#ff8787', '#69db7c', '#ffa94d', '#a78bfa', '#f783ac'
+        ];
+        let colorIndex = 0;
 
-            // Sort by date
-            timeSeries.sort((a, b) => new Date(a.time) - new Date(b.time));
+        const threeMonthsMs = 90 * 24 * 60 * 60 * 1000;
 
-            // Calculate 3-month rolling average
+        // Create estimate range background using all data points
+        const estimateRangeData = timeSeries.map(t => ({
+            x: new Date(t.time),
+            y: 1
+        }));
+
+        datasets.push({
+            label: 'Estimate Range Background',
+            data: estimateRangeData,
+            borderColor: 'transparent',
+            backgroundColor: 'rgba(200, 200, 200, 0.2)',
+            pointRadius: 0,
+            showLine: true,
+            fill: {
+                target: 'origin',
+                above: 'rgba(200, 200, 200, 0.2)'
+            },
+            order: 10
+        });
+
+        // Create datasets for each category
+        Object.keys(seriesByCategory).forEach(category => {
+            const categoryData = seriesByCategory[category];
+            const color = colors[colorIndex % colors.length];
+            colorIndex++;
+
+            // Performance factor points for this category
+            datasets.push({
+                label: `${category} - Performance`,
+                data: categoryData.map(t => ({
+                    x: new Date(t.time),
+                    y: t.performanceFactor
+                })),
+                borderColor: color,
+                backgroundColor: color,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                showLine: false,
+                order: 1
+            });
+
+            // Rolling average for this category
             const rollingAverageData = [];
-            const threeMonthsMs = 90 * 24 * 60 * 60 * 1000;
-
-            for (let i = 0; i < timeSeries.length; i++) {
-                const currentDate = new Date(timeSeries[i].time);
+            for (let i = 0; i < categoryData.length; i++) {
+                const currentDate = new Date(categoryData[i].time);
                 const windowStart = new Date(currentDate.getTime() - threeMonthsMs);
                 const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
 
-                const windowData = timeSeries.filter(t => {
+                const windowData = categoryData.filter(t => {
                     const tDate = new Date(t.time);
                     return tDate >= windowStart && tDate <= windowEnd;
                 });
@@ -563,191 +975,166 @@
                 }
             }
 
-            // Create datasets for the gray area between 0 and 1
-            const estimateRangeData = timeSeries.map(t => ({
-                x: new Date(t.time),
-                y: 1
-            }));
+            datasets.push({
+                label: `${category} - Rolling Avg`,
+                data: rollingAverageData,
+                borderColor: color,
+                borderWidth: 2,
+                pointRadius: 0,
+                showLine: true,
+                fill: false,
+                tension: 0.4,
+                borderDash: [5, 5],
+                order: 2
+            });
+        });
 
-            performanceChartInstance = new Chart(ctx, {
-                type: 'scatter',
-                data: {
-                    datasets: [
-                        {
-                            label: 'Estimate Range Background',
-                            data: estimateRangeData,
-                            borderColor: 'transparent',
-                            backgroundColor: 'rgba(200, 200, 200, 0.2)',
-                            pointRadius: 0,
-                            showLine: true,
-                            fill: {
-                                target: 'origin',
-                                above: 'rgba(200, 200, 200, 0.2)'
-                            },
-                            order: 10
-                        },
-                        {
-                            label: 'Performance Factor',
-                            data: timeSeries.map(t => ({
-                                x: new Date(t.time),
-                                y: t.performanceFactor
-                            })),
-                            borderColor: '#667eea',
-                            backgroundColor: '#667eea',
-                            pointRadius: 3,
-                            pointHoverRadius: 5,
-                            showLine: false,
-                            order: 1
-                        },
-                        {
-                            label: '3-Month Rolling Average',
-                            data: rollingAverageData,
-                            borderColor: '#ff6b6b',
-                            borderWidth: 2,
-                            pointRadius: 0,
-                            showLine: true,
-                            fill: false,
-                            tension: 0.4,
-                            order: 2
-                        },
-                        {
-                            label: 'Within Estimate Range (0-1)',
-                            data: timeSeries.map(t => ({ x: new Date(t.time), y: 0 })),
-                            borderColor: '#4CAF50',
-                            borderWidth: 1,
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false,
-                            showLine: true,
-                            order: 3
-                        },
-                        {
-                            label: 'High Estimate Threshold (1.0)',
-                            data: timeSeries.map(t => ({ x: new Date(t.time), y: 1 })),
-                            borderColor: '#FFC107',
-                            borderWidth: 1,
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false,
-                            showLine: true,
-                            order: 3
-                        }
-                    ]
+        // Add reference lines
+        datasets.push({
+            label: 'Within Estimate Range (0-1)',
+            data: timeSeries.map(t => ({ x: new Date(t.time), y: 0 })),
+            borderColor: '#4CAF50',
+            borderWidth: 1,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false,
+            showLine: true,
+            order: 3
+        });
+
+        datasets.push({
+            label: 'High Estimate Threshold (1.0)',
+            data: timeSeries.map(t => ({ x: new Date(t.time), y: 1 })),
+            borderColor: '#FFC107',
+            borderWidth: 1,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false,
+            showLine: true,
+            order: 3
+        });
+
+        performanceChartInstance = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'nearest',
+                    intersect: true,
+                    axis: 'xy'
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'nearest',
-                        intersect: true,
-                        axis: 'xy'
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Sales Performance Relative to Estimates',
+                        font: {
+                            size: 18
+                        }
                     },
-                    plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            filter: function(item) {
+                                return item.text !== 'Estimate Range Background';
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.dataset.label && context.dataset.label.includes('Performance') && !context.dataset.label.includes('Rolling Avg')) {
+                                    const value = context.parsed.y;
+                                    let interpretation = '';
+
+                                    if (value < 0) {
+                                        interpretation = ' (Below low estimate)';
+                                    } else if (value <= 1) {
+                                        interpretation = ' (Within estimate range)';
+                                    } else {
+                                        interpretation = ' (Above high estimate)';
+                                    }
+
+                                    return 'Factor: ' + value.toFixed(3) + interpretation;
+                                } else if (context.dataset.label && context.dataset.label.includes('Rolling Avg')) {
+                                    return 'Rolling Avg: ' + context.parsed.y.toFixed(3);
+                                }
+                                return context.dataset.label;
+                            }
+                        },
+                        filter: function(tooltipItem) {
+                            return tooltipItem.dataset.label &&
+                                (tooltipItem.dataset.label.includes('Performance') ||
+                                    tooltipItem.dataset.label.includes('Rolling Avg'));
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'month',
+                            displayFormats: {
+                                month: 'MMM yyyy'
+                            }
+                        },
                         title: {
                             display: true,
-                            text: 'Sales Performance Relative to Estimates',
-                            font: {
-                                size: 18
-                            }
-                        },
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                filter: function(item) {
-                                    return item.text !== 'Estimate Range Background';
-                                }
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    if (context.datasetIndex === 1) {
-                                        const value = context.parsed.y;
-                                        let interpretation = '';
-
-                                        if (value < 0) {
-                                            interpretation = ' (Below low estimate)';
-                                        } else if (value <= 1) {
-                                            interpretation = ' (Within estimate range)';
-                                        } else {
-                                            interpretation = ' (Above high estimate)';
-                                        }
-
-                                        return 'Factor: ' + value.toFixed(3) + interpretation;
-                                    } else if (context.datasetIndex === 2) {
-                                        return 'Rolling Avg: ' + context.parsed.y.toFixed(3);
-                                    }
-                                    return context.dataset.label;
-                                }
-                            },
-                            filter: function(tooltipItem) {
-                                return tooltipItem.datasetIndex === 1 || tooltipItem.datasetIndex === 2;
-                            }
+                            text: 'Sale Date'
                         }
                     },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'month',
-                                displayFormats: {
-                                    month: 'MMM yyyy'
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: 'Sale Date'
-                            }
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Performance Factor'
                         },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Performance Factor'
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return value.toFixed(2);
-                                }
+                        ticks: {
+                            callback: function(value) {
+                                return value.toFixed(2);
                             }
                         }
                     }
                 }
-            });
-        }
+            }
+        });
+    }
 
-        function updateStats(sales) {
-            const totalSales = sales.length;
-            const avgLow = sales.reduce((sum, s) => sum + s.lowEstimate, 0) / totalSales;
-            const avgHigh = sales.reduce((sum, s) => sum + s.highEstimate, 0) / totalSales;
-            const avgHammer = sales.reduce((sum, s) => sum + s.hammerPrice, 0) / totalSales;
+    function updateStats(sales) {
+        const totalSales = sales.length;
+        const avgLow = sales.reduce((sum, s) => sum + s.lowEstimate, 0) / totalSales;
+        const avgHigh = sales.reduce((sum, s) => sum + s.highEstimate, 0) / totalSales;
+        const avgHammer = sales.reduce((sum, s) => sum + s.hammerPrice, 0) / totalSales;
 
-            document.getElementById('statTotalSales').textContent = totalSales;
-            document.getElementById('statAvgLow').textContent = '€' + avgLow.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-            document.getElementById('statAvgHigh').textContent = '€' + avgHigh.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-            document.getElementById('statAvgHammer').textContent = '€' + avgHammer.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
+        document.getElementById('statTotalSales').textContent = totalSales;
+        document.getElementById('statAvgLow').textContent = '€' + avgLow.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        document.getElementById('statAvgHigh').textContent = '€' + avgHigh.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        document.getElementById('statAvgHammer').textContent = '€' + avgHammer.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
 
-            statsContainer.style.display = 'grid';
-        }
+        statsContainer.style.display = 'grid';
+    }
 
-        function showMessage(text, type) {
-            message.textContent = text;
-            message.className = 'message visible ' + type;
-        }
+    function showMessage(text, type) {
+        message.textContent = text;
+        message.className = 'message visible ' + type;
+    }
 
-        // Initialize
-        loadArtists();
-        loadCategories();
-        setDefaultDates();
-    </script>
+    // Initialize
+    loadArtists();
+    loadCategories();
+    setDefaultDates();
+</script>
 </body>
 </html>
