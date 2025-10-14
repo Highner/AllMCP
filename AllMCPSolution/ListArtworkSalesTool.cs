@@ -23,28 +23,28 @@ public class ListArtworkSalesTool : IToolBase
     {
         parameters ??= new Dictionary<string, object>();
 
-        // Extract parameters - using exact same parameters as SearchArtworkSalesTool
-        var artistId = parameters.ContainsKey("artistId") ? Guid.Parse(parameters["artistId"]?.ToString() ?? "") : (Guid?)null;
-        var name = parameters.ContainsKey("name") ? parameters["name"]?.ToString() : null;
-        var minHeight = parameters.ContainsKey("minHeight") ? Convert.ToDecimal(parameters["minHeight"]) : (decimal?)null;
-        var maxHeight = parameters.ContainsKey("maxHeight") ? Convert.ToDecimal(parameters["maxHeight"]) : (decimal?)null;
-        var minWidth = parameters.ContainsKey("minWidth") ? Convert.ToDecimal(parameters["minWidth"]) : (decimal?)null;
-        var maxWidth = parameters.ContainsKey("maxWidth") ? Convert.ToDecimal(parameters["maxWidth"]) : (decimal?)null;
-        var yearCreatedFrom = parameters.ContainsKey("yearCreatedFrom") ? Convert.ToInt32(parameters["yearCreatedFrom"]) : (int?)null;
-        var yearCreatedTo = parameters.ContainsKey("yearCreatedTo") ? Convert.ToInt32(parameters["yearCreatedTo"]) : (int?)null;
-        var saleDateFrom = parameters.ContainsKey("saleDateFrom") ? DateTime.Parse(parameters["saleDateFrom"]?.ToString() ?? "") : (DateTime?)null;
-        var saleDateTo = parameters.ContainsKey("saleDateTo") ? DateTime.Parse(parameters["saleDateTo"]?.ToString() ?? "") : (DateTime?)null;
-        var technique = parameters.ContainsKey("technique") ? parameters["technique"]?.ToString() : null;
-        var category = parameters.ContainsKey("category") ? parameters["category"]?.ToString() : null;
-        var currency = parameters.ContainsKey("currency") ? parameters["currency"]?.ToString() : null;
-        var minLowEstimate = parameters.ContainsKey("minLowEstimate") ? Convert.ToDecimal(parameters["minLowEstimate"]) : (decimal?)null;
-        var maxLowEstimate = parameters.ContainsKey("maxLowEstimate") ? Convert.ToDecimal(parameters["maxLowEstimate"]) : (decimal?)null;
-        var minHighEstimate = parameters.ContainsKey("minHighEstimate") ? Convert.ToDecimal(parameters["minHighEstimate"]) : (decimal?)null;
-        var maxHighEstimate = parameters.ContainsKey("maxHighEstimate") ? Convert.ToDecimal(parameters["maxHighEstimate"]) : (decimal?)null;
-        var minHammerPrice = parameters.ContainsKey("minHammerPrice") ? Convert.ToDecimal(parameters["minHammerPrice"]) : (decimal?)null;
-        var maxHammerPrice = parameters.ContainsKey("maxHammerPrice") ? Convert.ToDecimal(parameters["maxHammerPrice"]) : (decimal?)null;
-        var sold = parameters.ContainsKey("sold") ? Convert.ToBoolean(parameters["sold"]) : (bool?)null;
-        var page = parameters.ContainsKey("page") ? Convert.ToInt32(parameters["page"]) : 1;
+        // Extract parameters using helper methods that support both naming conventions
+        var artistId = ParameterHelpers.GetGuidParameter(parameters, "artistId", "artist_id");
+        var name = ParameterHelpers.GetStringParameter(parameters, "name", "name");
+        var minHeight = ParameterHelpers.GetDecimalParameter(parameters, "minHeight", "min_height");
+        var maxHeight = ParameterHelpers.GetDecimalParameter(parameters, "maxHeight", "max_height");
+        var minWidth = ParameterHelpers.GetDecimalParameter(parameters, "minWidth", "min_width");
+        var maxWidth = ParameterHelpers.GetDecimalParameter(parameters, "maxWidth", "max_width");
+        var yearCreatedFrom = ParameterHelpers.GetIntParameter(parameters, "yearCreatedFrom", "year_created_from");
+        var yearCreatedTo = ParameterHelpers.GetIntParameter(parameters, "yearCreatedTo", "year_created_to");
+        var saleDateFrom = ParameterHelpers.GetDateTimeParameter(parameters, "saleDateFrom", "sale_date_from");
+        var saleDateTo = ParameterHelpers.GetDateTimeParameter(parameters, "saleDateTo", "sale_date_to");
+        var technique = ParameterHelpers.GetStringParameter(parameters, "technique", "technique");
+        var category = ParameterHelpers.GetStringParameter(parameters, "category", "category");
+        var currency = ParameterHelpers.GetStringParameter(parameters, "currency", "currency");
+        var minLowEstimate = ParameterHelpers.GetDecimalParameter(parameters, "minLowEstimate", "min_low_estimate");
+        var maxLowEstimate = ParameterHelpers.GetDecimalParameter(parameters, "maxLowEstimate", "max_low_estimate");
+        var minHighEstimate = ParameterHelpers.GetDecimalParameter(parameters, "minHighEstimate", "min_high_estimate");
+        var maxHighEstimate = ParameterHelpers.GetDecimalParameter(parameters, "maxHighEstimate", "max_high_estimate");
+        var minHammerPrice = ParameterHelpers.GetDecimalParameter(parameters, "minHammerPrice", "min_hammer_price");
+        var maxHammerPrice = ParameterHelpers.GetDecimalParameter(parameters, "maxHammerPrice", "max_hammer_price");
+        var sold = ParameterHelpers.GetBoolParameter(parameters, "sold", "sold");
+        var page = ParameterHelpers.GetIntParameter(parameters, "page", "page") ?? 1;
 
         // Build query
         var query = _dbContext.ArtworkSales
@@ -303,7 +303,7 @@ public class ListArtworkSalesTool : IToolBase
         };
     }
 
-    public object GetOpenApiSchema()
+        public object GetOpenApiSchema()
     {
         return new
         {
@@ -312,37 +312,14 @@ public class ListArtworkSalesTool : IToolBase
             requestBody = new
             {
                 required = false,
-                content = new
+                content = new Dictionary<string, object>
                 {
-                    applicationJson = new
+                    ["application/json"] = new
                     {
                         schema = new
                         {
                             type = "object",
-                            properties = new
-                            {
-                                artistId = new { type = "string" },
-                                name = new { type = "string" },
-                                minHeight = new { type = "number" },
-                                maxHeight = new { type = "number" },
-                                minWidth = new { type = "number" },
-                                maxWidth = new { type = "number" },
-                                yearCreatedFrom = new { type = "integer" },
-                                yearCreatedTo = new { type = "integer" },
-                                saleDateFrom = new { type = "string", format = "date-time" },
-                                saleDateTo = new { type = "string", format = "date-time" },
-                                technique = new { type = "string" },
-                                category = new { type = "string" },
-                                currency = new { type = "string" },
-                                minLowEstimate = new { type = "number" },
-                                maxLowEstimate = new { type = "number" },
-                                minHighEstimate = new { type = "number" },
-                                maxHighEstimate = new { type = "number" },
-                                minHammerPrice = new { type = "number" },
-                                maxHammerPrice = new { type = "number" },
-                                sold = new { type = "boolean" },
-                                page = new { type = "integer" }
-                            }
+                            properties = ParameterHelpers.CreateOpenApiProperties()
                         }
                     }
                 }
@@ -352,9 +329,9 @@ public class ListArtworkSalesTool : IToolBase
                 _200 = new
                 {
                     description = "Success",
-                    content = new
+                    content = new Dictionary<string, object>
                     {
-                        applicationJson = new
+                        ["application/json"] = new
                         {
                             schema = new
                             {
