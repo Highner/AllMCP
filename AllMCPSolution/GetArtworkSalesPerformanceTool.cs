@@ -44,7 +44,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
     var minHammerPrice = ParameterHelpers.GetDecimalParameter(parameters, "minHammerPrice", "min_hammer_price");
     var maxHammerPrice = ParameterHelpers.GetDecimalParameter(parameters, "maxHammerPrice", "max_hammer_price");
     var sold = ParameterHelpers.GetBoolParameter(parameters, "sold", "sold");
-    var skip = ParameterHelpers.GetIntParameter(parameters, "skip", "skip") ?? 0;
+    var page = ParameterHelpers.GetIntParameter(parameters, "page", "page") ?? 1;
 
     // Build query
     var query = _dbContext.ArtworkSales
@@ -118,6 +118,9 @@ public class GetArtworkSalesPerformanceTool : IToolBase
     // Get total count before pagination
     var totalCount = await query.CountAsync();
 
+    // Calculate skip based on page number
+    var skip = (page - 1) * MaxResults;
+
     // Get results ordered by sale date with skip and take
     var sales = await query
         .OrderByDescending(a => a.SaleDate)
@@ -157,17 +160,16 @@ public class GetArtworkSalesPerformanceTool : IToolBase
         )
     }).ToList();
 
-    var currentIndex = skip + timeSeries.Count;
-    var hasMoreResults = currentIndex < totalCount;
-    var nextSkip = currentIndex;
+    var totalPages = (int)Math.Ceiling((double)totalCount / MaxResults);
+    var hasMoreResults = page < totalPages;
 
     var result = new
     {
         timeSeries,
         count = timeSeries.Count,
         totalCount,
-        currentSkip = skip,
-        lastItemIndex = currentIndex - 1,
+        totalPages,
+        currentPage = page,
         hasMoreResults,
         description = "Performance factor: 0-1 if within estimate range, >1 if above high estimate, <0 if below low estimate"
     };
@@ -180,10 +182,10 @@ public class GetArtworkSalesPerformanceTool : IToolBase
             result.timeSeries,
             result.count,
             result.totalCount,
-            result.currentSkip,
-            result.lastItemIndex,
+            result.totalPages,
+            result.currentPage,
             result.hasMoreResults,
-            nextBatchInstructions = $"To get the next batch of results, call this tool again with skip={nextSkip}. This will return items {nextSkip} through {Math.Min(nextSkip + MaxResults - 1, totalCount - 1)}.",
+            nextPageInstructions = $"To get the next page of results, call this tool again with page={page + 1}. Each page contains up to {MaxResults} items.",
             result.description
         };
     }
@@ -315,10 +317,10 @@ public class GetArtworkSalesPerformanceTool : IToolBase
                     type = "boolean",
                     description = "Filter by sold status"
                 },
-                skip = new
+                page = new
                 {
                     type = "integer",
-                    description = $"Number of records to skip for pagination (default: 0). Maximum {MaxResults} results returned per request."
+                    description = $"Page number for pagination (default: 1). Maximum {MaxResults} results returned per page."
                 }
             }
         }
@@ -389,8 +391,10 @@ public class GetArtworkSalesPerformanceTool : IToolBase
                                         totalCount = new { type = "integer" },
                                         currentSkip = new { type = "integer" },
                                         lastItemIndex = new { type = "integer" },
+                                        totalPages = new { type = "integer" },
+                                        currentPage = new { type = "integer" },
                                         hasMoreResults = new { type = "boolean" },
-                                        nextBatchInstructions = new { type = "string" },
+                                        nextPageInstructions = new { type = "string" },
                                         description = new { type = "string" }
                                     }
                                 }
