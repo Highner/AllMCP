@@ -139,6 +139,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
             Technique = sale.Technique,
             YearCreated = sale.YearCreated,
             Time = sale.SaleDate,
+            HammerPrice = sale.HammerPrice,
             PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
                 sale.HammerPrice,
                 sale.LowEstimate,
@@ -327,7 +328,8 @@ public class GetArtworkSalesPerformanceTool : IToolBase
                                                         technique = new { type = "string" },
                                                         yearCreated = new { type = "integer" },
                                                         time = new { type = "string", format = "date-time" },
-                                                        performanceFactor = new { type = "number" }
+                                                        performanceFactor = new { type = "number" },
+                                                        hammerPrice = new { type = "number" }
                                                     }
                                                 }
                                             },
