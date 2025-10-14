@@ -8,7 +8,7 @@ namespace AllMCPSolution.Artworks;
 public class GetArtworkSalesPerformanceTool : IToolBase
 {
     private readonly ApplicationDbContext _dbContext;
-    private const int MaxResults = 1000; // Limit for time series
+    private const int MaxResults = 500; // Limit for time series
 
     public GetArtworkSalesPerformanceTool(ApplicationDbContext dbContext)
     {
