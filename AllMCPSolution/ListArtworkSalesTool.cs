@@ -163,7 +163,10 @@ public class ListArtworkSalesTool : IToolBase
             .Select(a => new
             {
                 SaleDate = a.SaleDate,
-                Category = a.Category,
+                Title = a.Name,
+                a.Category,
+                a.Technique,
+                a.YearCreated,
                 LowEstimate = a.LowEstimate,
                 HighEstimate = a.HighEstimate,
                 HammerPrice = a.HammerPrice
@@ -352,7 +355,9 @@ public class ListArtworkSalesTool : IToolBase
                                                     properties = new
                                                     {
                                                         saleDate = new { type = "string", format = "date-time" },
+                                                        title = new { type = "string" },
                                                         category = new { type = "string" },
+                                                        technique = new { type = "string" },
                                                         lowEstimate = new { type = "number" },
                                                         highEstimate = new { type = "number" },
                                                         hammerPrice = new { type = "number" }
