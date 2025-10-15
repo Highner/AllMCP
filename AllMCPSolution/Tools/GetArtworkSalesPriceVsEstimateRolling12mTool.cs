@@ -133,8 +133,8 @@ public class GetArtworkSalesPriceVsEstimateRolling12mTool : IToolBase
             series.Add(new
             {
                 Time = monthly[i].Month,
-                CountInWindow = totalSales,  // Changed to show total sales, not just contributing months
-                Rolling12mAvgPositionInRange = rolling
+                //CountInWindow = totalSales,  // Changed to show total sales, not just contributing months
+                Value = rolling
             });
         }
 
@@ -142,7 +142,7 @@ public class GetArtworkSalesPriceVsEstimateRolling12mTool : IToolBase
         {
             timeSeries = series,
             count = series.Count,
-            description = "Each monthly point represents the 12-month rolling average of the average monthly PositionInRange (normalized within estimate band: <0 below low, 0..1 within, >1 above high)."
+            description = "Each monthly point represents the 12-month rolling average of the average monthly Value (normalized within estimate band: <0 below low, 0..1 within, >1 above high)."
         };
     }
 
