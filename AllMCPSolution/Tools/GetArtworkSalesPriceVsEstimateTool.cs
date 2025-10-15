@@ -72,7 +72,7 @@ public class GetArtworkSalesPriceVsEstimateTool : IToolBase
         var skip = (page - 1) * MaxResults;
 
         var sales = await query
-            .OrderBy(a => a.SaleDate)
+            .OrderByDescending(a => a.SaleDate)
             .Skip(skip)
             .Take(MaxResults)
             .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.LowEstimate, a.HighEstimate, a.HammerPrice, a.Sold })

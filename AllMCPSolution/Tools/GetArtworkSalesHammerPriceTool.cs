@@ -75,7 +75,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
         var skip = (page - 1) * MaxResults;
 
         var sales = await query
-            .OrderBy(a => a.SaleDate)
+            .OrderByDescending(a => a.SaleDate)
             .Skip(skip)
             .Take(MaxResults)
             .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.HammerPrice, a.Sold })
