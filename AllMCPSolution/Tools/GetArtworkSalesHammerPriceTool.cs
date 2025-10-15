@@ -10,7 +10,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IInflationService _inflationService;
-    private const int MaxResults = 1000;
+    private const int MaxResults = 300;
 
     public GetArtworkSalesHammerPriceTool(ApplicationDbContext dbContext, IInflationService inflationService)
     {
@@ -78,24 +78,29 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
             .OrderByDescending(a => a.SaleDate)
             .Skip(skip)
             .Take(MaxResults)
-            .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.HammerPrice, a.Sold })
+            .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.HammerPrice, a.Sold, a.Height, a.Width })
             .ToListAsync();
 
         var list = new List<object>(sales.Count);
         foreach (var s in sales)
         {
+            var area = (s.Height > 0 && s.Width > 0) ? (s.Height * s.Width) : 0m;
+            decimal? perArea = area > 0 ? s.HammerPrice / area : null;
             var adj = await _inflationService.AdjustAmountAsync(s.HammerPrice, s.SaleDate);
-
+            decimal? perAreaAdj = area > 0 ? adj / area : null;
+            
             list.Add(new
             {
-                //Title = s.Name,
+                Title = s.Name,
                 Category = s.Category,
                 Technique = s.Technique,
                 YearCreated = s.YearCreated,
                 Time = s.SaleDate,
                 Sold = s.Sold,
                 HammerPrice = s.HammerPrice,
-                HammerPriceInflationAdjusted = adj
+                HammerPriceInflationAdjusted = adj,
+                HammerPricePerArea = perArea,
+                HammerPricePerAreaInflationAdjusted = perAreaAdj,
             });
         }
 
