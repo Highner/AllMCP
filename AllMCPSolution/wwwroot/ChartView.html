@@ -671,7 +671,7 @@
             // Hammer price points for this category
             datasets.push({
                 label: `${category} - Hammer Price`,
-                data: categorySales.map(s => ({ x: new Date(s.saleDate), y: s.hammerPrice })),
+                data: categorySales.map(s => ({ x: new Date(s.saleDate), y: s.hammerPrice, sale: s })), 
                 borderColor: color,
                 backgroundColor: color,
                 showLine: false,
@@ -811,48 +811,52 @@
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
+                                const isRolling = context.dataset.label && context.dataset.label.includes('Rolling Avg');
+                                const isPerArea = context.dataset.yAxisID === 'y2' || (context.dataset.label && context.dataset.label.includes('per Area'));
+                                if (isRolling) {
+                                    // Keep simple label for rolling averages
+                                    return `${context.dataset.label}: ${isPerArea ? '€' + context.parsed.y.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '/cm²' : '€' + context.parsed.y.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                                 }
-
-                                if (context.dataset.yAxisID === 'y2') {
-                                    label += '€' + context.parsed.y.toLocaleString('en-US', {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2
-                                    }) + '/cm²';
-                                } else {
-                                    label += '€' + context.parsed.y.toLocaleString('en-US', {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2
-                                    });
+                                // For point datasets: show the metric only
+                                if (isPerArea) {
+                                    return `Price per Area: €${context.parsed.y.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/cm²`;
                                 }
-                                return label;
+                                return `Hammer Price: €${context.parsed.y.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                             },
                             afterLabel: function(context) {
-                                if (context.dataset.label && !context.dataset.label.includes('Rolling Avg') && context.dataset.yAxisID !== 'y2') {
+                                const isRolling = context.dataset.label && context.dataset.label.includes('Rolling Avg');
+                                if (isRolling) return null;
+
+                                let sale = (context.raw && context.raw.sale) ? context.raw.sale : null;
+
+                                // Fallback for hammer price points if sale is not attached
+                                if (!sale && context.dataset.label && context.dataset.label.includes('Hammer Price')) {
                                     const dataIndex = context.dataIndex;
                                     const categoryName = context.dataset.label.replace(' - Hammer Price', '');
                                     const categorySales = salesByCategory[categoryName];
                                     if (categorySales && categorySales[dataIndex]) {
-                                        const sale = categorySales[dataIndex];
-                                        return [
-                                            `Artwork: ${sale.name}`,
-                                            `Category: ${sale.category}`
-                                        ];
+                                        sale = categorySales[dataIndex];
                                     }
                                 }
-                                if (context.dataset.yAxisID === 'y2') {
-                                    const sale = context.raw.sale;
-                                    if (sale) {
-                                        return [
-                                            `Artwork: ${sale.name}`,
-                                            `Size: ${sale.height} × ${sale.width} cm`,
-                                            `Total: €${sale.hammerPrice.toLocaleString()}`
-                                        ];
-                                    }
-                                }
-                                return null;
+
+                                if (!sale) return null;
+
+                                const name = sale.name || sale.Title || sale.Name;
+                                const category = sale.category || sale.Category;
+                                const technique = sale.technique || sale.Technique;
+                                const height = sale.height ?? sale.Height;
+                                const width = sale.width ?? sale.Width;
+                                const dateVal = sale.saleDate || sale.SaleDate || (context.parsed && context.parsed.x);
+                                const saleDateStr = dateVal ? new Date(dateVal).toLocaleDateString() : null;
+                                const dims = (height != null && width != null && height > 0 && width > 0) ? `${height} × ${width} cm` : null;
+
+                                const lines = [];
+                                if (name) lines.push(`Title: ${name}`);
+                                if (category) lines.push(`Category: ${category}`);
+                                if (technique) lines.push(`Technique: ${technique}`);
+                                if (dims) lines.push(`Dimensions: ${dims}`);
+                                if (saleDateStr) lines.push(`Sale Date: ${saleDateStr}`);
+                                return lines;
                             }
                         }
                     }
@@ -964,8 +968,9 @@
                 label: `${category} - Performance`,
                 data: categoryData.map(t => ({
                     x: new Date(t.time),
-                    y: t.performanceFactor
-                })),
+                    y: t.performanceFactor,
+                    sale: t
+                })), 
                 borderColor: color,
                 backgroundColor: color,
                 pointRadius: 3,
@@ -1067,23 +1072,40 @@
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                if (context.dataset.label && context.dataset.label.includes('Performance') && !context.dataset.label.includes('Rolling Avg')) {
-                                    const value = context.parsed.y;
-                                    let interpretation = '';
-
-                                    if (value < 0) {
-                                        interpretation = ' (Below low estimate)';
-                                    } else if (value <= 1) {
-                                        interpretation = ' (Within estimate range)';
-                                    } else {
-                                        interpretation = ' (Above high estimate)';
-                                    }
-
-                                    return 'Factor: ' + value.toFixed(3) + interpretation;
-                                } else if (context.dataset.label && context.dataset.label.includes('Rolling Avg')) {
+                                const isRolling = context.dataset.label && context.dataset.label.includes('Rolling Avg');
+                                if (isRolling) {
                                     return 'Rolling Avg: ' + context.parsed.y.toFixed(3);
                                 }
+                                if (context.dataset.label && context.dataset.label.includes('Performance')) {
+                                    const value = context.parsed.y;
+                                    let interpretation = '';
+                                    if (value < 0) interpretation = ' (Below low estimate)';
+                                    else if (value <= 1) interpretation = ' (Within estimate range)';
+                                    else interpretation = ' (Above high estimate)';
+                                    return 'Performance Factor: ' + value.toFixed(3) + interpretation;
+                                }
                                 return context.dataset.label;
+                            },
+                            afterLabel: function(context) {
+                                const isRolling = context.dataset.label && context.dataset.label.includes('Rolling Avg');
+                                if (isRolling) return null;
+                                const sale = context.raw && context.raw.sale ? context.raw.sale : null;
+                                if (!sale) return null;
+                                const name = sale.name || sale.Title || sale.Name;
+                                const category = sale.category || sale.Category;
+                                const technique = sale.technique || sale.Technique;
+                                const height = sale.height ?? sale.Height;
+                                const width = sale.width ?? sale.Width;
+                                const dateVal = sale.saleDate || sale.SaleDate || sale.time;
+                                const saleDateStr = dateVal ? new Date(dateVal).toLocaleDateString() : null;
+                                const dims = (height != null && width != null && height > 0 && width > 0) ? `${height} × ${width} cm` : null;
+                                const lines = [];
+                                if (name) lines.push(`Title: ${name}`);
+                                if (category) lines.push(`Category: ${category}`);
+                                if (technique) lines.push(`Technique: ${technique}`);
+                                if (dims) lines.push(`Dimensions: ${dims}`);
+                                if (saleDateStr) lines.push(`Sale Date: ${saleDateStr}`);
+                                return lines;
                             }
                         },
                         filter: function(tooltipItem) {
@@ -1210,10 +1232,34 @@
 
         const perArea = series
             .filter(p => p.hammerPricePerArea != null)
-            .map(p => ({ x: new Date(p.time), y: p.hammerPricePerArea }));
+            .map(p => ({
+                x: new Date(p.time),
+                y: p.hammerPricePerArea,
+                sale: {
+                    name: p.title || p.Name || p.name,
+                    category: p.category || p.Category,
+                    technique: p.technique || p.Technique,
+                    height: p.height ?? p.Height,
+                    width: p.width ?? p.Width,
+                    saleDate: p.time || p.SaleDate,
+                    hammerPrice: p.hammerPrice ?? p.HammerPrice
+                }
+            }));
         const perAreaAdj = series
             .filter(p => p.hammerPricePerAreaInflationAdjusted != null)
-            .map(p => ({ x: new Date(p.time), y: p.hammerPricePerAreaInflationAdjusted }));
+            .map(p => ({
+                x: new Date(p.time),
+                y: p.hammerPricePerAreaInflationAdjusted,
+                sale: {
+                    name: p.title || p.Name || p.name,
+                    category: p.category || p.Category,
+                    technique: p.technique || p.Technique,
+                    height: p.height ?? p.Height,
+                    width: p.width ?? p.Width,
+                    saleDate: p.time || p.SaleDate,
+                    hammerPrice: p.hammerPrice ?? p.HammerPrice
+                }
+            }));
 
         const threeMonthsMs = 90 * 24 * 60 * 60 * 1000;
 
@@ -1320,8 +1366,35 @@
                     tooltip: {
                         callbacks: {
                             label: function(context) {
+                                const isRolling = context.dataset.label && context.dataset.label.includes('Rolling Avg');
                                 const val = context.parsed.y;
-                                return `${context.dataset.label}: €${val.toLocaleString(undefined, { maximumFractionDigits: 2 })}/cm²`;
+                                if (isRolling) {
+                                    return `${context.dataset.label}: €${val.toLocaleString(undefined, { maximumFractionDigits: 2 })}/cm²`;
+                                }
+                                if (context.dataset.label && context.dataset.label.includes('Inflation-Adjusted')) {
+                                    return `Price per Area (Adj): €${val.toLocaleString(undefined, { maximumFractionDigits: 2 })}/cm²`;
+                                }
+                                return `Price per Area: €${val.toLocaleString(undefined, { maximumFractionDigits: 2 })}/cm²`;
+                            },
+                            afterLabel: function(context) {
+                                const isRolling = context.dataset.label && context.dataset.label.includes('Rolling Avg');
+                                if (isRolling) return null;
+                                const sale = context.raw && context.raw.sale ? context.raw.sale : null;
+                                if (!sale) return null;
+                                const name = sale.name || sale.Title || sale.Name;
+                                const category = sale.category || sale.Category;
+                                const technique = sale.technique || sale.Technique;
+                                const height = sale.height ?? sale.Height;
+                                const width = sale.width ?? sale.Width;
+                                const saleDateStr = sale.saleDate ? new Date(sale.saleDate).toLocaleDateString() : (sale.SaleDate ? new Date(sale.SaleDate).toLocaleDateString() : null);
+                                const dims = (height != null && width != null && height > 0 && width > 0) ? `${height} × ${width} cm` : null;
+                                const lines = [];
+                                if (name) lines.push(`Title: ${name}`);
+                                if (category) lines.push(`Category: ${category}`);
+                                if (technique) lines.push(`Technique: ${technique}`);
+                                if (dims) lines.push(`Dimensions: ${dims}`);
+                                if (saleDateStr) lines.push(`Sale Date: ${saleDateStr}`);
+                                return lines;
                             }
                         }
                     }

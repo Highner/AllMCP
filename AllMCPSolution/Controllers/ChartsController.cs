@@ -95,6 +95,13 @@ public class ChartsController : ControllerBase
         var timeSeries = perfSales.Select(sale => new
         {
             Time = sale.SaleDate,
+            Name = sale.Name,
+            Category = sale.Category,
+            Technique = sale.Technique,
+            Height = sale.Height,
+            Width = sale.Width,
+            HammerPrice = sale.HammerPrice,
+            SaleDate = sale.SaleDate,
             PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
                 sale.HammerPrice,
                 sale.LowEstimate,
