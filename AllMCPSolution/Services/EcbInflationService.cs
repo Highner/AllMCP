@@ -73,12 +73,35 @@ public class EcbInflationService : IInflationService
         if ((DateTime.UtcNow - _lastFetchUtc) < TimeSpan.FromHours(12) && _monthlyIndex.Count > 0)
             return;
 
-        var url = $"https://sdw-wsrest.ecb.europa.eu/service/data/{_seriesKey}?lastNObservations=600&format=csvdata";
+        // Split "ICP.M.U2.N.000000.4.INX" into flowRef="ICP" and key="M.U2.N.000000.4.INX"
+        var firstDot = _seriesKey.IndexOf('.');
+        string flowRef, key;
+        if (firstDot > 0)
+        {
+            flowRef = _seriesKey.Substring(0, firstDot);
+            key = _seriesKey.Substring(firstDot + 1);
+        }
+        else
+        {
+            // fallback: whole thing is a flowRef, key empty (unlikely for your use case)
+            flowRef = _seriesKey;
+            key = string.Empty;
+        }
+
+        // Use the new ECB API entry point; ask for CSV data only
+        var url =
+            $"https://data-api.ecb.europa.eu/service/data/{flowRef}/{key}?lastNObservations=600&detail=dataonly&format=csvdata";
 
         try
         {
-            using var resp = await _httpClient.GetAsync(url, ct);
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            // Optional but nice: explicit Accept for CSV and conditional fetches
+            req.Headers.Accept.ParseAdd("text/csv");               // CSV
+            // req.Headers.IfModifiedSince = _lastFetchUtc;        // uncomment if you want 304 handling
+
+            using var resp = await _httpClient.SendAsync(req, ct);
             resp.EnsureSuccessStatusCode();
+
             var csv = await resp.Content.ReadAsStringAsync(ct);
             ParseCsv(csv);
             _lastFetchUtc = DateTime.UtcNow;
@@ -88,6 +111,7 @@ public class EcbInflationService : IInflationService
             _logger.LogWarning(ex, "Failed to fetch ECB inflation data from {Url}", url);
         }
     }
+
 
     private void ParseCsv(string csv)
     {
