@@ -17,10 +17,7 @@ public class GetArtworkSalesPriceVsEstimateRolling12mTool : IToolBase
     public string Name => "get_artwork_sales_price_vs_estimate_rolling_12m";
     public string Description => @"Each monthly point represents the 12-month rolling average of the 'position-in-estimate-range' value.
 
-The 'position-in-estimate-range' value represents the normalized position of the hammer price within the auction's estimate band.
-
-It is defined as:
-(Hammer – LowEstimate) / (HighEstimate – LowEstimate)";
+The 'position-in-estimate-range' value represents the normalized position of the hammer price within the auction's estimate band.";
     public string? SafetyLevel => "non_critical";
 
     public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
