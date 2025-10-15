@@ -37,7 +37,7 @@ public class HammerPerAreaAnalyticsService : IHammerPerAreaAnalyticsService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IInflationService _inflationService;
-    private const int MaxResults = 300;
+    private const int MaxResults = 1000;
 
     public HammerPerAreaAnalyticsService(ApplicationDbContext dbContext, IInflationService inflationService)
     {
