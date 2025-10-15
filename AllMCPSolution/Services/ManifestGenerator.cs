@@ -65,29 +65,29 @@ public class ManifestGenerator
                     operationId = tool.Name,
                     summary = tool.Description,
                     description = tool.Description,
-                    requestBody = new
+                    requestBody = new Dictionary<string, object>
                     {
-                        required = false,
-                        content = new
+                        ["required"] = false,
+                        ["content"] = new Dictionary<string, object>
                         {
-                            application__json = new
+                            ["application/json"] = new Dictionary<string, object>
                             {
-                                schema = GetToolRequestBodySchema(tool)
+                                ["schema"] = GetToolRequestBodySchema(tool)
                             }
                         }
                     },
-                    responses = new
+                    responses = new Dictionary<string, object>
                     {
-                        _200 = new
+                        ["200"] = new Dictionary<string, object>
                         {
-                            description = "Successful response",
-                            content = new
+                            ["description"] = "Successful response",
+                            ["content"] = new Dictionary<string, object>
                             {
-                                application__json = new
+                                ["application/json"] = new Dictionary<string, object>
                                 {
-                                    schema = new
+                                    ["schema"] = new Dictionary<string, object>
                                     {
-                                        type = "object"
+                                        ["type"] = "object"
                                     }
                                 }
                             }
