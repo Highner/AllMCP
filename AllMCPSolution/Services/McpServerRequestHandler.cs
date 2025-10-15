@@ -1,5 +1,6 @@
 
 using AllMCPSolution.Models;
+using System.Text.Json;
 
 namespace AllMCPSolution.Services;
 
@@ -144,8 +145,8 @@ public class McpServer
             };
         }
 
-        var arguments = paramsDict?.ContainsKey("arguments") == true 
-            ? paramsDict["arguments"] as Dictionary<string, object> 
+        var arguments = paramsDict?.ContainsKey("arguments") == true
+            ? ConvertArgumentsToDictionary(paramsDict["arguments"])
             : null;
 
         var result = await tool.ExecuteAsync(arguments);
@@ -164,6 +165,47 @@ public class McpServer
                     }
                 }
             }
+        };
+    }
+
+    private static Dictionary<string, object>? ConvertArgumentsToDictionary(object? arguments)
+    {
+        if (arguments == null)
+            return null;
+
+        // If it's already a Dictionary, return it
+        if (arguments is Dictionary<string, object> dict)
+            return dict;
+
+        // If it's a JsonElement, convert it
+        if (arguments is JsonElement element)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                var result = new Dictionary<string, object>();
+                foreach (var property in element.EnumerateObject())
+                {
+                    result[property.Name] = ConvertJsonElement(property.Value);
+                }
+                return result;
+            }
+        }
+
+        return null;
+    }
+
+    private static object ConvertJsonElement(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.Object => ConvertArgumentsToDictionary(element) ?? new Dictionary<string, object>(),
+            JsonValueKind.Array => element.EnumerateArray().Select(ConvertJsonElement).ToArray(),
+            JsonValueKind.String => element.GetString() ?? "",
+            JsonValueKind.Number => element.TryGetInt64(out var l) ? l : element.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null!,
+            _ => element.ToString()
         };
     }
 }

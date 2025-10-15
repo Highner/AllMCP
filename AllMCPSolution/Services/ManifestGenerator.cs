@@ -1,5 +1,6 @@
 
 using AllMCPSolution.Tools;
+using System.Text.Json;
 
 namespace AllMCPSolution.Services;
 
@@ -71,12 +72,7 @@ public class ManifestGenerator
                         {
                             application__json = new
                             {
-                                schema = new
-                                {
-                                    type = "object",
-                                    properties = GetToolParameterProperties(tool),
-                                    additionalProperties = true
-                                }
+                                schema = GetToolRequestBodySchema(tool)
                             }
                         }
                     },
@@ -118,15 +114,24 @@ public class ManifestGenerator
         };
     }
 
-    private Dictionary<string, object> GetToolParameterProperties(IToolBase tool)
+    private JsonElement GetToolRequestBodySchema(IToolBase tool)
     {
-        // Get the tool definition which contains the inputSchema
-        var definition = tool.GetToolDefinition() as dynamic;
-        if (definition?.inputSchema?.properties != null)
+        // Get the tool definition which has the inputSchema with proper structure
+        var definition = tool.GetToolDefinition();
+        
+        // Serialize to JSON and deserialize back as JsonElement for proper nested object handling
+        var json = JsonSerializer.Serialize(definition);
+        using var doc = JsonDocument.Parse(json);
+        
+        if (doc.RootElement.TryGetProperty("inputSchema", out var inputSchemaElement))
         {
-            return definition.inputSchema.properties as Dictionary<string, object> ?? new Dictionary<string, object>();
+            return inputSchemaElement.Clone();
         }
-        return new Dictionary<string, object>();
+        
+        // Return empty schema as JsonElement
+        var emptySchema = JsonSerializer.Serialize(new { type = "object", properties = new { } });
+        using var emptyDoc = JsonDocument.Parse(emptySchema);
+        return emptyDoc.RootElement.Clone();
     }
     
     public object GenerateAnthropicManifest(IServiceProvider? scopedProvider = null)

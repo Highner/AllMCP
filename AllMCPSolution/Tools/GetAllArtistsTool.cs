@@ -94,8 +94,7 @@ public class GetAllArtistsTool : IToolBase
                         maximum = 100
                     }
                 },
-                required = new string[] { },
-                additionalProperties = true
+                required = new string[] { }
             }
         };
     }
