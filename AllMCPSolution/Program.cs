@@ -14,6 +14,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddControllers();
+builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
@@ -73,6 +74,11 @@ app.UseStaticFiles();
 app.UseCors("AllowAIAgents");
 app.UseAuthorization();
 app.MapControllers();
+
+// Map MVC routes for server-rendered views
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 // Get services
 var mcpServer = app.Services.GetRequiredService<McpServer>();
