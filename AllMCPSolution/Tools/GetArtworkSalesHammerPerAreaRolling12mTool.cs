@@ -26,48 +26,15 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
         parameters ??= new Dictionary<string, object>();
 
         var artistId = ParameterHelpers.GetGuidParameter(parameters, "artistId", "artist_id");
-        var name = ParameterHelpers.GetStringParameter(parameters, "name", "name");
-        var minHeight = ParameterHelpers.GetDecimalParameter(parameters, "minHeight", "min_height");
-        var maxHeight = ParameterHelpers.GetDecimalParameter(parameters, "maxHeight", "max_height");
-        var minWidth = ParameterHelpers.GetDecimalParameter(parameters, "minWidth", "min_width");
-        var maxWidth = ParameterHelpers.GetDecimalParameter(parameters, "maxWidth", "max_width");
-        var yearCreatedFrom = ParameterHelpers.GetIntParameter(parameters, "yearCreatedFrom", "year_created_from");
-        var yearCreatedTo = ParameterHelpers.GetIntParameter(parameters, "yearCreatedTo", "year_created_to");
-        var saleDateFrom = ParameterHelpers.GetDateTimeParameter(parameters, "saleDateFrom", "sale_date_from");
-        var saleDateTo = ParameterHelpers.GetDateTimeParameter(parameters, "saleDateTo", "sale_date_to");
-        var technique = ParameterHelpers.GetStringParameter(parameters, "technique", "technique");
-        var category = ParameterHelpers.GetStringParameter(parameters, "category", "category");
-        var currency = ParameterHelpers.GetStringParameter(parameters, "currency", "currency");
-        var minLowEstimate = ParameterHelpers.GetDecimalParameter(parameters, "minLowEstimate", "min_low_estimate");
-        var maxLowEstimate = ParameterHelpers.GetDecimalParameter(parameters, "maxLowEstimate", "max_low_estimate");
-        var minHighEstimate = ParameterHelpers.GetDecimalParameter(parameters, "minHighEstimate", "min_high_estimate");
-        var maxHighEstimate = ParameterHelpers.GetDecimalParameter(parameters, "maxHighEstimate", "max_high_estimate");
-        var minHammerPrice = ParameterHelpers.GetDecimalParameter(parameters, "minHammerPrice", "min_hammer_price");
-        var maxHammerPrice = ParameterHelpers.GetDecimalParameter(parameters, "maxHammerPrice", "max_hammer_price");
-        var sold = ParameterHelpers.GetBoolParameter(parameters, "sold", "sold");
+
+        if (!artistId.HasValue)
+        {
+            return new { timeSeries = Array.Empty<object>(), count = 0, description = "Artist ID is required." };
+        }
 
         var query = _dbContext.ArtworkSales.Include(a => a.Artist).AsQueryable();
 
-        if (artistId.HasValue) query = query.Where(a => a.ArtistId == artistId.Value);
-        if (!string.IsNullOrWhiteSpace(name)) query = query.Where(a => a.Name.Contains(name));
-        if (minHeight.HasValue) query = query.Where(a => a.Height >= minHeight.Value);
-        if (maxHeight.HasValue) query = query.Where(a => a.Height <= maxHeight.Value);
-        if (minWidth.HasValue) query = query.Where(a => a.Width >= minWidth.Value);
-        if (maxWidth.HasValue) query = query.Where(a => a.Width <= maxWidth.Value);
-        if (yearCreatedFrom.HasValue) query = query.Where(a => a.YearCreated >= yearCreatedFrom.Value);
-        if (yearCreatedTo.HasValue) query = query.Where(a => a.YearCreated <= yearCreatedTo.Value);
-        if (saleDateFrom.HasValue) query = query.Where(a => a.SaleDate >= saleDateFrom.Value);
-        if (saleDateTo.HasValue) query = query.Where(a => a.SaleDate <= saleDateTo.Value);
-        if (!string.IsNullOrWhiteSpace(technique)) query = query.Where(a => a.Technique.Contains(technique));
-        if (!string.IsNullOrWhiteSpace(category)) query = query.Where(a => a.Category.Contains(category));
-        if (!string.IsNullOrWhiteSpace(currency)) query = query.Where(a => a.Currency == currency);
-        if (minLowEstimate.HasValue) query = query.Where(a => a.LowEstimate >= minLowEstimate.Value);
-        if (maxLowEstimate.HasValue) query = query.Where(a => a.LowEstimate <= maxLowEstimate.Value);
-        if (minHighEstimate.HasValue) query = query.Where(a => a.HighEstimate >= minHighEstimate.Value);
-        if (maxHighEstimate.HasValue) query = query.Where(a => a.HighEstimate <= maxHighEstimate.Value);
-        if (minHammerPrice.HasValue) query = query.Where(a => a.HammerPrice >= minHammerPrice.Value);
-        if (maxHammerPrice.HasValue) query = query.Where(a => a.HammerPrice <= maxHammerPrice.Value);
-        if (sold.HasValue) query = query.Where(a => a.Sold == sold.Value);
+        query = query.Where(a => a.ArtistId == artistId.Value);
 
         var sales = await query
             .Where(a => a.Sold)
@@ -148,7 +115,7 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
         };
     }
 
-    public object GetToolDefinition()
+        public object GetToolDefinition()
     {
         return new
         {
@@ -157,8 +124,16 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
             inputSchema = new
             {
                 type = "object",
-                properties = ParameterHelpers.CreateOpenApiProperties(_dbContext),
-                required = Array.Empty<string>()
+                properties = new
+                {
+                    artist_id = new
+                    {
+                        type = "string",
+                        format = "uuid",
+                        description = "The unique identifier of the artist"
+                    }
+                },
+                required = new[] { "artist_id" }
             }
         };
     }
@@ -172,7 +147,7 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
             description = Description,
             requestBody = new
             {
-                required = false,
+                required = true,
                 content = new
                 {
                     application__json = new
@@ -180,7 +155,16 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
                         schema = new
                         {
                             type = "object",
-                            properties = ParameterHelpers.CreateOpenApiProperties(_dbContext)
+                            properties = new
+                            {
+                                artist_id = new
+                                {
+                                    type = "string",
+                                    format = "uuid",
+                                    description = "The unique identifier of the artist"
+                                }
+                            },
+                            required = new[] { "artist_id" }
                         }
                     }
                 }
