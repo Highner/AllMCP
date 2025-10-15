@@ -87,7 +87,8 @@ public class ManifestGenerator
                                 {
                                     ["schema"] = new Dictionary<string, object>
                                     {
-                                        ["type"] = "object"
+                                        ["type"] = "object",
+                                        ["properties"] = new Dictionary<string, object>()
                                     }
                                 }
                             }
