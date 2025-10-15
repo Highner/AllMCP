@@ -75,7 +75,7 @@ public class GetArtworkSalesPriceVsEstimateTool : IToolBase
             .OrderBy(a => a.SaleDate)
             .Skip(skip)
             .Take(MaxResults)
-            .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.LowEstimate, a.HighEstimate, a.HammerPrice })
+            .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.LowEstimate, a.HighEstimate, a.HammerPrice, a.Sold })
             .ToListAsync();
 
         var list = sales.Select(s =>
@@ -100,6 +100,7 @@ public class GetArtworkSalesPriceVsEstimateTool : IToolBase
                 LowEstimate = low,
                 HighEstimate = high,
                 HammerPrice = hp,
+                Sold = s.Sold,
                 //RatioToLow = ratioToLow,
                 //RatioToHigh = ratioToHigh,
                 //DeltaToLow = deltaToLow,

@@ -137,7 +137,8 @@ public class GetArtworkSalesPerformanceTool : IToolBase
                 a.HighEstimate,
                 a.HammerPrice,
                 a.Height,
-                a.Width
+                a.Width,
+                a.Sold
             })
             .ToListAsync();
 
@@ -152,6 +153,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
             HammerPrice = sale.HammerPrice,
             sale.Height,
             sale.Width,
+            Sold = sale.Sold,
             area = sale.Height * sale.Width,
             PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
                 sale.HammerPrice,

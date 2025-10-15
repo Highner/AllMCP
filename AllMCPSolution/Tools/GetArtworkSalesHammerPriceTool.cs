@@ -78,7 +78,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
             .OrderBy(a => a.SaleDate)
             .Skip(skip)
             .Take(MaxResults)
-            .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.HammerPrice })
+            .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.HammerPrice, a.Sold })
             .ToListAsync();
 
         var list = new List<object>(sales.Count);
@@ -93,6 +93,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
                 Technique = s.Technique,
                 YearCreated = s.YearCreated,
                 Time = s.SaleDate,
+                Sold = s.Sold,
                 HammerPrice = s.HammerPrice,
                 HammerPriceInflationAdjusted = adj
             });

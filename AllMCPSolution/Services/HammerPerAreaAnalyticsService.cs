@@ -78,7 +78,7 @@ public class HammerPerAreaAnalyticsService : IHammerPerAreaAnalyticsService
             .OrderBy(a => a.SaleDate)
             .Skip(skip)
             .Take(MaxResults)
-            .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.HammerPrice, a.Height, a.Width })
+            .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.HammerPrice, a.Height, a.Width, a.Sold })
             .ToListAsync(ct);
 
         var list = new List<object>(sales.Count);
@@ -99,6 +99,7 @@ public class HammerPerAreaAnalyticsService : IHammerPerAreaAnalyticsService
                 Height = s.Height,
                 Width = s.Width,
                 Area = area,
+                Sold = s.Sold,
                 HammerPrice = s.HammerPrice,
                 HammerPricePerArea = perArea,
                 HammerPricePerAreaInflationAdjusted = perAreaAdj
