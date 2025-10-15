@@ -115,23 +115,24 @@ public class GetArtworkSalesPriceVsEstimateRolling12mTool : IToolBase
         for (int i = 0; i < monthly.Count; i++)
         {
             int start = Math.Max(0, i - 11);
-            decimal sum = 0m;
-            int contributingMonths = 0;
+            decimal weightedSum = 0m;
+            int totalSales = 0;
             for (int j = start; j <= i; j++)
             {
                 if (monthly[j].Count > 0)
                 {
-                    sum += monthly[j].AvgPositionInRange;
-                    contributingMonths++;
+                    // Weight each month's average by the number of sales in that month
+                    weightedSum += monthly[j].AvgPositionInRange * monthly[j].Count;
+                    totalSales += monthly[j].Count;
                 }
             }
 
-            decimal? rolling = contributingMonths > 0 ? sum / contributingMonths : (decimal?)null;
+            decimal? rolling = totalSales > 0 ? weightedSum / totalSales : (decimal?)null;
 
             series.Add(new
             {
                 Time = monthly[i].Month,
-                CountInWindow = contributingMonths,
+                CountInWindow = totalSales,  // Changed to show total sales, not just contributing months
                 Rolling12mAvgPositionInRange = rolling
             });
         }
