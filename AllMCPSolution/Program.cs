@@ -61,7 +61,12 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-
+// Ensure database is migrated to latest on startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();

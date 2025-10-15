@@ -91,7 +91,7 @@ namespace AllMCPSolution.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Height")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<decimal>("HighEstimate")
                         .HasColumnType("decimal(18,2)");
@@ -101,7 +101,8 @@ namespace AllMCPSolution.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<DateTime>("SaleDate")
                         .HasColumnType("datetime2");
@@ -114,7 +115,7 @@ namespace AllMCPSolution.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Width")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<int>("YearCreated")
                         .HasColumnType("int");
@@ -123,7 +124,35 @@ namespace AllMCPSolution.Migrations
 
                     b.HasIndex("ArtistId");
 
+                    b.HasIndex("Name", "Height", "Width", "HammerPrice", "SaleDate", "ArtistId")
+                        .IsUnique();
+
                     b.ToTable("ArtworkSales", (string)null);
+                });
+
+            modelBuilder.Entity("InflationIndex", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("IndexValue")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Year", "Month")
+                        .IsUnique();
+
+                    b.ToTable("InflationIndices", (string)null);
                 });
 
             modelBuilder.Entity("Artwork", b =>

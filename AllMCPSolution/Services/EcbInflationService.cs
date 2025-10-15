@@ -25,6 +25,7 @@ public class EcbInflationService : IInflationService
     // Cache of monthly index values: key "yyyy-MM" -> index value
     private readonly ConcurrentDictionary<string, decimal> _monthlyIndex = new();
     private DateTime _lastFetchUtc = DateTime.MinValue;
+    private bool _dbHydrated = false;
 
     // Default series: HICP All-items, Euro area (U2), Monthly index (2015=100)
     // SDW series key approximation: ICP.M.U2.N.000000.4.INX
@@ -171,22 +172,30 @@ public class EcbInflationService : IInflationService
         // Determine the last fully finished month (UTC)
         var lastCompleteMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-1);
 
-        // 1) Check DB latest
-        var dbLatestPeriod = await _repo.GetLatestFinishedMonthAsync(ct);
-
-        // 2) If cache empty or stale, hydrate from DB first
-        if (_monthlyIndex.IsEmpty || (DateTime.UtcNow - _lastFetchUtc) > TimeSpan.FromHours(12))
+        // Hydrate from DB only once per service lifetime
+        if (!_dbHydrated)
         {
             var all = await _repo.GetAllAsync(ct);
             foreach (var row in all)
             {
                 _monthlyIndex[new DateTime(row.Year, row.Month, 1).ToString("yyyy-MM")] = row.IndexValue;
             }
-            _lastFetchUtc = DateTime.UtcNow;
+            _dbHydrated = true;
         }
 
-        // 3) If DB is up to date through lastCompleteMonth, nothing to do
-        if (dbLatestPeriod.HasValue && dbLatestPeriod.Value >= lastCompleteMonth)
+        // Determine latest available month from in-memory cache
+        DateTime? latestInCache = null;
+        if (!_monthlyIndex.IsEmpty)
+        {
+            var latestKey = _monthlyIndex.Keys.OrderByDescending(k => k).FirstOrDefault();
+            if (!string.IsNullOrEmpty(latestKey) && DateTime.TryParseExact(latestKey, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+            {
+                latestInCache = dt;
+            }
+        }
+
+        // If in-memory cache is up to date through lastCompleteMonth, nothing to do
+        if (latestInCache.HasValue && latestInCache.Value >= lastCompleteMonth)
         {
             return;
         }
@@ -221,9 +230,9 @@ public class EcbInflationService : IInflationService
             var csv = await resp.Content.ReadAsStringAsync(ct);
             var parsed = ParseCsvToDict(csv);
 
-            // Build list of new/updated rows from (dbLatestPeriod exclusive) through lastCompleteMonth
+            // Build list of new/updated rows from (latestInCache exclusive) through lastCompleteMonth
             var itemsToUpsert = new List<InflationIndex>();
-            DateTime start = dbLatestPeriod?.AddMonths(1) ?? parsed.Keys.Min();
+            DateTime start = latestInCache?.AddMonths(1) ?? parsed.Keys.Min();
             // Ensure start isn't earlier than available data
             if (parsed.Count > 0)
             {

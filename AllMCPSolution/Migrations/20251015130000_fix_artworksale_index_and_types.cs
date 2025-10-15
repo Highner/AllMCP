@@ -2,9 +2,13 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
+using AllMCPSolution.Data;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+
 namespace AllMCPSolution.Migrations
 {
-    /// <inheritdoc />
+    [DbContext(typeof(ApplicationDbContext))]
+    [Migration("20251015130000_fix_artworksale_index_and_types")]
     public partial class fix_artworksale_index_and_types : Migration
     {
         /// <inheritdoc />
@@ -64,6 +68,19 @@ IF EXISTS (SELECT name FROM sys.indexes WHERE name = 'IX_ArtworkSales_Name_Heigh
 BEGIN
     DROP INDEX [IX_ArtworkSales_Name_Height_Width_HammerPrice_SaleDate_ArtistId] ON [dbo].[ArtworkSales];
 END");
+
+            // Remove duplicate rows that would violate the unique composite index
+            migrationBuilder.Sql(@"
+;WITH D AS (
+    SELECT [Id], ROW_NUMBER() OVER (
+        PARTITION BY [Name], [Height], [Width], [HammerPrice], [SaleDate], [ArtistId]
+        ORDER BY [Id]
+    ) AS rn
+    FROM [dbo].[ArtworkSales]
+)
+DELETE FROM [dbo].[ArtworkSales]
+WHERE [Id] IN (SELECT [Id] FROM D WHERE rn > 1);
+");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ArtworkSales_Name_Height_Width_HammerPrice_SaleDate_ArtistId",
