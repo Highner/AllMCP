@@ -123,7 +123,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
 
         // Get results ordered by sale date with skip and take
         var sales = await query
-            .OrderByDescending(a => a.SaleDate)
+            .OrderBy(a => a.SaleDate)
             .Skip(skip)
             .Take(MaxResults)
             .Select(a => new

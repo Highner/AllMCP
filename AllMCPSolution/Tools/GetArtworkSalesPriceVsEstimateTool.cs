@@ -72,7 +72,7 @@ public class GetArtworkSalesPriceVsEstimateTool : IToolBase
         var skip = (page - 1) * MaxResults;
 
         var sales = await query
-            .OrderByDescending(a => a.SaleDate)
+            .OrderBy(a => a.SaleDate)
             .Skip(skip)
             .Take(MaxResults)
             .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.LowEstimate, a.HighEstimate, a.HammerPrice })
@@ -100,12 +100,12 @@ public class GetArtworkSalesPriceVsEstimateTool : IToolBase
                 LowEstimate = low,
                 HighEstimate = high,
                 HammerPrice = hp,
-                RatioToLow = ratioToLow,
-                RatioToHigh = ratioToHigh,
-                DeltaToLow = deltaToLow,
-                DeltaToHigh = deltaToHigh,
+                //RatioToLow = ratioToLow,
+                //RatioToHigh = ratioToHigh,
+                //DeltaToLow = deltaToLow,
+                //DeltaToHigh = deltaToHigh,
                 PositionInRange = positionInRange, // <0 below low, 0..1 within, >1 above high
-                PercentOverHigh = percentOverHigh
+                //PercentOverHigh = percentOverHigh
             };
         }).ToList<object>();
 
