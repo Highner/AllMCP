@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net.Http.Headers;
+using AllMCPSolution.Models;
+using AllMCPSolution.Repositories;
 
 namespace AllMCPSolution.Services;
 
@@ -18,6 +20,7 @@ public class EcbInflationService : IInflationService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<EcbInflationService> _logger;
+    private readonly IInflationIndexRepository _repo;
 
     // Cache of monthly index values: key "yyyy-MM" -> index value
     private readonly ConcurrentDictionary<string, decimal> _monthlyIndex = new();
@@ -27,11 +30,12 @@ public class EcbInflationService : IInflationService
     // SDW series key approximation: ICP.M.U2.N.000000.4.INX
     private readonly string _seriesKey;
 
-    public EcbInflationService(IHttpClientFactory httpClientFactory, ILogger<EcbInflationService> logger, IConfiguration config)
+    public EcbInflationService(IHttpClientFactory httpClientFactory, ILogger<EcbInflationService> logger, IConfiguration config, IInflationIndexRepository repo)
     {
         _httpClient = httpClientFactory.CreateClient(nameof(EcbInflationService));
         _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("AllMCPSolution", "1.0"));
         _logger = logger;
+        _repo = repo;
         _seriesKey = config.GetValue<string>("Inflation:EcbSeriesKey") ?? "ICP.M.U2.N.000000.4.INX";
     }
 
@@ -124,12 +128,70 @@ public class EcbInflationService : IInflationService
     }
 
     private static string KeyFor(DateTime date) => new DateTime(date.Year, date.Month, 1).ToString("yyyy-MM");
+
+        // Parses ECB CSV into a dictionary keyed by month start (UTC)
+        private Dictionary<DateTime, decimal> ParseCsvToDict(string csv)
+        {
+            var result = new Dictionary<DateTime, decimal>();
+            using var reader = new StringReader(csv);
+            var header = reader.ReadLine();
+            if (header == null) return result;
+
+            var headers = header.Split(',');
+            var timeIdx = Array.FindIndex(headers, h => h.Equals("TIME_PERIOD", StringComparison.OrdinalIgnoreCase));
+            var valIdx = Array.FindIndex(headers, h => h.Equals("OBS_VALUE", StringComparison.OrdinalIgnoreCase));
+            if (timeIdx < 0 || valIdx < 0)
+            {
+                timeIdx = 0; valIdx = 1;
+            }
+
+            string? line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                var parts = SplitCsvLine(line);
+                if (parts.Length <= Math.Max(timeIdx, valIdx)) continue;
+
+                var time = parts[timeIdx].Trim('"');
+                var valueStr = parts[valIdx].Trim('"');
+
+                if (!DateTime.TryParseExact(time, new[] { "yyyy-MM", "yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                    continue;
+
+                if (decimal.TryParse(valueStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var idxVal))
+                {
+                    var monthStart = new DateTime(date.Year, date.Month, 1);
+                    result[monthStart] = idxVal;
+                }
+            }
+            return result;
+        }
     private async Task EnsureIndexDataAsync(CancellationToken ct)
     {
-        // Refresh at most every 12 hours
-        if ((DateTime.UtcNow - _lastFetchUtc) < TimeSpan.FromHours(12) && _monthlyIndex.Count > 0)
-            return;
+        // Determine the last fully finished month (UTC)
+        var lastCompleteMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-1);
 
+        // 1) Check DB latest
+        var dbLatestPeriod = await _repo.GetLatestFinishedMonthAsync(ct);
+
+        // 2) If cache empty or stale, hydrate from DB first
+        if (_monthlyIndex.IsEmpty || (DateTime.UtcNow - _lastFetchUtc) > TimeSpan.FromHours(12))
+        {
+            var all = await _repo.GetAllAsync(ct);
+            foreach (var row in all)
+            {
+                _monthlyIndex[new DateTime(row.Year, row.Month, 1).ToString("yyyy-MM")] = row.IndexValue;
+            }
+            _lastFetchUtc = DateTime.UtcNow;
+        }
+
+        // 3) If DB is up to date through lastCompleteMonth, nothing to do
+        if (dbLatestPeriod.HasValue && dbLatestPeriod.Value >= lastCompleteMonth)
+        {
+            return;
+        }
+
+        // Otherwise, fetch from ECB and persist missing months
         // Split "ICP.M.U2.N.000000.4.INX" into flowRef="ICP" and key="M.U2.N.000000.4.INX"
         var firstDot = _seriesKey.IndexOf('.');
         string flowRef, key;
@@ -152,15 +214,42 @@ public class EcbInflationService : IInflationService
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
-            // Optional but nice: explicit Accept for CSV and conditional fetches
-            req.Headers.Accept.ParseAdd("text/csv");               // CSV
-            // req.Headers.IfModifiedSince = _lastFetchUtc;        // uncomment if you want 304 handling
-
+            req.Headers.Accept.ParseAdd("text/csv");
             using var resp = await _httpClient.SendAsync(req, ct);
             resp.EnsureSuccessStatusCode();
 
             var csv = await resp.Content.ReadAsStringAsync(ct);
-            ParseCsv(csv);
+            var parsed = ParseCsvToDict(csv);
+
+            // Build list of new/updated rows from (dbLatestPeriod exclusive) through lastCompleteMonth
+            var itemsToUpsert = new List<InflationIndex>();
+            DateTime start = dbLatestPeriod?.AddMonths(1) ?? parsed.Keys.Min();
+            // Ensure start isn't earlier than available data
+            if (parsed.Count > 0)
+            {
+                var minAvailable = parsed.Keys.Min();
+                if (start < minAvailable) start = minAvailable;
+            }
+            for (var d = start; d <= lastCompleteMonth; d = d.AddMonths(1))
+            {
+                var keyStr = d.ToString("yyyy-MM");
+                if (parsed.TryGetValue(d, out var val))
+                {
+                    itemsToUpsert.Add(new InflationIndex
+                    {
+                        Year = d.Year,
+                        Month = d.Month,
+                        IndexValue = val
+                    });
+                    _monthlyIndex[keyStr] = val; // update cache
+                }
+            }
+
+            if (itemsToUpsert.Count > 0)
+            {
+                await _repo.UpsertRangeAsync(itemsToUpsert, ct);
+            }
+
             _lastFetchUtc = DateTime.UtcNow;
         }
         catch (Exception ex)
