@@ -169,8 +169,7 @@ public class SearchArtistsTool : IToolBase
                         @default = 3
                     }
                 },
-                required = new[] { "query" },
-                additionalProperties = true
+                required = new[] { "query" }
             }
         };
     }
