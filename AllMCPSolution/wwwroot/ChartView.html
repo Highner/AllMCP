@@ -689,7 +689,7 @@
 
                 const windowSales = categorySales.filter(s => {
                     const saleDate = new Date(s.saleDate);
-                    return saleDate >= windowStart && saleDate <= windowEnd;
+                    return saleDate >= windowStart && saleDate <= windowEnd && (s.sold === true);
                 });
 
                 if (windowSales.length > 0) {
@@ -720,6 +720,7 @@
             .map(s => ({
                 x: new Date(s.saleDate),
                 y: s.hammerPrice / (s.height * s.width),
+                sold: (s.sold === true),
                 sale: s
             }));
 
@@ -745,7 +746,7 @@
             const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
 
             const windowData = pricePerAreaSorted.filter(d => {
-                return d.x >= windowStart && d.x <= windowEnd;
+                return d.x >= windowStart && d.x <= windowEnd && (d.sold === true);
             });
 
             if (windowData.length > 0) {
@@ -1235,6 +1236,7 @@
             .map(p => ({
                 x: new Date(p.time),
                 y: p.hammerPricePerArea,
+                sold: (p.sold ?? p.Sold ?? null),
                 sale: {
                     name: p.title || p.Name || p.name,
                     category: p.category || p.Category,
@@ -1250,6 +1252,7 @@
             .map(p => ({
                 x: new Date(p.time),
                 y: p.hammerPricePerAreaInflationAdjusted,
+                sold: (p.sold ?? p.Sold ?? null),
                 sale: {
                     name: p.title || p.Name || p.name,
                     category: p.category || p.Category,
@@ -1271,7 +1274,7 @@
             const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
 
             const windowData = perArea.filter(d => {
-                return d.x >= windowStart && d.x <= windowEnd;
+                return d.x >= windowStart && d.x <= windowEnd && (d.sold === true);
             });
 
             if (windowData.length > 0) {
@@ -1291,7 +1294,7 @@
             const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
 
             const windowData = perAreaAdj.filter(d => {
-                return d.x >= windowStart && d.x <= windowEnd;
+                return d.x >= windowStart && d.x <= windowEnd && (d.sold === true);
             });
 
             if (windowData.length > 0) {

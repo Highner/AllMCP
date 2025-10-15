@@ -121,7 +121,7 @@ public class GetArtworkSalesPriceVsEstimateTool : IToolBase
             totalPages,
             currentPage = page,
             hasMoreResults,
-            description = "Shows hammer price relative to estimate range using ratios (to low/high), deltas, and normalized position within the estimate band."
+            description = "Shows hammer price and estimate range. PositionInRange: values between 0 and 1 show the normalized position within the estimate band. Values above 1 indicate hammer price is above the high estimate. Values below 0 indicate hammer price is below the low estimate."
         };
 
         if (hasMoreResults)
