@@ -96,12 +96,12 @@ public class HammerPerAreaAnalyticsService : IHammerPerAreaAnalyticsService
                 Technique = s.Technique,
                 YearCreated = s.YearCreated,
                 Time = s.SaleDate,
-                Height = s.Height,
-                Width = s.Width,
+                //Height = s.Height,
+                //Width = s.Width,
                 Area = area,
                 Sold = s.Sold,
-                HammerPrice = s.HammerPrice,
-                HammerPricePerArea = perArea,
+                //HammerPrice = s.HammerPrice,
+                //HammerPricePerArea = perArea,
                 HammerPricePerAreaInflationAdjusted = perAreaAdj
             });
         }
