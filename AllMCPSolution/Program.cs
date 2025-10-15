@@ -36,6 +36,10 @@ builder.Services.AddScoped<GetArtworkSalesPriceVsEstimateTool>();
 builder.Services.AddScoped<GetArtworkSalesHammerPerAreaTool>();
 builder.Services.AddScoped<IHammerPerAreaAnalyticsService, HammerPerAreaAnalyticsService>();
 
+builder.Services.AddScoped<GetArtworkSalesHammerPerAreaRolling12mTool>();
+builder.Services.AddScoped<GetArtworkSalesHammerPriceRolling12mTool>();
+builder.Services.AddScoped<GetArtworkSalesPriceVsEstimateRolling12mTool>();
+
 //builder.Services.AddScoped<RenderLineChartTool>();
 
 
