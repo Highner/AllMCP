@@ -22,38 +22,16 @@ builder.Services.AddScoped<IArtworkRepository, ArtworkRepository>();
 builder.Services.AddScoped<IArtworkSaleRepository, ArtworkSaleRepository>();
 
 // Register all tools (auto-discovered by ToolRegistry)
-builder.Services.AddSingleton<HelloWorldTool>();
 
-builder.Services.AddScoped<CreateArtistTool>();
 builder.Services.AddScoped<GetAllArtistsTool>();
 builder.Services.AddScoped<GetArtistByIdTool>();
-//builder.Services.AddScoped<UpdateArtistTool>();
-//builder.Services.AddScoped<DeleteArtistTool>();
 builder.Services.AddScoped<SearchArtistsTool>();
 
-//builder.Services.AddScoped<CreateArtworkTool>();
-//builder.Services.AddScoped<GetAllArtworksTool>();
-//builder.Services.AddScoped<GetArtworkByIdTool>();
-//builder.Services.AddScoped<UpdateArtworkTool>();
-//builder.Services.AddScoped<DeleteArtworkTool>();
-//builder.Services.AddScoped<SearchArtworksTool>();
 
-//builder.Services.AddScoped<CreateArtworkSaleTool>();
-//builder.Services.AddScoped<GetAllArtworkSalesTool>();
-//builder.Services.AddScoped<GetArtworkSaleByIdTool>();
-//builder.Services.AddScoped<UpdateArtworkSaleTool>();
-//builder.Services.AddScoped<DeleteArtworkSaleTool>();
-//builder.Services.AddScoped<SearchArtworkSalesTool>();
-//builder.Services.AddScoped<ListArtworkSalesTool>();
 builder.Services.AddScoped<GetArtworkSalesPerformanceTool>();
 builder.Services.AddScoped<GetArtworkSalesHammerPriceTool>();
 builder.Services.AddScoped<GetArtworkSalesPriceVsEstimateTool>();
 builder.Services.AddScoped<GetArtworkSalesHammerPerAreaTool>();
-
-
-//builder.Services.AddScoped<BatchCreateArtworkSalesTool>();
-//builder.Services.AddScoped<BatchUpdateArtworkSalesTool>();
-//builder.Services.AddScoped<BatchDeleteArtworkSalesTool>();
 
 //builder.Services.AddScoped<RenderLineChartTool>();
 
