@@ -30,7 +30,7 @@ builder.Services.AddScoped<GetArtistByIdTool>();
 builder.Services.AddScoped<SearchArtistsTool>();
 
 
-builder.Services.AddScoped<GetArtworkSalesPerformanceTool>();
+//builder.Services.AddScoped<GetArtworkSalesPerformanceTool>();
 builder.Services.AddScoped<GetArtworkSalesHammerPriceTool>();
 builder.Services.AddScoped<GetArtworkSalesPriceVsEstimateTool>();
 builder.Services.AddScoped<GetArtworkSalesHammerPerAreaTool>();
