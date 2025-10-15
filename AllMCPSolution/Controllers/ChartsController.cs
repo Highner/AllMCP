@@ -60,7 +60,8 @@ public class ChartsController : ControllerBase
             a.HammerPrice,
             a.Currency,
             a.Height,
-            a.Width
+            a.Width,
+            a.Sold
         }).ToList();
 
         return Ok(new { sales = projected });

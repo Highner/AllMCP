@@ -133,6 +133,10 @@
         .chart-controls.right {
             right: 20px;
         }
+        /* Stack multiple right-side control groups vertically within the same chart */
+        .chart-container .chart-controls.right + .chart-controls.right {
+            top: 50px;
+        }
 
         .btn-scale {
             background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
@@ -280,14 +284,29 @@
         <div class="chart-controls right" id="scaleToggleY2" style="display: none;">
             <button class="btn-scale" id="toggleY2Scale">Y2: Linear</button>
         </div>
+        <div class="chart-controls right" id="rollingToggleMain" style="display: none;">
+            <button class="btn-scale" data-months="3">3m</button>
+            <button class="btn-scale" data-months="6">6m</button>
+            <button class="btn-scale" data-months="12">12m</button>
+        </div>
         <canvas id="salesChart"></canvas>
     </div>
 
     <div class="chart-container">
+        <div class="chart-controls right" id="rollingTogglePerf" style="display: none;">
+            <button class="btn-scale" data-months="3">3m</button>
+            <button class="btn-scale" data-months="6">6m</button>
+            <button class="btn-scale" data-months="12">12m</button>
+        </div>
         <canvas id="performanceChart"></canvas>
     </div>
 
     <div class="chart-container">
+        <div class="chart-controls right" id="rollingTogglePerArea" style="display: none;">
+            <button class="btn-scale" data-months="3">3m</button>
+            <button class="btn-scale" data-months="6">6m</button>
+            <button class="btn-scale" data-months="12">12m</button>
+        </div>
         <canvas id="hammerPerAreaChart"></canvas>
     </div>
 </div>
@@ -305,12 +324,25 @@
     const scaleToggleY2 = document.getElementById('scaleToggleY2');
     const toggleY1Scale = document.getElementById('toggleY1Scale');
     const toggleY2Scale = document.getElementById('toggleY2Scale');
+    const rollingToggleMain = document.getElementById('rollingToggleMain');
+    const rollingTogglePerf = document.getElementById('rollingTogglePerf');
+    const rollingTogglePerArea = document.getElementById('rollingTogglePerArea');
 
     let chartInstance = null;
     let performanceChartInstance = null;
     let hammerPerAreaChartInstance = null;
     let currentY1Scale = 'logarithmic';
     let currentY2Scale = 'linear';
+
+    // Rolling average window (months) per chart
+    let rollingMonthsMain = 3;
+    let rollingMonthsPerf = 3;
+    let rollingMonthsPerArea = 3;
+
+    // Cached last-loaded data to re-render on toggle without refetching
+    let lastSalesData = null;
+    let lastPerformanceSeries = null;
+    let lastHammerPerAreaSeries = null;
 
     // Parse URL parameters
     function getUrlParams() {
@@ -551,6 +583,9 @@
         statsContainer.style.display = 'none';
         scaleToggleY1.style.display = 'none';
         scaleToggleY2.style.display = 'none';
+        if (rollingToggleMain) rollingToggleMain.style.display = 'none';
+        if (rollingTogglePerf) rollingTogglePerf.style.display = 'none';
+        if (rollingTogglePerArea) rollingTogglePerArea.style.display = 'none';
         message.classList.remove('visible');
 
         // Reset scales to defaults
@@ -558,6 +593,10 @@
         currentY2Scale = 'linear';
         toggleY1Scale.textContent = 'Y1: Log';
         toggleY2Scale.textContent = 'Y2: Linear';
+        // Reset rolling window defaults
+        rollingMonthsMain = 3;
+        rollingMonthsPerf = 3;
+        rollingMonthsPerArea = 3;
 
         // Clear URL parameters
         window.history.pushState({}, '', window.location.pathname);
@@ -608,6 +647,11 @@
             const salesData = await salesResponse.json();
             const performanceData = await performanceResponse.json();
 
+            // Cache datasets for re-rendering on rolling window toggles
+            lastSalesData = salesData.sales;
+            lastPerformanceSeries = performanceData.timeSeries;
+            lastHammerPerAreaSeries = hammerPerAreaSeries;
+
             if (salesData.sales.length === 0) {
                 showMessage('No sales data found for the selected filters', 'info');
                 generateChartBtn.disabled = false;
@@ -621,6 +665,9 @@
             updateStats(salesData.sales);
             scaleToggleY1.style.display = 'flex';
             scaleToggleY2.style.display = 'flex';
+            if (rollingToggleMain) rollingToggleMain.style.display = 'flex';
+            if (rollingTogglePerf) rollingTogglePerf.style.display = 'flex';
+            if (rollingTogglePerArea) rollingTogglePerArea.style.display = 'flex';
             message.classList.remove('visible');
         } catch (error) {
             showMessage('Error loading chart data: ' + error.message, 'error');
@@ -635,7 +682,55 @@
         await generateChart();
     });
 
+    // Rolling window toggle handlers
+    if (rollingToggleMain) {
+        rollingToggleMain.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-months]');
+            if (!btn) return;
+            const months = parseInt(btn.getAttribute('data-months'), 10);
+            if (!isNaN(months)) {
+                rollingMonthsMain = months;
+                if (lastSalesData) renderChart(lastSalesData);
+            }
+        });
+    }
+    if (rollingTogglePerf) {
+        rollingTogglePerf.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-months]');
+            if (!btn) return;
+            const months = parseInt(btn.getAttribute('data-months'), 10);
+            if (!isNaN(months)) {
+                rollingMonthsPerf = months;
+                if (lastPerformanceSeries) renderPerformanceChart(lastPerformanceSeries);
+            }
+        });
+    }
+    if (rollingTogglePerArea) {
+        rollingTogglePerArea.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-months]');
+            if (!btn) return;
+            const months = parseInt(btn.getAttribute('data-months'), 10);
+            if (!isNaN(months)) {
+                rollingMonthsPerArea = months;
+                if (lastHammerPerAreaSeries) renderHammerPerAreaChart(lastHammerPerAreaSeries);
+            }
+        });
+    }
+
+    // Capture hidden dataset state (by label) from an existing chart instance
+    function captureHiddenSet(chart) {
+        if (!chart || !chart.data || !Array.isArray(chart.data.datasets)) return null;
+        const set = new Set();
+        chart.data.datasets.forEach((ds, idx) => {
+            const meta = chart.getDatasetMeta ? chart.getDatasetMeta(idx) : null;
+            const isHidden = (meta && meta.hidden === true) || ds.hidden === true;
+            if (isHidden && ds.label) set.add(ds.label);
+        });
+        return set;
+    }
+
     function renderChart(sales) {
+        const hiddenSet = captureHiddenSet(chartInstance);
         if (chartInstance) {
             chartInstance.destroy();
         }
@@ -660,7 +755,7 @@
         let colorIndex = 0;
 
         // Calculate rolling average for each category
-        const threeMonthsMs = 90 * 24 * 60 * 60 * 1000;
+        const halfWindowMs = rollingMonthsMain * 30 * 24 * 60 * 60 * 1000;
 
         // Create datasets for each category
         Object.keys(salesByCategory).forEach(category => {
@@ -669,23 +764,25 @@
             colorIndex++;
 
             // Hammer price points for this category
+            const labelHP = `${category} - Hammer Price`;
             datasets.push({
-                label: `${category} - Hammer Price`,
+                label: labelHP,
                 data: categorySales.map(s => ({ x: new Date(s.saleDate), y: s.hammerPrice, sale: s })), 
                 borderColor: color,
                 backgroundColor: color,
                 showLine: false,
                 pointRadius: 3,
                 pointHoverRadius: 5,
-                pointStyle: 'circle'
+                pointStyle: 'circle',
+                hidden: hiddenSet && hiddenSet.has(labelHP) ? true : undefined
             });
 
             // Rolling average for this category
             const rollingAverageData = [];
             for (let i = 0; i < categorySales.length; i++) {
                 const currentDate = new Date(categorySales[i].saleDate);
-                const windowStart = new Date(currentDate.getTime() - threeMonthsMs);
-                const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
+                const windowStart = new Date(currentDate.getTime() - halfWindowMs);
+                const windowEnd = new Date(currentDate.getTime() + halfWindowMs);
 
                 const windowSales = categorySales.filter(s => {
                     const saleDate = new Date(s.saleDate);
@@ -701,8 +798,9 @@
                 }
             }
 
+            const labelRoll = `${category} - Rolling Avg`;
             datasets.push({
-                label: `${category} - Rolling Avg`,
+                label: labelRoll,
                 data: rollingAverageData,
                 borderColor: color,
                 borderWidth: 2,
@@ -710,7 +808,8 @@
                 showLine: true,
                 fill: false,
                 tension: 0.4,
-                borderDash: [5, 5]
+                borderDash: [5, 5],
+                hidden: hiddenSet && hiddenSet.has(labelRoll) ? true : undefined
             });
         });
 
@@ -724,8 +823,9 @@
                 sale: s
             }));
 
+        const labelPerArea = 'Price per Area (€/cm²)';
         datasets.push({
-            label: 'Price per Area (€/cm²)',
+            label: labelPerArea,
             data: pricePerAreaData,
             borderColor: '#e64980',
             backgroundColor: '#e64980',
@@ -733,7 +833,8 @@
             pointRadius: 3,
             pointHoverRadius: 5,
             pointStyle: 'triangle',
-            yAxisID: 'y2'
+            yAxisID: 'y2',
+            hidden: hiddenSet && hiddenSet.has(labelPerArea) ? true : undefined
         });
 
         // Calculate rolling average for price per area
@@ -742,8 +843,8 @@
 
         for (let i = 0; i < pricePerAreaSorted.length; i++) {
             const currentDate = pricePerAreaSorted[i].x;
-            const windowStart = new Date(currentDate.getTime() - threeMonthsMs);
-            const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
+            const windowStart = new Date(currentDate.getTime() - halfWindowMs);
+            const windowEnd = new Date(currentDate.getTime() + halfWindowMs);
 
             const windowData = pricePerAreaSorted.filter(d => {
                 return d.x >= windowStart && d.x <= windowEnd && (d.sold === true);
@@ -758,8 +859,9 @@
             }
         }
 
+        const labelPerAreaRoll = 'Price per Area - Rolling Avg';
         datasets.push({
-            label: 'Price per Area - Rolling Avg',
+            label: labelPerAreaRoll,
             data: pricePerAreaRollingAvg,
             borderColor: '#e64980',
             borderWidth: 2,
@@ -768,6 +870,7 @@
             fill: false,
             tension: 0.4,
             borderDash: [5, 5],
+            hidden: hiddenSet && hiddenSet.has(labelPerAreaRoll) ? true : undefined,
             yAxisID: 'y2'
         });
 
@@ -911,6 +1014,7 @@
     }
 
     function renderPerformanceChart(timeSeries) {
+        const hiddenSetPerf = captureHiddenSet(performanceChartInstance);
         if (performanceChartInstance) {
             performanceChartInstance.destroy();
         }
@@ -936,7 +1040,7 @@
         ];
         let colorIndex = 0;
 
-        const threeMonthsMs = 90 * 24 * 60 * 60 * 1000;
+        const halfWindowMs = rollingMonthsPerf * 30 * 24 * 60 * 60 * 1000;
 
         // Create estimate range background using all data points
         const estimateRangeData = timeSeries.map(t => ({
@@ -944,8 +1048,9 @@
             y: 1
         }));
 
+        const labelEstimateBg = 'Estimate Range Background';
         datasets.push({
-            label: 'Estimate Range Background',
+            label: labelEstimateBg,
             data: estimateRangeData,
             borderColor: 'transparent',
             backgroundColor: 'rgba(200, 200, 200, 0.2)',
@@ -955,7 +1060,8 @@
                 target: 'origin',
                 above: 'rgba(200, 200, 200, 0.2)'
             },
-            order: 10
+            order: 10,
+            hidden: hiddenSetPerf && hiddenSetPerf.has(labelEstimateBg) ? true : undefined
         });
 
         // Create datasets for each category
@@ -965,8 +1071,9 @@
             colorIndex++;
 
             // Performance factor points for this category
+            const labelPerf = `${category} - Performance`;
             datasets.push({
-                label: `${category} - Performance`,
+                label: labelPerf,
                 data: categoryData.map(t => ({
                     x: new Date(t.time),
                     y: t.performanceFactor,
@@ -977,15 +1084,16 @@
                 pointRadius: 3,
                 pointHoverRadius: 5,
                 showLine: false,
-                order: 1
+                order: 1,
+                hidden: hiddenSetPerf && hiddenSetPerf.has(labelPerf) ? true : undefined
             });
 
             // Rolling average for this category
             const rollingAverageData = [];
             for (let i = 0; i < categoryData.length; i++) {
                 const currentDate = new Date(categoryData[i].time);
-                const windowStart = new Date(currentDate.getTime() - threeMonthsMs);
-                const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
+                const windowStart = new Date(currentDate.getTime() - halfWindowMs);
+                const windowEnd = new Date(currentDate.getTime() + halfWindowMs);
 
                 const windowData = categoryData.filter(t => {
                     const tDate = new Date(t.time);
@@ -1001,8 +1109,9 @@
                 }
             }
 
+            const labelPerfRoll = `${category} - Rolling Avg`;
             datasets.push({
-                label: `${category} - Rolling Avg`,
+                label: labelPerfRoll,
                 data: rollingAverageData,
                 borderColor: color,
                 borderWidth: 2,
@@ -1011,13 +1120,15 @@
                 fill: false,
                 tension: 0.4,
                 borderDash: [5, 5],
-                order: 2
+                order: 2,
+                hidden: hiddenSetPerf && hiddenSetPerf.has(labelPerfRoll) ? true : undefined
             });
         });
 
         // Add reference lines
+        const labelWithin = 'Within Estimate Range (0-1)';
         datasets.push({
-            label: 'Within Estimate Range (0-1)',
+            label: labelWithin,
             data: timeSeries.map(t => ({ x: new Date(t.time), y: 0 })),
             borderColor: '#4CAF50',
             borderWidth: 1,
@@ -1025,11 +1136,13 @@
             pointRadius: 0,
             fill: false,
             showLine: true,
-            order: 3
+            order: 3,
+            hidden: hiddenSetPerf && hiddenSetPerf.has(labelWithin) ? true : undefined
         });
 
+        const labelHigh = 'High Estimate Threshold (1.0)';
         datasets.push({
-            label: 'High Estimate Threshold (1.0)',
+            label: labelHigh,
             data: timeSeries.map(t => ({ x: new Date(t.time), y: 1 })),
             borderColor: '#FFC107',
             borderWidth: 1,
@@ -1037,7 +1150,8 @@
             pointRadius: 0,
             fill: false,
             showLine: true,
-            order: 3
+            order: 3,
+            hidden: hiddenSetPerf && hiddenSetPerf.has(labelHigh) ? true : undefined
         });
 
         performanceChartInstance = new Chart(ctx, {
@@ -1223,6 +1337,7 @@
 
     // Render the hammer price per area chart
     function renderHammerPerAreaChart(series) {
+        const hiddenSetArea = captureHiddenSet(hammerPerAreaChartInstance);
         if (hammerPerAreaChartInstance) {
             hammerPerAreaChartInstance.destroy();
         }
@@ -1264,14 +1379,14 @@
                 }
             }));
 
-        const threeMonthsMs = 90 * 24 * 60 * 60 * 1000;
+        const halfWindowMs = rollingMonthsPerArea * 30 * 24 * 60 * 60 * 1000;
 
         // Calculate rolling average for hammer price per area
         const perAreaRollingAvg = [];
         for (let i = 0; i < perArea.length; i++) {
             const currentDate = perArea[i].x;
-            const windowStart = new Date(currentDate.getTime() - threeMonthsMs);
-            const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
+            const windowStart = new Date(currentDate.getTime() - halfWindowMs);
+            const windowEnd = new Date(currentDate.getTime() + halfWindowMs);
 
             const windowData = perArea.filter(d => {
                 return d.x >= windowStart && d.x <= windowEnd && (d.sold === true);
@@ -1290,8 +1405,8 @@
         const perAreaAdjRollingAvg = [];
         for (let i = 0; i < perAreaAdj.length; i++) {
             const currentDate = perAreaAdj[i].x;
-            const windowStart = new Date(currentDate.getTime() - threeMonthsMs);
-            const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
+            const windowStart = new Date(currentDate.getTime() - halfWindowMs);
+            const windowEnd = new Date(currentDate.getTime() + halfWindowMs);
 
             const windowData = perAreaAdj.filter(d => {
                 return d.x >= windowStart && d.x <= windowEnd && (d.sold === true);
@@ -1318,7 +1433,8 @@
                         pointRadius: 3,
                         pointHoverRadius: 5,
                         showLine: false,
-                        order: 1
+                        order: 1,
+                        hidden: hiddenSetArea && hiddenSetArea.has('Hammer Price per Area (€/cm²)') ? true : undefined
                     },
                     {
                         label: 'Hammer Price per Area - Rolling Avg',
@@ -1330,7 +1446,8 @@
                         fill: false,
                         tension: 0.4,
                         borderDash: [5, 5],
-                        order: 2
+                        order: 2,
+                        hidden: hiddenSetArea && hiddenSetArea.has('Hammer Price per Area - Rolling Avg') ? true : undefined
                     },
                     {
                         label: 'Inflation-Adjusted per Area (€/cm²)',
@@ -1340,7 +1457,8 @@
                         pointRadius: 3,
                         pointHoverRadius: 5,
                         showLine: false,
-                        order: 1
+                        order: 1,
+                        hidden: hiddenSetArea && hiddenSetArea.has('Inflation-Adjusted per Area (€/cm²)') ? true : undefined
                     },
                     {
                         label: 'Inflation-Adjusted - Rolling Avg',
@@ -1352,7 +1470,8 @@
                         fill: false,
                         tension: 0.4,
                         borderDash: [5, 5],
-                        order: 2
+                        order: 2,
+                        hidden: hiddenSetArea && hiddenSetArea.has('Inflation-Adjusted - Rolling Avg') ? true : undefined
                     }
                 ]
             },
