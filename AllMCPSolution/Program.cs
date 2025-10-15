@@ -25,15 +25,15 @@ builder.Services.AddScoped<IInflationIndexRepository, InflationIndexRepository>(
 
 // Register all tools (auto-discovered by ToolRegistry)
 
-builder.Services.AddScoped<GetAllArtistsTool>();
-builder.Services.AddScoped<GetArtistByIdTool>();
+//builder.Services.AddScoped<GetAllArtistsTool>();
+//builder.Services.AddScoped<GetArtistByIdTool>();
 builder.Services.AddScoped<SearchArtistsTool>();
 
 
 //builder.Services.AddScoped<GetArtworkSalesPerformanceTool>();
 builder.Services.AddScoped<GetArtworkSalesHammerPriceTool>();
-builder.Services.AddScoped<GetArtworkSalesPriceVsEstimateTool>();
-builder.Services.AddScoped<GetArtworkSalesHammerPerAreaTool>();
+//builder.Services.AddScoped<GetArtworkSalesPriceVsEstimateTool>();
+//builder.Services.AddScoped<GetArtworkSalesHammerPerAreaTool>();
 builder.Services.AddScoped<IHammerPerAreaAnalyticsService, HammerPerAreaAnalyticsService>();
 
 builder.Services.AddScoped<GetArtworkSalesHammerPerAreaRolling12mTool>();
