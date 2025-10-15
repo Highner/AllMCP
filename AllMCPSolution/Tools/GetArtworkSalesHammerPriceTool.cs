@@ -10,7 +10,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IInflationService _inflationService;
-    private const int MaxResults = 300;
+    private const int MaxResults = 1000;
 
     public GetArtworkSalesHammerPriceTool(ApplicationDbContext dbContext, IInflationService inflationService)
     {
@@ -88,7 +88,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
 
             list.Add(new
             {
-                Title = s.Name,
+                //Title = s.Name,
                 Category = s.Category,
                 Technique = s.Technique,
                 YearCreated = s.YearCreated,

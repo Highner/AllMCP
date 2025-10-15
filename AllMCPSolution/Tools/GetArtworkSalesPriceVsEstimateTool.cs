@@ -8,7 +8,7 @@ namespace AllMCPSolution.Artworks;
 public class GetArtworkSalesPriceVsEstimateTool : IToolBase
 {
     private readonly ApplicationDbContext _dbContext;
-    private const int MaxResults = 300;
+    private const int MaxResults = 1000;
 
     public GetArtworkSalesPriceVsEstimateTool(ApplicationDbContext dbContext)
     {
@@ -92,7 +92,7 @@ public class GetArtworkSalesPriceVsEstimateTool : IToolBase
 
             return new
             {
-                Title = s.Name,
+                //Title = s.Name,
                 Category = s.Category,
                 Technique = s.Technique,
                 YearCreated = s.YearCreated,

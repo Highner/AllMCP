@@ -91,7 +91,7 @@ public class HammerPerAreaAnalyticsService : IHammerPerAreaAnalyticsService
 
             list.Add(new
             {
-                Title = s.Name,
+                //Title = s.Name,
                 Category = s.Category,
                 Technique = s.Technique,
                 YearCreated = s.YearCreated,
