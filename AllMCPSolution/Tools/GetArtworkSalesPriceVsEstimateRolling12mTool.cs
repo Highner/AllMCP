@@ -67,6 +67,7 @@ public class GetArtworkSalesPriceVsEstimateRolling12mTool : IToolBase
         if (sold.HasValue) query = query.Where(a => a.Sold == sold.Value);
 
         var sales = await query
+            .Where(a => a.Sold)
             .OrderBy(a => a.SaleDate)
             .Select(a => new { a.SaleDate, a.LowEstimate, a.HighEstimate, a.HammerPrice })
             .ToListAsync();
