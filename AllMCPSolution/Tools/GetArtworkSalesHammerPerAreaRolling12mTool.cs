@@ -21,7 +21,7 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
     public string Description => "Returns a monthly series where each point is the 12-month rolling average of inflation-adjusted hammer price per area (height*width).";
     public string? SafetyLevel => "non_critical";
 
-    public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
+  public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
     {
         parameters ??= new Dictionary<string, object>();
 
@@ -49,31 +49,86 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
             return new { timeSeries = Array.Empty<object>(), count = 0, description = "No data found for the specified filters." };
         }
 
-        var firstMonth = new DateTime(sales.First().SaleDate.Year, sales.First().SaleDate.Month, 1);
-        var lastMonth = new DateTime(sales.Last().SaleDate.Year, sales.Last().SaleDate.Month, 1);
+        // Calculate areas and determine size brackets
+        var salesWithArea = sales
+            .Select(s => new { 
+                s.SaleDate, 
+                s.HammerPrice, 
+                Area = (s.Height > 0 && s.Width > 0) ? (s.Height * s.Width) : 0m 
+            })
+            .Where(s => s.Area > 0)
+            .ToList();
 
-        var monthly = new List<(DateTime Month, decimal AvgPerAreaAdj, int Count)>();
-        var indexByMonth = new Dictionary<DateTime, (decimal sumPerAreaAdj, int count)>();
-
-        foreach (var s in sales)
+        if (salesWithArea.Count == 0)
         {
-            var area = (s.Height > 0 && s.Width > 0) ? (s.Height * s.Width) : 0m;
-            if (area <= 0) continue;
+            return new { timeSeries = Array.Empty<object>(), count = 0, description = "No sales with valid area data found." };
+        }
+
+        var sortedAreas = salesWithArea.Select(s => s.Area).OrderBy(a => a).ToList();
+        var smallThreshold = sortedAreas[sortedAreas.Count / 3];
+        var largeThreshold = sortedAreas[(sortedAreas.Count * 2) / 3];
+
+        var firstMonth = new DateTime(salesWithArea.First().SaleDate.Year, salesWithArea.First().SaleDate.Month, 1);
+        var lastMonth = new DateTime(salesWithArea.Last().SaleDate.Year, salesWithArea.Last().SaleDate.Month, 1);
+
+        var monthlySmall = new Dictionary<DateTime, (decimal sumPerAreaAdj, int count)>();
+        var monthlyMedium = new Dictionary<DateTime, (decimal sumPerAreaAdj, int count)>();
+        var monthlyLarge = new Dictionary<DateTime, (decimal sumPerAreaAdj, int count)>();
+
+        foreach (var s in salesWithArea)
+        {
             var adj = await _inflationService.AdjustAmountAsync(s.HammerPrice, s.SaleDate);
-            var perAreaAdj = adj / area;
+            var perAreaAdj = adj / s.Area;
             var m = new DateTime(s.SaleDate.Year, s.SaleDate.Month, 1);
-            if (!indexByMonth.TryGetValue(m, out var agg)) agg = (0m, 0);
+
+            var targetDict = s.Area <= smallThreshold ? monthlySmall 
+                           : s.Area <= largeThreshold ? monthlyMedium 
+                           : monthlyLarge;
+
+            if (!targetDict.TryGetValue(m, out var agg)) agg = (0m, 0);
             agg.sumPerAreaAdj += perAreaAdj;
             agg.count += 1;
-            indexByMonth[m] = agg;
+            targetDict[m] = agg;
         }
 
         var months = new List<DateTime>();
         for (var dt = firstMonth; dt <= lastMonth; dt = dt.AddMonths(1)) months.Add(dt);
 
+        var seriesSmall = BuildRollingSeries(months, monthlySmall);
+        var seriesMedium = BuildRollingSeries(months, monthlyMedium);
+        var seriesLarge = BuildRollingSeries(months, monthlyLarge);
+
+        return new
+        {
+            timeSeries = new
+            {
+                Small = seriesSmall,
+                Medium = seriesMedium,
+                Large = seriesLarge
+            },
+            count = new
+            {
+                Small = seriesSmall.Count,
+                Medium = seriesMedium.Count,
+                Large = seriesLarge.Count
+            },
+            description = $"Three size brackets based on area (height×width). Small: ≤{smallThreshold:F2}, Medium: {smallThreshold:F2}-{largeThreshold:F2}, Large: >{largeThreshold:F2}. Each series shows 12-month rolling averages of inflation-adjusted hammer price per area.",
+            brackets = new
+            {
+                Small = $"Area ≤ {smallThreshold:F2}",
+                Medium = $"Area {smallThreshold:F2} - {largeThreshold:F2}",
+                Large = $"Area > {largeThreshold:F2}"
+            }
+        };
+    }
+
+    private List<object> BuildRollingSeries(List<DateTime> months, Dictionary<DateTime, (decimal sumPerAreaAdj, int count)> monthlyData)
+    {
+        var monthly = new List<(DateTime Month, decimal AvgPerAreaAdj, int Count)>();
+        
         foreach (var m in months)
         {
-            if (indexByMonth.TryGetValue(m, out var agg))
+            if (monthlyData.TryGetValue(m, out var agg))
             {
                 monthly.Add((m, agg.sumPerAreaAdj / agg.count, agg.count));
             }
@@ -93,7 +148,6 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
             {
                 if (monthly[j].Count > 0)
                 {
-                    // Weight each month's average by the number of sales in that month
                     weightedSum += monthly[j].AvgPerAreaAdj * monthly[j].Count;
                     totalSales += monthly[j].Count;
                 }
@@ -104,17 +158,12 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
             series.Add(new
             {
                 Time = monthly[i].Month,
-                CountInWindow = totalSales,  // Changed to show total sales, not just contributing months
+                CountInWindow = totalSales,
                 Rolling12mHammerPricePerAreaInflationAdjusted = rolling
             });
         }
 
-        return new
-        {
-            timeSeries = series,
-            count = series.Count,
-            description = "Each monthly point represents the 12-month rolling average of the average monthly hammer price per area (inflation-adjusted). Months without sales with valid area are included with null rolling values until sufficient data accumulates."
-        };
+        return series;
     }
 
           public object GetToolDefinition()
