@@ -26,6 +26,7 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
         parameters ??= new Dictionary<string, object>();
 
         var artistId = ParameterHelpers.GetGuidParameter(parameters, "artistId", "artist_id");
+        var category = ParameterHelpers.GetStringParameter(parameters, "category", "category");
 
         if (!artistId.HasValue)
         {
@@ -35,6 +36,7 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
         var query = _dbContext.ArtworkSales.Include(a => a.Artist).AsQueryable();
 
         query = query.Where(a => a.ArtistId == artistId.Value);
+        if (!string.IsNullOrWhiteSpace(category)) query = query.Where(a => a.Category.Contains(category));
 
         var sales = await query
             .Where(a => a.Sold)
@@ -115,7 +117,7 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
         };
     }
 
-        public object GetToolDefinition()
+          public object GetToolDefinition()
     {
         return new
         {
@@ -131,6 +133,11 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
                         type = "string",
                         format = "uuid",
                         description = "The unique identifier of the artist"
+                    },
+                    category = new
+                    {
+                        type = "string",
+                        description = "Filter by artwork category"
                     }
                 },
                 required = new[] { "artist_id" }
@@ -162,6 +169,11 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
                                     type = "string",
                                     format = "uuid",
                                     description = "The unique identifier of the artist"
+                                },
+                                category = new
+                                {
+                                    type = "string",
+                                    description = "Filter by artwork category"
                                 }
                             },
                             required = new[] { "artist_id" }

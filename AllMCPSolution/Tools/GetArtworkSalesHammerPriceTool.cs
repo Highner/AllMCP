@@ -36,7 +36,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
         var yearCreatedTo = ParameterHelpers.GetIntParameter(parameters, "yearCreatedTo", "year_created_to");
         var saleDateFrom = ParameterHelpers.GetDateTimeParameter(parameters, "saleDateFrom", "sale_date_from");
         var saleDateTo = ParameterHelpers.GetDateTimeParameter(parameters, "saleDateTo", "sale_date_to");
-        var technique = ParameterHelpers.GetStringParameter(parameters, "technique", "technique");
+        //var technique = ParameterHelpers.GetStringParameter(parameters, "technique", "technique");
         var category = ParameterHelpers.GetStringParameter(parameters, "category", "category");
         var currency = ParameterHelpers.GetStringParameter(parameters, "currency", "currency");
         var minLowEstimate = ParameterHelpers.GetDecimalParameter(parameters, "minLowEstimate", "min_low_estimate");
@@ -60,7 +60,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
         if (yearCreatedTo.HasValue) query = query.Where(a => a.YearCreated <= yearCreatedTo.Value);
         if (saleDateFrom.HasValue) query = query.Where(a => a.SaleDate >= saleDateFrom.Value);
         if (saleDateTo.HasValue) query = query.Where(a => a.SaleDate <= saleDateTo.Value);
-        if (!string.IsNullOrWhiteSpace(technique)) query = query.Where(a => a.Technique.Contains(technique));
+        //if (!string.IsNullOrWhiteSpace(technique)) query = query.Where(a => a.Technique.Contains(technique));
         if (!string.IsNullOrWhiteSpace(category)) query = query.Where(a => a.Category.Contains(category));
         if (!string.IsNullOrWhiteSpace(currency)) query = query.Where(a => a.Currency == currency);
         if (minLowEstimate.HasValue) query = query.Where(a => a.LowEstimate >= minLowEstimate.Value);
