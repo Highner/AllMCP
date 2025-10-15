@@ -219,6 +219,8 @@
 <div class="container">
     <h1>📊 Artwork Sales Analysis</h1>
 
+    <button class="btn btn-secondary" onclick="window.location.href='/'">← Go to Main Menu</button>
+    
     <div class="filters">
         <div class="form-group">
             <label for="artistSelect">Select Artist *</label>
@@ -284,6 +286,10 @@
     <div class="chart-container">
         <canvas id="performanceChart"></canvas>
     </div>
+
+    <div class="chart-container">
+        <canvas id="hammerPerAreaChart"></canvas>
+    </div>
 </div>
 
 <script>
@@ -302,6 +308,7 @@
 
     let chartInstance = null;
     let performanceChartInstance = null;
+    let hammerPerAreaChartInstance = null;
     let currentY1Scale = 'logarithmic';
     let currentY2Scale = 'linear';
 
@@ -537,6 +544,10 @@
             performanceChartInstance.destroy();
             performanceChartInstance = null;
         }
+        if (hammerPerAreaChartInstance) {
+            hammerPerAreaChartInstance.destroy();
+            hammerPerAreaChartInstance = null;
+        }
         statsContainer.style.display = 'none';
         scaleToggleY1.style.display = 'none';
         scaleToggleY2.style.display = 'none';
@@ -576,10 +587,18 @@
         showMessage('Loading chart data...', 'info');
 
         try {
-            // Fetch both datasets in parallel
-            const [salesResponse, performanceResponse] = await Promise.all([
+            // Fetch all datasets in parallel
+            const hammerPerAreaPromise = fetchHammerPerAreaData(
+                artistSelect.value,
+                selectedCategories,
+                dateFrom.value || '',
+                dateTo.value || ''
+            );
+
+            const [salesResponse, performanceResponse, hammerPerAreaSeries] = await Promise.all([
                 fetch(`/api/chart-data?${params}`),
-                fetch(`/api/performance-data?${params}`)
+                fetch(`/api/performance-data?${params}`),
+                hammerPerAreaPromise
             ]);
 
             if (!salesResponse.ok || !performanceResponse.ok) {
@@ -598,6 +617,7 @@
 
             renderChart(salesData.sales);
             renderPerformanceChart(performanceData.timeSeries);
+            renderHammerPerAreaChart(hammerPerAreaSeries);
             updateStats(salesData.sales);
             scaleToggleY1.style.display = 'flex';
             scaleToggleY2.style.display = 'flex';
@@ -1135,6 +1155,201 @@
     loadArtists();
     loadCategories();
     setDefaultDates();
+
+    // Fetch hammer price per area data from the new controller
+    async function fetchHammerPerAreaData(artistId, categories, dateFromVal, dateToVal) {
+        const merged = [];
+        const selected = (categories && categories.length > 0) ? categories : [null];
+
+        async function fetchForCategory(category) {
+            let page = 1;
+            let safetyCounter = 0; // prevent infinite loops
+            const maxPages = 5; // hard cap to avoid excessive network calls
+
+            while (true) {
+                const params = new URLSearchParams();
+                if (artistId) params.set('artistId', artistId);
+                if (dateFromVal) params.set('saleDateFrom', dateFromVal);
+                if (dateToVal) params.set('saleDateTo', dateToVal);
+                if (category) params.set('category', category);
+                params.set('page', String(page));
+
+                const res = await fetch(`/api/hammer-per-area?${params.toString()}`);
+                if (!res.ok) throw new Error(`HammerPerArea HTTP ${res.status}`);
+                const json = await res.json();
+
+                if (json && Array.isArray(json.timeSeries)) {
+                    merged.push(...json.timeSeries);
+                }
+
+                const hasMore = json && json.hasMoreResults === true;
+                page += 1;
+                safetyCounter += 1;
+                if (!hasMore || safetyCounter >= maxPages) {
+                    break;
+                }
+            }
+        }
+
+        for (const cat of selected) {
+            await fetchForCategory(cat);
+        }
+
+        return merged;
+    }
+
+    // Render the hammer price per area chart
+    function renderHammerPerAreaChart(series) {
+        if (hammerPerAreaChartInstance) {
+            hammerPerAreaChartInstance.destroy();
+        }
+
+        const ctx = document.getElementById('hammerPerAreaChart').getContext('2d');
+        // sort by time
+        series.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+        const perArea = series
+            .filter(p => p.hammerPricePerArea != null)
+            .map(p => ({ x: new Date(p.time), y: p.hammerPricePerArea }));
+        const perAreaAdj = series
+            .filter(p => p.hammerPricePerAreaInflationAdjusted != null)
+            .map(p => ({ x: new Date(p.time), y: p.hammerPricePerAreaInflationAdjusted }));
+
+        const threeMonthsMs = 90 * 24 * 60 * 60 * 1000;
+
+        // Calculate rolling average for hammer price per area
+        const perAreaRollingAvg = [];
+        for (let i = 0; i < perArea.length; i++) {
+            const currentDate = perArea[i].x;
+            const windowStart = new Date(currentDate.getTime() - threeMonthsMs);
+            const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
+
+            const windowData = perArea.filter(d => {
+                return d.x >= windowStart && d.x <= windowEnd;
+            });
+
+            if (windowData.length > 0) {
+                const avg = windowData.reduce((sum, d) => sum + d.y, 0) / windowData.length;
+                perAreaRollingAvg.push({
+                    x: currentDate,
+                    y: avg
+                });
+            }
+        }
+
+        // Calculate rolling average for inflation-adjusted per area
+        const perAreaAdjRollingAvg = [];
+        for (let i = 0; i < perAreaAdj.length; i++) {
+            const currentDate = perAreaAdj[i].x;
+            const windowStart = new Date(currentDate.getTime() - threeMonthsMs);
+            const windowEnd = new Date(currentDate.getTime() + threeMonthsMs);
+
+            const windowData = perAreaAdj.filter(d => {
+                return d.x >= windowStart && d.x <= windowEnd;
+            });
+
+            if (windowData.length > 0) {
+                const avg = windowData.reduce((sum, d) => sum + d.y, 0) / windowData.length;
+                perAreaAdjRollingAvg.push({
+                    x: currentDate,
+                    y: avg
+                });
+            }
+        }
+
+        hammerPerAreaChartInstance = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    {
+                        label: 'Hammer Price per Area (€/cm²)',
+                        data: perArea,
+                        borderColor: '#667eea',
+                        backgroundColor: '#667eea',
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        showLine: false,
+                        order: 1
+                    },
+                    {
+                        label: 'Hammer Price per Area - Rolling Avg',
+                        data: perAreaRollingAvg,
+                        borderColor: '#667eea',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        showLine: true,
+                        fill: false,
+                        tension: 0.4,
+                        borderDash: [5, 5],
+                        order: 2
+                    },
+                    {
+                        label: 'Inflation-Adjusted per Area (€/cm²)',
+                        data: perAreaAdj,
+                        borderColor: '#51cf66',
+                        backgroundColor: '#51cf66',
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        showLine: false,
+                        order: 1
+                    },
+                    {
+                        label: 'Inflation-Adjusted - Rolling Avg',
+                        data: perAreaAdjRollingAvg,
+                        borderColor: '#51cf66',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        showLine: true,
+                        fill: false,
+                        tension: 0.4,
+                        borderDash: [5, 5],
+                        order: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Hammer Price per Area (with Inflation-Adjusted)',
+                        font: { size: 18 }
+                    },
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const val = context.parsed.y;
+                                return `${context.dataset.label}: €${val.toLocaleString(undefined, { maximumFractionDigits: 2 })}/cm²`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'month',
+                            displayFormats: {
+                                month: 'MMM yyyy'
+                            }
+                        },
+                        title: { display: true, text: 'Sale Date' }
+                    },
+                    y: {
+                        type: 'linear',
+                        title: { display: true, text: '€ per cm²' },
+                        ticks: {
+                            callback: function(value) {
+                                return '€' + Number(value).toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 </script>
 </body>
 </html>

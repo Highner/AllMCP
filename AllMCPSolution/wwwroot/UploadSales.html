@@ -158,6 +158,10 @@
             transform: none;
         }
 
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
         .btn-small {
             width: auto;
             padding: 12px 20px;
@@ -250,6 +254,8 @@
 <div class="container">
     <h1>📤 Upload File</h1>
 
+    <button class="btn btn-secondary" onclick="window.location.href='/'">← Go to Main Menu</button>
+    
     <div class="form-group">
         <label for="artistSelect">Select Artist *</label>
         <select id="artistSelect" required>

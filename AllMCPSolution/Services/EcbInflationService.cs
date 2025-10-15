@@ -41,6 +41,7 @@ public class EcbInflationService : IInflationService
         return decimal.Round(amount * factor, 2);
     }
 
+
     public async Task<decimal> GetAdjustmentFactorAsync(DateTime sourceDate, DateTime? targetDate = null, CancellationToken ct = default)
     {
         targetDate ??= DateTime.UtcNow.Date;
@@ -51,11 +52,30 @@ public class EcbInflationService : IInflationService
             var srcKey = KeyFor(sourceDate);
             var tgtKey = KeyFor(targetDate.Value);
 
-            if (_monthlyIndex.TryGetValue(srcKey, out var srcIndex) && _monthlyIndex.TryGetValue(tgtKey, out var tgtIndex))
+            // Try to get source index, or find closest available
+            if (!_monthlyIndex.TryGetValue(srcKey, out var srcIndex))
             {
-                if (srcIndex <= 0 || tgtIndex <= 0) return 1m;
-                return tgtIndex / srcIndex;
+                srcIndex = FindClosestIndex(sourceDate);
+                if (srcIndex <= 0)
+                {
+                    _logger.LogWarning("No inflation data available for or near source date {SourceDate}", sourceDate);
+                    return 1m;
+                }
             }
+
+            // Try to get target index, or find closest available (most recent)
+            if (!_monthlyIndex.TryGetValue(tgtKey, out var tgtIndex))
+            {
+                tgtIndex = FindClosestIndex(targetDate.Value);
+                if (tgtIndex <= 0)
+                {
+                    _logger.LogWarning("No inflation data available for or near target date {TargetDate}", targetDate.Value);
+                    return 1m;
+                }
+            }
+
+            if (srcIndex <= 0 || tgtIndex <= 0) return 1m;
+            return tgtIndex / srcIndex;
         }
         catch (Exception ex)
         {
@@ -65,8 +85,45 @@ public class EcbInflationService : IInflationService
         return 1m;
     }
 
-    private static string KeyFor(DateTime date) => new DateTime(date.Year, date.Month, 1).ToString("yyyy-MM");
+    private decimal FindClosestIndex(DateTime targetDate)
+    {
+        if (_monthlyIndex.IsEmpty) return 0m;
 
+        // Start from target month and go backwards to find the most recent available data
+        var searchDate = new DateTime(targetDate.Year, targetDate.Month, 1);
+        
+        // First, try up to 12 months back from target
+        for (int i = 0; i < 12; i++)
+        {
+            var key = searchDate.ToString("yyyy-MM");
+            if (_monthlyIndex.TryGetValue(key, out var index))
+            {
+                if (i > 0)
+                {
+                    _logger.LogInformation("Using inflation index from {Month} for requested date {TargetDate}", 
+                        searchDate.ToString("yyyy-MM"), targetDate.ToString("yyyy-MM"));
+                }
+                return index;
+            }
+            searchDate = searchDate.AddMonths(-1);
+        }
+
+        // If nothing found in last 12 months, get the most recent available data point
+        var latestKey = _monthlyIndex.Keys
+            .OrderByDescending(k => k)
+            .FirstOrDefault();
+
+        if (latestKey != null && _monthlyIndex.TryGetValue(latestKey, out var latestIndex))
+        {
+            _logger.LogInformation("Using latest available inflation index from {Month} for requested date {TargetDate}", 
+                latestKey, targetDate.ToString("yyyy-MM"));
+            return latestIndex;
+        }
+
+        return 0m;
+    }
+
+    private static string KeyFor(DateTime date) => new DateTime(date.Year, date.Month, 1).ToString("yyyy-MM");
     private async Task EnsureIndexDataAsync(CancellationToken ct)
     {
         // Refresh at most every 12 hours
