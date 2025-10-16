@@ -9,7 +9,7 @@ namespace AllMCPSolution.Tools;
 
 public sealed class McpToolRegistry
 {
-    private readonly Dictionary<string, IServerTool> _toolsByName = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, IMcpTool> _toolsByName = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<IResourceProvider> _resourceProviders = new();
 
     public McpToolRegistry(params Assembly[] assembliesToScan)
@@ -24,11 +24,11 @@ public sealed class McpToolRegistry
             {
                 if (t.IsAbstract || t.IsInterface) continue;
 
-                // Find types that implement IServerTool
-                if (typeof(IServerTool).IsAssignableFrom(t))
+                // Find types that implement IMcpTool
+                if (typeof(IMcpTool).IsAssignableFrom(t))
                 {
                     // Prefer static tool classes with a parameterless constructor or static GetInstance().
-                    var instance = CreateInstance<IServerTool>(t);
+                    var instance = CreateInstance<IMcpTool>(t);
                     var def = instance.GetDefinition();
 
                     if (string.IsNullOrWhiteSpace(def.Name))

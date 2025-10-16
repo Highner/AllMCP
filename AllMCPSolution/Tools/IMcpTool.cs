@@ -7,7 +7,7 @@ using ModelContextProtocol.Server;
 
 namespace AllMCPSolution.Tools;
 
-public interface IServerTool
+public interface IMcpTool
 {
     Tool GetDefinition();
 

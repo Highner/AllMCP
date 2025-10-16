@@ -8,7 +8,7 @@ using ModelContextProtocol.Server;
 
 namespace AllMCPSolution.Tools;
 
-public sealed class HelloWorldTool : IServerTool, IResourceProvider
+public sealed class HelloWorldTool : IMcpTool, IResourceProvider
 {
     public static HelloWorldTool Instance { get; } = new();
     private const string UiUri = "ui://widget/hello.html";

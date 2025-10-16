@@ -98,6 +98,9 @@ builder.Services.AddMcpServer(options =>
 
 var app = builder.Build();
 
+// Initialize ServiceLocator for tools to resolve scoped services
+AllMCPSolution.Services.ServiceLocator.Provider = app.Services;
+
 // Ensure database is migrated to latest on startup
 //using (var scope = app.Services.CreateScope())
 //{
