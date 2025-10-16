@@ -113,16 +113,16 @@ public class GetArtworkSalesHammerPriceRolling12mTool : IToolBase
             }
         }
 
-        // Compute rolling 12-month averages using helper (unweighted across contributing months)
+        // Compute rolling 12-month averages using helper (weighted by monthly counts)
         var rollingNom = RollingAverageHelper.RollingAverage(
             monthly.ConvertAll(x => (x.Month, x.AvgNominal, x.Count)),
             windowMonths: 12,
-            weightByCount: false);
+            weightByCount: true);
 
         var rollingAdj = RollingAverageHelper.RollingAverage(
             monthly.ConvertAll(x => (x.Month, x.AvgAdj, x.Count)),
             windowMonths: 12,
-            weightByCount: false);
+            weightByCount: true);
 
         var series = new List<object>(monthly.Count);
         for (int i = 0; i < monthly.Count; i++)

@@ -93,21 +93,24 @@ public class ChartsController : ControllerBase
 
         var perfSales = await _sales.GetPerformanceSalesAsync(artistId, from, to, categories, ct);
 
-        var timeSeries = perfSales.Select(sale => new
-        {
-            Time = sale.SaleDate,
-            Name = sale.Name,
-            Category = sale.Category,
-            Technique = sale.Technique,
-            Height = sale.Height,
-            Width = sale.Width,
-            HammerPrice = sale.HammerPrice,
-            SaleDate = sale.SaleDate,
-            PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
-                sale.HammerPrice,
-                sale.LowEstimate,
-                sale.HighEstimate)
-        }).ToList();
+        var timeSeries = perfSales
+            .Select(sale => new
+            {
+                Time = sale.SaleDate,
+                Name = sale.Name,
+                Category = sale.Category,
+                Technique = sale.Technique,
+                Height = sale.Height,
+                Width = sale.Width,
+                HammerPrice = sale.HammerPrice,
+                SaleDate = sale.SaleDate,
+                PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
+                    sale.HammerPrice,
+                    sale.LowEstimate,
+                    sale.HighEstimate)
+            })
+            .Where(p => p.PerformanceFactor.HasValue)
+            .ToList();
 
         return Ok(new { timeSeries });
     }

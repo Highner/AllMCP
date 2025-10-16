@@ -143,24 +143,27 @@ public class GetArtworkSalesPerformanceTool : IToolBase
             .ToListAsync();
 
         // Transform into time series with performance factor
-        var timeSeries = sales.Select(sale => new
-        {
-           // Title = sale.Name,
-            Category = sale.Category,
-            Technique = sale.Technique,
-            YearCreated = sale.YearCreated,
-            Time = sale.SaleDate,
-            HammerPrice = sale.HammerPrice,
-            sale.Height,
-            sale.Width,
-            Sold = sale.Sold,
-            area = sale.Height * sale.Width,
-            PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
-                sale.HammerPrice,
-                sale.LowEstimate,
-                sale.HighEstimate
-            )
-        }).ToList();
+        var timeSeries = sales
+            .Select(sale => new
+            {
+               // Title = sale.Name,
+                Category = sale.Category,
+                Technique = sale.Technique,
+                YearCreated = sale.YearCreated,
+                Time = sale.SaleDate,
+                HammerPrice = sale.HammerPrice,
+                sale.Height,
+                sale.Width,
+                Sold = sale.Sold,
+                area = sale.Height * sale.Width,
+                PerformanceFactor = PerformanceCalculator.CalculatePerformanceFactor(
+                    sale.HammerPrice,
+                    sale.LowEstimate,
+                    sale.HighEstimate
+                )
+            })
+            .Where(x => x.PerformanceFactor.HasValue)
+            .ToList();
 
         var totalPages = (int)Math.Ceiling((double)totalCount / MaxResults);
         var hasMoreResults = page < totalPages;

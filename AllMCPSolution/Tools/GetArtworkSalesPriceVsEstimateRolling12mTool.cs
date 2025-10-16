@@ -57,9 +57,7 @@ The 'position-in-estimate-range' value represents the normalized position of the
 
         foreach (var s in sales)
         {
-            var low = s.LowEstimate;
-            var high = s.HighEstimate;
-            decimal? pos = (high > low) ? (s.HammerPrice - low) / (high - low) : (decimal?)null;
+            var pos = AllMCPSolution.Services.EstimatePositionHelper.PositionInEstimateRange(s.HammerPrice, s.LowEstimate, s.HighEstimate);
             if (pos == null) continue;
             var m = new DateTime(s.SaleDate.Year, s.SaleDate.Month, 1);
             if (!indexByMonth.TryGetValue(m, out var agg)) agg = (0m, 0);
