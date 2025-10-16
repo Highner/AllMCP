@@ -145,30 +145,36 @@ public class ManifestGenerator
         var tools = new List<object>(toolsRaw.Count);
         foreach (var def in toolsRaw)
         {
-            dynamic d = def;
-            var name = d?.name;
-            var description = d?.description;
-            var safety = d?.safety;
-            var inputSchema = d?.inputSchema ?? d?.input_schema; // support both just in case
+            // Use JSON-based safe extraction to avoid RuntimeBinderException on missing members
+            var json = JsonSerializer.Serialize(def);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
 
-            object toolObj;
-            if (inputSchema != null)
+            string? name = root.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
+            string? description = root.TryGetProperty("description", out var descEl) ? descEl.GetString() : null;
+            string? safety = root.TryGetProperty("safety", out var safetyEl) && safetyEl.ValueKind == JsonValueKind.String ? safetyEl.GetString() : null;
+
+            JsonElement? inputSchema = null;
+            if (root.TryGetProperty("inputSchema", out var inputSchemaEl))
+                inputSchema = inputSchemaEl.Clone();
+            else if (root.TryGetProperty("input_schema", out var inputSchemaSnakeEl))
+                inputSchema = inputSchemaSnakeEl.Clone();
+
+            if (inputSchema.HasValue)
             {
-                toolObj = new
+                tools.Add(new
                 {
                     name = name,
                     description = description,
                     safety = safety,
-                    input_schema = inputSchema
-                };
+                    input_schema = inputSchema.Value
+                });
             }
             else
             {
-                // Fallback: pass-through without schema (not ideal, but prevents crashes)
-                toolObj = def;
+                // Fallback: include basic fields without schema
+                tools.Add(new { name = name, description = description, safety = safety });
             }
-
-            tools.Add(toolObj);
         }
 
         return new
@@ -183,6 +189,60 @@ public class ManifestGenerator
                 description = "MCP server with auto-discovered tools for Anthropic Claude",
                 endpoint = $"{_baseUrl}/mcp"
             }
+        };
+    }
+
+    public object GenerateOpenAIMcpDiscovery(IServiceProvider? scopedProvider = null)
+    {
+        var toolsRaw = _toolRegistry.GetAllTools(scopedProvider)
+            .Select(tool => tool.GetToolDefinition())
+            .ToList();
+
+        // For OpenAI Agent Builder MCP discovery, include endpoint and tools with both inputSchema and input_schema keys
+        var tools = new List<object>(toolsRaw.Count);
+        foreach (var def in toolsRaw)
+        {
+            // Use JSON-based safe extraction to avoid RuntimeBinderException on missing members
+            var json = JsonSerializer.Serialize(def);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            string? name = root.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
+            string? description = root.TryGetProperty("description", out var descEl) ? descEl.GetString() : null;
+            string? safety = root.TryGetProperty("safety", out var safetyEl) && safetyEl.ValueKind == JsonValueKind.String ? safetyEl.GetString() : null;
+
+            JsonElement? inputSchema = null;
+            if (root.TryGetProperty("inputSchema", out var inputSchemaEl))
+                inputSchema = inputSchemaEl.Clone();
+            else if (root.TryGetProperty("input_schema", out var inputSchemaSnakeEl))
+                inputSchema = inputSchemaSnakeEl.Clone();
+
+            if (inputSchema.HasValue)
+            {
+                tools.Add(new
+                {
+                    name = name,
+                    description = description,
+                    safety = safety,
+                    inputSchema = inputSchema.Value,
+                    input_schema = inputSchema.Value
+                });
+            }
+            else
+            {
+                tools.Add(new { name = name, description = description, safety = safety });
+            }
+        }
+
+        return new
+        {
+            schemaVersion = "1.0",
+            mcp = new
+            {
+                endpoint = new { url = $"{_baseUrl}/mcp", transport = "http", methods = new[] { "POST" } },
+                capabilities = new { tools = true }
+            },
+            tools = tools
         };
     }
 }

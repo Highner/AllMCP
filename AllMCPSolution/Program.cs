@@ -141,6 +141,14 @@ app.MapGet("/.well-known/anthropic-manifest", (ManifestGenerator manifestGenerat
     return Results.Ok(manifestGenerator.GenerateAnthropicManifest(scope.ServiceProvider));
 });
 
+// OpenAI Agent Builder MCP discovery endpoint
+app.MapGet("/.well-known/openai-mcp", (IServiceProvider serviceProvider) =>
+{
+    using var scope = serviceProvider.CreateScope();
+    var manifestGenerator = scope.ServiceProvider.GetRequiredService<ManifestGenerator>();
+    return Results.Json(manifestGenerator.GenerateOpenAIMcpDiscovery(scope.ServiceProvider));
+});
+
 // Tools discovery endpoint
 app.MapGet("/tools", (IServiceProvider serviceProvider) =>
 {
