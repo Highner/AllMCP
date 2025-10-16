@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using AllMCPSolution.Artists;
 using AllMCPSolution.Artworks;
 using AllMCPSolution.Data;
@@ -6,6 +8,9 @@ using AllMCPSolution.Services;
 using AllMCPSolution.Tools;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ModelContextProtocol;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,7 +54,7 @@ builder.Services.AddScoped<IInflationService, EcbInflationService>();
 // Register MCP services
 builder.Services.AddSingleton<ToolRegistry>();
 builder.Services.AddSingleton<ManifestGenerator>();
-builder.Services.AddSingleton<McpServer>();
+builder.Services.AddSingleton<AllMCPSolution.Services.McpServer>();
 
 
 
@@ -63,6 +68,130 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader();
     });
 });
+
+
+// Register the MCP server and handlers
+builder.Services.AddMcpServer(options =>
+{
+    // 1. Describe the server
+    options.ServerInfo = new Implementation
+    {
+        Name = "hello-mcp-csharp",
+        Version = "1.0.0"
+    };
+
+    // 2. Handlers
+    options.Handlers = new McpServerHandlers
+    {
+        ListToolsHandler = (req, ct) => ValueTask.FromResult(new ListToolsResult
+        {
+            Tools =
+            [
+                new Tool
+                {
+                    Name = "hello_world",
+                    Title = "Hello World",
+                    Description = "Greets the user and renders a card UI.",
+                    InputSchema = JsonSerializer.Deserialize<JsonElement>(
+                        """
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": { "type": "string", "description": "Name to greet" }
+                          }
+                        }
+                        """
+                    ),
+                    Meta = new JsonObject
+                    {
+                        ["openai/outputTemplate"] = "ui://widget/hello.html",
+                        ["openai/toolInvocation/invoking"] = "Saying hello…",
+                        ["openai/toolInvocation/invoked"] = "Hello sent!"
+                    },
+
+                }
+            ]
+        }),
+
+        CallToolHandler = (req, ct) =>
+        {
+            if (req.Params?.Name != "hello_world")
+                throw new McpException($"Unknown tool: '{req.Params?.Name}'", McpErrorCode.InvalidRequest);
+
+            var name = "World";
+            if (req.Params?.Arguments is { } args &&
+                args.TryGetValue("name", out var el) &&
+                el.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(el.GetString()))
+            {
+                name = el.GetString()!;
+            }
+
+            var structured = new JsonObject
+            {
+                ["message"] = $"Hello, {name}!"
+            };
+
+            return ValueTask.FromResult(new CallToolResult
+            {
+                Content = [ new TextContentBlock { Type = "text", Text = $"Hello, {name}!" } ],
+                StructuredContent = structured
+            });
+
+        },
+
+        ListResourcesHandler = (req, ct) => ValueTask.FromResult(new ListResourcesResult
+        {
+            Resources =
+            [
+                new Resource
+                {
+                    Name = "hello-ui",
+                    Title = "Hello UI",
+                    Uri = "ui://widget/hello.html",
+                    MimeType = "text/html+skybridge",
+                    Description = "Card UI for hello_world"
+                }
+            ]
+        }),
+
+        ReadResourceHandler = (req, ct) =>
+        {
+            if (req.Params?.Uri != "ui://widget/hello.html")
+                throw new McpException("Missing required argument 'name'", McpErrorCode.InvalidParams);
+
+            const string html = """
+            <!doctype html>
+            <html>
+              <body style="font-family:system-ui;padding:1rem">
+                <div style="border:1px solid #ccc;border-radius:10px;padding:1rem">
+                  <h2>Hello World</h2>
+                  <p id="msg">Hello!</p>
+                </div>
+                <script type="module">
+                  const data = (window.openai && window.openai.toolOutput) || {};
+                  document.getElementById("msg").textContent = data.message || "Hello!";
+                </script>
+              </body>
+            </html>
+            """;
+
+            return ValueTask.FromResult(new ReadResourceResult
+            {
+                Contents =
+                [
+                    new TextResourceContents
+                    {
+                        Uri = "ui://widget/hello.html",
+                        MimeType = "text/html+skybridge",
+                        Text = html
+                    }
+                ]
+            });
+        }
+    };
+}).WithHttpTransport();
+
 
 var app = builder.Build();
 
@@ -85,7 +214,7 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 // Get services
-var mcpServer = app.Services.GetRequiredService<McpServer>();
+var mcpServer = app.Services.GetRequiredService<AllMCPSolution.Services.McpServer>();
 var manifestGenerator = app.Services.GetRequiredService<ManifestGenerator>();
 var toolRegistry = app.Services.GetRequiredService<ToolRegistry>();
 
@@ -96,15 +225,15 @@ var toolRegistry = app.Services.GetRequiredService<ToolRegistry>();
 
 
 // MCP endpoint
-app.MapPost("/mcp", async (HttpContext context) =>
-{
-    var request = await context.Request.ReadFromJsonAsync<Dictionary<string, object>>();
-    var response = await mcpServer.HandleRequestAsync(request);
-    return Results.Json(response);
-});
+//app.MapPost("/mcp", async (HttpContext context) =>
+//{
+ //   var request = await context.Request.ReadFromJsonAsync<Dictionary<string, object>>();
+ //   var response = await mcpServer.HandleRequestAsync(request);
+ //   return Results.Json(response);
+//});
 
 // Explicit OPTIONS handler for CORS preflight on /mcp (some environments require it)
-app.MapMethods("/mcp", new[] { "OPTIONS" }, () => Results.Ok());
+//app.MapMethods("/mcp", new[] { "OPTIONS" }, () => Results.Ok());
 
 
 
@@ -145,12 +274,12 @@ app.MapGet("/.well-known/anthropic-manifest", (ManifestGenerator manifestGenerat
 });
 
 // OpenAI Agent Builder MCP discovery endpoint
-app.MapGet("/.well-known/mcp", (IServiceProvider serviceProvider) =>
-{
-    using var scope = serviceProvider.CreateScope();
-    var manifestGenerator = scope.ServiceProvider.GetRequiredService<ManifestGenerator>();
-    return Results.Json(manifestGenerator.GenerateOpenAIMcpDiscovery(scope.ServiceProvider));
-});
+//app.MapGet("/.well-known/mcp", (IServiceProvider serviceProvider) =>
+//{
+//    using var scope = serviceProvider.CreateScope();
+ //   var manifestGenerator = scope.ServiceProvider.GetRequiredService<ManifestGenerator>();
+ //   return Results.Json(manifestGenerator.GenerateOpenAIMcpDiscovery(scope.ServiceProvider));
+//});
 
 // Tools discovery endpoint
 app.MapGet("/tools", (IServiceProvider serviceProvider) =>
@@ -221,6 +350,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 
-
+app.MapMcp("/mcp");
 
 app.Run();

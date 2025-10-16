@@ -167,3 +167,11 @@
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/swd2nrnfww-ke8b6n5o7z.gz
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/m5t10pc0pi-bu0u90jwng.gz
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/ha6umacg54-bod072hz5z.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/Microsoft.Extensions.AI.Abstractions.dll
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/Microsoft.Extensions.Diagnostics.Abstractions.dll
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/Microsoft.Extensions.FileProviders.Abstractions.dll
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/Microsoft.Extensions.Hosting.Abstractions.dll
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/ModelContextProtocol.dll
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/ModelContextProtocol.AspNetCore.dll
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/ModelContextProtocol.Core.dll
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/System.Net.ServerSentEvents.dll
