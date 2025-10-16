@@ -77,7 +77,7 @@ builder.Services.AddMcpServer(options =>
     options.ServerInfo = new Implementation
     {
         Name = "hello-mcp-csharp",
-        Version = "1.0.0"
+        Version = "1.0.1"
     };
 
     // 2. Handlers
@@ -147,7 +147,7 @@ builder.Services.AddMcpServer(options =>
                 new Resource
                 {
                     Name = "hello-ui",
-                    Title = "Hello UI",
+                    Title = "Hello UI popello",
                     Uri = "ui://widget/hello.html",
                     MimeType = "text/html+skybridge",
                     Description = "Card UI for hello_world"
@@ -166,7 +166,7 @@ builder.Services.AddMcpServer(options =>
               <head>
                 <meta charset="UTF-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <title>Hello World ✨</title>
+                <title>Hello popello World ✨</title>
                 <style>
                   :root {
                     --bg: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
@@ -219,7 +219,7 @@ builder.Services.AddMcpServer(options =>
               </head>
               <body>
                 <div class="card">
-                  <h2>Hello World 👋 linus is gay</h2>
+                  <h2>Hello Schmello Linus 👋</h2>
                   <p id="msg">Loading message...</p>
                 </div>
             
