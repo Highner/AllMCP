@@ -162,18 +162,74 @@ builder.Services.AddMcpServer(options =>
 
             const string html = """
             <!doctype html>
-            <html>
-              <body style="font-family:system-ui;padding:1rem">
-                <div style="border:1px solid #ccc;border-radius:10px;padding:1rem">
-                  <h2>Hello World</h2>
-                  <p id="msg">Hello!</p>
+            <html lang="en">
+              <head>
+                <meta charset="UTF-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <title>Hello World ✨</title>
+                <style>
+                  :root {
+                    --bg: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+                    --card-bg: rgba(255, 255, 255, 0.9);
+                    --text-color: #333;
+                    --accent: #4e8cff;
+                  }
+            
+                  body {
+                    font-family: system-ui, sans-serif;
+                    background: var(--bg);
+                    height: 100vh;
+                    margin: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  }
+            
+                  .card {
+                    background: var(--card-bg);
+                    border-radius: 16px;
+                    padding: 2rem 3rem;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+                    text-align: center;
+                    animation: float 3s ease-in-out infinite;
+                    max-width: 400px;
+                    transition: transform 0.3s ease, box-shadow 0.3s ease;
+                  }
+            
+                  .card:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+                  }
+            
+                  h2 {
+                    color: var(--accent);
+                    margin-bottom: 0.5rem;
+                  }
+            
+                  #msg {
+                    color: var(--text-color);
+                    font-size: 1.2rem;
+                  }
+            
+                  @keyframes float {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-6px); }
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="card">
+                  <h2>Hello World 👋</h2>
+                  <p id="msg">Loading message...</p>
                 </div>
+            
                 <script type="module">
                   const data = (window.openai && window.openai.toolOutput) || {};
                   document.getElementById("msg").textContent = data.message || "Hello!";
                 </script>
               </body>
             </html>
+            
             """;
 
             return ValueTask.FromResult(new ReadResourceResult
