@@ -1,11 +1,13 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Reflection;
 using AllMCPSolution.Artists;
 using AllMCPSolution.Artworks;
 using AllMCPSolution.Data;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
 using AllMCPSolution.Tools;
+using AllMCPSolution.Attributes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol;
@@ -28,25 +30,17 @@ builder.Services.AddScoped<IArtworkRepository, ArtworkRepository>();
 builder.Services.AddScoped<IArtworkSaleRepository, ArtworkSaleRepository>();
 builder.Services.AddScoped<IInflationIndexRepository, InflationIndexRepository>();
 
-// Register all tools (auto-discovered by ToolRegistry)
+// Auto-register all tools marked with [McpTool] that implement IToolBase
+var toolTypes = Assembly.GetExecutingAssembly().GetTypes()
+    .Where(t => t.GetCustomAttribute<McpToolAttribute>() != null && typeof(IToolBase).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
+    .ToList();
+foreach (var t in toolTypes)
+{
+    builder.Services.AddScoped(t);
+}
 
-//builder.Services.AddScoped<GetAllArtistsTool>();
-//builder.Services.AddScoped<GetArtistByIdTool>();
-builder.Services.AddScoped<SearchArtistsTool>();
-
-
-//builder.Services.AddScoped<GetArtworkSalesPerformanceTool>();
-builder.Services.AddScoped<GetArtworkSalesHammerPriceTool>();
-//builder.Services.AddScoped<GetArtworkSalesPriceVsEstimateTool>();
-//builder.Services.AddScoped<GetArtworkSalesHammerPerAreaTool>();
+// Domain services used by tools
 builder.Services.AddScoped<IHammerPerAreaAnalyticsService, HammerPerAreaAnalyticsService>();
-
-builder.Services.AddScoped<GetArtworkSalesHammerPerAreaRolling12mTool>();
-builder.Services.AddScoped<GetArtworkSalesHammerPriceRolling12mTool>();
-builder.Services.AddScoped<GetArtworkSalesPriceVsEstimateRolling12mTool>();
-
-//builder.Services.AddScoped<RenderLineChartTool>();
-
 
 // Inflation and related services
 builder.Services.AddScoped<IInflationService, EcbInflationService>();
@@ -81,63 +75,82 @@ builder.Services.AddMcpServer(options =>
     };
 
     // 2. Handlers
+    // Build a provider to resolve ToolRegistry and tool instances for handler delegates
+    var rootProvider = builder.Services.BuildServiceProvider();
+    var registry = rootProvider.GetRequiredService<ToolRegistry>();
+
     options.Handlers = new McpServerHandlers
     {
-        ListToolsHandler = (req, ct) => ValueTask.FromResult(new ListToolsResult
+        ListToolsHandler = (req, ct) =>
         {
-            Tools =
-            [
-                new Tool
+            // Enumerate registered tools and map to MCP Tool objects
+            var tools = registry.GetAllTools()
+                .Select(tool =>
                 {
-                    Name = "hello_world",
-                    Title = "Hello World",
-                    Description = "Greets the user and renders a card UI.",
-                    InputSchema = JsonSerializer.Deserialize<JsonElement>(
-                        """
-                        {
-                          "type": "object",
-                          "properties": {
-                            "name": { "type": "string", "description": "Name to greet" }
-                          }
-                        }
-                        """
-                    ),
-                    Meta = new JsonObject
+                    var defJson = JsonSerializer.Serialize(tool.GetToolDefinition());
+                    using var doc = JsonDocument.Parse(defJson);
+                    var root = doc.RootElement;
+
+                    var name = root.TryGetProperty("name", out var n) ? n.GetString() ?? tool.Name : tool.Name;
+                    var description = root.TryGetProperty("description", out var d) ? d.GetString() ?? tool.Description : tool.Description;
+
+                    JsonElement inputSchema = default;
+                    if (root.TryGetProperty("inputSchema", out var isEl)) inputSchema = isEl.Clone();
+                    else if (root.TryGetProperty("input_schema", out var isSnake)) inputSchema = isSnake.Clone();
+                    else
                     {
-                        ["openai/outputTemplate"] = "ui://widget/hello.html",
-                        ["openai/toolInvocation/invoking"] = "Saying hello…",
-                        ["openai/toolInvocation/invoked"] = "Hello sent!"
-                    },
+                        // default empty schema
+                        using var emptyDoc = JsonDocument.Parse("{\"type\":\"object\",\"properties\":{}}");
+                        inputSchema = emptyDoc.RootElement.Clone();
+                    }
 
-                }
-            ]
-        }),
+                    return new Tool
+                    {
+                        Name = name,
+                        Description = description,
+                        InputSchema = inputSchema
+                    };
+                })
+                .ToList();
 
-        CallToolHandler = (req, ct) =>
+            return ValueTask.FromResult(new ListToolsResult { Tools = tools });
+        },
+
+        CallToolHandler = async (req, ct) =>
         {
-            if (req.Params?.Name != "hello_world")
-                throw new McpException($"Unknown tool: '{req.Params?.Name}'", McpErrorCode.InvalidRequest);
+            var name = req.Params?.Name;
+            if (string.IsNullOrWhiteSpace(name))
+                throw new McpException("Tool name is required", McpErrorCode.InvalidRequest);
 
-            var name = "World";
-            if (req.Params?.Arguments is { } args &&
-                args.TryGetValue("name", out var el) &&
-                el.ValueKind == JsonValueKind.String &&
-                !string.IsNullOrWhiteSpace(el.GetString()))
+            var tool = registry.GetTool(name!);
+            if (tool is null)
+                throw new McpException($"Unknown tool: '{name}'", McpErrorCode.InvalidRequest);
+
+            Dictionary<string, object>? paramDict = null;
+
+            if (req.Params?.Arguments is IReadOnlyDictionary<string, JsonElement> dictJe)
             {
-                name = el.GetString()!;
+                paramDict = dictJe.ToDictionary(k => k.Key, v => JsonSerializer.Deserialize<object>(v.Value.GetRawText())!);
             }
 
-            var structured = new JsonObject
-            {
-                ["message"] = $"Hello, {name}!"
-            };
+            var result = await tool.ExecuteAsync(paramDict);
 
-            return ValueTask.FromResult(new CallToolResult
+            // Prepare structured content as JSON
+            JsonObject? structured = null;
+            try
             {
-                Content = [ new TextContentBlock { Type = "text", Text = $"Hello, {name}!" } ],
+                var json = JsonSerializer.Serialize(result);
+                structured = JsonNode.Parse(json) as JsonObject;
+            }
+            catch { /* ignore */ }
+
+            var text = structured?.ToJsonString() ?? result?.ToString() ?? "";
+
+            return new CallToolResult
+            {
+                Content = [ new TextContentBlock { Type = "text", Text = text } ],
                 StructuredContent = structured
-            });
-
+            };
         },
 
         ListResourcesHandler = (req, ct) => ValueTask.FromResult(new ListResourcesResult
