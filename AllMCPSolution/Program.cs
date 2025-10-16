@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AllMCPSolution.Artists;
@@ -71,183 +72,29 @@ builder.Services.AddCors(options =>
 
 
 // Register the MCP server and handlers
+
+
+var registry = new McpToolRegistry(Assembly.GetExecutingAssembly());
+
+// Register MCP server + handlers using the registry
 builder.Services.AddMcpServer(options =>
 {
-    // 1. Describe the server
-    options.ServerInfo = new Implementation
-    {
-        Name = "hello-mcp-csharp",
-        Version = "1.0.1"
-    };
-
-    // 2. Handlers
+    options.ServerInfo = new Implementation { Name = "hello-mcp-csharp", Version = "1.0.0" };
     options.Handlers = new McpServerHandlers
     {
-        ListToolsHandler = (req, ct) => ValueTask.FromResult(new ListToolsResult
-        {
-            Tools =
-            [
-                new Tool
-                {
-                    Name = "hello_world",
-                    Title = "Hello World",
-                    Description = "Greets the user and renders a card UI.",
-                    InputSchema = JsonSerializer.Deserialize<JsonElement>(
-                        """
-                        {
-                          "type": "object",
-                          "properties": {
-                            "name": { "type": "string", "description": "Name to greet" }
-                          }
-                        }
-                        """
-                    ),
-                    Meta = new JsonObject
-                    {
-                        ["openai/outputTemplate"] = "ui://widget/hello.html",
-                        ["openai/toolInvocation/invoking"] = "Saying hello…",
-                        ["openai/toolInvocation/invoked"] = "Hello sent!"
-                    },
+        // ctx: RequestContext<ListToolsRequestParams>
+        ListToolsHandler     = (ctx, ct) => registry.ListToolsAsync(ct),
 
-                }
-            ]
-        }),
+        // ctx: RequestContext<CallToolRequestParams>
+        CallToolHandler      = (ctx, ct) => registry.CallToolAsync(ctx.Params, ct),
 
-        CallToolHandler = (req, ct) =>
-        {
-            if (req.Params?.Name != "hello_world")
-                throw new McpException($"Unknown tool: '{req.Params?.Name}'", McpErrorCode.InvalidRequest);
+        // ctx: RequestContext<ListResourcesRequestParams>
+        ListResourcesHandler = (ctx, ct) => registry.ListResourcesAsync(ct),
 
-            var name = "World";
-            if (req.Params?.Arguments is { } args &&
-                args.TryGetValue("name", out var el) &&
-                el.ValueKind == JsonValueKind.String &&
-                !string.IsNullOrWhiteSpace(el.GetString()))
-            {
-                name = el.GetString()!;
-            }
-
-            var structured = new JsonObject
-            {
-                ["message"] = $"Hello, {name}!"
-            };
-
-            return ValueTask.FromResult(new CallToolResult
-            {
-                Content = [ new TextContentBlock { Type = "text", Text = $"Hello, {name}!" } ],
-                StructuredContent = structured
-            });
-
-        },
-
-        ListResourcesHandler = (req, ct) => ValueTask.FromResult(new ListResourcesResult
-        {
-            Resources =
-            [
-                new Resource
-                {
-                    Name = "hello-ui",
-                    Title = "Hello UI popello",
-                    Uri = "ui://widget/hello.html",
-                    MimeType = "text/html+skybridge",
-                    Description = "Card UI for hello_world"
-                }
-            ]
-        }),
-
-        ReadResourceHandler = (req, ct) =>
-        {
-            if (req.Params?.Uri != "ui://widget/hello.html")
-                throw new McpException("Missing required argument 'name'", McpErrorCode.InvalidParams);
-
-            const string html = """
-            <!doctype html>
-            <html lang="en">
-              <head>
-                <meta charset="UTF-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <title>Hello popello World ✨</title>
-                <style>
-                  :root {
-                    --bg: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
-                    --card-bg: rgba(255, 255, 255, 0.9);
-                    --text-color: #333;
-                    --accent: #4e8cff;
-                  }
-            
-                  body {
-                    font-family: system-ui, sans-serif;
-                    background: var(--bg);
-                    height: 100vh;
-                    margin: 0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                  }
-            
-                  .card {
-                    background: var(--card-bg);
-                    border-radius: 16px;
-                    padding: 2rem 3rem;
-                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-                    text-align: center;
-                    animation: float 3s ease-in-out infinite;
-                    max-width: 400px;
-                    transition: transform 0.3s ease, box-shadow 0.3s ease;
-                  }
-            
-                  .card:hover {
-                    transform: translateY(-5px);
-                    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
-                  }
-            
-                  h2 {
-                    color: var(--accent);
-                    margin-bottom: 0.5rem;
-                  }
-            
-                  #msg {
-                    color: var(--text-color);
-                    font-size: 1.2rem;
-                  }
-            
-                  @keyframes float {
-                    0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-6px); }
-                  }
-                </style>
-              </head>
-              <body>
-                <div class="card">
-                  <h2>Hello Schmello Linus 👋</h2>
-                  <p id="msg">Loading message...</p>
-                </div>
-            
-                <script type="module">
-                  const data = (window.openai && window.openai.toolOutput) || {};
-                  document.getElementById("msg").textContent = data.message || "Hello!";
-                </script>
-              </body>
-            </html>
-            
-            """;
-
-            return ValueTask.FromResult(new ReadResourceResult
-            {
-                Contents =
-                [
-                    new TextResourceContents
-                    {
-                        Uri = "ui://widget/hello.html",
-                        MimeType = "text/html+skybridge",
-                        Text = html
-                    }
-                ]
-            });
-        }
+        // ctx: RequestContext<ReadResourceRequestParams>
+        ReadResourceHandler  = (ctx, ct) => registry.ReadResourceAsync(ctx.Params, ct)
     };
-}).WithHttpTransport();
-
+}).WithHttpTransport() ;
 
 var app = builder.Build();
 
