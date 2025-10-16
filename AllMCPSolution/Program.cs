@@ -166,7 +166,7 @@ builder.Services.AddMcpServer(options =>
               <head>
                 <meta charset="UTF-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <title>Hello World ✨</title>
+                <title>Hello World ✨ Linus is gay</title>
                 <style>
                   :root {
                     --bg: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
