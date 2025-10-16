@@ -113,33 +113,28 @@ public class GetArtworkSalesHammerPriceRolling12mTool : IToolBase
             }
         }
 
-        // Compute rolling 12-month averages (skip months with zero total count across the 12 months by using only present months)
+        // Compute rolling 12-month averages using helper (unweighted across contributing months)
+        var rollingNom = RollingAverageHelper.RollingAverage(
+            monthly.ConvertAll(x => (x.Month, x.AvgNominal, x.Count)),
+            windowMonths: 12,
+            weightByCount: false);
+
+        var rollingAdj = RollingAverageHelper.RollingAverage(
+            monthly.ConvertAll(x => (x.Month, x.AvgAdj, x.Count)),
+            windowMonths: 12,
+            weightByCount: false);
+
         var series = new List<object>(monthly.Count);
         for (int i = 0; i < monthly.Count; i++)
         {
-            int start = Math.Max(0, i - 11);
-            decimal sumNominal = 0m;
-            decimal sumAdj = 0m;
-            int contributingMonths = 0;
-            for (int j = start; j <= i; j++)
-            {
-                if (monthly[j].Count > 0)
-                {
-                    sumNominal += monthly[j].AvgNominal;
-                    sumAdj += monthly[j].AvgAdj;
-                    contributingMonths++;
-                }
-            }
-
-            decimal? rollingNominal = contributingMonths > 0 ? sumNominal / contributingMonths : (decimal?)null;
-            decimal? rollingAdj = contributingMonths > 0 ? sumAdj / contributingMonths : (decimal?)null;
-
+            var rpNom = rollingNom[i];
+            var rpAdj = rollingAdj[i];
             series.Add(new
             {
                 Time = monthly[i].Month,
-                CountInWindow = contributingMonths,
-                Rolling12mHammerPrice = rollingNominal,
-                Rolling12mHammerPriceInflationAdjusted = rollingAdj
+                CountInWindow = rpNom.CountInWindow,
+                Rolling12mHammerPrice = rpNom.Value,
+                Rolling12mHammerPriceInflationAdjusted = rpAdj.Value
             });
         }
 

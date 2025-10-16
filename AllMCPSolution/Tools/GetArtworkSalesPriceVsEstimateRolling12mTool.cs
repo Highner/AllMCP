@@ -83,30 +83,15 @@ The 'position-in-estimate-range' value represents the normalized position of the
             }
         }
 
-        var series = new List<object>(monthly.Count);
-        for (int i = 0; i < monthly.Count; i++)
+        var rolling = AllMCPSolution.Services.RollingAverageHelper.RollingAverage(
+            monthly.ConvertAll(x => (x.Month, x.AvgPositionInRange, x.Count)),
+            windowMonths: 12,
+            weightByCount: true);
+
+        var series = new List<object>(rolling.Count);
+        foreach (var p in rolling)
         {
-            int start = Math.Max(0, i - 11);
-            decimal weightedSum = 0m;
-            int totalSales = 0;
-            for (int j = start; j <= i; j++)
-            {
-                if (monthly[j].Count > 0)
-                {
-                    // Weight each month's average by the number of sales in that month
-                    weightedSum += monthly[j].AvgPositionInRange * monthly[j].Count;
-                    totalSales += monthly[j].Count;
-                }
-            }
-
-            decimal? rolling = totalSales > 0 ? weightedSum / totalSales : (decimal?)null;
-
-            series.Add(new
-            {
-                Time = monthly[i].Month,
-                //CountInWindow = totalSales,  // Changed to show total sales, not just contributing months
-                Value = rolling
-            });
+            series.Add(new { Time = p.Time, Value = p.Value });
         }
 
 

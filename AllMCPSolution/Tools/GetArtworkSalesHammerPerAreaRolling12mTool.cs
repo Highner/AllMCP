@@ -138,29 +138,15 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
             }
         }
 
-        var series = new List<object>(monthly.Count);
-        for (int i = 0; i < monthly.Count; i++)
+        var rolling = RollingAverageHelper.RollingAverage(
+            monthly.ConvertAll(x => (x.Month, x.AvgPerAreaAdj, x.Count)),
+            windowMonths: 12,
+            weightByCount: true);
+
+        var series = new List<object>(rolling.Count);
+        foreach (var p in rolling)
         {
-            int start = Math.Max(0, i - 11);
-            decimal weightedSum = 0m;
-            int totalSales = 0;
-            for (int j = start; j <= i; j++)
-            {
-                if (monthly[j].Count > 0)
-                {
-                    weightedSum += monthly[j].AvgPerAreaAdj * monthly[j].Count;
-                    totalSales += monthly[j].Count;
-                }
-            }
-
-            decimal? rolling = totalSales > 0 ? weightedSum / totalSales : (decimal?)null;
-
-            series.Add(new
-            {
-                Time = monthly[i].Month,
-                //CountInWindow = totalSales,
-                Value = rolling
-            });
+            series.Add(new { Time = p.Time, Value = p.Value });
         }
 
         return series;

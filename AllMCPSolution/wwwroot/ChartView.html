@@ -513,7 +513,7 @@
         if (!urlParams.dateFrom && !urlParams.dateTo) {
             const today = new Date();
             const lastYear = new Date(today);
-            lastYear.setFullYear(today.getFullYear() - 1);
+            lastYear.setFullYear(today.getFullYear() - 10);
 
             dateTo.valueAsDate = today;
             dateFrom.valueAsDate = lastYear;
@@ -729,6 +729,95 @@
         return set;
     }
 
+    // JS helper mirroring Services.RollingAverageHelper for monthly rolling averages
+    function monthStart(d) {
+        return new Date(d.getFullYear(), d.getMonth(), 1);
+    }
+
+    // Robust sold detector: accepts sold/Sold as boolean/number/string; defaults to true when missing
+    function isSold(obj) {
+        if (!obj) return true;
+        const v = (obj.sold ?? obj.Sold ?? obj.sale?.sold ?? obj.sale?.Sold);
+        if (v === undefined || v === null) return true; // assume sold if flag not present
+        if (typeof v === 'boolean') return v;
+        if (typeof v === 'number') return v === 1;
+        if (typeof v === 'string') {
+            const s = v.trim().toLowerCase();
+            return s === 'true' || s === '1' || s === 'yes' || s === 'y';
+        }
+        return Boolean(v);
+    }
+
+    // monthly: array of { month: Date, average: number, count: number }
+    // returns array of { time: Date, value: number|null, countInWindow: number }
+    function rollingAverageMonthly(monthly, windowMonths = 12, weightByCount = true) {
+        const result = [];
+        if (!Array.isArray(monthly) || monthly.length === 0 || windowMonths <= 0) return result;
+        for (let i = 0; i < monthly.length; i++) {
+            const start = Math.max(0, i - (windowMonths - 1));
+            if (i < windowMonths - 1) {
+                result.push({ time: monthly[i].month, value: null, countInWindow: 0 });
+                continue;
+            }
+            let sum = 0;
+            let countWeight = 0;
+            let contributingMonths = 0;
+            for (let j = start; j <= i; j++) {
+                const m = monthly[j];
+                if (m.count > 0) {
+                    if (weightByCount) {
+                        sum += m.average * m.count;
+                        countWeight += m.count;
+                    } else {
+                        sum += m.average;
+                        contributingMonths += 1;
+                    }
+                }
+            }
+            let value = null;
+            let windowCount = 0;
+            if (weightByCount) {
+                if (countWeight > 0) {
+                    value = sum / countWeight;
+                    windowCount = countWeight;
+                }
+            } else {
+                if (contributingMonths > 0) {
+                    value = sum / contributingMonths;
+                    windowCount = contributingMonths;
+                }
+            }
+            result.push({ time: monthly[i].month, value, countInWindow: windowCount });
+        }
+        return result;
+    }
+
+    function buildMonthlyFromPoints(points) {
+        if (!points || points.length === 0) return [];
+        const soldPoints = points.filter(p => isSold(p));
+        if (soldPoints.length === 0) return [];
+        const times = soldPoints.map(p => p.x.getTime());
+        const firstMonth = monthStart(new Date(Math.min(...times)));
+        const lastMonth = monthStart(new Date(Math.max(...times)));
+        const index = new Map();
+        for (const p of soldPoints) {
+            const m = monthStart(p.x);
+            const key = m.getTime();
+            const agg = index.get(key) || { sum: 0, count: 0 };
+            agg.sum += p.y;
+            agg.count += 1;
+            index.set(key, agg);
+        }
+        const months = [];
+        for (let dt = new Date(firstMonth); dt <= lastMonth; dt = new Date(dt.getFullYear(), dt.getMonth() + 1, 1)) {
+            months.push(new Date(dt));
+        }
+        return months.map(m => {
+            const agg = index.get(m.getTime());
+            return agg ? { month: m, average: agg.sum / agg.count, count: agg.count } : { month: m, average: 0, count: 0 };
+        });
+    }
+
     function renderChart(sales) {
         const hiddenSet = captureHiddenSet(chartInstance);
         if (chartInstance) {
@@ -774,29 +863,36 @@
                 pointRadius: 3,
                 pointHoverRadius: 5,
                 pointStyle: 'circle',
-                hidden: hiddenSet && hiddenSet.has(labelHP) ? true : undefined
+                hidden: hiddenSet ? hiddenSet.has(labelHP) : false
             });
 
-            // Rolling average for this category
-            const rollingAverageData = [];
-            for (let i = 0; i < categorySales.length; i++) {
-                const currentDate = new Date(categorySales[i].saleDate);
-                const windowStart = new Date(currentDate.getTime() - halfWindowMs);
-                const windowEnd = new Date(currentDate.getTime() + halfWindowMs);
-
-                const windowSales = categorySales.filter(s => {
-                    const saleDate = new Date(s.saleDate);
-                    return saleDate >= windowStart && saleDate <= windowEnd && (s.sold === true);
-                });
-
-                if (windowSales.length > 0) {
-                    const avg = windowSales.reduce((sum, s) => sum + s.hammerPrice, 0) / windowSales.length;
-                    rollingAverageData.push({
-                        x: currentDate,
-                        y: avg
-                    });
+            // Rolling average for this category using monthly weighted window via helper
+            const rollingAverageData = (() => {
+                const soldCategorySales = categorySales.filter(s => isSold(s));
+                if (soldCategorySales.length === 0) return [];
+                const times = soldCategorySales.map(s => new Date(s.saleDate).getTime());
+                const firstMonth = monthStart(new Date(Math.min(...times)));
+                const lastMonth = monthStart(new Date(Math.max(...times)));
+                const index = new Map();
+                for (const s of soldCategorySales) {
+                    const m = monthStart(new Date(s.saleDate));
+                    const key = m.getTime();
+                    const agg = index.get(key) || { sum: 0, count: 0 };
+                    agg.sum += s.hammerPrice;
+                    agg.count += 1;
+                    index.set(key, agg);
                 }
-            }
+                const months = [];
+                for (let dt = new Date(firstMonth); dt <= lastMonth; dt = new Date(dt.getFullYear(), dt.getMonth() + 1, 1)) {
+                    months.push(new Date(dt));
+                }
+                const monthly = months.map(m => {
+                    const agg = index.get(m.getTime());
+                    return agg ? { month: m, average: agg.sum / agg.count, count: agg.count } : { month: m, average: 0, count: 0 };
+                });
+                const roll = rollingAverageMonthly(monthly, rollingMonthsMain, true);
+                return roll.filter(p => p.value != null).map(p => ({ x: p.time, y: p.value }));
+            })();
 
             const labelRoll = `${category} - Rolling Avg`;
             datasets.push({
@@ -809,7 +905,7 @@
                 fill: false,
                 tension: 0.4,
                 borderDash: [5, 5],
-                hidden: hiddenSet && hiddenSet.has(labelRoll) ? true : undefined
+                hidden: hiddenSet ? hiddenSet.has(labelRoll) : false
             });
         });
 
@@ -819,7 +915,7 @@
             .map(s => ({
                 x: new Date(s.saleDate),
                 y: s.hammerPrice / (s.height * s.width),
-                sold: (s.sold === true),
+                sold: isSold(s),
                 sale: s
             }));
 
@@ -834,30 +930,15 @@
             pointHoverRadius: 5,
             pointStyle: 'triangle',
             yAxisID: 'y2',
-            hidden: hiddenSet && hiddenSet.has(labelPerArea) ? true : undefined
+            hidden: hiddenSet ? hiddenSet.has(labelPerArea) : false
         });
 
-        // Calculate rolling average for price per area
-        const pricePerAreaSorted = [...pricePerAreaData].sort((a, b) => a.x - b.x);
-        const pricePerAreaRollingAvg = [];
-
-        for (let i = 0; i < pricePerAreaSorted.length; i++) {
-            const currentDate = pricePerAreaSorted[i].x;
-            const windowStart = new Date(currentDate.getTime() - halfWindowMs);
-            const windowEnd = new Date(currentDate.getTime() + halfWindowMs);
-
-            const windowData = pricePerAreaSorted.filter(d => {
-                return d.x >= windowStart && d.x <= windowEnd && (d.sold === true);
-            });
-
-            if (windowData.length > 0) {
-                const avg = windowData.reduce((sum, d) => sum + d.y, 0) / windowData.length;
-                pricePerAreaRollingAvg.push({
-                    x: currentDate,
-                    y: avg
-                });
-            }
-        }
+        // Calculate rolling average for price per area using monthly helper with full-window rule
+        const monthlyPerAreaMain = buildMonthlyFromPoints(pricePerAreaData);
+        const rollPerAreaMain = rollingAverageMonthly(monthlyPerAreaMain, rollingMonthsMain, true);
+        const pricePerAreaRollingAvg = rollPerAreaMain
+            .filter(p => p.value != null)
+            .map(p => ({ x: p.time, y: p.value }));
 
         const labelPerAreaRoll = 'Price per Area - Rolling Avg';
         datasets.push({
@@ -870,7 +951,7 @@
             fill: false,
             tension: 0.4,
             borderDash: [5, 5],
-            hidden: hiddenSet && hiddenSet.has(labelPerAreaRoll) ? true : undefined,
+            hidden: hiddenSet ? hiddenSet.has(labelPerAreaRoll) : false,
             yAxisID: 'y2'
         });
 
@@ -1061,7 +1142,7 @@
                 above: 'rgba(200, 200, 200, 0.2)'
             },
             order: 10,
-            hidden: hiddenSetPerf && hiddenSetPerf.has(labelEstimateBg) ? true : undefined
+            hidden: hiddenSetPerf ? hiddenSetPerf.has(labelEstimateBg) : false
         });
 
         // Create datasets for each category
@@ -1085,29 +1166,35 @@
                 pointHoverRadius: 5,
                 showLine: false,
                 order: 1,
-                hidden: hiddenSetPerf && hiddenSetPerf.has(labelPerf) ? true : undefined
+                hidden: hiddenSetPerf ? hiddenSetPerf.has(labelPerf) : false
             });
 
-            // Rolling average for this category
-            const rollingAverageData = [];
-            for (let i = 0; i < categoryData.length; i++) {
-                const currentDate = new Date(categoryData[i].time);
-                const windowStart = new Date(currentDate.getTime() - halfWindowMs);
-                const windowEnd = new Date(currentDate.getTime() + halfWindowMs);
-
-                const windowData = categoryData.filter(t => {
-                    const tDate = new Date(t.time);
-                    return tDate >= windowStart && tDate <= windowEnd;
-                });
-
-                if (windowData.length > 0) {
-                    const avg = windowData.reduce((sum, t) => sum + t.performanceFactor, 0) / windowData.length;
-                    rollingAverageData.push({
-                        x: currentDate,
-                        y: avg
-                    });
+            // Rolling average for this category using monthly helper (full-window)
+            const rollingAverageData = (() => {
+                if (categoryData.length === 0) return [];
+                const times = categoryData.map(t => new Date(t.time).getTime());
+                const firstMonth = monthStart(new Date(Math.min(...times)));
+                const lastMonth = monthStart(new Date(Math.max(...times)));
+                const index = new Map();
+                for (const t of categoryData) {
+                    const m = monthStart(new Date(t.time));
+                    const key = m.getTime();
+                    const agg = index.get(key) || { sum: 0, count: 0 };
+                    agg.sum += t.performanceFactor;
+                    agg.count += 1;
+                    index.set(key, agg);
                 }
-            }
+                const months = [];
+                for (let dt = new Date(firstMonth); dt <= lastMonth; dt = new Date(dt.getFullYear(), dt.getMonth() + 1, 1)) {
+                    months.push(new Date(dt));
+                }
+                const monthly = months.map(m => {
+                    const agg = index.get(m.getTime());
+                    return agg ? { month: m, average: agg.sum / agg.count, count: agg.count } : { month: m, average: 0, count: 0 };
+                });
+                const roll = rollingAverageMonthly(monthly, rollingMonthsPerf, true);
+                return roll.filter(p => p.value != null).map(p => ({ x: p.time, y: p.value }));
+            })();
 
             const labelPerfRoll = `${category} - Rolling Avg`;
             datasets.push({
@@ -1121,7 +1208,7 @@
                 tension: 0.4,
                 borderDash: [5, 5],
                 order: 2,
-                hidden: hiddenSetPerf && hiddenSetPerf.has(labelPerfRoll) ? true : undefined
+                hidden: hiddenSetPerf ? hiddenSetPerf.has(labelPerfRoll) : false
             });
         });
 
@@ -1137,7 +1224,7 @@
             fill: false,
             showLine: true,
             order: 3,
-            hidden: hiddenSetPerf && hiddenSetPerf.has(labelWithin) ? true : undefined
+            hidden: hiddenSetPerf ? hiddenSetPerf.has(labelWithin) : false
         });
 
         const labelHigh = 'High Estimate Threshold (1.0)';
@@ -1151,7 +1238,7 @@
             fill: false,
             showLine: true,
             order: 3,
-            hidden: hiddenSetPerf && hiddenSetPerf.has(labelHigh) ? true : undefined
+            hidden: hiddenSetPerf ? hiddenSetPerf.has(labelHigh) : false
         });
 
         performanceChartInstance = new Chart(ctx, {
@@ -1351,7 +1438,7 @@
             .map(p => ({
                 x: new Date(p.time),
                 y: p.hammerPricePerArea,
-                sold: (p.sold ?? p.Sold ?? null),
+                sold: isSold(p),
                 sale: {
                     name: p.title || p.Name || p.name,
                     category: p.category || p.Category,
@@ -1367,7 +1454,7 @@
             .map(p => ({
                 x: new Date(p.time),
                 y: p.hammerPricePerAreaInflationAdjusted,
-                sold: (p.sold ?? p.Sold ?? null),
+                sold: isSold(p),
                 sale: {
                     name: p.title || p.Name || p.name,
                     category: p.category || p.Category,
@@ -1379,47 +1466,13 @@
                 }
             }));
 
-        const halfWindowMs = rollingMonthsPerArea * 30 * 24 * 60 * 60 * 1000;
-
-        // Calculate rolling average for hammer price per area
-        const perAreaRollingAvg = [];
-        for (let i = 0; i < perArea.length; i++) {
-            const currentDate = perArea[i].x;
-            const windowStart = new Date(currentDate.getTime() - halfWindowMs);
-            const windowEnd = new Date(currentDate.getTime() + halfWindowMs);
-
-            const windowData = perArea.filter(d => {
-                return d.x >= windowStart && d.x <= windowEnd && (d.sold === true);
-            });
-
-            if (windowData.length > 0) {
-                const avg = windowData.reduce((sum, d) => sum + d.y, 0) / windowData.length;
-                perAreaRollingAvg.push({
-                    x: currentDate,
-                    y: avg
-                });
-            }
-        }
-
-        // Calculate rolling average for inflation-adjusted per area
-        const perAreaAdjRollingAvg = [];
-        for (let i = 0; i < perAreaAdj.length; i++) {
-            const currentDate = perAreaAdj[i].x;
-            const windowStart = new Date(currentDate.getTime() - halfWindowMs);
-            const windowEnd = new Date(currentDate.getTime() + halfWindowMs);
-
-            const windowData = perAreaAdj.filter(d => {
-                return d.x >= windowStart && d.x <= windowEnd && (d.sold === true);
-            });
-
-            if (windowData.length > 0) {
-                const avg = windowData.reduce((sum, d) => sum + d.y, 0) / windowData.length;
-                perAreaAdjRollingAvg.push({
-                    x: currentDate,
-                    y: avg
-                });
-            }
-        }
+        // Build monthly series and compute rolling averages using helper
+        const monthlyPerArea = buildMonthlyFromPoints(perArea);
+        const monthlyPerAreaAdj = buildMonthlyFromPoints(perAreaAdj);
+        const rollPerArea = rollingAverageMonthly(monthlyPerArea, rollingMonthsPerArea, true);
+        const rollPerAreaAdj = rollingAverageMonthly(monthlyPerAreaAdj, rollingMonthsPerArea, true);
+        const perAreaRollingAvg = rollPerArea.filter(p => p.value != null).map(p => ({ x: p.time, y: p.value }));
+        const perAreaAdjRollingAvg = rollPerAreaAdj.filter(p => p.value != null).map(p => ({ x: p.time, y: p.value }));
 
         hammerPerAreaChartInstance = new Chart(ctx, {
             type: 'scatter',
@@ -1434,7 +1487,7 @@
                         pointHoverRadius: 5,
                         showLine: false,
                         order: 1,
-                        hidden: hiddenSetArea && hiddenSetArea.has('Hammer Price per Area (€/cm²)') ? true : undefined
+                        hidden: hiddenSetArea ? hiddenSetArea.has('Hammer Price per Area (€/cm²)') : false
                     },
                     {
                         label: 'Hammer Price per Area - Rolling Avg',
@@ -1447,7 +1500,7 @@
                         tension: 0.4,
                         borderDash: [5, 5],
                         order: 2,
-                        hidden: hiddenSetArea && hiddenSetArea.has('Hammer Price per Area - Rolling Avg') ? true : undefined
+                        hidden: hiddenSetArea ? hiddenSetArea.has('Hammer Price per Area - Rolling Avg') : false
                     },
                     {
                         label: 'Inflation-Adjusted per Area (€/cm²)',
@@ -1458,7 +1511,7 @@
                         pointHoverRadius: 5,
                         showLine: false,
                         order: 1,
-                        hidden: hiddenSetArea && hiddenSetArea.has('Inflation-Adjusted per Area (€/cm²)') ? true : undefined
+                        hidden: hiddenSetArea ? hiddenSetArea.has('Inflation-Adjusted per Area (€/cm²)') : false
                     },
                     {
                         label: 'Inflation-Adjusted - Rolling Avg',
@@ -1471,7 +1524,7 @@
                         tension: 0.4,
                         borderDash: [5, 5],
                         order: 2,
-                        hidden: hiddenSetArea && hiddenSetArea.has('Inflation-Adjusted - Rolling Avg') ? true : undefined
+                        hidden: hiddenSetArea ? hiddenSetArea.has('Inflation-Adjusted - Rolling Avg') : false
                     }
                 ]
             },

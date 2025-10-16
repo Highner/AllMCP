@@ -166,4 +166,4 @@
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/m5t10pc0pi-430stmiiwi.gz
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/AllMCPSolution.RazorAssemblyInfo.cache
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/AllMCPSolution.RazorAssemblyInfo.cs
-/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/swd2nrnfww-fnrcx4txhp.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/swd2nrnfww-ke8b6n5o7z.gz
