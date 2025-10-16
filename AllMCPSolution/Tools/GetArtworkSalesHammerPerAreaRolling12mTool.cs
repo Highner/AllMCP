@@ -158,8 +158,8 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase
             series.Add(new
             {
                 Time = monthly[i].Month,
-                CountInWindow = totalSales,
-                Rolling12mHammerPricePerAreaInflationAdjusted = rolling
+                //CountInWindow = totalSales,
+                Value = rolling
             });
         }
 
