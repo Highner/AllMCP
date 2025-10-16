@@ -166,7 +166,7 @@ builder.Services.AddMcpServer(options =>
               <head>
                 <meta charset="UTF-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <title>Hello World ✨ Linus is gay</title>
+                <title>Hello World ✨</title>
                 <style>
                   :root {
                     --bg: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
@@ -219,7 +219,7 @@ builder.Services.AddMcpServer(options =>
               </head>
               <body>
                 <div class="card">
-                  <h2>Hello World 👋</h2>
+                  <h2>Hello World 👋 linus is gay</h2>
                   <p id="msg">Loading message...</p>
                 </div>
             
