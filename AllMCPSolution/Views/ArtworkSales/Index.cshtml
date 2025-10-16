@@ -9,15 +9,17 @@
     <title>@ViewData["Title"]</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6fb; margin: 0; }
-        .container { max-width: 1200px; margin: 30px auto; background: white; padding: 24px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+        .container { max-width: 1600px; margin: 30px auto; background: white; padding: 24px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
         h1 { margin: 0 0 16px; color: #333; }
         .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
         .toolbar input[type="text"]{ padding: 10px 12px; border: 2px solid #667eea; border-radius: 6px; min-width: 260px; }
         .btn{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
         .btn.secondary{ background: linear-gradient(135deg, #6c757d 0%, #495057 100%); }
-        .preview-table{ width: 100%; min-width: 1100px; border-collapse: collapse; font-size: 14px; background: white; border-radius: 6px; overflow: hidden; }
+        .preview-table{ width: 100%; min-width: 1500px; border-collapse: collapse; font-size: 14px; background: white; border-radius: 6px; overflow: hidden; }
         .preview-table th, .preview-table td{ padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; white-space: nowrap; }
         .preview-table thead th{ background: #eef1ff; color: #333; position: sticky; top: 0; z-index: 1; cursor: pointer; }
+        .preview-table th.name-col, .preview-table td.name-col { width: 350px; max-width: 350px; }
+        .preview-table td.name-col { overflow: hidden; text-overflow: ellipsis; }
         .preview-scroller{ max-height: 500px; overflow: auto; border: 1px solid #eef1ff; border-radius: 6px; }
         .muted{ color: #777; font-size: 13px; }
         .actions button{ margin-right: 6px; }
@@ -131,7 +133,7 @@
             <thead>
                 <tr>
                     <th data-sort="artist">Artist</th>
-                    <th data-sort="name">Name</th>
+                    <th data-sort="name" class="name-col">Name</th>
                     <th data-sort="category">Category</th>
                     <th>Technique</th>
                     <th data-sort="saledate">Sale Date</th>
@@ -164,7 +166,19 @@
     let sortBy = 'saledate';
     let sortDir = 'asc';
 
-    function formatDate(iso){ if(!iso) return ''; const d = new Date(iso); return d.toISOString().slice(0,10); }
+    function formatDate(iso){
+        if(!iso) return '';
+        if (typeof iso === 'string') {
+            // Accept either full ISO or date-only and just take the YYYY-MM-DD part without UTC conversion
+            const s = iso.trim();
+            if (s.length >= 10) return s.slice(0,10);
+        }
+        const d = new Date(iso);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
     function money(v){ return (v ?? 0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}); }
 
     async function loadArtists(){
@@ -220,7 +234,7 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${r.artistName || ''}</td>
-                <td>${r.name || ''}</td>
+                <td class="name-col">${r.name || ''}</td>
                 <td>${r.category || ''}</td>
                 <td>${r.technique || ''}</td>
                 <td>${formatDate(r.saleDate)}</td>
@@ -302,7 +316,7 @@
             name: fName.value?.trim(),
             artistId: document.getElementById('fArtistSelect').value,
             yearCreated: parseInt(fYearCreated.value||'0')||0,
-            saleDate: fSaleDate.value ? new Date(fSaleDate.value).toISOString() : null,
+            saleDate: fSaleDate.value ? fSaleDate.value : null,
             technique: fTechnique.value?.trim(),
             category: newCat || document.getElementById('fCategorySelect').value?.trim(),
             currency: fCurrency.value || null,
