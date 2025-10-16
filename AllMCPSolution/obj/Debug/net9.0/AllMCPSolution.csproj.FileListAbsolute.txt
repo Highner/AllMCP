@@ -162,8 +162,8 @@
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/AllMCPSo.96AD8D32.Up2Date
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/AllMCPSolution.staticwebassets.runtime.json
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/HtmlAgilityPack.dll
-/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/ha6umacg54-7dvl6r0vtd.gz
-/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/m5t10pc0pi-430stmiiwi.gz
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/AllMCPSolution.RazorAssemblyInfo.cache
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/AllMCPSolution.RazorAssemblyInfo.cs
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/swd2nrnfww-ke8b6n5o7z.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/m5t10pc0pi-bu0u90jwng.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/ha6umacg54-bod072hz5z.gz

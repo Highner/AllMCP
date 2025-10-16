@@ -26,7 +26,7 @@
             padding: 40px;
             border-radius: 10px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            max-width: 500px;
+            max-width: 1200px;
             width: 100%;
         }
 
@@ -248,6 +248,60 @@
             color: #999;
             font-style: italic;
         }
+
+        .parsed-section {
+            margin-top: 25px;
+            padding: 15px;
+            background-color: #f8f9ff;
+            border-radius: 8px;
+            display: none;
+        }
+        .parsed-section.visible {
+            display: block;
+        }
+        .parsed-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .parsed-title {
+            font-weight: bold;
+            color: #333;
+        }
+        .preview-table {
+            width: 100%;
+            min-width: 1100px;
+            border-collapse: collapse;
+            font-size: 14px;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .preview-table th, .preview-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+            vertical-align: top;
+            white-space: nowrap;
+        }
+        .preview-table thead th {
+            background: #eef1ff;
+            color: #333;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .preview-scroller {
+            max-height: 260px;
+            overflow: auto;
+            border: 1px solid #eef1ff;
+            border-radius: 6px;
+        }
+        .muted {
+            color: #777;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -298,6 +352,38 @@
     </div>
 
     <div class="message" id="message"></div>
+
+    <div id="parsedSection" class="parsed-section">
+        <div class="parsed-header">
+            <div class="parsed-title">Parsed Data Preview <span id="previewCount" class="muted"></span></div>
+            <div>
+                <button type="button" id="saveBtn" class="btn btn-small" style="margin-right:8px; display:none;">Save</button>
+                <button type="button" id="clearPreviewBtn" class="btn btn-small btn-secondary">Clear Preview</button>
+            </div>
+        </div>
+        <div class="preview-scroller">
+            <table class="preview-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Year</th>
+                        <th>Sale Date</th>
+                        <th>Technique</th>
+                        <th>Category</th>
+                        <th>Currency</th>
+                        <th>Low Est.</th>
+                        <th>High Est.</th>
+                        <th>Hammer</th>
+                        <th>Sold</th>
+                        <th>W</th>
+                        <th>H</th>
+                    </tr>
+                </thead>
+                <tbody id="previewBody"></tbody>
+            </table>
+        </div>
+        <div class="muted" style="margin-top:8px;">Showing up to 50 rows from the uploaded file(s).</div>
+    </div>
 </div>
 
 <script>
@@ -314,8 +400,14 @@
     const artistFirstName = document.getElementById('artistFirstName');
     const artistLastName = document.getElementById('artistLastName');
     const addArtistBtn = document.getElementById('addArtistBtn');
+    const parsedSection = document.getElementById('parsedSection');
+    const previewBody = document.getElementById('previewBody');
+    const previewCount = document.getElementById('previewCount');
+    const clearPreviewBtn = document.getElementById('clearPreviewBtn');
+    const saveBtn = document.getElementById('saveBtn');
 
     let selectedFiles = [];
+    let currentBatchId = null;
 
     // Load artists on page load
     async function loadArtists() {
@@ -485,9 +577,9 @@
 
                 if (xhr.status === 200) {
                     const response = JSON.parse(xhr.responseText);
-                    let detailMessage = `Files uploaded successfully!\n`;
-                    detailMessage += `${response.filesProcessed} files processed, `;
-                    detailMessage += `${response.inserted} records inserted, ${response.skipped} skipped.\n\n`;
+                    let detailMessage = `Files parsed successfully!\n`;
+                    detailMessage += `${response.filesProcessed} files processed, ${response.totalParsed} records parsed.\n`;
+                    detailMessage += `Not saved yet — review the preview and click Save to persist.\n\n`;
 
                     // Show details for each file
                     if (response.fileDetails && response.fileDetails.length > 1) {
@@ -502,6 +594,24 @@
                     }
 
                     showMessage(detailMessage, 'success');
+
+                    // Render parsed preview if available
+                    if (response.preview && Array.isArray(response.preview) && response.preview.length > 0) {
+                        renderPreview(response.preview, response.totalParsed);
+                    } else {
+                        clearPreview();
+                    }
+
+                    // Batch handling for Save
+                    if (response.batchId) {
+                        currentBatchId = response.batchId;
+                        saveBtn.style.display = 'inline-block';
+                        saveBtn.disabled = false;
+                    } else {
+                        currentBatchId = null;
+                        saveBtn.style.display = 'none';
+                    }
+
                     fileInfo.classList.remove('visible');
                     selectedFiles = [];
                     fileInput.value = '';
@@ -530,6 +640,119 @@
             uploadBtn.disabled = false;
         }
     });
+
+    // Preview rendering helpers
+    clearPreviewBtn.addEventListener('click', () => {
+        clearPreview();
+    });
+
+    // Save handler
+    saveBtn.addEventListener('click', async () => {
+        if (!currentBatchId) {
+            showMessage('Nothing to save. Please upload and parse a file first.', 'error');
+            return;
+        }
+        saveBtn.disabled = true;
+        try {
+            const res = await fetch('/api/upload/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ batchId: currentBatchId })
+            });
+            const result = await res.json();
+            if (res.ok) {
+                showMessage(`${result.message || 'Saved.'} Inserted: ${result.inserted}, Skipped: ${result.skipped}.`, 'success');
+                clearPreview();
+            } else {
+                showMessage(result.message || 'Save failed.', 'error');
+                saveBtn.disabled = false;
+            }
+        } catch (e) {
+            showMessage('Error saving: ' + e.message, 'error');
+            saveBtn.disabled = false;
+        }
+    });
+
+    function clearPreview() {
+        previewBody.innerHTML = '';
+        previewCount.textContent = '';
+        parsedSection.classList.remove('visible');
+        currentBatchId = null;
+        if (saveBtn) { saveBtn.style.display = 'none'; saveBtn.disabled = false; }
+    }
+
+    function renderPreview(rows, totalParsed) {
+        previewBody.innerHTML = '';
+        rows.forEach(r => {
+            const tr = document.createElement('tr');
+            const name = pick(r,'Name','name');
+            const year = pick(r,'YearCreated','yearCreated');
+            const saleDate = pick(r,'SaleDate','saleDate');
+            const technique = pick(r,'Technique','technique');
+            const category = pick(r,'Category','category');
+            const currency = pick(r,'Currency','currency');
+            const lowEst = pick(r,'LowEstimate','lowEstimate');
+            const highEst = pick(r,'HighEstimate','highEstimate');
+            const hammer = pick(r,'HammerPrice','hammerPrice');
+            const sold = pick(r,'Sold','sold');
+            const width = pick(r,'Width','width');
+            const height = pick(r,'Height','height');
+
+            tr.appendChild(td(safe(name)));
+            tr.appendChild(td(val(year)));
+            tr.appendChild(td(formatDate(saleDate)));
+            tr.appendChild(td(safe(technique)));
+            tr.appendChild(td(safe(category)));
+            tr.appendChild(td(safe(currency)));
+            tr.appendChild(td(formatMoney(lowEst, currency)));
+            tr.appendChild(td(formatMoney(highEst, currency)));
+            tr.appendChild(td(formatMoney(hammer, currency)));
+            tr.appendChild(td(sold ? 'Yes' : 'No'));
+            tr.appendChild(td(val(width)));
+            tr.appendChild(td(val(height)));
+            previewBody.appendChild(tr);
+        });
+        const shown = rows.length || 0;
+        previewCount.textContent = `(${shown} of ${totalParsed ?? shown})`;
+        parsedSection.classList.add('visible');
+    }
+
+    function td(text) {
+        const cell = document.createElement('td');
+        cell.textContent = text ?? '';
+        return cell;
+    }
+
+    function formatDate(input) {
+        if (!input) return '';
+        try {
+            const d = new Date(input);
+            if (isNaN(d.getTime())) return String(input);
+            return d.toLocaleDateString();
+        } catch { return String(input); }
+    }
+
+    function formatMoney(n, currency) {
+        if (n === null || n === undefined || isNaN(Number(n))) return '';
+        try {
+            return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(Number(n));
+        } catch {
+            return Number(n).toLocaleString();
+        }
+    }
+
+    function val(x) {
+        if (x === null || x === undefined) return '';
+        return String(x);
+    }
+
+    function safe(x) { return x || ''; }
+
+    // Pick value supporting either PascalCase or camelCase keys from server
+    function pick(o, pascal, camel) {
+        const v = o && o[pascal];
+        return v !== undefined && v !== null ? v : (o ? o[camel] : undefined);
+    }
 
     function showMessage(text, type) {
         message.textContent = text;
