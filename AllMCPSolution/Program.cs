@@ -103,6 +103,9 @@ app.MapPost("/mcp", async (HttpContext context) =>
     return Results.Json(response);
 });
 
+// Explicit OPTIONS handler for CORS preflight on /mcp (some environments require it)
+app.MapMethods("/mcp", new[] { "OPTIONS" }, () => Results.Ok());
+
 
 
 app.MapGet("/", async (HttpContext context) =>
