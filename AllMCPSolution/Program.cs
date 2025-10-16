@@ -145,7 +145,7 @@ app.MapGet("/.well-known/anthropic-manifest", (ManifestGenerator manifestGenerat
 });
 
 // OpenAI Agent Builder MCP discovery endpoint
-app.MapGet("/.well-known/openai-mcp", (IServiceProvider serviceProvider) =>
+app.MapGet("/.well-known/mcp", (IServiceProvider serviceProvider) =>
 {
     using var scope = serviceProvider.CreateScope();
     var manifestGenerator = scope.ServiceProvider.GetRequiredService<ManifestGenerator>();
