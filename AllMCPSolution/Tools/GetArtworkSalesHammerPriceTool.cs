@@ -10,7 +10,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IInflationService _inflationService;
-    private const int MaxResults = 300;
+    private const int MaxResults = 250;
 
     public GetArtworkSalesHammerPriceTool(ApplicationDbContext dbContext, IInflationService inflationService)
     {
@@ -78,7 +78,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
             .OrderByDescending(a => a.SaleDate)
             .Skip(skip)
             .Take(MaxResults)
-            .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.HammerPrice, a.Sold, a.Height, a.Width })
+            .Select(a => new { a.Name, a.Category, a.Technique, a.YearCreated, a.SaleDate, a.HammerPrice, a.Sold, a.Height, a.Width, a.HighEstimate, a.LowEstimate })
             .ToListAsync();
 
         var list = new List<object>(sales.Count);
@@ -98,9 +98,11 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
                 Time = s.SaleDate,
                 Sold = s.Sold,
                 HammerPrice = s.HammerPrice,
-                HammerPriceInflationAdjusted = adj,
                 HammerPricePerArea = perArea,
-                HammerPricePerAreaInflationAdjusted = perAreaAdj,
+                LowEstimate = s.LowEstimate,
+                HighEstimate = s.HighEstimate,
+                HammerPriceInflationAdjusted = adj,
+                HammerPricePerAreaInflationAdjusted = perAreaAdj
             });
         }
 
