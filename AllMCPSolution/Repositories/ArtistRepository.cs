@@ -65,15 +65,46 @@ public class ArtistRepository : IArtistRepository
     }
 
     private static bool IsDatabaseUnavailable(Exception ex)
-        => ex switch
+    {
+        var seen = new HashSet<Exception>();
+        var stack = new Stack<Exception>();
+        if (ex != null) stack.Push(ex);
+
+        const int maxNodes = 128;
+        int visited = 0;
+
+        while (stack.Count > 0 && visited < maxNodes)
         {
-            SqlException => true,
-            DbException => true,
-            TimeoutException => true,
-            InvalidOperationException ioe when ioe.InnerException is not null && IsDatabaseUnavailable(ioe.InnerException) => true,
-            _ when ex.InnerException is not null && IsDatabaseUnavailable(ex.InnerException) => true,
-            _ => false
-        };
+            var current = stack.Pop();
+            visited++;
+
+            if (!seen.Add(current))
+                continue; // avoid cycles
+
+            switch (current)
+            {
+                case SqlException:
+                case DbException:
+                case TimeoutException:
+                case TaskCanceledException:
+                case OperationCanceledException:
+                    return true;
+                case AggregateException agg:
+                    foreach (var inner in agg.Flatten().InnerExceptions)
+                    {
+                        if (inner is not null) stack.Push(inner);
+                    }
+                    break;
+            }
+
+            if (current.InnerException is not null)
+            {
+                stack.Push(current.InnerException);
+            }
+        }
+
+        return false;
+    }
 
     private static IReadOnlyList<ArtistSeed> LoadFallbackArtists()
     {
