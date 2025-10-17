@@ -56,7 +56,7 @@ public sealed class McpToolRegistry
         return ValueTask.FromResult(new ListToolsResult { Tools = tools });
     }
 
-    public ValueTask<CallToolResult> CallToolAsync(ModelContextProtocol.Protocol.CallToolRequestParams request, CancellationToken ct)
+    public async ValueTask<CallToolResult> CallToolAsync(ModelContextProtocol.Protocol.CallToolRequestParams request, CancellationToken ct)
     {
         var name = request?.Name ?? string.Empty;
         if (!_toolTypesByName.TryGetValue(name, out var type))
@@ -64,7 +64,8 @@ public sealed class McpToolRegistry
 
         using var scope = _rootProvider.CreateScope();
         var tool = (IMcpTool)scope.ServiceProvider.GetRequiredService(type);
-        return tool.RunAsync(request!, ct);
+        var result = await tool.RunAsync(request!, ct);
+        return result;
     }
 
     public ValueTask<ListResourcesResult> ListResourcesAsync(CancellationToken ct)
