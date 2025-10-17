@@ -22,14 +22,12 @@ public class BottleRepository : IBottleRepository
     {
         return await _db.Bottles
             .AsNoTracking()
-            .Include(b => b.WineVintage)
-                .ThenInclude(wv => wv.Wine)
-                    .ThenInclude(w => w.Country)
-            .Include(b => b.WineVintage)
-                .ThenInclude(wv => wv.Wine)
-                    .ThenInclude(w => w.Region)
-            .OrderBy(b => b.WineVintage.Wine.Name)
-            .ThenBy(b => b.WineVintage.Vintage)
+            .Include(b => b.Wine)
+                .ThenInclude(w => w.Country)
+            .Include(b => b.Wine)
+                .ThenInclude(w => w.Region)
+            .OrderBy(b => b.Wine.Name)
+            .ThenBy(b => b.Vintage)
             .ToListAsync(ct);
     }
 
@@ -37,12 +35,10 @@ public class BottleRepository : IBottleRepository
     {
         return await _db.Bottles
             .AsNoTracking()
-            .Include(b => b.WineVintage)
-                .ThenInclude(wv => wv.Wine)
-                    .ThenInclude(w => w.Country)
-            .Include(b => b.WineVintage)
-                .ThenInclude(wv => wv.Wine)
-                    .ThenInclude(w => w.Region)
+            .Include(b => b.Wine)
+                .ThenInclude(w => w.Country)
+            .Include(b => b.Wine)
+                .ThenInclude(w => w.Region)
             .FirstOrDefaultAsync(b => b.Id == id, ct);
     }
 

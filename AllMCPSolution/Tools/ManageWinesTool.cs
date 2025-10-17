@@ -19,29 +19,24 @@ namespace AllMCPSolution.Tools;
 public sealed class ManageWinesTool : IToolBase, IMcpTool
 {
     private readonly IWineRepository _wineRepository;
-    private readonly IWineVintageRepository _wineVintageRepository;
     private readonly ICountryRepository _countryRepository;
     private readonly IRegionRepository _regionRepository;
 
     private readonly Lazy<IReadOnlyList<OptionDescriptor>> _countryOptions;
     private readonly Lazy<IReadOnlyList<OptionDescriptor>> _regionOptions;
-    private readonly Lazy<IReadOnlyList<WineVintageOptionDescriptor>> _wineVintageOptions;
 
     private readonly string[] _colorOptions = Enum.GetNames(typeof(WineColor));
 
     public ManageWinesTool(
         IWineRepository wineRepository,
-        IWineVintageRepository wineVintageRepository,
         ICountryRepository countryRepository,
         IRegionRepository regionRepository)
     {
         _wineRepository = wineRepository;
-        _wineVintageRepository = wineVintageRepository;
         _countryRepository = countryRepository;
         _regionRepository = regionRepository;
         _countryOptions = new Lazy<IReadOnlyList<OptionDescriptor>>(LoadCountryOptions, LazyThreadSafetyMode.ExecutionAndPublication);
         _regionOptions = new Lazy<IReadOnlyList<OptionDescriptor>>(LoadRegionOptions, LazyThreadSafetyMode.ExecutionAndPublication);
-        _wineVintageOptions = new Lazy<IReadOnlyList<WineVintageOptionDescriptor>>(LoadWineVintageOptions, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     public string Name => "manage_wines";
@@ -130,30 +125,18 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
         var operation = operationRaw?.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(operation))
         {
-            return OperationResult.Failure("Operation is required. Supported operations: list, get, create, update, delete, create_vintage, update_vintage, delete_vintage.");
+            return OperationResult.Failure("Operation is required. Supported operations: list, get, create, update, delete.");
         }
 
-        switch (operation)
+        return operation switch
         {
-            case "list":
-                return await ListAsync(ct);
-            case "get":
-                return await GetAsync(parameters, ct);
-            case "create":
-                return await CreateAsync(parameters, ct);
-            case "update":
-                return await UpdateAsync(parameters, ct);
-            case "delete":
-                return await DeleteAsync(parameters, ct);
-            case "create_vintage":
-                return await CreateVintageAsync(parameters, ct);
-            case "update_vintage":
-                return await UpdateVintageAsync(parameters, ct);
-            case "delete_vintage":
-                return await DeleteVintageAsync(parameters, ct);
-            default:
-                return OperationResult.Failure($"Unsupported operation '{operation}'. Valid options: list, get, create, update, delete, create_vintage, update_vintage, delete_vintage.");
-        }
+            "list" => await ListAsync(ct),
+            "get" => await GetAsync(parameters, ct),
+            "create" => await CreateAsync(parameters, ct),
+            "update" => await UpdateAsync(parameters, ct),
+            "delete" => await DeleteAsync(parameters, ct),
+            _ => OperationResult.Failure($"Unsupported operation '{operation}'. Valid options: list, get, create, update, delete.")
+        };
     }
 
     private async Task<OperationResult> ListAsync(CancellationToken ct)
@@ -190,8 +173,6 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
         var grapeVariety = ParameterHelpers.GetStringParameter(parameters, "grapeVariety", "grape_variety");
         if (string.IsNullOrWhiteSpace(grapeVariety)) validationErrors.Add("'grapeVariety' is required.");
 
-        var vintage = ParameterHelpers.GetIntParameter(parameters, "vintage", "vintage");
-
         var colorRaw = ParameterHelpers.GetStringParameter(parameters, "color", "color");
         if (!TryParseWineColor(colorRaw, out var color)) validationErrors.Add("'color' is required. Valid options: " + string.Join(", ", _colorOptions) + ".");
 
@@ -217,17 +198,6 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
         };
 
         await _wineRepository.AddAsync(wine, ct);
-        if (vintage is not null)
-        {
-            var wineVintage = new WineVintage
-            {
-                Id = Guid.NewGuid(),
-                WineId = wine.Id,
-                Vintage = vintage.Value
-            };
-
-            await _wineVintageRepository.AddAsync(wineVintage, ct);
-        }
 
         var created = await _wineRepository.GetByIdAsync(wine.Id, ct) ?? wine;
 
@@ -278,85 +248,10 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
         return OperationResult.CreateSuccess("delete", $"Wine {id} deleted if it existed.", null);
     }
 
-    private async Task<OperationResult> CreateVintageAsync(Dictionary<string, object>? parameters, CancellationToken ct)
-    {
-        var validationErrors = new List<string>();
-
-        var wineId = ParameterHelpers.GetGuidParameter(parameters, "wineId", "wine_id");
-        if (wineId is null) validationErrors.Add("'wineId' is required.");
-
-        var vintage = ParameterHelpers.GetIntParameter(parameters, "vintage", "vintage");
-        if (vintage is null) validationErrors.Add("'vintage' is required and must be a valid year.");
-
-        if (validationErrors.Count > 0)
-        {
-            return OperationResult.Failure("Validation failed.", validationErrors);
-        }
-
-        var wine = await _wineRepository.GetByIdAsync(wineId!.Value, ct);
-        if (wine is null)
-        {
-            return OperationResult.Failure($"Wine with id {wineId} was not found.");
-        }
-
-        var wineVintage = new WineVintage
-        {
-            Id = Guid.NewGuid(),
-            WineId = wine.Id,
-            Vintage = vintage!.Value
-        };
-
-        await _wineVintageRepository.AddAsync(wineVintage, ct);
-        var created = await _wineVintageRepository.GetByIdAsync(wineVintage.Id, ct) ?? wineVintage;
-
-        return OperationResult.CreateSuccess("create_vintage", "Wine vintage created successfully.", MapWineVintage(created));
-    }
-
-    private async Task<OperationResult> UpdateVintageAsync(Dictionary<string, object>? parameters, CancellationToken ct)
-    {
-        var id = ParameterHelpers.GetGuidParameter(parameters, "wineVintageId", "wine_vintage_id");
-        if (id is null)
-        {
-            return OperationResult.Failure("'wineVintageId' is required for update_vintage.");
-        }
-
-        var wineVintage = await _wineVintageRepository.GetByIdAsync(id.Value, ct);
-        if (wineVintage is null)
-        {
-            return OperationResult.Failure($"Wine vintage with id {id} was not found.");
-        }
-
-        var vintage = ParameterHelpers.GetIntParameter(parameters, "vintage", "vintage");
-        if (vintage is null)
-        {
-            return OperationResult.Failure("'vintage' is required to update a wine vintage.");
-        }
-
-        wineVintage.Vintage = vintage.Value;
-
-        await _wineVintageRepository.UpdateAsync(wineVintage, ct);
-        var updated = await _wineVintageRepository.GetByIdAsync(wineVintage.Id, ct) ?? wineVintage;
-
-        return OperationResult.CreateSuccess("update_vintage", "Wine vintage updated successfully.", MapWineVintage(updated));
-    }
-
-    private async Task<OperationResult> DeleteVintageAsync(Dictionary<string, object>? parameters, CancellationToken ct)
-    {
-        var id = ParameterHelpers.GetGuidParameter(parameters, "wineVintageId", "wine_vintage_id");
-        if (id is null)
-        {
-            return OperationResult.Failure("'wineVintageId' is required for delete_vintage.");
-        }
-
-        await _wineVintageRepository.DeleteAsync(id.Value, ct);
-        return OperationResult.CreateSuccess("delete_vintage", $"Wine vintage {id} deleted if it existed.", null);
-    }
-
     private JsonObject BuildInputSchema()
     {
         var countryOptions = _countryOptions.Value.Select(o => $"{o.Name} (Id: {o.Id})").ToArray();
         var regionOptions = _regionOptions.Value.Select(o => $"{o.Name} (Id: {o.Id})").ToArray();
-        var wineVintageOptions = _wineVintageOptions.Value.Select(o => $"{o.DisplayName} (WineVintageId: {o.Id})").ToArray();
 
         var properties = new JsonObject
         {
@@ -364,27 +259,13 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
             {
                 ["type"] = "string",
                 ["description"] = "CRUD operation to perform.",
-                ["enum"] = new JsonArray("list", "get", "create", "update", "delete", "create_vintage", "update_vintage", "delete_vintage")
+                ["enum"] = new JsonArray("list", "get", "create", "update", "delete")
             },
             ["id"] = new JsonObject
             {
                 ["type"] = "string",
                 ["format"] = "uuid",
                 ["description"] = "Wine identifier (required for get, update, delete).",
-            },
-            ["wineVintageId"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["format"] = "uuid",
-                ["description"] = "Wine vintage identifier (required for update_vintage, delete_vintage). Available options: " + string.Join(", ", wineVintageOptions),
-                ["options"] = new JsonArray(wineVintageOptions.Select(o => (JsonNode?)o).ToArray())
-            },
-            ["wine_vintage_id"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["format"] = "uuid",
-                ["description"] = "Wine vintage identifier (snake_case). Available options: " + string.Join(", ", wineVintageOptions),
-                ["options"] = new JsonArray(wineVintageOptions.Select(o => (JsonNode?)o).ToArray())
             },
             ["name"] = new JsonObject
             {
@@ -400,11 +281,6 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
             {
                 ["type"] = "string",
                 ["description"] = "Primary grape variety (snake_case alias).",
-            },
-            ["vintage"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "Vintage year (optional for create, required for create_vintage and update_vintage).",
             },
             ["color"] = new JsonObject
             {
@@ -440,13 +316,6 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
                 ["format"] = "uuid",
                 ["description"] = "Region id linked to the wine (snake_case). Available options: " + string.Join(", ", regionOptions),
                 ["options"] = new JsonArray(regionOptions.Select(o => (JsonNode?)o).ToArray())
-            },
-            ["wineVintageOptions"] = new JsonObject
-            {
-                ["type"] = "array",
-                ["description"] = "Available wine vintage options (read-only helper).",
-                ["items"] = new JsonObject { ["type"] = "string" },
-                ["default"] = new JsonArray(wineVintageOptions.Select(o => (JsonNode?)o).ToArray())
             }
         };
 
@@ -484,15 +353,6 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
             .Select(r => new OptionDescriptor(r.Id, r.Name))
             .ToList();
 
-    private IReadOnlyList<WineVintageOptionDescriptor> LoadWineVintageOptions()
-        => _wineVintageRepository.GetAllAsync(CancellationToken.None)
-            .GetAwaiter()
-            .GetResult()
-            .Select(wv => new WineVintageOptionDescriptor(
-                wv.Id,
-                $"{wv.Wine?.Name ?? "Unknown Wine"} {wv.Vintage} - {wv.Wine?.Color.ToString() ?? "Unknown Color"} ({wv.Wine?.Country?.Name ?? "Unknown Country"} / {wv.Wine?.Region?.Name ?? "Unknown Region"})"))
-            .ToList();
-
     private static bool TryParseWineColor(string? value, out WineColor color)
     {
         if (!string.IsNullOrWhiteSpace(value) && Enum.TryParse<WineColor>(value, true, out var parsed))
@@ -514,36 +374,19 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
             color = wine.Color.ToString(),
             country = wine.Country is null ? null : new { id = wine.Country.Id, name = wine.Country.Name },
             region = wine.Region is null ? null : new { id = wine.Region.Id, name = wine.Region.Name },
-            vintages = wine.WineVintages?
-                .OrderBy(v => v.Vintage)
-                .Select(v => new
+            bottles = wine.Bottles?
+                .OrderBy(b => b.Vintage)
+                .Select(b => new
                 {
-                    id = v.Id,
-                    vintage = v.Vintage
+                    id = b.Id,
+                    vintage = b.Vintage,
+                    price = b.Price,
+                    score = b.Score
                 })
                 .ToList()
         };
 
-    private static object MapWineVintage(WineVintage wineVintage)
-        => new
-        {
-            id = wineVintage.Id,
-            vintage = wineVintage.Vintage,
-            wine = wineVintage.Wine is null
-                ? null
-                : new
-                {
-                    id = wineVintage.Wine.Id,
-                    name = wineVintage.Wine.Name,
-                    color = wineVintage.Wine.Color.ToString(),
-                    country = wineVintage.Wine.Country is null ? null : new { id = wineVintage.Wine.Country.Id, name = wineVintage.Wine.Country.Name },
-                    region = wineVintage.Wine.Region is null ? null : new { id = wineVintage.Wine.Region.Id, name = wineVintage.Wine.Region.Name }
-                }
-        };
-
     private sealed record OptionDescriptor(Guid Id, string Name);
-
-    private sealed record WineVintageOptionDescriptor(Guid Id, string DisplayName);
 
     private sealed record OperationResult
     {

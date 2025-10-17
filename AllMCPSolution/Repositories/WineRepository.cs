@@ -24,7 +24,7 @@ public class WineRepository : IWineRepository
             .AsNoTracking()
             .Include(w => w.Country)
             .Include(w => w.Region)
-            .Include(w => w.WineVintages)
+            .Include(w => w.Bottles)
             .OrderBy(w => w.Name)
             .ToListAsync(ct);
     }
@@ -35,7 +35,7 @@ public class WineRepository : IWineRepository
             .AsNoTracking()
             .Include(w => w.Country)
             .Include(w => w.Region)
-            .Include(w => w.WineVintages)
+            .Include(w => w.Bottles)
             .FirstOrDefaultAsync(w => w.Id == id, ct);
     }
 
