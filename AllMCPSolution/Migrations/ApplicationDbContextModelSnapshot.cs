@@ -147,12 +147,12 @@ namespace AllMCPSolution.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("nvarchar(1024)");
 
-                    b.Property<Guid>("WineId")
+                    b.Property<Guid>("WineVintageId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("WineId");
+                    b.HasIndex("WineVintageId");
 
                     b.ToTable("Bottles");
                 });
@@ -245,19 +245,36 @@ namespace AllMCPSolution.Migrations
                     b.Property<Guid>("RegionId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("Vintage")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CountryId");
 
                     b.HasIndex("RegionId");
 
-                    b.HasIndex("Name", "Vintage", "CountryId", "RegionId")
+                    b.HasIndex("Name", "CountryId", "RegionId")
                         .IsUnique();
 
                     b.ToTable("Wines");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.WineVintage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Vintage")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("WineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WineId", "Vintage")
+                        .IsUnique();
+
+                    b.ToTable("WineVintages");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Artwork", b =>
@@ -284,13 +301,13 @@ namespace AllMCPSolution.Migrations
 
             modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
                 {
-                    b.HasOne("AllMCPSolution.Models.Wine", "Wine")
+                    b.HasOne("AllMCPSolution.Models.WineVintage", "WineVintage")
                         .WithMany("Bottles")
-                        .HasForeignKey("WineId")
+                        .HasForeignKey("WineVintageId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Wine");
+                    b.Navigation("WineVintage");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>
@@ -312,6 +329,17 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("Region");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.WineVintage", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.Wine", "Wine")
+                        .WithMany("WineVintages")
+                        .HasForeignKey("WineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Wine");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.Artist", b =>
                 {
                     b.Navigation("Artworks");
@@ -328,6 +356,11 @@ namespace AllMCPSolution.Migrations
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>
+                {
+                    b.Navigation("WineVintages");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.WineVintage", b =>
                 {
                     b.Navigation("Bottles");
                 });

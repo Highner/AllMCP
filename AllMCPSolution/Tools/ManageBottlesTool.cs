@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -18,28 +19,28 @@ namespace AllMCPSolution.Tools;
 public sealed class ManageBottlesTool : IToolBase, IMcpTool
 {
     private readonly IBottleRepository _bottleRepository;
-    private readonly IWineRepository _wineRepository;
+    private readonly IWineVintageRepository _wineVintageRepository;
     private readonly ICountryRepository _countryRepository;
     private readonly IRegionRepository _regionRepository;
 
     private readonly Lazy<IReadOnlyList<OptionDescriptor>> _countryOptions;
     private readonly Lazy<IReadOnlyList<OptionDescriptor>> _regionOptions;
-    private readonly Lazy<IReadOnlyList<WineOptionDescriptor>> _wineOptions;
+    private readonly Lazy<IReadOnlyList<WineVintageOptionDescriptor>> _wineVintageOptions;
     private readonly string[] _colorOptions = Enum.GetNames(typeof(WineColor));
 
     public ManageBottlesTool(
         IBottleRepository bottleRepository,
-        IWineRepository wineRepository,
+        IWineVintageRepository wineVintageRepository,
         ICountryRepository countryRepository,
         IRegionRepository regionRepository)
     {
         _bottleRepository = bottleRepository;
-        _wineRepository = wineRepository;
+        _wineVintageRepository = wineVintageRepository;
         _countryRepository = countryRepository;
         _regionRepository = regionRepository;
         _countryOptions = new Lazy<IReadOnlyList<OptionDescriptor>>(LoadCountryOptions, LazyThreadSafetyMode.ExecutionAndPublication);
         _regionOptions = new Lazy<IReadOnlyList<OptionDescriptor>>(LoadRegionOptions, LazyThreadSafetyMode.ExecutionAndPublication);
-        _wineOptions = new Lazy<IReadOnlyList<WineOptionDescriptor>>(LoadWineOptions, LazyThreadSafetyMode.ExecutionAndPublication);
+        _wineVintageOptions = new Lazy<IReadOnlyList<WineVintageOptionDescriptor>>(LoadWineVintageOptions, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     public string Name => "manage_bottles";
@@ -170,8 +171,8 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
     {
         var validationErrors = new List<string>();
 
-        var wineId = ParameterHelpers.GetGuidParameter(parameters, "wineId", "wine_id");
-        if (wineId is null) validationErrors.Add("'wineId' is required.");
+        var wineVintageId = ParameterHelpers.GetGuidParameter(parameters, "wineVintageId", "wine_vintage_id");
+        if (wineVintageId is null) validationErrors.Add("'wineVintageId' is required.");
 
         var price = ParameterHelpers.GetDecimalParameter(parameters, "price", "price");
         var score = ParameterHelpers.GetDecimalParameter(parameters, "score", "score");
@@ -183,16 +184,16 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
             return OperationResult.Failure("Validation failed.", validationErrors);
         }
 
-        var wine = await _wineRepository.GetByIdAsync(wineId!.Value, ct);
-        if (wine is null)
+        var wineVintage = await _wineVintageRepository.GetByIdAsync(wineVintageId!.Value, ct);
+        if (wineVintage is null)
         {
-            return OperationResult.Failure($"Wine with id {wineId} was not found.");
+            return OperationResult.Failure($"Wine vintage with id {wineVintageId} was not found.");
         }
 
         var bottle = new Bottle
         {
             Id = Guid.NewGuid(),
-            WineId = wine.Id,
+            WineVintageId = wineVintage.Id,
             Price = price,
             Score = score,
             TastingNote = tastingNote ?? string.Empty
@@ -218,21 +219,21 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
             return OperationResult.Failure($"Bottle with id {id} was not found.");
         }
 
-        var wineId = ParameterHelpers.GetGuidParameter(parameters, "wineId", "wine_id");
+        var wineVintageId = ParameterHelpers.GetGuidParameter(parameters, "wineVintageId", "wine_vintage_id");
         var price = ParameterHelpers.GetDecimalParameter(parameters, "price", "price");
         var score = ParameterHelpers.GetDecimalParameter(parameters, "score", "score");
         var tastingNote = ParameterHelpers.GetStringParameter(parameters, "tastingNote", "tasting_note")
                           ?? ParameterHelpers.GetStringParameter(parameters, "tastingNotes", "tasting_notes");
 
-        if (wineId is not null)
+        if (wineVintageId is not null)
         {
-            var wine = await _wineRepository.GetByIdAsync(wineId.Value, ct);
-            if (wine is null)
+            var wineVintage = await _wineVintageRepository.GetByIdAsync(wineVintageId.Value, ct);
+            if (wineVintage is null)
             {
-                return OperationResult.Failure($"Wine with id {wineId} was not found.");
+                return OperationResult.Failure($"Wine vintage with id {wineVintageId} was not found.");
             }
 
-            bottle.WineId = wine.Id;
+            bottle.WineVintageId = wineVintage.Id;
         }
 
         if (price is not null) bottle.Price = price;
@@ -261,7 +262,7 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
     {
         var countryOptions = _countryOptions.Value.Select(o => $"{o.Name} (Id: {o.Id})").ToArray();
         var regionOptions = _regionOptions.Value.Select(o => $"{o.Name} (Id: {o.Id})").ToArray();
-        var wineOptions = _wineOptions.Value.Select(o => $"{o.DisplayName} (WineId: {o.Id})").ToArray();
+        var wineVintageOptions = _wineVintageOptions.Value.Select(o => $"{o.DisplayName} (WineVintageId: {o.Id})").ToArray();
 
         var properties = new JsonObject
         {
@@ -277,19 +278,19 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
                 ["format"] = "uuid",
                 ["description"] = "Bottle identifier (required for get, update, delete)."
             },
-            ["wineId"] = new JsonObject
+            ["wineVintageId"] = new JsonObject
             {
                 ["type"] = "string",
                 ["format"] = "uuid",
-                ["description"] = "Wine id to associate with the bottle. Available options: " + string.Join(", ", wineOptions),
-                ["options"] = new JsonArray(wineOptions.Select(o => (JsonNode?)o).ToArray())
+                ["description"] = "Wine vintage id to associate with the bottle. Available options: " + string.Join(", ", wineVintageOptions),
+                ["options"] = new JsonArray(wineVintageOptions.Select(o => (JsonNode?)o).ToArray())
             },
-            ["wine_id"] = new JsonObject
+            ["wine_vintage_id"] = new JsonObject
             {
                 ["type"] = "string",
                 ["format"] = "uuid",
-                ["description"] = "Wine id (snake_case). Available options: " + string.Join(", ", wineOptions),
-                ["options"] = new JsonArray(wineOptions.Select(o => (JsonNode?)o).ToArray())
+                ["description"] = "Wine vintage id (snake_case). Available options: " + string.Join(", ", wineVintageOptions),
+                ["options"] = new JsonArray(wineVintageOptions.Select(o => (JsonNode?)o).ToArray())
             },
             ["price"] = new JsonObject
             {
@@ -331,6 +332,13 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
                 ["description"] = "Available wine colors (read-only helper).",
                 ["items"] = new JsonObject { ["type"] = "string" },
                 ["default"] = new JsonArray(_colorOptions.Select(o => (JsonNode?)o).ToArray())
+            },
+            ["wineVintageOptions"] = new JsonObject
+            {
+                ["type"] = "array",
+                ["description"] = "Available wine vintage options (read-only helper).",
+                ["items"] = new JsonObject { ["type"] = "string" },
+                ["default"] = new JsonArray(wineVintageOptions.Select(o => (JsonNode?)o).ToArray())
             }
         };
 
@@ -368,13 +376,13 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
             .Select(r => new OptionDescriptor(r.Id, r.Name))
             .ToList();
 
-    private IReadOnlyList<WineOptionDescriptor> LoadWineOptions()
-        => _wineRepository.GetAllAsync(CancellationToken.None)
+    private IReadOnlyList<WineVintageOptionDescriptor> LoadWineVintageOptions()
+        => _wineVintageRepository.GetAllAsync(CancellationToken.None)
             .GetAwaiter()
             .GetResult()
-            .Select(w => new WineOptionDescriptor(
-                w.Id,
-                $"{w.Name} {w.Vintage} - {w.Color} ({w.Country?.Name ?? "Unknown Country"} / {w.Region?.Name ?? "Unknown Region"})"))
+            .Select(wv => new WineVintageOptionDescriptor(
+                wv.Id,
+                $"{wv.Wine?.Name ?? "Unknown Wine"} {wv.Vintage} - {wv.Wine?.Color.ToString() ?? "Unknown Color"} ({wv.Wine?.Country?.Name ?? "Unknown Country"} / {wv.Wine?.Region?.Name ?? "Unknown Region"})"))
             .ToList();
 
     private static object MapBottle(Bottle bottle)
@@ -384,23 +392,40 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
             price = bottle.Price,
             score = bottle.Score,
             tastingNote = bottle.TastingNote,
-            wine = bottle.Wine is null
+            wineVintage = bottle.WineVintage is null
                 ? null
                 : new
                 {
-                    id = bottle.Wine.Id,
-                    name = bottle.Wine.Name,
-                    grapeVariety = bottle.Wine.GrapeVariety,
-                    vintage = bottle.Wine.Vintage,
-                    color = bottle.Wine.Color.ToString(),
-                    country = bottle.Wine.Country is null ? null : new { id = bottle.Wine.Country.Id, name = bottle.Wine.Country.Name },
-                    region = bottle.Wine.Region is null ? null : new { id = bottle.Wine.Region.Id, name = bottle.Wine.Region.Name }
+                    id = bottle.WineVintage.Id,
+                    vintage = bottle.WineVintage.Vintage,
+                    wine = bottle.WineVintage.Wine is null
+                        ? null
+                        : new
+                        {
+                            id = bottle.WineVintage.Wine.Id,
+                            name = bottle.WineVintage.Wine.Name,
+                            grapeVariety = bottle.WineVintage.Wine.GrapeVariety,
+                            color = bottle.WineVintage.Wine.Color.ToString(),
+                            country = bottle.WineVintage.Wine.Country is null ? null : new { id = bottle.WineVintage.Wine.Country.Id, name = bottle.WineVintage.Wine.Country.Name },
+                            region = bottle.WineVintage.Wine.Region is null ? null : new { id = bottle.WineVintage.Wine.Region.Id, name = bottle.WineVintage.Wine.Region.Name }
+                        }
+                },
+            wine = bottle.WineVintage?.Wine is null
+                ? null
+                : new
+                {
+                    id = bottle.WineVintage.Wine.Id,
+                    name = bottle.WineVintage.Wine.Name,
+                    grapeVariety = bottle.WineVintage.Wine.GrapeVariety,
+                    color = bottle.WineVintage.Wine.Color.ToString(),
+                    country = bottle.WineVintage.Wine.Country is null ? null : new { id = bottle.WineVintage.Wine.Country.Id, name = bottle.WineVintage.Wine.Country.Name },
+                    region = bottle.WineVintage.Wine.Region is null ? null : new { id = bottle.WineVintage.Wine.Region.Id, name = bottle.WineVintage.Wine.Region.Name }
                 }
         };
 
     private sealed record OptionDescriptor(Guid Id, string Name);
 
-    private sealed record WineOptionDescriptor(Guid Id, string DisplayName);
+    private sealed record WineVintageOptionDescriptor(Guid Id, string DisplayName);
 
     private sealed record OperationResult
     {
