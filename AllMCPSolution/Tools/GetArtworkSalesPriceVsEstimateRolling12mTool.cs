@@ -266,25 +266,14 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
         };
 
     public ValueTask<ReadResourceResult> ReadResourceAsync(ReadResourceRequestParams request, CancellationToken ct)
-    {
-        if (request.Uri != UiUri)
-            throw new McpException("Resource not found", McpErrorCode.InvalidParams);
+{
+    if (request.Uri != UiUri)
+        throw new McpException("Resource not found", McpErrorCode.InvalidParams);
 
-        // Build module URL from config (fallback to placeholder if not set)
-        var moduleUrl = _config["WidgetAssets:PriceVsEstimateModuleUrl"] ?? "https://cdn.jsdelivr.net/gh/YOUR_ORG/YOUR_REPO@TAG/wwwroot/widgets/price-vs-estimate-widget.js";
-        
-        Uri? moduleUri = null;
-        if (!Uri.TryCreate(moduleUrl, UriKind.Absolute, out moduleUri)) moduleUri = null;
+    // Only Chart.js stays external; the widget is inlined to avoid CORS entirely.
+    var resourceDomains = new List<string> { "https://cdn.jsdelivr.net" };
 
-        // Prepare CSP resource domains: Chart.js origin + module origin
-        var resourceDomains = new List<string> { "https://cdn.jsdelivr.net" };
-        if (moduleUri != null)
-        {
-            var origin = $"{moduleUri.Scheme}://{moduleUri.Host}";
-            if (!resourceDomains.Contains(origin)) resourceDomains.Add(origin);
-        }
-
-        const string htmlTemplate = """
+    const string htmlTemplate = """
 <!doctype html>
 <html>
   <head>
@@ -310,45 +299,236 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
       <div id="emptyState" class="empty" hidden>No results available for the selected filters.</div>
     </div>
 
-    <!-- Chart.js (only once) -->
+    <!-- Chart.js (external) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer id="chartjs"></script>
 
-    <!-- Your widget module -->
-<script type="module" defer crossorigin="anonymous"
-id="price-vs-estimate-module"
-src="{{MODULE_URL}}"></script>
+    <!-- Inlined, hardened widget (no CORS) -->
+    <script>
+      // ---- DOM refs
+      const container = document.getElementById('chartContainer');
+      const emptyState = document.getElementById('emptyState');
+      const canvas = document.getElementById('trendChart');
+      const ctx = canvas?.getContext?.('2d') ?? canvas;
 
+      let chart;
+      let latestPayload = null;
+      let chartReady = false;
+
+      // ---- Utils
+      const tryParseJSON = (v) => {
+        if (typeof v !== 'string') return v;
+        try { return JSON.parse(v); } catch { return v; }
+      };
+
+      // Resolve host-injected payload across various shapes
+      const resolveOutputPayload = (payload) => {
+        const p = tryParseJSON(payload);
+        if (!p || (typeof p !== 'object' && !Array.isArray(p))) return null;
+
+        if (Array.isArray(p.timeSeries) || Array.isArray(p)) return p;
+
+        const keys = [
+          'toolOutput','output','detail','data','payload','result',
+          'structuredContent','structured_content','structured_output','structured',
+          'message'
+        ];
+        for (const k of keys) {
+          if (p && typeof p === 'object' && p[k] != null) {
+            const r = resolveOutputPayload(p[k]);
+            if (r) return r;
+          }
+        }
+        return p;
+      };
+
+      const normalizePoints = (output) => {
+        const raw = output?.timeSeries ?? output?.TimeSeries ?? output;
+        const arr = Array.isArray(raw)
+          ? raw
+          : (raw && typeof raw === 'object')
+            ? (Array.isArray(raw.$values) ? raw.$values : Object.values(raw))
+            : [];
+        return arr
+          .map(p => (typeof p === 'string' ? tryParseJSON(p) : p))
+          .filter(p => p && typeof p === 'object');
+      };
+
+      const render = (output = {}) => {
+        if (typeof window.Chart === 'undefined') {
+          latestPayload = output;
+          container.hidden = true;
+          emptyState.hidden = false;
+          emptyState.textContent = output?.description || 'Loading chart library…';
+          return;
+        }
+
+        const points = normalizePoints(output);
+        if (!points.length) {
+          if (chart) { chart.destroy(); chart = null; }
+          container.hidden = true;
+          emptyState.hidden = false;
+          emptyState.textContent = output?.description || 'No results available.';
+          return;
+        }
+
+        const getTime = (p) => p.Time ?? p.time ?? p.date ?? p.t ?? p.timestamp;
+        const getValue = (p) => p.Value ?? p.value ?? p.v;
+
+        const labels = points.map(p =>
+          new Date(getTime(p)).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })
+        );
+        const values = points.map(p => {
+          const v = getValue(p);
+          return typeof v === 'number' ? v : (typeof v === 'string' ? Number(v) : null);
+        });
+
+        container.hidden = false;
+        emptyState.hidden = true;
+
+        if (!chart) {
+          chart = new window.Chart(ctx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Position in estimate range',
+                data: values,
+                tension: 0.35,
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37,99,235,0.2)',
+                fill: true,
+                pointRadius: 2,
+                pointHoverRadius: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  title: { display: true, text: 'Position in estimate range' },
+                  suggestedMin: 0, suggestedMax: 1,
+                  ticks: { callback: v => Number(v).toFixed(2) }
+                },
+                x: { title: { display: true, text: 'Month' } }
+              }
+            }
+          });
+        } else {
+          chart.data.labels = labels;
+          chart.data.datasets[0].data = values;
+          chart.update();
+        }
+      };
+
+      // ---- Chart.js readiness
+      const onChartReady = () => {
+        if (chartReady) return;
+        if (typeof window.Chart !== 'undefined') {
+          chartReady = true;
+          if (latestPayload) render(latestPayload);
+        }
+      };
+
+      if (typeof window.Chart !== 'undefined') {
+        onChartReady();
+      } else {
+        const s = document.getElementById('chartjs');
+        if (s) s.addEventListener('load', onChartReady, { once: true });
+        const poll = setInterval(() => {
+          if (typeof window.Chart !== 'undefined') { clearInterval(poll); onChartReady(); }
+        }, 100);
+        setTimeout(() => clearInterval(poll), 5000);
+      }
+
+      // ---- Host wiring
+      const handlePayload = (payload) => {
+        const resolved = resolveOutputPayload(payload) || {};
+        latestPayload = resolved;
+        render(resolved);
+      };
+
+      const attachListeners = () => {
+        const openai = window.openai;
+        if (!openai) return false;
+
+        // initial payload if present
+        if (openai.toolOutput) handlePayload(openai.toolOutput);
+        if (openai.message?.toolOutput) handlePayload(openai.message.toolOutput);
+
+        // subscribe variants
+        if (typeof openai.subscribeToToolOutput === 'function') {
+          openai.subscribeToToolOutput(handlePayload);
+        } else if (typeof openai.onToolOutput === 'function') {
+          openai.onToolOutput(handlePayload);
+        }
+        return true;
+      };
+
+      let attached = attachListeners();
+
+      if (!attached) {
+        window.addEventListener('openai:set_globals', (evt) => {
+          const payload = evt?.detail?.toolOutput ?? window.openai?.toolOutput ?? window.openai?.message?.toolOutput;
+          if (!attached) attached = attachListeners();
+          if (payload) handlePayload(payload);
+        });
+
+        window.addEventListener('openai:tool-output', e => handlePayload(e?.detail));
+        window.addEventListener('message', e => {
+          const p = e?.data;
+          if (p && (p.type === 'openai-tool-output' || p.type === 'tool-output')) {
+            handlePayload(p.detail ?? p.payload ?? p.data ?? p);
+          }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+          const payload = window.openai?.toolOutput ?? window.openai?.message?.toolOutput;
+          if (payload) handlePayload(payload);
+        });
+      }
+
+      // If everything was ready before listeners attached:
+      const initial = resolveOutputPayload(window.openai?.toolOutput ?? window.openai?.message?.toolOutput) || null;
+      if (initial) handlePayload(initial);
+
+      // Optional self-test: uncomment to verify rendering without tool output
+      // handlePayload({ timeSeries: [
+      //   { Time: '2024-01-01', Value: 0.4 },
+      //   { Time: '2024-02-01', Value: 0.55 },
+      //   { Time: '2024-03-01', Value: 0.62 },
+      // ], description: 'Self-test data' });
+    </script>
   </body>
 </html>
-
 """;
-        var html = htmlTemplate.Replace("{{MODULE_URL}}", moduleUrl);
 
-        // IMPORTANT: add widget CSP so the sandbox can load external assets (Chart.js and the module).
-        var resourceDomainsArray = new JsonArray();
-        foreach (var d in resourceDomains) resourceDomainsArray.Add(d);
+    // CSP metadata — only the Chart.js origin is needed now
+    var resourceDomainsArray = new JsonArray();
+    foreach (var d in resourceDomains) resourceDomainsArray.Add(d);
 
-        var meta = new JsonObject
+    var meta = new JsonObject
+    {
+        ["openai/widgetCSP"] = new JsonObject
         {
-            ["openai/widgetCSP"] = new JsonObject
+            ["resource_domains"] = resourceDomainsArray,
+            ["connect_domains"]  = new JsonArray()
+        }
+    };
+
+    return ValueTask.FromResult(new ReadResourceResult
+    {
+        Contents =
+        [
+            new TextResourceContents
             {
-                ["resource_domains"] = resourceDomainsArray,
-                ["connect_domains"]  = new JsonArray()
+                Uri = UiUri,
+                MimeType = "text/html+skybridge",
+                Text = htmlTemplate,
+                Meta = meta
             }
-        };
+        ]
+    });
+}
 
-        return ValueTask.FromResult(new ReadResourceResult
-        {
-            Contents =
-            [
-                new TextResourceContents
-                {
-                    Uri = UiUri,
-                    MimeType = "text/html+skybridge",
-                    Text = html,
-                    Meta = meta
-                }
-            ]
-        });
-    }
 }
