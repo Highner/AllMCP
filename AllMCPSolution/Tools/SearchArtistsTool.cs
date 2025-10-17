@@ -290,7 +290,7 @@ public class SearchArtistsTool : IToolBase, IMcpTool
         Name = Name,
         Title = "Search artists",
         Description = Description,
-        InputSchema = System.Text.Json.JsonDocument.Parse("""
+        InputSchema = JsonDocument.Parse("""
         {
           "type": "object",
           "properties": {
@@ -349,19 +349,30 @@ public class SearchArtistsTool : IToolBase, IMcpTool
                 StructuredContent = node
             };
         }
-        catch (McpException)
+        catch (McpException ex)
         {
-            // Re-throw MCP exceptions unchanged
-            throw;
+            return new CallToolResult
+            {
+                Content = ex.Message is not null ? [ new TextContentBlock { Type = "text", Text = ex.Message + ex.StackTrace } ] : null,
+                //StructuredContent = node
+            };
         }
         catch (ArgumentException ex)
         {
-            throw new McpException(ex.Message, McpErrorCode.InvalidParams);
+            return new CallToolResult
+            {
+                Content = ex.Message is not null ? [ new TextContentBlock { Type = "text", Text = ex.Message + ex.StackTrace } ] : null,
+                //StructuredContent = node
+            };
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Avoid leaking internal errors; return generic message
-            throw new McpException("An error occurred while executing search_artists.", McpErrorCode.InternalError);
+            return new CallToolResult
+            {
+                Content = ex.Message is not null ? [ new TextContentBlock { Type = "text", Text = ex.Message + ex.StackTrace } ] : null,
+                //StructuredContent = node
+            };
+            
         }
     }
 }
