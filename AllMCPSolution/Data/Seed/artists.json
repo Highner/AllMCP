@@ -1,0 +1,12 @@
+[
+  { "id": "f7d6f8a1-2f36-4ea0-8f24-4a4e6e0a66a1", "firstName": "Vincent", "lastName": "van Gogh" },
+  { "id": "1c23e01e-0db1-4ac2-86ed-7113676ce6da", "firstName": "Claude", "lastName": "Monet" },
+  { "id": "5b9d0cfe-9445-49ab-86f7-47c4c909ad13", "firstName": "Pablo", "lastName": "Picasso" },
+  { "id": "ad9d64ea-4971-4d7a-bbe7-e9f385059c20", "firstName": "Frida", "lastName": "Kahlo" },
+  { "id": "35c5a5e3-e8b7-4d39-8aa1-bab1c41b9ef1", "firstName": "Georgia", "lastName": "O'Keeffe" },
+  { "id": "4f21c9c8-33fd-4018-b0e8-589cdbcc0b26", "firstName": "Salvador", "lastName": "Dalí" },
+  { "id": "2a5c1b9c-358f-49f3-9ab5-74af44c8a23c", "firstName": "Henri", "lastName": "Matisse" },
+  { "id": "f95e9c4b-91a7-4229-9edc-7b8ad7d81f94", "firstName": "Leonardo", "lastName": "da Vinci" },
+  { "id": "f58d734c-d1c2-4ec4-8460-0c5f7c82d610", "firstName": "Rembrandt", "lastName": "van Rijn" },
+  { "id": "b2e45b82-5d72-4b38-9e0f-92e5e672d6f5", "firstName": "Yayoi", "lastName": "Kusama" }
+]

@@ -24,4 +24,10 @@
       <None Include="wwwroot\UploadSales.html" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="Data\Seed\artists.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>
