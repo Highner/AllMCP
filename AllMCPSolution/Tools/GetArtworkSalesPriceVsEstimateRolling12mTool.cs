@@ -317,64 +317,132 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
               <div id="emptyState" class="empty" hidden>No results available for the selected filters.</div>
             </div>
             <script type="module">
-              const output = (window.openai && window.openai.toolOutput) || {};
-              const points = Array.isArray(output.timeSeries) ? output.timeSeries : [];
-
               const container = document.getElementById('chartContainer');
               const emptyState = document.getElementById('emptyState');
+              const ctx = document.getElementById('trendChart');
 
-              if (!points.length) {
-                container.hidden = true;
-                emptyState.hidden = false;
-                emptyState.textContent = output.description || 'No results available.';
-              } else {
+              let chart;
+
+              const normalizePoints = (output) => {
+                const rawSeries = output && output.timeSeries;
+                let points = Array.isArray(rawSeries)
+                  ? rawSeries
+                  : (rawSeries && typeof rawSeries === 'object')
+                    ? Object.values(rawSeries.$values || rawSeries)
+                    : [];
+
+                return points.filter(p => p && typeof p === 'object');
+              };
+
+              const render = (output = {}) => {
+                const points = normalizePoints(output);
+
+                if (!points.length) {
+                  if (chart) {
+                    chart.destroy();
+                    chart = null;
+                  }
+                  container.hidden = true;
+                  emptyState.hidden = false;
+                  emptyState.textContent = output.description || 'No results available.';
+                  return;
+                }
+
                 const labels = points.map(p => new Date(p.Time).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }));
                 const values = points.map(p => typeof p.Value === 'number' ? p.Value : null);
 
-                const ctx = document.getElementById('trendChart');
-                new window.Chart(ctx, {
-                  type: 'line',
-                  data: {
-                    labels,
-                    datasets: [{
-                      label: 'Position in estimate range',
-                      data: values,
-                      tension: 0.35,
-                      borderColor: '#2563eb',
-                      backgroundColor: 'rgba(37, 99, 235, 0.2)',
-                      fill: true,
-                      pointRadius: 2,
-                      pointHoverRadius: 4
-                    }]
-                  },
-                  options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                      y: {
-                        title: { display: true, text: 'Position in estimate range' },
-                        suggestedMin: 0,
-                        suggestedMax: 1,
-                        ticks: { callback: value => value.toFixed(2) }
-                      },
-                      x: {
-                        title: { display: true, text: 'Month' }
-                      }
+                container.hidden = false;
+                emptyState.hidden = true;
+
+                if (!chart) {
+                  chart = new window.Chart(ctx, {
+                    type: 'line',
+                    data: {
+                      labels,
+                      datasets: [{
+                        label: 'Position in estimate range',
+                        data: values,
+                        tension: 0.35,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                        fill: true,
+                        pointRadius: 2,
+                        pointHoverRadius: 4
+                      }]
                     },
-                    plugins: {
-                      legend: { display: true },
-                      tooltip: {
-                        callbacks: {
-                          label: context => {
-                            const value = typeof context.parsed.y === 'number' ? context.parsed.y.toFixed(2) : 'n/a';
-                            return `Position: ${value}`;
+                    options: {
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      scales: {
+                        y: {
+                          title: { display: true, text: 'Position in estimate range' },
+                          suggestedMin: 0,
+                          suggestedMax: 1,
+                          ticks: { callback: value => value.toFixed(2) }
+                        },
+                        x: {
+                          title: { display: true, text: 'Month' }
+                        }
+                      },
+                      plugins: {
+                        legend: { display: true },
+                        tooltip: {
+                          callbacks: {
+                            label: context => {
+                              const value = typeof context.parsed.y === 'number' ? context.parsed.y.toFixed(2) : 'n/a';
+                              return `Position: ${value}`;
+                            }
                           }
                         }
                       }
                     }
+                  });
+                } else {
+                  chart.data.labels = labels;
+                  chart.data.datasets[0].data = values;
+                  chart.update();
+                }
+              };
+
+              const attachListeners = () => {
+                const openai = window.openai;
+                if (!openai) return false;
+
+                if (openai.toolOutput) {
+                  render(openai.toolOutput);
+                }
+
+                if (typeof openai.subscribeToToolOutput === 'function') {
+                  openai.subscribeToToolOutput(render);
+                } else if (typeof openai.onToolOutput === 'function') {
+                  openai.onToolOutput(render);
+                }
+
+                return true;
+              };
+
+              if (!attachListeners()) {
+                const interval = setInterval(() => {
+                  if (attachListeners()) {
+                    clearInterval(interval);
                   }
-                });
+                }, 150);
               }
+
+              window.addEventListener('openai:tool-output', event => {
+                if (event && event.detail) {
+                  render(event.detail);
+                }
+              });
+
+              window.addEventListener('message', event => {
+                const payload = event && event.data;
+                if (payload && (payload.type === 'openai-tool-output' || payload.type === 'tool-output')) {
+                  render(payload.detail || payload.payload || payload.data || {});
+                }
+              });
+
+              render((window.openai && window.openai.toolOutput) || {});
             </script>
           </body>
         </html>
