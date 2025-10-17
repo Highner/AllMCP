@@ -6,8 +6,39 @@ These guidelines define mandatory practices for this repository.
   - Do not access the DbContext directly from controllers, services, tools, or views.
   - Create an appropriate repository interface and implementation in the Repositories folder and inject it where needed.
 
-- All MCP tools must be built using the IMcpTool interface.
-  - Implement the required contract on your tool class.
-  - Ensure your tool is properly discoverable/registered per the project’s MCP tooling setup.
+- Tool interfaces and exposure (MANDATORY).
+  - Every executable tool class MUST implement both interfaces: IToolBase and IMcpTool.
+  - IResourceProvider is OPTIONAL and only required if the tool serves UI/assets via MCP resources. Do not implement it unless you actually serve resources.
+  - Decorate tool classes with [McpTool("name", "description")] so they are discoverable by both the OpenAPI manifest and the MCP registry.
+  - Keep a single source of truth (DRY):
+    - Put business logic in IToolBase.ExecuteAsync(Dictionary<string, object>? parameters).
+    - Implement IMcpTool.RunAsync(...) by converting the MCP arguments to Dictionary<string, object> and delegating to ExecuteAsync.
+
+- Input/Output schemas for tools.
+  - For OpenAPI: implement GetOpenApiSchema() returning the OpenAPI request body schema for the tool.
+  - For MCP: IMcpTool.GetDefinition().InputSchema MUST be a valid JSON Schema for input arguments (type: "object", properties, required), NOT an OpenAPI operation object.
+  - Prefer reusing the same property map in both paths (e.g., ParameterHelpers.CreateOpenApiProperties(...)).
+  - Tools should return structured results as plain POCO/anonymous objects; the MCP implementation should set CallToolResult.StructuredContent accordingly.
+
+- Dependency injection and lifetimes.
+  - Register repositories, DbContext-backed services, and all tools in DI as Scoped unless there is a clear reason to do otherwise.
+  - Tools must receive all dependencies via constructor injection; do not use service locators inside business logic.
+  - MCP tool activation is DI-backed. Ensure all IMcpTool implementers are registered so the McpToolRegistry can resolve them from a scope.
+
+- Discovery and registration.
+  - The solution scans for IMcpTool implementers and registers them; ensure your tool class is non-abstract and public.
+  - Tool names MUST be unique across the application. Use stable, lowercase, snake_case names.
+
+- Safety and metadata.
+  - Populate IToolBase.SafetyLevel when applicable and (optionally) mirror it in the MCP Tool.Meta object.
+  - If you expose UI via IResourceProvider, ensure Resource.Uri values are stable and referenced from Tool.Meta (e.g., "openai/outputTemplate").
+
+- Error handling.
+  - Validate inputs early; return informative error messages in structured results when appropriate.
+  - Throw McpException with a suitable McpErrorCode for MCP-specific validation errors; do not leak internal exceptions.
+
+- Testing (strongly recommended).
+  - Unit-test repositories independently of tools.
+  - Add integration tests that cover: OpenAPI /tools/{name} invocation and MCP list_tools + call_tool for the same tool to ensure parity.
 
 Feel free to extend this document with additional conventions (naming, testing, error handling) as the project evolves.
