@@ -2,11 +2,15 @@ using AllMCPSolution.Attributes;
 using AllMCPSolution.Tools;
 using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Services;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 
 namespace AllMCPSolution.Artworks;
 
 [McpTool("get_artwork_sales_hammer_price_rolling_12m", "Returns 12-month rolling averages of hammer prices, including inflation-adjusted values, one data point per month.")]
-public class GetArtworkSalesHammerPriceRolling12mTool : IToolBase
+public class GetArtworkSalesHammerPriceRolling12mTool : IToolBase, IMcpTool
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IInflationService _inflationService;
@@ -199,4 +203,43 @@ public class GetArtworkSalesHammerPriceRolling12mTool : IToolBase
             }
         };
     }
+
+    // IMcpTool implementation (delegates to ExecuteAsync to keep DRY)
+    public Tool GetDefinition() => new Tool
+    {
+        Name = Name,
+        Title = "Artwork hammer price (12m rolling)",
+        Description = Description,
+        InputSchema = JsonDocument.Parse(JsonSerializer.Serialize(GetOpenApiSchema())).RootElement
+    };
+
+    public async ValueTask<CallToolResult> RunAsync(CallToolRequestParams request, CancellationToken ct)
+    {
+        Dictionary<string, object?>? dict = null;
+        if (request?.Arguments is not null)
+        {
+            dict = new Dictionary<string, object?>();
+            foreach (var kvp in request.Arguments)
+            {
+                dict[kvp.Key] = JsonElementToNet(kvp.Value);
+            }
+        }
+
+        var result = await ExecuteAsync(dict);
+        return new CallToolResult
+        {
+            StructuredContent = JsonSerializer.SerializeToNode(result) as JsonObject
+        };
+    }
+
+    private static object? JsonElementToNet(JsonElement el) => el.ValueKind switch
+    {
+        JsonValueKind.String => el.GetString(),
+        JsonValueKind.Number => el.TryGetInt64(out var i) ? i : el.TryGetDecimal(out var d) ? d : null,
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Object => el.EnumerateObject().ToDictionary(p => p.Name, p => JsonElementToNet(p.Value)),
+        JsonValueKind.Array => el.EnumerateArray().Select(JsonElementToNet).ToArray(),
+        _ => null
+    };
 }

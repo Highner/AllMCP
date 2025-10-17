@@ -9,83 +9,90 @@ namespace AllMCPSolution.Tools;
 
 public sealed class McpToolRegistry
 {
-    private readonly Dictionary<string, IMcpTool> _toolsByName = new(StringComparer.OrdinalIgnoreCase);
-    private readonly List<IResourceProvider> _resourceProviders = new();
+    private readonly Dictionary<string, Type> _toolTypesByName = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Assembly[] _assembliesToScan;
+    private readonly IServiceProvider _rootProvider;
 
-    public McpToolRegistry(params Assembly[] assembliesToScan)
+    public McpToolRegistry(IServiceProvider rootProvider, params Assembly[] assembliesToScan)
     {
-        var assemblies = (assembliesToScan is { Length: > 0 })
+        _rootProvider = rootProvider;
+        _assembliesToScan = (assembliesToScan is { Length: > 0 })
             ? assembliesToScan
             : new[] { Assembly.GetExecutingAssembly() };
+        Discover();
+    }
 
-        foreach (var asm in assemblies)
+    private void Discover()
+    {
+        foreach (var asm in _assembliesToScan)
         {
             foreach (var t in asm.GetTypes())
             {
                 if (t.IsAbstract || t.IsInterface) continue;
+                if (!typeof(IMcpTool).IsAssignableFrom(t)) continue;
 
-                // Find types that implement IMcpTool
-                if (typeof(IMcpTool).IsAssignableFrom(t))
-                {
-                    // Prefer static tool classes with a parameterless constructor or static GetInstance().
-                    var instance = CreateInstance<IMcpTool>(t);
-                    var def = instance.GetDefinition();
+                using var scope = _rootProvider.CreateScope();
+                var instance = scope.ServiceProvider.GetService(t) as IMcpTool
+                               ?? throw new InvalidOperationException($"Type {t.FullName} not registered for DI.");
+                var def = instance.GetDefinition();
+                if (string.IsNullOrWhiteSpace(def.Name))
+                    throw new InvalidOperationException($"{t.FullName}: Tool name cannot be empty.");
+                if (_toolTypesByName.ContainsKey(def.Name))
+                    throw new InvalidOperationException($"Duplicate tool name '{def.Name}' from {t.FullName}.");
 
-                    if (string.IsNullOrWhiteSpace(def.Name))
-                        throw new InvalidOperationException($"{t.FullName}: Tool name cannot be empty.");
-
-                    if (_toolsByName.ContainsKey(def.Name))
-                        throw new InvalidOperationException($"Duplicate tool name '{def.Name}' from {t.FullName}.");
-
-                    _toolsByName[def.Name] = instance;
-
-                    // If it also provides resources, capture it.
-                    if (instance is IResourceProvider rp) _resourceProviders.Add(rp);
-                }
+                _toolTypesByName[def.Name] = t;
             }
         }
     }
 
-    private static T CreateInstance<T>(Type impl)
-    {
-        // Try static property "Instance" first (optional pattern)
-        var prop = impl.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-        if (prop?.GetValue(null) is T single) return single;
-
-        // Fallback: parameterless constructor
-        if (Activator.CreateInstance(impl) is T created) return created;
-
-        throw new InvalidOperationException($"Cannot instantiate {impl.FullName} as {typeof(T).Name}.");
-    }
-
-    // Handlers for MCP
-
     public ValueTask<ListToolsResult> ListToolsAsync(CancellationToken ct)
-        => ValueTask.FromResult(new ListToolsResult { Tools = _toolsByName.Values.Select(t => t.GetDefinition()).ToArray() });
+    {
+        using var scope = _rootProvider.CreateScope();
+        var tools = _toolTypesByName.Values
+            .Select(t => (scope.ServiceProvider.GetRequiredService(t) as IMcpTool)!)
+            .Select(inst => inst.GetDefinition())
+            .ToArray();
+
+        return ValueTask.FromResult(new ListToolsResult { Tools = tools });
+    }
 
     public ValueTask<CallToolResult> CallToolAsync(ModelContextProtocol.Protocol.CallToolRequestParams request, CancellationToken ct)
     {
-        var name = request?.Name ?? "";
-        if (!_toolsByName.TryGetValue(name, out var tool))
+        var name = request?.Name ?? string.Empty;
+        if (!_toolTypesByName.TryGetValue(name, out var type))
             throw new McpException($"Unknown tool '{name}'", McpErrorCode.InvalidRequest);
 
-        return tool.RunAsync(request, ct);
+        using var scope = _rootProvider.CreateScope();
+        var tool = (IMcpTool)scope.ServiceProvider.GetRequiredService(type);
+        return tool.RunAsync(request!, ct);
     }
 
     public ValueTask<ListResourcesResult> ListResourcesAsync(CancellationToken ct)
     {
-        var resources = _resourceProviders.SelectMany(p => p.ListResources()).ToArray();
+        using var scope = _rootProvider.CreateScope();
+        var providers = _toolTypesByName.Values
+            .Select(t => scope.ServiceProvider.GetRequiredService(t))
+            .OfType<IResourceProvider>()
+            .ToArray();
+
+        var resources = providers.SelectMany(p => p.ListResources()).ToArray();
         return ValueTask.FromResult(new ListResourcesResult { Resources = resources });
     }
 
     public async ValueTask<ReadResourceResult> ReadResourceAsync(ReadResourceRequestParams request, CancellationToken ct)
     {
-        foreach (var rp in _resourceProviders)
+        using var scope = _rootProvider.CreateScope();
+        var providers = _toolTypesByName.Values
+            .Select(t => scope.ServiceProvider.GetRequiredService(t))
+            .OfType<IResourceProvider>()
+            .ToArray();
+
+        foreach (var rp in providers)
         {
             var list = rp.ListResources();
             if (list.Any(r => r.Uri == request?.Uri))
             {
-                return await rp.ReadResourceAsync(request, ct);
+                return await rp.ReadResourceAsync(request!, ct);
             }
         }
 

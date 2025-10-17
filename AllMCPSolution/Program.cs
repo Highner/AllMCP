@@ -73,28 +73,38 @@ builder.Services.AddCors(options =>
 
 // Register the MCP server and handlers
 
+// Scan and register all IMcpTool implementers so they can receive DI (scoped)
+var asm = Assembly.GetExecutingAssembly();
+var mcpToolTypes = asm.GetTypes()
+    .Where(t => !t.IsAbstract && !t.IsInterface && typeof(AllMCPSolution.Tools.IMcpTool).IsAssignableFrom(t))
+    .ToArray();
+foreach (var t in mcpToolTypes)
+{
+    builder.Services.AddScoped(t);
+}
 
-var registry = new McpToolRegistry(Assembly.GetExecutingAssembly());
+// Register McpToolRegistry as singleton using the root provider
+builder.Services.AddSingleton<McpToolRegistry>(sp => new McpToolRegistry(sp, asm));
 
-// Register MCP server + handlers using the registry
+// Register MCP server + handlers using DI-backed registry
 builder.Services.AddMcpServer(options =>
 {
     options.ServerInfo = new Implementation { Name = "hello-mcp-csharp", Version = "1.0.0" };
     options.Handlers = new McpServerHandlers
     {
         // ctx: RequestContext<ListToolsRequestParams>
-        ListToolsHandler     = (ctx, ct) => registry.ListToolsAsync(ct),
+        ListToolsHandler     = (ctx, ct) => ctx.Services.GetRequiredService<McpToolRegistry>().ListToolsAsync(ct),
 
         // ctx: RequestContext<CallToolRequestParams>
-        CallToolHandler      = (ctx, ct) => registry.CallToolAsync(ctx.Params, ct),
+        CallToolHandler      = (ctx, ct) => ctx.Services.GetRequiredService<McpToolRegistry>().CallToolAsync(ctx.Params, ct),
 
         // ctx: RequestContext<ListResourcesRequestParams>
-        ListResourcesHandler = (ctx, ct) => registry.ListResourcesAsync(ct),
+        ListResourcesHandler = (ctx, ct) => ctx.Services.GetRequiredService<McpToolRegistry>().ListResourcesAsync(ct),
 
         // ctx: RequestContext<ReadResourceRequestParams>
-        ReadResourceHandler  = (ctx, ct) => registry.ReadResourceAsync(ctx.Params, ct)
+        ReadResourceHandler  = (ctx, ct) => ctx.Services.GetRequiredService<McpToolRegistry>().ReadResourceAsync(ctx.Params, ct)
     };
-}).WithHttpTransport() ;
+}).WithHttpTransport();
 
 var app = builder.Build();
 
