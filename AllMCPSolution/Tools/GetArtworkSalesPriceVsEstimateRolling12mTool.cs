@@ -270,13 +270,22 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
         if (request.Uri != UiUri)
             throw new McpException("Resource not found", McpErrorCode.InvalidParams);
 
-        // Build module URL from config (fallback to placeholder if not set)
-        var moduleUrl = _config["WidgetAssets:PriceVsEstimateModuleUrl"] ?? "https://cdn.jsdelivr.net/gh/YOUR_ORG/YOUR_REPO@TAG/wwwroot/widgets/price-vs-estimate-widget.js";
-        Uri? moduleUri = null;
-        if (!Uri.TryCreate(moduleUrl, UriKind.Absolute, out moduleUri)) moduleUri = null;
+// Build module URL from config
+        var moduleUrl = _config["WidgetAssets:PriceVsEstimateModuleUrl"];
+        if (string.IsNullOrWhiteSpace(moduleUrl))
+            throw new InvalidOperationException("WidgetAssets:PriceVsEstimateModuleUrl is not configured.");
+
+        if (!Uri.TryCreate(moduleUrl, UriKind.Absolute, out var moduleUri))
+            throw new InvalidOperationException($"Invalid module URL: {moduleUrl}");
+
 
         // Prepare CSP resource domains: Chart.js origin + module origin
-        var resourceDomains = new List<string> { "https://cdn.jsdelivr.net" };
+        var resourceDomains = new List<string>
+        {
+            "https://cdn.jsdelivr.net",                         // Chart.js
+            $"{moduleUri.Scheme}://{moduleUri.Host}"            // your module’s origin
+        }.Distinct().ToList();
+
         if (moduleUri != null)
         {
             var origin = $"{moduleUri.Scheme}://{moduleUri.Host}";
@@ -299,7 +308,8 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
       .empty { text-align: center; padding: 48px 0; font-size: 1rem; color: rgba(71, 85, 105, 0.8); }
     </style>
   </head>
-  <body>
+    <body data-module-url="{{MODULE_URL}}">
+
     <div class="card">
       <h1>Price vs Estimate (Rolling 12 Months)</h1>
       <p>Each point represents the 12-month rolling average of the hammer price position within the auction's estimate band.</p>
@@ -313,7 +323,10 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer id="chartjs"></script>
 
     <!-- Your widget module -->
-    <script type="module" defer crossorigin="anonymous" src="{{MODULE_URL}}"></script>
+<script type="module" defer crossorigin="anonymous"
+id="price-vs-estimate-module"
+src="{{MODULE_URL}}"></script>
+
   </body>
 </html>
 
