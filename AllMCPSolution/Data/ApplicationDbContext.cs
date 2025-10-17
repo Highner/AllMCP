@@ -17,7 +17,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<Country> Countries { get; set; }
     public DbSet<Region> Regions { get; set; }
     public DbSet<Wine> Wines { get; set; }
-    public DbSet<WineVintage> WineVintages { get; set; }
     public DbSet<Bottle> Bottles { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -63,19 +62,6 @@ public class ApplicationDbContext : DbContext
                 .IsUnique();
         });
 
-        modelBuilder.Entity<WineVintage>(e =>
-        {
-            e.Property(wv => wv.Vintage).IsRequired();
-
-            e.HasOne(wv => wv.Wine)
-                .WithMany(w => w.WineVintages)
-                .HasForeignKey(wv => wv.WineId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            e.HasIndex(wv => new { wv.WineId, wv.Vintage })
-                .IsUnique();
-        });
-
         modelBuilder.Entity<Country>(e =>
         {
             e.Property(c => c.Name).HasMaxLength(128);
@@ -91,10 +77,11 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Bottle>(e =>
         {
             e.Property(b => b.TastingNote).HasMaxLength(1024);
+            e.Property(b => b.Vintage).IsRequired();
 
-            e.HasOne(b => b.WineVintage)
-                .WithMany(wv => wv.Bottles)
-                .HasForeignKey(b => b.WineVintageId)
+            e.HasOne(b => b.Wine)
+                .WithMany(w => w.Bottles)
+                .HasForeignKey(b => b.WineId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
