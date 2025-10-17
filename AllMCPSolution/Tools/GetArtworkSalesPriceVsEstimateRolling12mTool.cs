@@ -465,7 +465,7 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
         return true;
       };
       
-      // --- 🔁 Robust payload watcher: hydrates even if host doesn't fire events ---
+      // --- 🔁 Robust payload watcher: hydrates even if host doesn't fire events --- THIS IS VERY IMPORTANT FOR HYDRATION!
         (() => {
           // safe stringify (handles cycles)
           const safeStringify = (v) => {

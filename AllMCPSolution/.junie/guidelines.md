@@ -29,6 +29,11 @@ These guidelines define mandatory practices for this repository.
   - The solution scans for IMcpTool implementers and registers them; ensure your tool class is non-abstract and public.
   - Tool names MUST be unique across the application. Use stable, lowercase, snake_case names.
 
+- Tool widget payload watcher (async hydration rules)
+  - Always wire both event and polling paths. First subscribe to `openai.subscribeToToolOutput` or `openai.onToolOutput`; additionally run a lightweight 300ms poll that reads `window.openai?.toolOutput ?? window.openai?.message?.toolOutput` so hydration still works if the host never fires events. Clear the interval on teardown (e.g., `beforeunload`).
+  - Detect real content changes with a stable stamp. Build a `stamp` from `(id || $id) + '|' + (timestamp || time) + '|' + safeStringify(candidate).slice(0, 2048)`. Only call `handlePayload(candidate)` when the stamp differs from the last one to avoid duplicate renders.
+  - Use cycle-safe stringify for hashing. Implement `safeStringify` with a `WeakSet` to skip already-seen objects during `JSON.stringify`, preventing crashes on cyclic structures and keeping the hash bounded for performance.
+
 - Safety and metadata.
   - Populate IToolBase.SafetyLevel when applicable and (optionally) mirror it in the MCP Tool.Meta object.
   - If you expose UI via IResourceProvider, ensure Resource.Uri values are stable and referenced from Tool.Meta (e.g., "openai/outputTemplate").

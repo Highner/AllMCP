@@ -31,4 +31,8 @@
       </None>
     </ItemGroup>
 
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="wwwroot\widgets\price-vs-estimate-widget.js" />
+    </ItemGroup>
+
 </Project>
