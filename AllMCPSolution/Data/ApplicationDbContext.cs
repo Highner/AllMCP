@@ -14,6 +14,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<Artwork> Artworks { get; set; }
     public DbSet<ArtworkSale> ArtworkSales { get; set; }
     public DbSet<InflationIndex> InflationIndices { get; set; }
+    public DbSet<Country> Countries { get; set; }
+    public DbSet<Region> Regions { get; set; }
+    public DbSet<Wine> Wines { get; set; }
+    public DbSet<Bottle> Bottles { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,6 +41,47 @@ public class ApplicationDbContext : DbContext
         {
             e.HasIndex(i => new { i.Year, i.Month }).IsUnique();
             e.Property(i => i.IndexValue).HasColumnType("decimal(18,4)");
+        });
+
+        modelBuilder.Entity<Wine>(e =>
+        {
+            e.Property(w => w.Name).HasMaxLength(256);
+            e.Property(w => w.GrapeVariety).HasMaxLength(256);
+
+            e.HasOne(w => w.Country)
+                .WithMany(c => c.Wines)
+                .HasForeignKey(w => w.CountryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(w => w.Region)
+                .WithMany(r => r.Wines)
+                .HasForeignKey(w => w.RegionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(w => new { w.Name, w.Vintage, w.CountryId, w.RegionId })
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<Country>(e =>
+        {
+            e.Property(c => c.Name).HasMaxLength(128);
+            e.HasIndex(c => c.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<Region>(e =>
+        {
+            e.Property(r => r.Name).HasMaxLength(128);
+            e.HasIndex(r => r.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<Bottle>(e =>
+        {
+            e.Property(b => b.TastingNote).HasMaxLength(1024);
+
+            e.HasOne(b => b.Wine)
+                .WithMany(w => w.Bottles)
+                .HasForeignKey(b => b.WineId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
