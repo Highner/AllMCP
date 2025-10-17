@@ -42,7 +42,7 @@ public class SearchArtistsTool : IToolBase, IMcpTool
             threshold = parsedThreshold;
         }
 
-        var allArtists = await _artists.GetAllAsync();
+        var allArtists = await _artists.GetAllAsync(CancellationToken.None);
 
         // Perform fuzzy search on both first name, last name, and full name
         var searchResults = allArtists
