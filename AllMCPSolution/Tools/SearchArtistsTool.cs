@@ -2,6 +2,7 @@ using AllMCPSolution.Attributes;
 using AllMCPSolution.Tools;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -45,16 +46,22 @@ public class SearchArtistsTool : IToolBase, IMcpTool
 
         // Perform fuzzy search on both first name, last name, and full name
         var searchResults = allArtists
-            .Select(artist => new
-            {
-                artist,
-                fullName = $"{artist.FirstName} {artist.LastName}",
-                firstNameDistance = CalculateLevenshteinDistance(query.ToLower(), artist.FirstName.ToLower()),
-                lastNameDistance = CalculateLevenshteinDistance(query.ToLower(), artist.LastName.ToLower()),
-                fullNameDistance = CalculateLevenshteinDistance(query.ToLower(), $"{artist.FirstName} {artist.LastName}".ToLower()),
-                firstNameContains = artist.FirstName.Contains(query, StringComparison.OrdinalIgnoreCase),
-                lastNameContains = artist.LastName.Contains(query, StringComparison.OrdinalIgnoreCase),
-                fullNameContains = $"{artist.FirstName} {artist.LastName}".Contains(query, StringComparison.OrdinalIgnoreCase)
+            .Select(artist => {
+                var first = artist.FirstName ?? string.Empty;
+                var last = artist.LastName ?? string.Empty;
+                var full = string.Concat(first, " ", last).Trim();
+                var q = query.ToLowerInvariant();
+                return new
+                {
+                    artist,
+                    fullName = full,
+                    firstNameDistance = CalculateLevenshteinDistance(q, first.ToLowerInvariant()),
+                    lastNameDistance = CalculateLevenshteinDistance(q, last.ToLowerInvariant()),
+                    fullNameDistance = CalculateLevenshteinDistance(q, full.ToLowerInvariant()),
+                    firstNameContains = first.Contains(query, StringComparison.OrdinalIgnoreCase),
+                    lastNameContains = last.Contains(query, StringComparison.OrdinalIgnoreCase),
+                    fullNameContains = full.Contains(query, StringComparison.OrdinalIgnoreCase)
+                }; 
             })
             .Select(x => new
             {
@@ -297,21 +304,41 @@ public class SearchArtistsTool : IToolBase, IMcpTool
 
     public async ValueTask<CallToolResult> RunAsync(CallToolRequestParams request, CancellationToken ct)
     {
-        Dictionary<string, object?>? dict = null;
-        if (request?.Arguments is not null)
+        try
         {
-            dict = new Dictionary<string, object?>();
-            foreach (var kvp in request.Arguments)
+            Dictionary<string, object?>? dict = null;
+            if (request?.Arguments is not null)
             {
-                dict[kvp.Key] = kvp.Value.ValueKind == System.Text.Json.JsonValueKind.String ? kvp.Value.GetString() :
-                                 kvp.Value.ValueKind == System.Text.Json.JsonValueKind.Number ? (object?) (kvp.Value.TryGetInt32(out var i) ? i : null) : null;
+                dict = new Dictionary<string, object?>();
+                foreach (var kvp in request.Arguments)
+                {
+                    dict[kvp.Key] = kvp.Value.ValueKind switch
+                    {
+                        System.Text.Json.JsonValueKind.String => kvp.Value.GetString(),
+                        System.Text.Json.JsonValueKind.Number => kvp.Value.TryGetInt32(out var i) ? i :
+                            kvp.Value.TryGetInt64(out var l) ? l :
+                            kvp.Value.TryGetDouble(out var d) ? d : null,
+                        System.Text.Json.JsonValueKind.True => true,
+                        System.Text.Json.JsonValueKind.False => false,
+                        _ => null
+                    };
+                }
             }
-        }
 
-        var result = await ExecuteAsync(dict);
-        return new CallToolResult
+            var result = await ExecuteAsync(dict);
+            return new CallToolResult
+            {
+                StructuredContent = JsonSerializer.SerializeToNode(result) as JsonObject
+            };
+        }
+        catch (ArgumentException ex)
         {
-            StructuredContent = JsonSerializer.SerializeToNode(result) as JsonObject
-        };
+            throw new McpException(ex.Message, McpErrorCode.InvalidParams);
+        }
+        catch (Exception)
+        {
+            // Avoid leaking internal errors; return generic message
+            throw new McpException("An error occurred while executing search_artists.", McpErrorCode.InternalError);
+        }
     }
 }
