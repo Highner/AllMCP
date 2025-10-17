@@ -7,6 +7,6 @@ public class Bottle
     public decimal? Price { get; set; }
     public decimal? Score { get; set; }
 
-    public Guid WineId { get; set; }
-    public Wine Wine { get; set; } = null!;
+    public Guid WineVintageId { get; set; }
+    public WineVintage WineVintage { get; set; } = null!;
 }
