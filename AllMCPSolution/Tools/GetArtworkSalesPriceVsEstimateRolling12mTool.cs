@@ -294,169 +294,106 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
     </div>
 
    <script type="module" defer>
+  const container = document.getElementById('chartContainer');
+  const emptyState = document.getElementById('emptyState');
+  const ctx = document.getElementById('trendChart');
+  let chart;
 
-      const container = document.getElementById('chartContainer');
-      const emptyState = document.getElementById('emptyState');
-      const ctx = document.getElementById('trendChart');
+  const resolveOutputPayload = (payload) => {
+    if (!payload || typeof payload !== 'object') return null;
+    if (payload.timeSeries || Array.isArray(payload)) return payload;
+    const nestedKeys = ['toolOutput','output','detail','data','payload','result','structuredContent','structured_output','structured'];
+    for (const k of nestedKeys) if (payload[k]) {
+      const r = resolveOutputPayload(payload[k]); if (r) return r;
+    }
+    return payload;
+  };
 
-      let chart;
+  const normalizePoints = (output) => {
+    const raw = output && output.timeSeries;
+    const arr = Array.isArray(raw) ? raw
+              : (raw && typeof raw === 'object') ? Object.values(raw.$values || raw) : [];
+    return arr.filter(p => p && typeof p === 'object');
+  };
 
-      const resolveOutputPayload = (payload) => {
-        if (!payload || typeof payload !== 'object') return null;
-        if (payload.timeSeries || Array.isArray(payload)) return payload;
+  const render = (output = {}) => {
+    const points = normalizePoints(output);
 
-        const nestedKeys = ['toolOutput','output','detail','data','payload','result','structuredContent','structured_output','structured'];
-        for (const key of nestedKeys) {
-          if (payload[key]) {
-            const resolved = resolveOutputPayload(payload[key]);
-            if (resolved) return resolved;
-          }
-        }
-        return payload;
-      };
-
-      const normalizePoints = (output) => {
-        const rawSeries = output && output.timeSeries;
-        let points = Array.isArray(rawSeries)
-          ? rawSeries
-          : (rawSeries && typeof rawSeries === 'object')
-            ? Object.values(rawSeries.$values || rawSeries)
-            : [];
-        return points.filter(p => p && typeof p === 'object');
-      };
-
-      const render = (output = {}) => {
-        const points = normalizePoints(output);
-
-        // Guard: if Chart.js didn't load (CSP, offline, etc.)
-        if (typeof window.Chart === 'undefined') {
-          container.hidden = true;
-          emptyState.hidden = false;
-          emptyState.textContent = (output && output.description) || 'Chart library unavailable.';
-          return;
-        }
-
-        if (!points.length) {
-          if (chart) { chart.destroy(); chart = null; }
-          container.hidden = true;
-          emptyState.hidden = false;
-          emptyState.textContent = output.description || 'No results available.';
-          return;
-        }
-
-        const labels = points.map(p => new Date(p.Time).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }));
-        const values = points.map(p => (typeof p.Value === 'number' ? p.Value : null));
-
-        container.hidden = false;
-        emptyState.hidden = true;
-
-        if (!chart) {
-          chart = new window.Chart(ctx, {
-            type: 'line',
-            data: {
-              labels,
-              datasets: [{
-                label: 'Position in estimate range',
-                data: values,
-                tension: 0.35,
-                borderColor: '#2563eb',
-                backgroundColor: 'rgba(37,99,235,0.2)',
-                fill: true,
-                pointRadius: 2,
-                pointHoverRadius: 4
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                y: {
-                  title: { display: true, text: 'Position in estimate range' },
-                  suggestedMin: 0,
-                  suggestedMax: 1,
-                  ticks: { callback: value => Number(value).toFixed(2) }
-                },
-                x: { title: { display: true, text: 'Month' } }
-              },
-              plugins: {
-                legend: { display: true },
-                tooltip: {
-                  callbacks: {
-                    label: (ctx) => {
-                      const v = (typeof ctx.parsed.y === 'number') ? ctx.parsed.y.toFixed(2) : 'n/a';
-                      return `Position: ${v}`;
-                    }
-                  }
-                }
-              }
-            }
-          });
-        } else {
-          chart.data.labels = labels;
-          chart.data.datasets[0].data = values;
-          chart.update();
-        }
-      };
-
-      const attachListeners = () => {
-        const openai = window.openai;
-        if (!openai) return false;
-
-        const handlePayload = (payload) => {
-          const resolved = resolveOutputPayload(payload) || openai.toolOutput || {};
-          render(resolved);
-        };
-
-        if (openai.toolOutput) handlePayload(openai.toolOutput);
-        if (typeof openai.subscribeToToolOutput === 'function') {
-          openai.subscribeToToolOutput(handlePayload);
-        } else if (typeof openai.onToolOutput === 'function') {
-          openai.onToolOutput(handlePayload);
-        }
-        return true;
-      };
-
-    // Attempt immediate attach
-    let attached = attachListeners();
-
-    if (!attached) {
-      // Fallback: wait until OpenAI sandbox is ready
-      window.addEventListener('openai:ready', () => {
-        attachListeners();
-        const initial = resolveOutputPayload(window.openai?.toolOutput) || {};
-        render(initial);
-      });
-
-      // Safety: periodic retry if event somehow doesn't fire
-      const interval = setInterval(() => {
-        attached = attachListeners();
-        if (attached) {
-          clearInterval(interval);
-          const initial = resolveOutputPayload(window.openai?.toolOutput) || {};
-          render(initial);
-        }
-      }, 250);
+    if (typeof window.Chart === 'undefined') {
+      container.hidden = true;
+      emptyState.hidden = false;
+      emptyState.textContent = (output && output.description) || 'Chart library unavailable.';
+      return;
     }
 
+    if (!points.length) {
+      if (chart) { chart.destroy(); chart = null; }
+      container.hidden = true;
+      emptyState.hidden = false;
+      emptyState.textContent = output.description || 'No results available.';
+      return;
+    }
 
-      window.addEventListener('openai:tool-output', evt => {
-        if (evt && evt.detail) {
-          const resolved = resolveOutputPayload(evt.detail) || (window.openai && window.openai.toolOutput) || {};
-          render(resolved);
+    const labels = points.map(p => new Date(p.Time).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }));
+    const values = points.map(p => (typeof p.Value === 'number' ? p.Value : null));
+
+    container.hidden = false;
+    emptyState.hidden = true;
+
+    if (!chart) {
+      chart = new window.Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets: [{ label: 'Position in estimate range', data: values, tension: 0.35,
+          borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.2)', fill: true, pointRadius: 2, pointHoverRadius: 4 }]},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            y: { title: { display: true, text: 'Position in estimate range' }, suggestedMin: 0, suggestedMax: 1,
+                 ticks: { callback: v => Number(v).toFixed(2) } },
+            x: { title: { display: true, text: 'Month' } }
+          }
         }
       });
+    } else {
+      chart.data.labels = labels;
+      chart.data.datasets[0].data = values;
+      chart.update();
+    }
+  };
 
-      window.addEventListener('message', evt => {
-        const payload = evt && evt.data;
-        if (payload && (payload.type === 'openai-tool-output' || payload.type === 'tool-output')) {
-          const resolved = resolveOutputPayload(payload.detail || payload.payload || payload.data || payload) || (window.openai && window.openai.toolOutput) || {};
-          render(resolved);
-        }
-      });
+  // --- CRUCIAL: subscribe to the actual host event that carries toolOutput updates
+  window.addEventListener('openai:set_globals', (evt) => {
+    const payload = evt?.detail?.toolOutput ?? (window.openai && window.openai.toolOutput);
+    const resolved = resolveOutputPayload(payload) || {};
+    render(resolved);
+  });
 
-      const initial = resolveOutputPayload((window.openai && window.openai.toolOutput) || {}) || {};
-      render(initial);
-    </script>
+  // Fallbacks: attach ASAP once window.openai exists, and also handle tool calls from inside the UI
+  const tryInitial = () => {
+    const payload = (window.openai && window.openai.toolOutput) || {};
+    const resolved = resolveOutputPayload(payload) || {};
+    render(resolved);
+  };
+
+  // Try immediately; if host injects `window.openai` a tick later, catch it here
+  if (window.openai) {
+    tryInitial();
+  } else {
+    const t = setInterval(() => {
+      if (window.openai) { clearInterval(t); tryInitial(); }
+    }, 100);
+    // safety stop after ~5s
+    setTimeout(() => clearInterval(t), 5000);
+  }
+
+  // If you ever call tools from within the component, this event delivers those results
+  window.addEventListener('openai:tool_response', (evt) => {
+    const payload = evt?.detail?.result ?? evt?.detail;
+    const resolved = resolveOutputPayload(payload) || {};
+    render(resolved);
+  });
+</script>
+
   </body>
 </html>
 """;
