@@ -39,9 +39,7 @@ The 'position-in-estimate-range' value represents the normalized position of the
             return new { timeSeries = Array.Empty<object>(), count = 0, description = "Artist ID is required." };
         }
 
-        var query = _repo.ArtworkSales;
-
-        query = query.Where(a => a.ArtistId == artistId.Value);
+        var query = _repo.ArtworkSales.Where(a => a.ArtistId == artistId.Value);
         if (!string.IsNullOrWhiteSpace(category)) query = query.Where(a => a.Category.Contains(category));
 
         var sales = await query
@@ -56,36 +54,43 @@ The 'position-in-estimate-range' value represents the normalized position of the
         }
 
         var firstMonth = new DateTime(sales.First().SaleDate.Year, sales.First().SaleDate.Month, 1);
-        var lastMonth = new DateTime(sales.Last().SaleDate.Year, sales.Last().SaleDate.Month, 1);
+        var lastMonth  = new DateTime(sales.Last().SaleDate.Year,  sales.Last().SaleDate.Month,  1);
 
-        // Compute monthly average of PositionInRange where defined
+        // monthly average of PositionInRange where defined
         var monthly = new List<(DateTime Month, decimal AvgPositionInRange, int Count)>();
         var indexByMonth = new Dictionary<DateTime, (decimal sumPos, int count)>();
 
         foreach (var s in sales)
         {
-            var pos = AllMCPSolution.Services.EstimatePositionHelper.PositionInEstimateRange(s.HammerPrice, s.LowEstimate, s.HighEstimate);
+            var pos = AllMCPSolution.Services.EstimatePositionHelper.PositionInEstimateRange(
+                s.HammerPrice, s.LowEstimate, s.HighEstimate);
             if (pos == null) continue;
+
             var m = new DateTime(s.SaleDate.Year, s.SaleDate.Month, 1);
-            if (!indexByMonth.TryGetValue(m, out var agg)) agg = (0m, 0);
-            agg.sumPos += pos.Value;
-            agg.count += 1;
-            indexByMonth[m] = agg;
+
+            if (indexByMonth.TryGetValue(m, out var agg))
+            {
+                var (sumPos, count) = agg;
+                sumPos += pos.Value;
+                count += 1;
+                indexByMonth[m] = (sumPos, count);
+            }
+            else
+            {
+                indexByMonth[m] = (pos.Value, 1);
+            }
         }
+
 
         var months = new List<DateTime>();
         for (var dt = firstMonth; dt <= lastMonth; dt = dt.AddMonths(1)) months.Add(dt);
 
         foreach (var m in months)
         {
-            if (indexByMonth.TryGetValue(m, out var agg))
-            {
+            if (indexByMonth.TryGetValue(m, out var agg) && agg.count > 0)
                 monthly.Add((m, agg.sumPos / agg.count, agg.count));
-            }
             else
-            {
                 monthly.Add((m, 0m, 0));
-            }
         }
 
         var rolling = AllMCPSolution.Services.RollingAverageHelper.RollingAverage(
@@ -94,11 +99,7 @@ The 'position-in-estimate-range' value represents the normalized position of the
             weightByCount: true);
 
         var series = new List<object>(rolling.Count);
-        foreach (var p in rolling)
-        {
-            series.Add(new { Time = p.Time, Value = p.Value });
-        }
-
+        foreach (var p in rolling) series.Add(new { Time = p.Time, Value = p.Value });
 
         var result = new
         {
@@ -121,10 +122,9 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
         };
 
         return result;
-
     }
 
-    // IMcpTool implementation (delegates to ExecuteAsync)
+    // IMcpTool: descriptor with output template & statuses
     public Tool GetDefinition() => new Tool
     {
         Name = Name,
@@ -138,9 +138,9 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
         })).RootElement,
         Meta = new JsonObject
         {
-            ["openai/outputTemplate"] = UiUri,
+            ["openai/outputTemplate"] = UiUri, // Skybridge UI template to render. :contentReference[oaicite:2]{index=2}
             ["openai/toolInvocation/invoking"] = "Computing price vs estimate trend…",
-            ["openai/toolInvocation/invoked"] = "Price vs estimate trend ready!"
+            ["openai/toolInvocation/invoked"]  = "Price vs estimate trend ready!"
         }
     };
 
@@ -151,9 +151,7 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
         {
             dict = new Dictionary<string, object?>();
             foreach (var kvp in request.Arguments)
-            {
                 dict[kvp.Key] = JsonElementToNet(kvp.Value);
-            }
         }
 
         var result = await ExecuteAsync(dict);
@@ -167,6 +165,7 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
                     Text = $"Generated {GetResultCount(result)} monthly points for the 12-month rolling price vs estimate trend."
                 }
             ],
+            // This is what your UI reads as window.openai.toolOutput. :contentReference[oaicite:3]{index=3}
             StructuredContent = JsonSerializer.SerializeToNode(result) as JsonObject
         };
     }
@@ -200,17 +199,8 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
                 type = "object",
                 properties = new
                 {
-                    artist_id = new
-                    {
-                        type = "string",
-                        format = "uuid",
-                        description = "The unique identifier of the artist"
-                    },
-                    category = new
-                    {
-                        type = "string",
-                        description = "Filter by artwork category"
-                    }
+                    artist_id = new { type = "string", format = "uuid", description = "The unique identifier of the artist" },
+                    category  = new { type = "string", description = "Filter by artwork category" }
                 },
                 required = new[] { "artist_id" }
             }
@@ -236,17 +226,8 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
                             type = "object",
                             properties = new
                             {
-                                artist_id = new
-                                {
-                                    type = "string",
-                                    format = "uuid",
-                                    description = "The unique identifier of the artist"
-                                },
-                                category = new
-                                {
-                                    type = "string",
-                                    description = "Filter by artwork category"
-                                }
+                                artist_id = new { type = "string", format = "uuid", description = "The unique identifier of the artist" },
+                                category  = new { type = "string", description = "Filter by artwork category" }
                             },
                             required = new[] { "artist_id" }
                         }
@@ -260,10 +241,7 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
                     description = "Successful response",
                     content = new
                     {
-                        application__json = new
-                        {
-                            schema = new { type = "object" }
-                        }
+                        application__json = new { schema = new { type = "object" } }
                     }
                 }
             }
@@ -278,7 +256,7 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
                 Name = "artwork-sales-price-vs-estimate-rolling-12m",
                 Title = "Artwork price vs estimate (12m rolling)",
                 Uri = UiUri,
-                MimeType = "text/html+skybridge",
+                MimeType = "text/html+skybridge", // required for Skybridge UIs. :contentReference[oaicite:4]{index=4}
                 Description = "Interactive chart of the 12-month rolling price vs estimate trend"
             }
         };
@@ -286,197 +264,193 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
     public ValueTask<ReadResourceResult> ReadResourceAsync(ReadResourceRequestParams request, CancellationToken ct)
     {
         if (request.Uri != UiUri)
-        {
             throw new McpException("Resource not found", McpErrorCode.InvalidParams);
-        }
 
         const string html = """
-        <!doctype html>
-        <html>
-          <head>
-            <meta charset="utf-8" />
-            <title>Price vs Estimate Rolling 12M</title>
-            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-            <style>
-              :root { color-scheme: light dark; }
-              body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 16px; background: var(--openai-body-bg, #fff); color: var(--openai-body-fg, #111827); }
-              .card { border: 1px solid rgba(15, 23, 42, 0.1); border-radius: 12px; padding: 20px; background: var(--openai-card-bg, #fff); box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); }
-              h1 { font-size: 1.25rem; margin: 0 0 0.5rem 0; }
-              p { margin: 0 0 1rem 0; line-height: 1.5; }
-              canvas { width: 100%; height: 360px; }
-              .empty { text-align: center; padding: 48px 0; font-size: 1rem; color: rgba(71, 85, 105, 0.8); }
-            </style>
-          </head>
-          <body>
-            <div class="card">
-              <h1>Price vs Estimate (Rolling 12 Months)</h1>
-              <p>Each point represents the 12-month rolling average of the hammer price position within the auction's estimate band.</p>
-              <div id="chartContainer">
-                <canvas id="trendChart" role="img" aria-label="Price vs estimate rolling 12 month trend"></canvas>
-              </div>
-              <div id="emptyState" class="empty" hidden>No results available for the selected filters.</div>
-            </div>
-            <script type="module">
-              const container = document.getElementById('chartContainer');
-              const emptyState = document.getElementById('emptyState');
-              const ctx = document.getElementById('trendChart');
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Price vs Estimate Rolling 12M</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      :root { color-scheme: light dark; }
+      body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 16px; background: var(--openai-body-bg, #fff); color: var(--openai-body-fg, #111827); }
+      .card { border: 1px solid rgba(15, 23, 42, 0.1); border-radius: 12px; padding: 20px; background: var(--openai-card-bg, #fff); box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); }
+      h1 { font-size: 1.25rem; margin: 0 0 0.5rem 0; }
+      p { margin: 0 0 1rem 0; line-height: 1.5; }
+      canvas { width: 100%; height: 360px; }
+      .empty { text-align: center; padding: 48px 0; font-size: 1rem; color: rgba(71, 85, 105, 0.8); }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Price vs Estimate (Rolling 12 Months)</h1>
+      <p>Each point represents the 12-month rolling average of the hammer price position within the auction's estimate band.</p>
+      <div id="chartContainer">
+        <canvas id="trendChart" role="img" aria-label="Price vs estimate rolling 12 month trend"></canvas>
+      </div>
+      <div id="emptyState" class="empty" hidden>No results available for the selected filters.</div>
+    </div>
 
-              let chart;
+    <script type="module">
+      const container = document.getElementById('chartContainer');
+      const emptyState = document.getElementById('emptyState');
+      const ctx = document.getElementById('trendChart');
 
-              const resolveOutputPayload = (payload) => {
-                if (!payload || typeof payload !== 'object') {
-                  return null;
-                }
+      let chart;
 
-                if (payload.timeSeries || Array.isArray(payload)) {
-                  return payload;
-                }
+      const resolveOutputPayload = (payload) => {
+        if (!payload || typeof payload !== 'object') return null;
+        if (payload.timeSeries || Array.isArray(payload)) return payload;
 
-                const nestedKeys = ['toolOutput', 'output', 'detail', 'data', 'payload', 'result', 'structuredContent', 'structured_output', 'structured'];
-                for (const key of nestedKeys) {
-                  if (payload[key]) {
-                    const resolved = resolveOutputPayload(payload[key]);
-                    if (resolved) {
-                      return resolved;
+        const nestedKeys = ['toolOutput','output','detail','data','payload','result','structuredContent','structured_output','structured'];
+        for (const key of nestedKeys) {
+          if (payload[key]) {
+            const resolved = resolveOutputPayload(payload[key]);
+            if (resolved) return resolved;
+          }
+        }
+        return payload;
+      };
+
+      const normalizePoints = (output) => {
+        const rawSeries = output && output.timeSeries;
+        let points = Array.isArray(rawSeries)
+          ? rawSeries
+          : (rawSeries && typeof rawSeries === 'object')
+            ? Object.values(rawSeries.$values || rawSeries)
+            : [];
+        return points.filter(p => p && typeof p === 'object');
+      };
+
+      const render = (output = {}) => {
+        const points = normalizePoints(output);
+
+        // Guard: if Chart.js didn't load (CSP, offline, etc.)
+        if (typeof window.Chart === 'undefined') {
+          container.hidden = true;
+          emptyState.hidden = false;
+          emptyState.textContent = (output && output.description) || 'Chart library unavailable.';
+          return;
+        }
+
+        if (!points.length) {
+          if (chart) { chart.destroy(); chart = null; }
+          container.hidden = true;
+          emptyState.hidden = false;
+          emptyState.textContent = output.description || 'No results available.';
+          return;
+        }
+
+        const labels = points.map(p => new Date(p.Time).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }));
+        const values = points.map(p => (typeof p.Value === 'number' ? p.Value : null));
+
+        container.hidden = false;
+        emptyState.hidden = true;
+
+        if (!chart) {
+          chart = new window.Chart(ctx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Position in estimate range',
+                data: values,
+                tension: 0.35,
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37,99,235,0.2)',
+                fill: true,
+                pointRadius: 2,
+                pointHoverRadius: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  title: { display: true, text: 'Position in estimate range' },
+                  suggestedMin: 0,
+                  suggestedMax: 1,
+                  ticks: { callback: value => Number(value).toFixed(2) }
+                },
+                x: { title: { display: true, text: 'Month' } }
+              },
+              plugins: {
+                legend: { display: true },
+                tooltip: {
+                  callbacks: {
+                    label: (ctx) => {
+                      const v = (typeof ctx.parsed.y === 'number') ? ctx.parsed.y.toFixed(2) : 'n/a';
+                      return `Position: ${v}`;
                     }
                   }
                 }
-
-                return payload;
-              };
-
-              const normalizePoints = (output) => {
-                const rawSeries = output && output.timeSeries;
-                let points = Array.isArray(rawSeries)
-                  ? rawSeries
-                  : (rawSeries && typeof rawSeries === 'object')
-                    ? Object.values(rawSeries.$values || rawSeries)
-                    : [];
-
-                return points.filter(p => p && typeof p === 'object');
-              };
-
-              const render = (output = {}) => {
-                const points = normalizePoints(output);
-
-                if (!points.length) {
-                  if (chart) {
-                    chart.destroy();
-                    chart = null;
-                  }
-                  container.hidden = true;
-                  emptyState.hidden = false;
-                  emptyState.textContent = output.description || 'No results available.';
-                  return;
-                }
-
-                const labels = points.map(p => new Date(p.Time).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }));
-                const values = points.map(p => typeof p.Value === 'number' ? p.Value : null);
-
-                container.hidden = false;
-                emptyState.hidden = true;
-
-                if (!chart) {
-                  chart = new window.Chart(ctx, {
-                    type: 'line',
-                    data: {
-                      labels,
-                      datasets: [{
-                        label: 'Position in estimate range',
-                        data: values,
-                        tension: 0.35,
-                        borderColor: '#2563eb',
-                        backgroundColor: 'rgba(37, 99, 235, 0.2)',
-                        fill: true,
-                        pointRadius: 2,
-                        pointHoverRadius: 4
-                      }]
-                    },
-                    options: {
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      scales: {
-                        y: {
-                          title: { display: true, text: 'Position in estimate range' },
-                          suggestedMin: 0,
-                          suggestedMax: 1,
-                          ticks: { callback: value => value.toFixed(2) }
-                        },
-                        x: {
-                          title: { display: true, text: 'Month' }
-                        }
-                      },
-                      plugins: {
-                        legend: { display: true },
-                        tooltip: {
-                          callbacks: {
-                            label: context => {
-                              const value = typeof context.parsed.y === 'number' ? context.parsed.y.toFixed(2) : 'n/a';
-                              return `Position: ${value}`;
-                            }
-                          }
-                        }
-                      }
-                    }
-                  });
-                } else {
-                  chart.data.labels = labels;
-                  chart.data.datasets[0].data = values;
-                  chart.update();
-                }
-              };
-
-              const attachListeners = () => {
-                const openai = window.openai;
-                if (!openai) return false;
-
-                const handlePayload = (payload) => {
-                  const resolved = resolveOutputPayload(payload) || openai.toolOutput || {};
-                  render(resolved);
-                };
-
-                if (openai.toolOutput) {
-                  handlePayload(openai.toolOutput);
-                }
-
-                if (typeof openai.subscribeToToolOutput === 'function') {
-                  openai.subscribeToToolOutput(handlePayload);
-                } else if (typeof openai.onToolOutput === 'function') {
-                  openai.onToolOutput(handlePayload);
-                }
-
-                return true;
-              };
-
-              if (!attachListeners()) {
-                const interval = setInterval(() => {
-                  if (attachListeners()) {
-                    clearInterval(interval);
-                  }
-                }, 150);
               }
+            }
+          });
+        } else {
+          chart.data.labels = labels;
+          chart.data.datasets[0].data = values;
+          chart.update();
+        }
+      };
 
-              window.addEventListener('openai:tool-output', event => {
-                if (event && event.detail) {
-                  const resolved = resolveOutputPayload(event.detail) || (window.openai && window.openai.toolOutput) || {};
-                  render(resolved);
-                }
-              });
+      const attachListeners = () => {
+        const openai = window.openai;
+        if (!openai) return false;
 
-              window.addEventListener('message', event => {
-                const payload = event && event.data;
-                if (payload && (payload.type === 'openai-tool-output' || payload.type === 'tool-output')) {
-                  const resolved = resolveOutputPayload(payload.detail || payload.payload || payload.data || payload) || (window.openai && window.openai.toolOutput) || {};
-                  render(resolved);
-                }
-              });
+        const handlePayload = (payload) => {
+          const resolved = resolveOutputPayload(payload) || openai.toolOutput || {};
+          render(resolved);
+        };
 
-              const initial = resolveOutputPayload((window.openai && window.openai.toolOutput) || {}) || {};
-              render(initial);
-            </script>
-          </body>
-        </html>
-        """;
+        if (openai.toolOutput) handlePayload(openai.toolOutput);
+        if (typeof openai.subscribeToToolOutput === 'function') {
+          openai.subscribeToToolOutput(handlePayload);
+        } else if (typeof openai.onToolOutput === 'function') {
+          openai.onToolOutput(handlePayload);
+        }
+        return true;
+      };
+
+      if (!attachListeners()) {
+        const interval = setInterval(() => { if (attachListeners()) clearInterval(interval); }, 150);
+      }
+
+      window.addEventListener('openai:tool-output', evt => {
+        if (evt && evt.detail) {
+          const resolved = resolveOutputPayload(evt.detail) || (window.openai && window.openai.toolOutput) || {};
+          render(resolved);
+        }
+      });
+
+      window.addEventListener('message', evt => {
+        const payload = evt && evt.data;
+        if (payload && (payload.type === 'openai-tool-output' || payload.type === 'tool-output')) {
+          const resolved = resolveOutputPayload(payload.detail || payload.payload || payload.data || payload) || (window.openai && window.openai.toolOutput) || {};
+          render(resolved);
+        }
+      });
+
+      const initial = resolveOutputPayload((window.openai && window.openai.toolOutput) || {}) || {};
+      render(initial);
+    </script>
+  </body>
+</html>
+""";
+
+        // IMPORTANT: add widget CSP so the sandbox can load external assets (Chart.js here).
+        // If you host assets elsewhere, list that domain instead. :contentReference[oaicite:5]{index=5}
+        var meta = new JsonObject
+        {
+            ["openai/widgetCSP"] = new JsonObject
+            {
+                ["resource_domains"] = new JsonArray("https://cdn.jsdelivr.net"), // allow <script src="...">
+                ["connect_domains"]  = new JsonArray() // add APIs if you later fetch()
+            }
+        };
 
         return ValueTask.FromResult(new ReadResourceResult
         {
@@ -486,7 +460,8 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
                 {
                     Uri = UiUri,
                     MimeType = "text/html+skybridge",
-                    Text = html
+                    Text = html,
+                    Meta = meta
                 }
             ]
         });
