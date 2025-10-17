@@ -266,24 +266,24 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
         };
 
     public ValueTask<ReadResourceResult> ReadResourceAsync(ReadResourceRequestParams request, CancellationToken ct)
-{
-    if (request.Uri != UiUri)
-        throw new McpException("Resource not found", McpErrorCode.InvalidParams);
-
-    // Strict module URL validation
-    var moduleUrl = _config["WidgetAssets:PriceVsEstimateModuleUrl"]
-        ?? throw new InvalidOperationException("WidgetAssets:PriceVsEstimateModuleUrl is not configured.");
-
-    if (!Uri.TryCreate(moduleUrl, UriKind.Absolute, out var moduleUri))
-        throw new InvalidOperationException($"Invalid module URL: {moduleUrl}");
-
-    var resourceDomains = new List<string>
     {
-        "https://cdn.jsdelivr.net",
-        $"{moduleUri.Scheme}://{moduleUri.Host}"
-    }.Distinct().ToList();
+        if (request.Uri != UiUri)
+            throw new McpException("Resource not found", McpErrorCode.InvalidParams);
 
-    const string htmlTemplate = """
+        // Build module URL from config (fallback to placeholder if not set)
+        var moduleUrl = _config["WidgetAssets:PriceVsEstimateModuleUrl"] ?? "https://cdn.jsdelivr.net/gh/YOUR_ORG/YOUR_REPO@TAG/wwwroot/widgets/price-vs-estimate-widget.js";
+        Uri? moduleUri = null;
+        if (!Uri.TryCreate(moduleUrl, UriKind.Absolute, out moduleUri)) moduleUri = null;
+
+        // Prepare CSP resource domains: Chart.js origin + module origin
+        var resourceDomains = new List<string> { "https://cdn.jsdelivr.net" };
+        if (moduleUri != null)
+        {
+            var origin = $"{moduleUri.Scheme}://{moduleUri.Host}";
+            if (!resourceDomains.Contains(origin)) resourceDomains.Add(origin);
+        }
+
+        const string htmlTemplate = """
 <!doctype html>
 <html>
   <head>
@@ -299,7 +299,7 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
       .empty { text-align: center; padding: 48px 0; font-size: 1rem; color: rgba(71, 85, 105, 0.8); }
     </style>
   </head>
-  <body data-module-url="{{MODULE_URL}}">
+  <body>
     <div class="card">
       <h1>Price vs Estimate (Rolling 12 Months)</h1>
       <p>Each point represents the 12-month rolling average of the hammer price position within the auction's estimate band.</p>
@@ -313,45 +313,41 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer id="chartjs"></script>
 
     <!-- Your widget module -->
-    <script type="module" defer crossorigin="anonymous"
-            id="price-vs-estimate-module"
-            src="{{MODULE_URL}}"></script>
+<script type="module" defer crossorigin="anonymous"
+id="price-vs-estimate-module"
+src="{{MODULE_URL}}"></script>
+
   </body>
 </html>
+
 """;
+        var html = htmlTemplate.Replace("{{MODULE_URL}}", moduleUrl);
 
-    var html = htmlTemplate.Replace("{{MODULE_URL}}", moduleUrl);
+        // IMPORTANT: add widget CSP so the sandbox can load external assets (Chart.js and the module).
+        var resourceDomainsArray = new JsonArray();
+        foreach (var d in resourceDomains) resourceDomainsArray.Add(d);
 
-    // Optional sanity checks
-    if (!html.Contains("id=\"price-vs-estimate-module\"", StringComparison.Ordinal))
-        throw new InvalidOperationException("Module <script> tag missing from template.");
-    if (!html.Contains(moduleUrl, StringComparison.Ordinal))
-        throw new InvalidOperationException($"Module URL not injected: {moduleUrl}");
-
-    var resourceDomainsArray = new JsonArray(resourceDomains.Select(d => (JsonNode)d).ToArray());
-
-    var meta = new JsonObject
-    {
-        ["openai/widgetCSP"] = new JsonObject
+        var meta = new JsonObject
         {
-            ["resource_domains"] = resourceDomainsArray,
-            ["connect_domains"]  = new JsonArray()
-        }
-    };
-
-    return ValueTask.FromResult(new ReadResourceResult
-    {
-        Contents =
-        [
-            new TextResourceContents
+            ["openai/widgetCSP"] = new JsonObject
             {
-                Uri = UiUri,
-                MimeType = "text/html+skybridge",
-                Text = html,
-                Meta = meta
+                ["resource_domains"] = resourceDomainsArray,
+                ["connect_domains"]  = new JsonArray()
             }
-        ]
-    });
-}
+        };
 
+        return ValueTask.FromResult(new ReadResourceResult
+        {
+            Contents =
+            [
+                new TextResourceContents
+                {
+                    Uri = UiUri,
+                    MimeType = "text/html+skybridge",
+                    Text = html,
+                    Meta = meta
+                }
+            ]
+        });
+    }
 }
