@@ -2,19 +2,24 @@ using AllMCPSolution.Attributes;
 using AllMCPSolution.Tools;
 using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Services;
+using AllMCPSolution.Repositories;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 
 namespace AllMCPSolution.Artworks;
 
 [McpTool("get_artwork_sales_hammer_price_timeseries", "Returns a time series of hammer prices, including inflation-adjusted hammer prices using ECB HICP.")]
-public class GetArtworkSalesHammerPriceTool : IToolBase
+public class GetArtworkSalesHammerPriceTool : IToolBase, IMcpTool
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IArtworkSaleQueryRepository _repo;
     private readonly IInflationService _inflationService;
     private const int MaxResults = 250;
 
-    public GetArtworkSalesHammerPriceTool(ApplicationDbContext dbContext, IInflationService inflationService)
+    public GetArtworkSalesHammerPriceTool(IArtworkSaleQueryRepository repo, IInflationService inflationService)
     {
-        _dbContext = dbContext;
+        _repo = repo;
         _inflationService = inflationService;
     }
 
@@ -48,7 +53,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
         var sold = ParameterHelpers.GetBoolParameter(parameters, "sold", "sold");
         var page = ParameterHelpers.GetIntParameter(parameters, "page", "page") ?? 1;
 
-        var query = _dbContext.ArtworkSales.Include(a => a.Artist).AsQueryable();
+        var query = _repo.ArtworkSales;
 
         if (artistId.HasValue) query = query.Where(a => a.ArtistId == artistId.Value);
         if (!string.IsNullOrWhiteSpace(name)) query = query.Where(a => a.Name.Contains(name));
@@ -162,7 +167,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
             inputSchema = new
             {
                 type = "object",
-                properties = ParameterHelpers.CreateOpenApiProperties(_dbContext),
+                properties = ParameterHelpers.CreateOpenApiProperties(null),
                 required = Array.Empty<string>()
             }
         };
@@ -185,7 +190,7 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
                         schema = new
                         {
                             type = "object",
-                            properties = ParameterHelpers.CreateOpenApiProperties(_dbContext)
+                            properties = ParameterHelpers.CreateOpenApiProperties(null)
                         }
                     }
                 }
@@ -209,4 +214,48 @@ public class GetArtworkSalesHammerPriceTool : IToolBase
             }
         };
     }
+
+    // IMcpTool implementation (delegates to ExecuteAsync)
+    public Tool GetDefinition() => new Tool
+    {
+        Name = Name,
+        Title = "Artwork hammer price timeseries",
+        Description = Description,
+        InputSchema = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            type = "object",
+            properties = ParameterHelpers.CreateOpenApiProperties(null),
+            required = Array.Empty<string>()
+        })).RootElement
+    };
+
+    public async ValueTask<CallToolResult> RunAsync(CallToolRequestParams request, CancellationToken ct)
+    {
+        Dictionary<string, object?>? dict = null;
+        if (request?.Arguments is not null)
+        {
+            dict = new Dictionary<string, object?>();
+            foreach (var kvp in request.Arguments)
+            {
+                dict[kvp.Key] = JsonElementToNet(kvp.Value);
+            }
+        }
+
+        var result = await ExecuteAsync(dict);
+        return new CallToolResult
+        {
+            StructuredContent = JsonSerializer.SerializeToNode(result) as JsonObject
+        };
+    }
+
+    private static object? JsonElementToNet(JsonElement el) => el.ValueKind switch
+    {
+        JsonValueKind.String => el.GetString(),
+        JsonValueKind.Number => el.TryGetInt64(out var i) ? i : el.TryGetDecimal(out var d) ? d : null,
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Object => el.EnumerateObject().ToDictionary(p => p.Name, p => JsonElementToNet(p.Value)),
+        JsonValueKind.Array => el.EnumerateArray().Select(JsonElementToNet).ToArray(),
+        _ => null
+    };
 }

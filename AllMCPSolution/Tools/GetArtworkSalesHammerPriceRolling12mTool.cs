@@ -6,18 +6,19 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using AllMCPSolution.Repositories;
 
 namespace AllMCPSolution.Artworks;
 
 [McpTool("get_artwork_sales_hammer_price_rolling_12m", "Returns 12-month rolling averages of hammer prices, including inflation-adjusted values, one data point per month.")]
 public class GetArtworkSalesHammerPriceRolling12mTool : IToolBase, IMcpTool
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IArtworkSaleQueryRepository _repo;
     private readonly IInflationService _inflationService;
 
-    public GetArtworkSalesHammerPriceRolling12mTool(ApplicationDbContext dbContext, IInflationService inflationService)
+    public GetArtworkSalesHammerPriceRolling12mTool(IArtworkSaleQueryRepository repo, IInflationService inflationService)
     {
-        _dbContext = dbContext;
+        _repo = repo;
         _inflationService = inflationService;
     }
 
@@ -50,7 +51,7 @@ public class GetArtworkSalesHammerPriceRolling12mTool : IToolBase, IMcpTool
         var maxHammerPrice = ParameterHelpers.GetDecimalParameter(parameters, "maxHammerPrice", "max_hammer_price");
         var sold = ParameterHelpers.GetBoolParameter(parameters, "sold", "sold");
 
-        var query = _dbContext.ArtworkSales.Include(a => a.Artist).AsQueryable();
+        var query = _repo.ArtworkSales;
 
         if (artistId.HasValue) query = query.Where(a => a.ArtistId == artistId.Value);
         if (!string.IsNullOrWhiteSpace(name)) query = query.Where(a => a.Name.Contains(name));
@@ -159,7 +160,7 @@ public class GetArtworkSalesHammerPriceRolling12mTool : IToolBase, IMcpTool
             inputSchema = new
             {
                 type = "object",
-                properties = ParameterHelpers.CreateOpenApiProperties(_dbContext),
+                properties = ParameterHelpers.CreateOpenApiProperties(null),
                 required = Array.Empty<string>()
             }
         };
@@ -182,7 +183,7 @@ public class GetArtworkSalesHammerPriceRolling12mTool : IToolBase, IMcpTool
                         schema = new
                         {
                             type = "object",
-                            properties = ParameterHelpers.CreateOpenApiProperties(_dbContext)
+                            properties = ParameterHelpers.CreateOpenApiProperties(null)
                         }
                     }
                 }
@@ -213,7 +214,7 @@ public class GetArtworkSalesHammerPriceRolling12mTool : IToolBase, IMcpTool
         InputSchema = JsonDocument.Parse(JsonSerializer.Serialize(new
         {
             type = "object",
-            properties = ParameterHelpers.CreateOpenApiProperties(_dbContext),
+            properties = ParameterHelpers.CreateOpenApiProperties(null),
             required = Array.Empty<string>()
         })).RootElement
     };

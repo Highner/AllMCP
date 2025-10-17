@@ -1,17 +1,22 @@
 using AllMCPSolution.Attributes;
 using AllMCPSolution.Tools;
+using AllMCPSolution.Repositories;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 
 namespace AllMCPSolution.Artworks;
 
 [McpTool("get_artwork_sales_price_vs_estimate_rolling_12m", "Returns 12-month rolling averages for price vs estimate metrics, one data point per month.")]
-public class GetArtworkSalesPriceVsEstimateRolling12mTool : IToolBase
+public class GetArtworkSalesPriceVsEstimateRolling12mTool : IToolBase, IMcpTool
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IArtworkSaleQueryRepository _repo;
 
-    public GetArtworkSalesPriceVsEstimateRolling12mTool(ApplicationDbContext dbContext)
+    public GetArtworkSalesPriceVsEstimateRolling12mTool(IArtworkSaleQueryRepository repo)
     {
-        _dbContext = dbContext;
+        _repo = repo;
     }
 
     public string Name => "get_artwork_sales_price_vs_estimate_rolling_12m";
@@ -32,7 +37,7 @@ The 'position-in-estimate-range' value represents the normalized position of the
             return new { timeSeries = Array.Empty<object>(), count = 0, description = "Artist ID is required." };
         }
 
-        var query = _dbContext.ArtworkSales.Include(a => a.Artist).AsQueryable();
+        var query = _repo.ArtworkSales;
 
         query = query.Where(a => a.ArtistId == artistId.Value);
         if (!string.IsNullOrWhiteSpace(category)) query = query.Where(a => a.Category.Contains(category));
@@ -114,6 +119,50 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
         };
     
     }
+
+    // IMcpTool implementation (delegates to ExecuteAsync)
+    public Tool GetDefinition() => new Tool
+    {
+        Name = Name,
+        Title = "Price vs estimate (12m rolling)",
+        Description = Description,
+        InputSchema = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            type = "object",
+            properties = ParameterHelpers.CreateOpenApiProperties(null),
+            required = Array.Empty<string>()
+        })).RootElement
+    };
+
+    public async ValueTask<CallToolResult> RunAsync(CallToolRequestParams request, CancellationToken ct)
+    {
+        Dictionary<string, object?>? dict = null;
+        if (request?.Arguments is not null)
+        {
+            dict = new Dictionary<string, object?>();
+            foreach (var kvp in request.Arguments)
+            {
+                dict[kvp.Key] = JsonElementToNet(kvp.Value);
+            }
+        }
+
+        var result = await ExecuteAsync(dict);
+        return new CallToolResult
+        {
+            StructuredContent = JsonSerializer.SerializeToNode(result) as JsonObject
+        };
+    }
+
+    private static object? JsonElementToNet(JsonElement el) => el.ValueKind switch
+    {
+        JsonValueKind.String => el.GetString(),
+        JsonValueKind.Number => el.TryGetInt64(out var i) ? i : el.TryGetDecimal(out var d) ? d : null,
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Object => el.EnumerateObject().ToDictionary(p => p.Name, p => JsonElementToNet(p.Value)),
+        JsonValueKind.Array => el.EnumerateArray().Select(JsonElementToNet).ToArray(),
+        _ => null
+    };
 
     public object GetToolDefinition()
     {

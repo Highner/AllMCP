@@ -27,6 +27,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<IArtistRepository, ArtistRepository>();
 builder.Services.AddScoped<IArtworkRepository, ArtworkRepository>();
 builder.Services.AddScoped<IArtworkSaleRepository, ArtworkSaleRepository>();
+builder.Services.AddScoped<IArtworkSaleQueryRepository, ArtworkSaleQueryRepository>();
 builder.Services.AddScoped<IInflationIndexRepository, InflationIndexRepository>();
 
 // Register all tools (auto-discovered by ToolRegistry)

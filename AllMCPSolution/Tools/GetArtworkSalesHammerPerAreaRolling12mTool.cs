@@ -4,69 +4,47 @@ using AllMCPSolution.Tools;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
 using ModelContextProtocol.Protocol;
-using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Server;
+using AllMCPSolution.Attributes;
 
 namespace AllMCPSolution.Artworks;
 
-public class GetArtworkSalesHammerPerAreaRolling12mTool : IMcpTool
+[McpTool("get_artwork_sales_hammer_per_area_rolling_12m", "Returns 12-month rolling averages of hammer price per area (height*width), using inflation-adjusted prices, one data point per month.")]
+public class GetArtworkSalesHammerPerAreaRolling12mTool : IToolBase, IMcpTool
 {
-    public Tool GetDefinition() => new()
-    {
-        Name = "get_artwork_sales_hammer_per_area_rolling_12m",
-        Title = "Hammer Price per Area (12m Rolling)",
-        Description = "Returns 12-month rolling averages of hammer price per area (height*width), using inflation-adjusted prices, one data point per month.",
-        InputSchema = JsonDocument.Parse("""
-{
-  "type": "object",
-  "properties": {
-    "artist_id": { "type": "string", "format": "uuid", "description": "The unique identifier of the artist" },
-    "category": { "type": "string", "description": "Filter by artwork category" }
-  },
-  "required": ["artist_id"]
-}
-""").RootElement
-    };
+    private readonly IArtworkSaleRepository _repo;
+    private readonly IInflationService _inflation;
 
-    public async ValueTask<CallToolResult> RunAsync(CallToolRequestParams request, CancellationToken ct)
+    public GetArtworkSalesHammerPerAreaRolling12mTool(IArtworkSaleRepository repo, IInflationService inflation)
     {
-        // Resolve required services via a scoped provider (Repository pattern, no direct DbContext access)
-        using var scope = AllMCPSolution.Services.ServiceLocator.CreateScope();
-        var repo = scope.ServiceProvider.GetRequiredService<IArtworkSaleRepository>();
-        var inflation = scope.ServiceProvider.GetRequiredService<IInflationService>();
+        _repo = repo;
+        _inflation = inflation;
+    }
 
-        var artistIdStr = GetStringArg(request, "artist_id") ?? GetStringArg(request, "artistId");
-        if (!Guid.TryParse(artistIdStr, out var artistId))
+    public string Name => "get_artwork_sales_hammer_per_area_rolling_12m";
+    public string Description => "Returns 12-month rolling averages of hammer price per area (height*width), using inflation-adjusted prices, one data point per month.";
+    public string? SafetyLevel => "non_critical";
+    public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
+    {
+        parameters ??= new Dictionary<string, object>();
+        var artistId = ParameterHelpers.GetGuidParameter(parameters, "artistId", "artist_id");
+        var category = ParameterHelpers.GetStringParameter(parameters, "category", "category");
+        if (!artistId.HasValue)
         {
-            return new CallToolResult
-            {
-                Content = [ new TextContentBlock { Type = "text", Text = "Artist ID is required (uuid)." } ],
-                StructuredContent = new JsonObject { ["timeSeries"] = new JsonArray(), ["count"] = 0, ["description"] = "Artist ID is required." }
-            };
+            return new { timeSeries = new { Small = Array.Empty<object>(), Medium = Array.Empty<object>(), Large = Array.Empty<object>() }, count = 0, description = "Artist ID is required." };
         }
 
-        var category = GetStringArg(request, "category");
-
-        // Fetch sales via repository
         var categories = string.IsNullOrWhiteSpace(category) ? new List<string>() : new List<string> { category! };
-        var sales = await repo.GetSalesAsync(artistId, null, null, categories, ct);
+        var sales = await _repo.GetSalesAsync(artistId.Value, null, null, categories, CancellationToken.None);
         sales = sales.Where(a => a.Sold && a.SaleDate != default && a.HammerPrice > 0 && a.Height > 0 && a.Width > 0)
                      .OrderBy(a => a.SaleDate)
                      .ToList();
-
         if (sales.Count == 0)
         {
-            return new CallToolResult
-            {
-                Content = [ new TextContentBlock { Type = "text", Text = "No data found for the specified filters." } ],
-                StructuredContent = new JsonObject { ["timeSeries"] = new JsonArray(), ["count"] = 0, ["description"] = "No data found for the specified filters." }
-            };
+            return new { timeSeries = new { Small = Array.Empty<object>(), Medium = Array.Empty<object>(), Large = Array.Empty<object>() }, count = 0, description = "No data found for the specified filters." };
         }
 
-        // Calculate area and thresholds
-        var salesWithArea = sales
-            .Select(s => new { s.SaleDate, s.HammerPrice, Area = (s.Height * s.Width) })
-            .ToList();
-
+        var salesWithArea = sales.Select(s => new { s.SaleDate, s.HammerPrice, Area = (s.Height * s.Width) }).ToList();
         var sortedAreas = salesWithArea.Select(s => s.Area).OrderBy(a => a).ToList();
         var smallThreshold = sortedAreas[sortedAreas.Count / 3];
         var largeThreshold = sortedAreas[(sortedAreas.Count * 2) / 3];
@@ -80,14 +58,10 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IMcpTool
 
         foreach (var s in salesWithArea)
         {
-            var adj = await inflation.AdjustAmountAsync(s.HammerPrice, s.SaleDate);
+            var adj = await _inflation.AdjustAmountAsync(s.HammerPrice, s.SaleDate);
             var perAreaAdj = adj / s.Area;
             var m = new DateTime(s.SaleDate.Year, s.SaleDate.Month, 1);
-
-            var targetDict = s.Area <= smallThreshold ? monthlySmall
-                           : s.Area <= largeThreshold ? monthlyMedium
-                           : monthlyLarge;
-
+            var targetDict = s.Area <= smallThreshold ? monthlySmall : s.Area <= largeThreshold ? monthlyMedium : monthlyLarge;
             if (!targetDict.TryGetValue(m, out var agg)) agg = (0m, 0);
             agg.sumPerAreaAdj += perAreaAdj;
             agg.count += 1;
@@ -101,33 +75,102 @@ public class GetArtworkSalesHammerPerAreaRolling12mTool : IMcpTool
         var seriesMedium = BuildRollingSeries(months, monthlyMedium);
         var seriesLarge = BuildRollingSeries(months, monthlyLarge);
 
-        var structured = new JsonObject
+        var result = new
         {
-            ["timeSeries"] = new JsonObject
+            timeSeries = new { Small = seriesSmall, Medium = seriesMedium, Large = seriesLarge },
+            count = new { Small = seriesSmall.Count, Medium = seriesMedium.Count, Large = seriesLarge.Count },
+            description = $"Three size brackets based on area (height×width). Small: ≤{smallThreshold:F2}, Medium: {smallThreshold:F2}-{largeThreshold:F2}, Large: >{largeThreshold:F2}. Each series shows 12-month rolling averages of inflation-adjusted hammer price per area.",
+            brackets = new { Small = $"Area ≤ {smallThreshold:F2}", Medium = $"Area {smallThreshold:F2} - {largeThreshold:F2}", Large = $"Area > {largeThreshold:F2}" }
+        };
+        return result;
+    }
+
+    public Tool GetDefinition() => new()
+    {
+        Name = Name,
+        Title = "Hammer Price per Area (12m Rolling)",
+        Description = Description,
+        InputSchema = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            type = "object",
+            properties = ParameterHelpers.CreateOpenApiProperties(null),
+            required = Array.Empty<string>()
+        })).RootElement
+    };
+
+    public object GetToolDefinition()
+    {
+        return new
+        {
+            name = Name,
+            description = Description,
+            inputSchema = new
             {
-                ["Small"] = ToJsonArray(seriesSmall),
-                ["Medium"] = ToJsonArray(seriesMedium),
-                ["Large"] = ToJsonArray(seriesLarge)
-            },
-            ["count"] = new JsonObject
-            {
-                ["Small"] = seriesSmall.Count,
-                ["Medium"] = seriesMedium.Count,
-                ["Large"] = seriesLarge.Count
-            },
-            ["description"] = $"Three size brackets based on area (height×width). Small: ≤{smallThreshold:F2}, Medium: {smallThreshold:F2}-{largeThreshold:F2}, Large: >{largeThreshold:F2}. Each series shows 12-month rolling averages of inflation-adjusted hammer price per area.",
-            ["brackets"] = new JsonObject
-            {
-                ["Small"] = $"Area ≤ {smallThreshold:F2}",
-                ["Medium"] = $"Area {smallThreshold:F2} - {largeThreshold:F2}",
-                ["Large"] = $"Area > {largeThreshold:F2}"
+                type = "object",
+                properties = ParameterHelpers.CreateOpenApiProperties(null),
+                required = Array.Empty<string>()
             }
         };
+    }
 
+    public object GetOpenApiSchema()
+    {
+        return new
+        {
+            operationId = Name,
+            summary = Description,
+            description = Description,
+            requestBody = new
+            {
+                required = false,
+                content = new
+                {
+                    application__json = new
+                    {
+                        schema = new
+                        {
+                            type = "object",
+                            properties = ParameterHelpers.CreateOpenApiProperties(null)
+                        }
+                    }
+                }
+            },
+            responses = new
+            {
+                _200 = new
+                {
+                    description = "Successful response",
+                    content = new
+                    {
+                        application__json = new
+                        {
+                            schema = new { type = "object" }
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    public async ValueTask<CallToolResult> RunAsync(CallToolRequestParams request, CancellationToken ct)
+    {
+        Dictionary<string, object?>? dict = null;
+        if (request?.Arguments is not null)
+        {
+            dict = new Dictionary<string, object?>();
+            foreach (var kvp in request.Arguments)
+            {
+                dict[kvp.Key] = kvp.Value.ValueKind == JsonValueKind.String ? (object?)kvp.Value.GetString() :
+                                 kvp.Value.ValueKind == JsonValueKind.Number ? (object?)(kvp.Value.TryGetDecimal(out var d) ? d : null) :
+                                 kvp.Value.ValueKind == JsonValueKind.True ? true :
+                                 kvp.Value.ValueKind == JsonValueKind.False ? false : null;
+            }
+        }
+
+        var result = await ExecuteAsync(dict);
         return new CallToolResult
         {
-            Content = [ new TextContentBlock { Type = "text", Text = "Computed 12-month rolling series for hammer price per area." } ],
-            StructuredContent = structured
+            StructuredContent = JsonSerializer.SerializeToNode(result) as JsonObject
         };
     }
 

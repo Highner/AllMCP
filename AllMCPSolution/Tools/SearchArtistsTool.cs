@@ -1,17 +1,20 @@
 using AllMCPSolution.Attributes;
 using AllMCPSolution.Tools;
-using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 
 namespace AllMCPSolution.Artists;
 
 [McpTool("search_artists", "Searches for artists using fuzzy matching on their names")]
-public class SearchArtistsTool : IToolBase
+public class SearchArtistsTool : IToolBase, IMcpTool
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly AllMCPSolution.Repositories.IArtistRepository _artists;
 
-    public SearchArtistsTool(ApplicationDbContext dbContext)
+    public SearchArtistsTool(AllMCPSolution.Repositories.IArtistRepository artists)
     {
-        _dbContext = dbContext;
+        _artists = artists;
     }
 
     public string Name => "search_artists";
@@ -38,7 +41,7 @@ public class SearchArtistsTool : IToolBase
             threshold = parsedThreshold;
         }
 
-        var allArtists = await _dbContext.Artists.ToListAsync();
+        var allArtists = await _artists.GetAllAsync();
 
         // Perform fuzzy search on both first name, last name, and full name
         var searchResults = allArtists
@@ -271,6 +274,44 @@ public class SearchArtistsTool : IToolBase
                     }
                 }
             }
+        };
+    }
+
+    // IMcpTool implementation (delegates to ExecuteAsync)
+    public Tool GetDefinition() => new Tool
+    {
+        Name = Name,
+        Title = "Search artists",
+        Description = Description,
+        InputSchema = System.Text.Json.JsonDocument.Parse("""
+        {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "description": "The search query to match against artist names" },
+            "threshold": { "type": "integer", "description": "Maximum edit distance (default 3)", "default": 3 }
+          },
+          "required": ["query"]
+        }
+        """).RootElement
+    };
+
+    public async ValueTask<CallToolResult> RunAsync(CallToolRequestParams request, CancellationToken ct)
+    {
+        Dictionary<string, object?>? dict = null;
+        if (request?.Arguments is not null)
+        {
+            dict = new Dictionary<string, object?>();
+            foreach (var kvp in request.Arguments)
+            {
+                dict[kvp.Key] = kvp.Value.ValueKind == System.Text.Json.JsonValueKind.String ? kvp.Value.GetString() :
+                                 kvp.Value.ValueKind == System.Text.Json.JsonValueKind.Number ? (object?) (kvp.Value.TryGetInt32(out var i) ? i : null) : null;
+            }
+        }
+
+        var result = await ExecuteAsync(dict);
+        return new CallToolResult
+        {
+            StructuredContent = JsonSerializer.SerializeToNode(result) as JsonObject
         };
     }
 }

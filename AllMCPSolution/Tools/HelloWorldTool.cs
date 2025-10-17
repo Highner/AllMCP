@@ -6,27 +6,33 @@ using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 
+using AllMCPSolution.Attributes;
+
 namespace AllMCPSolution.Tools;
 
-public sealed class HelloWorldTool : IMcpTool, IResourceProvider
+[McpTool("hello_world", "Greets the user and renders a simple UI card.")]
+public sealed class HelloWorldTool : IMcpTool, IResourceProvider, IToolBase
 {
+    public string Name => "hello_world";
+    public string Description => "Greets the user and renders a card UI.";
+    public string? SafetyLevel => "non_critical";
     public static HelloWorldTool Instance { get; } = new();
     private const string UiUri = "ui://widget/hello.html";
 
     public Tool GetDefinition() => new()
     {
-        Name = "hello_world",
+        Name = Name,
         Title = "Hello World",
-        Description = "Greets the user and renders a card UI.",
+        Description = Description,
         InputSchema = JsonDocument.Parse("""
                                          {
                                            "type": "object",
                                            "properties": {
                                              "name": { "type": "string", "description": "Name to greet" }
-                                           }
+                                           },
+                                           "required": []
                                          }
                                          """).RootElement,
-
         Meta = new JsonObject
         {
             ["openai/outputTemplate"] = UiUri,
@@ -35,19 +41,88 @@ public sealed class HelloWorldTool : IMcpTool, IResourceProvider
         }
     };
 
-    public ValueTask<CallToolResult> RunAsync(CallToolRequestParams request, CancellationToken ct)
+    public object GetToolDefinition() => new
     {
-        
-        var name = GetStringArg(request, "name") is { Length: > 0 } s ? s : "World";
-
-
-        var structured = new JsonObject { ["message"] = $"Hello, {name}!" };
-
-        return ValueTask.FromResult(new CallToolResult
+        name = Name,
+        description = Description,
+        inputSchema = new
         {
-            Content = [ new TextContentBlock { Type = "text", Text = $"Hello, {name}!" } ],
-            StructuredContent = structured
-        });
+            type = "object",
+            properties = new
+            {
+                name = new { type = "string", description = "Name to greet" }
+            },
+            required = Array.Empty<string>()
+        }
+    };
+
+    public object GetOpenApiSchema() => new
+    {
+        operationId = Name,
+        summary = Description,
+        description = Description,
+        requestBody = new
+        {
+            required = false,
+            content = new
+            {
+                application__json = new
+                {
+                    schema = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            name = new { type = "string", description = "Name to greet" }
+                        }
+                    }
+                }
+            }
+        },
+        responses = new
+        {
+            _200 = new
+            {
+                description = "Successful response",
+                content = new
+                {
+                    application__json = new
+                    {
+                        schema = new { type = "object" }
+                    }
+                }
+            }
+        }
+    };
+
+    public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
+    {
+        parameters ??= new Dictionary<string, object>();
+        parameters.TryGetValue("name", out var raw);
+        var name = raw as string;
+        if (string.IsNullOrWhiteSpace(name)) name = "World";
+        return new { message = $"Hello, {name}!" };
+    }
+
+    public async ValueTask<CallToolResult> RunAsync(CallToolRequestParams request, CancellationToken ct)
+    {
+        Dictionary<string, object?>? dict = null;
+        if (request?.Arguments is not null)
+        {
+            dict = new Dictionary<string, object?>();
+            foreach (var kv in request.Arguments)
+            {
+                dict[kv.Key] = kv.Value.ValueKind == JsonValueKind.String ? kv.Value.GetString() : null;
+            }
+        }
+
+        var result = await ExecuteAsync(dict);
+        var msg = (result?.GetType().GetProperty("message")?.GetValue(result) as string) ?? "Hello, World!";
+        return new CallToolResult
+        {
+            Content = [ new TextContentBlock { Type = "text", Text = msg } ],
+            StructuredContent = JsonSerializer.SerializeToNode(result) as JsonObject
+        };
     }
 
     public IEnumerable<Resource> ListResources() =>

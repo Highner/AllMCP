@@ -1,19 +1,20 @@
 using AllMCPSolution.Attributes;
 using AllMCPSolution.Tools;
-using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Services;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 
 namespace AllMCPSolution.Artworks;
 
 [McpTool("get_artwork_sales_hammer_per_area_timeseries", "Returns hammer price per area (height*width) and inflation-adjusted per-area values.")]
-public class GetArtworkSalesHammerPerAreaTool : IToolBase
+public class GetArtworkSalesHammerPerAreaTool : IToolBase, IMcpTool
 {
-    private readonly ApplicationDbContext _dbContext;
     private readonly IHammerPerAreaAnalyticsService _analyticsService;
 
-    public GetArtworkSalesHammerPerAreaTool(ApplicationDbContext dbContext, IHammerPerAreaAnalyticsService analyticsService)
+    public GetArtworkSalesHammerPerAreaTool(IHammerPerAreaAnalyticsService analyticsService)
     {
-        _dbContext = dbContext;
         _analyticsService = analyticsService;
     }
 
@@ -63,7 +64,7 @@ public class GetArtworkSalesHammerPerAreaTool : IToolBase
             inputSchema = new
             {
                 type = "object",
-                properties = ParameterHelpers.CreateOpenApiProperties(_dbContext),
+                properties = ParameterHelpers.CreateOpenApiProperties(null),
                 required = Array.Empty<string>()
             }
         };
@@ -86,7 +87,7 @@ public class GetArtworkSalesHammerPerAreaTool : IToolBase
                         schema = new
                         {
                             type = "object",
-                            properties = ParameterHelpers.CreateOpenApiProperties(_dbContext)
+                            properties = ParameterHelpers.CreateOpenApiProperties(null)
                         }
                     }
                 }
@@ -110,4 +111,48 @@ public class GetArtworkSalesHammerPerAreaTool : IToolBase
             }
         };
     }
+
+    // IMcpTool implementation (delegates to ExecuteAsync)
+    public Tool GetDefinition() => new Tool
+    {
+        Name = Name,
+        Title = "Hammer price per area timeseries",
+        Description = Description,
+        InputSchema = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            type = "object",
+            properties = ParameterHelpers.CreateOpenApiProperties(null),
+            required = Array.Empty<string>()
+        })).RootElement
+    };
+
+    public async ValueTask<CallToolResult> RunAsync(CallToolRequestParams request, CancellationToken ct)
+    {
+        Dictionary<string, object?>? dict = null;
+        if (request?.Arguments is not null)
+        {
+            dict = new Dictionary<string, object?>();
+            foreach (var kvp in request.Arguments)
+            {
+                dict[kvp.Key] = JsonElementToNet(kvp.Value);
+            }
+        }
+
+        var result = await ExecuteAsync(dict);
+        return new CallToolResult
+        {
+            StructuredContent = JsonSerializer.SerializeToNode(result) as JsonObject
+        };
+    }
+
+    private static object? JsonElementToNet(JsonElement el) => el.ValueKind switch
+    {
+        JsonValueKind.String => el.GetString(),
+        JsonValueKind.Number => el.TryGetInt64(out var i) ? i : el.TryGetDecimal(out var d) ? d : null,
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Object => el.EnumerateObject().ToDictionary(p => p.Name, p => JsonElementToNet(p.Value)),
+        JsonValueKind.Array => el.EnumerateArray().Select(JsonElementToNet).ToArray(),
+        _ => null
+    };
 }

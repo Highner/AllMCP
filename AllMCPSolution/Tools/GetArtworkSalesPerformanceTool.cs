@@ -1,18 +1,23 @@
 using AllMCPSolution.Attributes;
 using AllMCPSolution.Tools;
+using AllMCPSolution.Repositories;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 
 namespace AllMCPSolution.Artworks;
 
 [McpTool("get_artwork_sales_performance_timeseries", "Returns a time series of artwork sales performance relative to estimates")]
-public class GetArtworkSalesPerformanceTool : IToolBase
+public class GetArtworkSalesPerformanceTool : IToolBase, IMcpTool
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IArtworkSaleQueryRepository _repo;
     private const int MaxResults = 1000; // Limit for time series
 
-    public GetArtworkSalesPerformanceTool(ApplicationDbContext dbContext)
+    public GetArtworkSalesPerformanceTool(IArtworkSaleQueryRepository repo)
     {
-        _dbContext = dbContext;
+        _repo = repo;
     }
 
     public string Name => "get_artwork_sales_performance_timeseries";
@@ -46,10 +51,8 @@ public class GetArtworkSalesPerformanceTool : IToolBase
         var sold = ParameterHelpers.GetBoolParameter(parameters, "sold", "sold");
         var page = ParameterHelpers.GetIntParameter(parameters, "page", "page") ?? 1;
 
-        // Build query
-        var query = _dbContext.ArtworkSales
-            .Include(a => a.Artist)
-            .AsQueryable();
+        // Build query (via repository)
+        var query = _repo.ArtworkSales;
 
         // Apply filters
         if (artistId.HasValue)
@@ -232,16 +235,8 @@ public class GetArtworkSalesPerformanceTool : IToolBase
 
     public object GetToolDefinition()
 {
-    // Get distinct categories from the database
-    var categories = _dbContext.ArtworkSales
-        .Select(a => a.Category)
-        .Distinct()
-        .OrderBy(c => c)
-        .ToList();
-    
-    var categoryDescription = categories.Any() 
-        ? $"Filter by category (partial match). Available options: {string.Join(", ", categories)}"
-        : "Filter by category (partial match)";
+    // Category description without direct DB access (repository used only in Execute)
+    var categoryDescription = "Filter by category (partial match)";
 
     return new
     {
@@ -379,7 +374,7 @@ public class GetArtworkSalesPerformanceTool : IToolBase
                     schema = new
                     {
                         type = "object",
-                        properties = ParameterHelpers.CreateOpenApiProperties(_dbContext)
+                        properties = ParameterHelpers.CreateOpenApiProperties(null)
                     }
                 }
             }
@@ -442,5 +437,48 @@ public class GetArtworkSalesPerformanceTool : IToolBase
             }
         }
     };
-}
+    }
+    // IMcpTool implementation (delegates to ExecuteAsync)
+    public Tool GetDefinition() => new Tool
+    {
+        Name = Name,
+        Title = "Artwork sales performance timeseries",
+        Description = Description,
+        InputSchema = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            type = "object",
+            properties = ParameterHelpers.CreateOpenApiProperties(null),
+            required = Array.Empty<string>()
+        })).RootElement
+    };
+
+    public async ValueTask<CallToolResult> RunAsync(CallToolRequestParams request, CancellationToken ct)
+    {
+        Dictionary<string, object?>? dict = null;
+        if (request?.Arguments is not null)
+        {
+            dict = new Dictionary<string, object?>();
+            foreach (var kvp in request.Arguments)
+            {
+                dict[kvp.Key] = JsonElementToNet(kvp.Value);
+            }
+        }
+
+        var result = await ExecuteAsync(dict);
+        return new CallToolResult
+        {
+            StructuredContent = JsonSerializer.SerializeToNode(result) as JsonObject
+        };
+    }
+
+    private static object? JsonElementToNet(JsonElement el) => el.ValueKind switch
+    {
+        JsonValueKind.String => el.GetString(),
+        JsonValueKind.Number => el.TryGetInt64(out var i) ? i : el.TryGetDecimal(out var d) ? d : null,
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Object => el.EnumerateObject().ToDictionary(p => p.Name, p => JsonElementToNet(p.Value)),
+        JsonValueKind.Array => el.EnumerateArray().Select(JsonElementToNet).ToArray(),
+        _ => null
+    };
 }
