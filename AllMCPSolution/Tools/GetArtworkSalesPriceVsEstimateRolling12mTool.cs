@@ -266,33 +266,24 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
         };
 
     public ValueTask<ReadResourceResult> ReadResourceAsync(ReadResourceRequestParams request, CancellationToken ct)
+{
+    if (request.Uri != UiUri)
+        throw new McpException("Resource not found", McpErrorCode.InvalidParams);
+
+    // Strict module URL validation
+    var moduleUrl = _config["WidgetAssets:PriceVsEstimateModuleUrl"]
+        ?? throw new InvalidOperationException("WidgetAssets:PriceVsEstimateModuleUrl is not configured.");
+
+    if (!Uri.TryCreate(moduleUrl, UriKind.Absolute, out var moduleUri))
+        throw new InvalidOperationException($"Invalid module URL: {moduleUrl}");
+
+    var resourceDomains = new List<string>
     {
-        if (request.Uri != UiUri)
-            throw new McpException("Resource not found", McpErrorCode.InvalidParams);
+        "https://cdn.jsdelivr.net",
+        $"{moduleUri.Scheme}://{moduleUri.Host}"
+    }.Distinct().ToList();
 
-// Build module URL from config
-        var moduleUrl = _config["WidgetAssets:PriceVsEstimateModuleUrl"];
-        if (string.IsNullOrWhiteSpace(moduleUrl))
-            throw new InvalidOperationException("WidgetAssets:PriceVsEstimateModuleUrl is not configured.");
-
-        if (!Uri.TryCreate(moduleUrl, UriKind.Absolute, out var moduleUri))
-            throw new InvalidOperationException($"Invalid module URL: {moduleUrl}");
-
-
-        // Prepare CSP resource domains: Chart.js origin + module origin
-        var resourceDomains = new List<string>
-        {
-            "https://cdn.jsdelivr.net",                         // Chart.js
-            $"{moduleUri.Scheme}://{moduleUri.Host}"            // your module’s origin
-        }.Distinct().ToList();
-
-        if (moduleUri != null)
-        {
-            var origin = $"{moduleUri.Scheme}://{moduleUri.Host}";
-            if (!resourceDomains.Contains(origin)) resourceDomains.Add(origin);
-        }
-
-        const string htmlTemplate = """
+    const string htmlTemplate = """
 <!doctype html>
 <html>
   <head>
@@ -308,15 +299,10 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
       .empty { text-align: center; padding: 48px 0; font-size: 1rem; color: rgba(71, 85, 105, 0.8); }
     </style>
   </head>
-    <body data-module-url="{{MODULE_URL}}">
-
+  <body data-module-url="{{MODULE_URL}}">
     <div class="card">
       <h1>Price vs Estimate (Rolling 12 Months)</h1>
       <p>Each point represents the 12-month rolling average of the hammer price position within the auction's estimate band.</p>
-      <div style="font:12px/1.4 system-ui; padding:8px; margin-bottom:8px; border:1px dashed; opacity:.75">
-  Widget debug • module: <code id="modUrl">{{MODULE_URL}}</code>
-</div>
-
       <div id="chartContainer">
         <canvas id="trendChart" role="img" aria-label="Price vs estimate rolling 12 month trend"></canvas>
       </div>
@@ -327,41 +313,45 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer id="chartjs"></script>
 
     <!-- Your widget module -->
-<script type="module" defer crossorigin="anonymous"
-id="price-vs-estimate-module"
-src="{{MODULE_URL}}"></script>
-
+    <script type="module" defer crossorigin="anonymous"
+            id="price-vs-estimate-module"
+            src="{{MODULE_URL}}"></script>
   </body>
 </html>
-
 """;
-        var html = htmlTemplate.Replace("{{MODULE_URL}}", moduleUrl);
 
-        // IMPORTANT: add widget CSP so the sandbox can load external assets (Chart.js and the module).
-        var resourceDomainsArray = new JsonArray();
-        foreach (var d in resourceDomains) resourceDomainsArray.Add(d);
+    var html = htmlTemplate.Replace("{{MODULE_URL}}", moduleUrl);
 
-        var meta = new JsonObject
+    // Optional sanity checks
+    if (!html.Contains("id=\"price-vs-estimate-module\"", StringComparison.Ordinal))
+        throw new InvalidOperationException("Module <script> tag missing from template.");
+    if (!html.Contains(moduleUrl, StringComparison.Ordinal))
+        throw new InvalidOperationException($"Module URL not injected: {moduleUrl}");
+
+    var resourceDomainsArray = new JsonArray(resourceDomains.Select(d => (JsonNode)d).ToArray());
+
+    var meta = new JsonObject
+    {
+        ["openai/widgetCSP"] = new JsonObject
         {
-            ["openai/widgetCSP"] = new JsonObject
+            ["resource_domains"] = resourceDomainsArray,
+            ["connect_domains"]  = new JsonArray()
+        }
+    };
+
+    return ValueTask.FromResult(new ReadResourceResult
+    {
+        Contents =
+        [
+            new TextResourceContents
             {
-                ["resource_domains"] = resourceDomainsArray,
-                ["connect_domains"]  = new JsonArray()
+                Uri = UiUri,
+                MimeType = "text/html+skybridge",
+                Text = html,
+                Meta = meta
             }
-        };
+        ]
+    });
+}
 
-        return ValueTask.FromResult(new ReadResourceResult
-        {
-            Contents =
-            [
-                new TextResourceContents
-                {
-                    Uri = UiUri,
-                    MimeType = "text/html+skybridge",
-                    Text = html,
-                    Meta = meta
-                }
-            ]
-        });
-    }
 }
