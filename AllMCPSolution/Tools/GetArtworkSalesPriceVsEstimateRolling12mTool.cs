@@ -313,6 +313,10 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
     <div class="card">
       <h1>Price vs Estimate (Rolling 12 Months)</h1>
       <p>Each point represents the 12-month rolling average of the hammer price position within the auction's estimate band.</p>
+      <div style="font:12px/1.4 system-ui; padding:8px; margin-bottom:8px; border:1px dashed; opacity:.75">
+  Widget debug • module: <code id="modUrl">{{MODULE_URL}}</code>
+</div>
+
       <div id="chartContainer">
         <canvas id="trendChart" role="img" aria-label="Price vs estimate rolling 12 month trend"></canvas>
       </div>
