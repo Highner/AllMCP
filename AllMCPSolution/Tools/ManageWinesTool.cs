@@ -342,7 +342,7 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
         };
     }
 
-    private Dictionary<string, object?>? ConvertArgumentsToDictionary(Dictionary<string, JsonElement>? arguments)
+    private Dictionary<string, object?>? ConvertArgumentsToDictionary(IReadOnlyDictionary<string, JsonElement>? arguments)
     {
         if (arguments is null) return null;
         var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
