@@ -22,18 +22,18 @@ public class ArtistRepository : IArtistRepository
             .AsNoTracking()
             .OrderBy(a => a.LastName)
             .ThenBy(a => a.FirstName)
-            .ToListAsync(ct);
+            .ToListAsync();
     }
 
     public async Task<Artist?> FindByNameAsync(string firstName, string lastName, CancellationToken ct = default)
     {
         return await _db.Artists.FirstOrDefaultAsync(
-            a => a.FirstName.ToLower() == firstName.ToLower() && a.LastName.ToLower() == lastName.ToLower(), ct);
+            a => a.FirstName.ToLower() == firstName.ToLower() && a.LastName.ToLower() == lastName.ToLower());
     }
 
     public async Task AddAsync(Artist artist, CancellationToken ct = default)
     {
         _db.Artists.Add(artist);
-        await _db.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync();
     }
 }
