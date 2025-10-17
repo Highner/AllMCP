@@ -148,7 +148,7 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
     {
         var wines = await _wineRepository.GetAllAsync(ct);
         var mapped = wines.Select(MapWine).ToList();
-        return OperationResult.Success("list", $"Retrieved {mapped.Count} wines.", mapped);
+        return OperationResult.CreateSuccess("list", $"Retrieved {mapped.Count} wines.", mapped);
     }
 
     private async Task<OperationResult> GetAsync(Dictionary<string, object>? parameters, CancellationToken ct)
@@ -165,7 +165,7 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
             return OperationResult.Failure($"Wine with id {id} was not found.");
         }
 
-        return OperationResult.Success("get", "Wine retrieved successfully.", MapWine(wine));
+        return OperationResult.CreateSuccess("get", "Wine retrieved successfully.", MapWine(wine));
     }
 
     private async Task<OperationResult> CreateAsync(Dictionary<string, object>? parameters, CancellationToken ct)
@@ -209,7 +209,7 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
         await _wineRepository.AddAsync(wine, ct);
         var created = await _wineRepository.GetByIdAsync(wine.Id, ct) ?? wine;
 
-        return OperationResult.Success("create", "Wine created successfully.", MapWine(created));
+        return OperationResult.CreateSuccess("create", "Wine created successfully.", MapWine(created));
     }
 
     private async Task<OperationResult> UpdateAsync(Dictionary<string, object>? parameters, CancellationToken ct)
@@ -243,7 +243,7 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
         await _wineRepository.UpdateAsync(wine, ct);
         var updated = await _wineRepository.GetByIdAsync(wine.Id, ct) ?? wine;
 
-        return OperationResult.Success("update", "Wine updated successfully.", MapWine(updated));
+        return OperationResult.CreateSuccess("update", "Wine updated successfully.", MapWine(updated));
     }
 
     private async Task<OperationResult> DeleteAsync(Dictionary<string, object>? parameters, CancellationToken ct)
@@ -255,7 +255,7 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
         }
 
         await _wineRepository.DeleteAsync(id.Value, ct);
-        return OperationResult.Success("delete", $"Wine {id} deleted if it existed.", null);
+        return OperationResult.CreateSuccess("delete", $"Wine {id} deleted if it existed.", null);
     }
 
     private JsonObject BuildInputSchema()
@@ -402,7 +402,7 @@ public sealed class ManageWinesTool : IToolBase, IMcpTool
         public object? Data { get; init; }
         public IReadOnlyList<string>? Errors { get; init; }
 
-        public static OperationResult Success(string operation, string message, object? data)
+        public static OperationResult CreateSuccess(string operation, string message, object? data)
             => new() { Success = true, Operation = operation, Message = message, Data = data };
 
         public static OperationResult Failure(string message, IReadOnlyList<string>? errors = null)

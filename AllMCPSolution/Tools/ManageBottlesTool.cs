@@ -146,7 +146,7 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
     {
         var bottles = await _bottleRepository.GetAllAsync(ct);
         var mapped = bottles.Select(MapBottle).ToList();
-        return OperationResult.Success("list", $"Retrieved {mapped.Count} bottles.", mapped);
+        return OperationResult.CreateSuccess("list", $"Retrieved {mapped.Count} bottles.", mapped);
     }
 
     private async Task<OperationResult> GetAsync(Dictionary<string, object>? parameters, CancellationToken ct)
@@ -163,7 +163,7 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
             return OperationResult.Failure($"Bottle with id {id} was not found.");
         }
 
-        return OperationResult.Success("get", "Bottle retrieved successfully.", MapBottle(bottle));
+        return OperationResult.CreateSuccess("get", "Bottle retrieved successfully.", MapBottle(bottle));
     }
 
     private async Task<OperationResult> CreateAsync(Dictionary<string, object>? parameters, CancellationToken ct)
@@ -201,7 +201,7 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
         await _bottleRepository.AddAsync(bottle, ct);
         var created = await _bottleRepository.GetByIdAsync(bottle.Id, ct) ?? bottle;
 
-        return OperationResult.Success("create", "Bottle created successfully.", MapBottle(created));
+        return OperationResult.CreateSuccess("create", "Bottle created successfully.", MapBottle(created));
     }
 
     private async Task<OperationResult> UpdateAsync(Dictionary<string, object>? parameters, CancellationToken ct)
@@ -242,7 +242,7 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
         await _bottleRepository.UpdateAsync(bottle, ct);
         var updated = await _bottleRepository.GetByIdAsync(bottle.Id, ct) ?? bottle;
 
-        return OperationResult.Success("update", "Bottle updated successfully.", MapBottle(updated));
+        return OperationResult.CreateSuccess("update", "Bottle updated successfully.", MapBottle(updated));
     }
 
     private async Task<OperationResult> DeleteAsync(Dictionary<string, object>? parameters, CancellationToken ct)
@@ -254,7 +254,7 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
         }
 
         await _bottleRepository.DeleteAsync(id.Value, ct);
-        return OperationResult.Success("delete", $"Bottle {id} deleted if it existed.", null);
+        return OperationResult.CreateSuccess("delete", $"Bottle {id} deleted if it existed.", null);
     }
 
     private JsonObject BuildInputSchema()
@@ -410,7 +410,7 @@ public sealed class ManageBottlesTool : IToolBase, IMcpTool
         public object? Data { get; init; }
         public IReadOnlyList<string>? Errors { get; init; }
 
-        public static OperationResult Success(string operation, string message, object? data)
+        public static OperationResult CreateSuccess(string operation, string message, object? data)
             => new() { Success = true, Operation = operation, Message = message, Data = data };
 
         public static OperationResult Failure(string message, IReadOnlyList<string>? errors = null)
