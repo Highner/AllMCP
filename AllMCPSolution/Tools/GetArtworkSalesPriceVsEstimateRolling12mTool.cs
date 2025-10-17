@@ -272,6 +272,7 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
 
         // Build module URL from config (fallback to placeholder if not set)
         var moduleUrl = _config["WidgetAssets:PriceVsEstimateModuleUrl"] ?? "https://cdn.jsdelivr.net/gh/YOUR_ORG/YOUR_REPO@TAG/wwwroot/widgets/price-vs-estimate-widget.js";
+        
         Uri? moduleUri = null;
         if (!Uri.TryCreate(moduleUrl, UriKind.Absolute, out moduleUri)) moduleUri = null;
 

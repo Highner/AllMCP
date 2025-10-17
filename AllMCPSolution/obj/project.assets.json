@@ -5103,6 +5103,7 @@
       "Microsoft.EntityFrameworkCore.Design >= 9.0.9",
       "Microsoft.EntityFrameworkCore.SqlServer >= 9.0.9",
       "Microsoft.EntityFrameworkCore.Tools >= 9.0.9",
+      "ModelContextProtocol >= 0.4.0-preview.2",
       "ModelContextProtocol.AspNetCore >= 0.4.0-preview.2"
     ]
   },
@@ -5168,6 +5169,10 @@
             "suppressParent": "All",
             "target": "Package",
             "version": "[9.0.9, )"
+          },
+          "ModelContextProtocol": {
+            "target": "Package",
+            "version": "[0.4.0-preview.2, )"
           },
           "ModelContextProtocol.AspNetCore": {
             "target": "Package",
