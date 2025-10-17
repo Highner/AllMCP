@@ -289,7 +289,6 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
   <head>
     <meta charset="utf-8" />
     <title>Price vs Estimate Rolling 12M</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       :root { color-scheme: light dark; }
       body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 16px; background: var(--openai-body-bg, #fff); color: var(--openai-body-fg, #111827); }
@@ -310,15 +309,14 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
       <div id="emptyState" class="empty" hidden>No results available for the selected filters.</div>
     </div>
 
-   <!-- Load Chart.js, defer so it's predictable and ordered -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js" defer id="chartjs"></script>
+    <!-- Chart.js (only once) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer id="chartjs"></script>
 
-<!-- Your widget module (host this file on your CDN or via jsDelivr) -->
-<script type="module" defer src="{{MODULE_URL}}"></script>
-
-
+    <!-- Your widget module -->
+    <script type="module" defer crossorigin="anonymous" src="{{MODULE_URL}}"></script>
   </body>
 </html>
+
 """;
         var html = htmlTemplate.Replace("{{MODULE_URL}}", moduleUrl);
 

@@ -1,6 +1,25 @@
+console.log("[artworks-widget] module boot");
+console.log("[artworks-widget] finding DOM…");
+console.log("[artworks-widget] container?", !!document.getElementById('chartContainer'));
+console.log("[artworks-widget] emptyState?", !!document.getElementById('emptyState'));
+console.log("[artworks-widget] trendChart?", !!document.getElementById('trendChart'));
+
+
 const container = document.getElementById('chartContainer');
 const emptyState = document.getElementById('emptyState');
 const ctx = document.getElementById('trendChart');
+
+if (!container || !emptyState || !ctx) {
+    console.error("[artworks-widget] Missing DOM nodes. Check IDs in HTML: #chartContainer, #emptyState, #trendChart");
+    // Show a helpful message to user instead of a blank card
+    if (emptyState) {
+        emptyState.hidden = false;
+        emptyState.textContent = "UI error: chart container not found. Check element IDs.";
+    }
+    // Bail early to avoid TypeErrors later
+    throw new Error("Required DOM nodes not found");
+}
+
 
 let chart;
 let latestPayload = null;
