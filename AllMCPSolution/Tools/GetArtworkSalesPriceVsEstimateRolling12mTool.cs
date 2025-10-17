@@ -317,64 +317,202 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
               <div id="emptyState" class="empty" hidden>No results available for the selected filters.</div>
             </div>
             <script type="module">
-              const output = (window.openai && window.openai.toolOutput) || {};
-              const points = Array.isArray(output.timeSeries) ? output.timeSeries : [];
-
               const container = document.getElementById('chartContainer');
               const emptyState = document.getElementById('emptyState');
+              const ctx = document.getElementById('trendChart');
 
-              if (!points.length) {
-                container.hidden = true;
-                emptyState.hidden = false;
-                emptyState.textContent = output.description || 'No results available.';
-              } else {
+              let chart;
+
+              const coerceJson = value => {
+                if (value == null) return undefined;
+                if (typeof value === 'string') {
+                  try {
+                    return JSON.parse(value);
+                  } catch (_) {
+                    return undefined;
+                  }
+                }
+                return value;
+              };
+
+              const unwrapPayload = (payload) => {
+                if (!payload) return {};
+
+                const seen = new Set();
+                const stack = [payload];
+
+                while (stack.length) {
+                  const current = stack.pop();
+                  if (!current || typeof current !== 'object') {
+                    const parsed = coerceJson(current);
+                    if (parsed && typeof parsed === 'object' && !seen.has(parsed)) {
+                      seen.add(parsed);
+                      stack.push(parsed);
+                    }
+                    continue;
+                  }
+
+                  if (seen.has(current)) continue;
+                  seen.add(current);
+
+                  if (current.timeSeries || current.TimeSeries) {
+                    return current;
+                  }
+
+                  const nestedKeys = [
+                    'structuredContent', 'structured_content',
+                    'detail', 'payload', 'data', 'result', 'output',
+                    'value', 'values'
+                  ];
+
+                  for (const key of nestedKeys) {
+                    if (key in current && current[key] != null) {
+                      stack.push(current[key]);
+                    }
+                  }
+
+                  if (current.content && Array.isArray(current.content)) {
+                    for (const entry of current.content) stack.push(entry);
+                  }
+                }
+
+                return {};
+              };
+
+              const normalizePoints = (output) => {
+                const payload = unwrapPayload(output);
+                const rawSeries = payload && (payload.timeSeries || payload.TimeSeries);
+                let points = Array.isArray(rawSeries)
+                  ? rawSeries
+                  : (rawSeries && typeof rawSeries === 'object')
+                    ? Object.values(rawSeries.$values || rawSeries)
+                    : [];
+
+                return points
+                  .map(point => {
+                    if (point && typeof point === 'object') return point;
+                    const coerced = coerceJson(point);
+                    return coerced && typeof coerced === 'object' ? coerced : null;
+                  })
+                  .filter(Boolean);
+              };
+
+              const resolveDescription = (output) => {
+                const payload = unwrapPayload(output);
+                return payload.description || payload.Description || '';
+              };
+
+              const render = (output = {}) => {
+                const points = normalizePoints(output);
+
+                if (!points.length) {
+                  if (chart) {
+                    chart.destroy();
+                    chart = null;
+                  }
+                  container.hidden = true;
+                  emptyState.hidden = false;
+                  emptyState.textContent = resolveDescription(output) || 'No results available.';
+                  return;
+                }
+
                 const labels = points.map(p => new Date(p.Time).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }));
                 const values = points.map(p => typeof p.Value === 'number' ? p.Value : null);
 
-                const ctx = document.getElementById('trendChart');
-                new window.Chart(ctx, {
-                  type: 'line',
-                  data: {
-                    labels,
-                    datasets: [{
-                      label: 'Position in estimate range',
-                      data: values,
-                      tension: 0.35,
-                      borderColor: '#2563eb',
-                      backgroundColor: 'rgba(37, 99, 235, 0.2)',
-                      fill: true,
-                      pointRadius: 2,
-                      pointHoverRadius: 4
-                    }]
-                  },
-                  options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                      y: {
-                        title: { display: true, text: 'Position in estimate range' },
-                        suggestedMin: 0,
-                        suggestedMax: 1,
-                        ticks: { callback: value => value.toFixed(2) }
-                      },
-                      x: {
-                        title: { display: true, text: 'Month' }
-                      }
+                container.hidden = false;
+                emptyState.hidden = true;
+
+                if (!chart) {
+                  chart = new window.Chart(ctx, {
+                    type: 'line',
+                    data: {
+                      labels,
+                      datasets: [{
+                        label: 'Position in estimate range',
+                        data: values,
+                        tension: 0.35,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                        fill: true,
+                        pointRadius: 2,
+                        pointHoverRadius: 4
+                      }]
                     },
-                    plugins: {
-                      legend: { display: true },
-                      tooltip: {
-                        callbacks: {
-                          label: context => {
-                            const value = typeof context.parsed.y === 'number' ? context.parsed.y.toFixed(2) : 'n/a';
-                            return `Position: ${value}`;
+                    options: {
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      scales: {
+                        y: {
+                          title: { display: true, text: 'Position in estimate range' },
+                          suggestedMin: 0,
+                          suggestedMax: 1,
+                          ticks: { callback: value => value.toFixed(2) }
+                        },
+                        x: {
+                          title: { display: true, text: 'Month' }
+                        }
+                      },
+                      plugins: {
+                        legend: { display: true },
+                        tooltip: {
+                          callbacks: {
+                            label: context => {
+                              const value = typeof context.parsed.y === 'number' ? context.parsed.y.toFixed(2) : 'n/a';
+                              return `Position: ${value}`;
+                            }
                           }
                         }
                       }
                     }
+                  });
+                } else {
+                  chart.data.labels = labels;
+                  chart.data.datasets[0].data = values;
+                  chart.update();
+                }
+              };
+
+              const emitRender = payload => render(payload);
+
+              const attachListeners = () => {
+                const openai = window.openai;
+                if (!openai) return false;
+
+                if (openai.toolOutput) {
+                  render(openai.toolOutput);
+                }
+
+                if (typeof openai.subscribeToToolOutput === 'function') {
+                  openai.subscribeToToolOutput(emitRender);
+                } else if (typeof openai.onToolOutput === 'function') {
+                  openai.onToolOutput(emitRender);
+                }
+
+                return true;
+              };
+
+              if (!attachListeners()) {
+                const interval = setInterval(() => {
+                  if (attachListeners()) {
+                    clearInterval(interval);
                   }
-                });
+                }, 150);
               }
+
+              window.addEventListener('openai:tool-output', event => {
+                if (event && event.detail) {
+                  render(event.detail);
+                }
+              });
+
+              window.addEventListener('message', event => {
+                const payload = event && event.data;
+                if (payload && (payload.type === 'openai-tool-output' || payload.type === 'tool-output')) {
+                  render(payload.detail || payload.payload || payload.data || {});
+                }
+              });
+
+              render((window.openai && window.openai.toolOutput) || {});
             </script>
           </body>
         </html>
