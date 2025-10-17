@@ -210,7 +210,12 @@ public class GetArtworkSalesHammerPriceRolling12mTool : IToolBase, IMcpTool
         Name = Name,
         Title = "Artwork hammer price (12m rolling)",
         Description = Description,
-        InputSchema = JsonDocument.Parse(JsonSerializer.Serialize(GetOpenApiSchema())).RootElement
+        InputSchema = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            type = "object",
+            properties = ParameterHelpers.CreateOpenApiProperties(_dbContext),
+            required = Array.Empty<string>()
+        })).RootElement
     };
 
     public async ValueTask<CallToolResult> RunAsync(CallToolRequestParams request, CancellationToken ct)
