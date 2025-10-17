@@ -293,17 +293,24 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
       <div id="emptyState" class="empty" hidden>No results available for the selected filters.</div>
     </div>
 
-   <script type="module" defer>
+   <!-- Load Chart.js, defer so it's predictable and ordered -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js" defer id="chartjs"></script>
+
+<script type="module">
   const container = document.getElementById('chartContainer');
   const emptyState = document.getElementById('emptyState');
   const ctx = document.getElementById('trendChart');
-  let chart;
 
+  let chart;
+  let latestPayload = null;
+  let chartReady = false;
+
+  // --- resolve + normalize helpers (unchanged) ---
   const resolveOutputPayload = (payload) => {
     if (!payload || typeof payload !== 'object') return null;
     if (payload.timeSeries || Array.isArray(payload)) return payload;
-    const nestedKeys = ['toolOutput','output','detail','data','payload','result','structuredContent','structured_output','structured'];
-    for (const k of nestedKeys) if (payload[k]) {
+    const keys = ['toolOutput','output','detail','data','payload','result','structuredContent','structured_output','structured'];
+    for (const k of keys) if (payload[k]) {
       const r = resolveOutputPayload(payload[k]); if (r) return r;
     }
     return payload;
@@ -312,19 +319,22 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
   const normalizePoints = (output) => {
     const raw = output && output.timeSeries;
     const arr = Array.isArray(raw) ? raw
-              : (raw && typeof raw === 'object') ? Object.values(raw.$values || raw) : [];
+              : (raw && typeof raw === 'object') ? Object.values(raw.$values || raw)
+              : [];
     return arr.filter(p => p && typeof p === 'object');
   };
 
   const render = (output = {}) => {
-    const points = normalizePoints(output);
-
+    // If Chart.js still isn't ready, just stash the payload and bail; we'll re-run once ready.
     if (typeof window.Chart === 'undefined') {
+      latestPayload = output;
       container.hidden = true;
       emptyState.hidden = false;
-      emptyState.textContent = (output && output.description) || 'Chart library unavailable.';
+      emptyState.textContent = (output && output.description) || 'Loading chart library…';
       return;
     }
+
+    const points = normalizePoints(output);
 
     if (!points.length) {
       if (chart) { chart.destroy(); chart = null; }
@@ -343,13 +353,28 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
     if (!chart) {
       chart = new window.Chart(ctx, {
         type: 'line',
-        data: { labels, datasets: [{ label: 'Position in estimate range', data: values, tension: 0.35,
-          borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.2)', fill: true, pointRadius: 2, pointHoverRadius: 4 }]},
+        data: {
+          labels,
+          datasets: [{
+            label: 'Position in estimate range',
+            data: values,
+            tension: 0.35,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37,99,235,0.2)',
+            fill: true,
+            pointRadius: 2,
+            pointHoverRadius: 4
+          }]
+        },
         options: {
-          responsive: true, maintainAspectRatio: false,
+          responsive: true,
+          maintainAspectRatio: false,
           scales: {
-            y: { title: { display: true, text: 'Position in estimate range' }, suggestedMin: 0, suggestedMax: 1,
-                 ticks: { callback: v => Number(v).toFixed(2) } },
+            y: {
+              title: { display: true, text: 'Position in estimate range' },
+              suggestedMin: 0, suggestedMax: 1,
+              ticks: { callback: v => Number(v).toFixed(2) }
+            },
             x: { title: { display: true, text: 'Month' } }
           }
         }
@@ -361,38 +386,86 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
     }
   };
 
-  // --- CRUCIAL: subscribe to the actual host event that carries toolOutput updates
-  window.addEventListener('openai:set_globals', (evt) => {
-    const payload = evt?.detail?.toolOutput ?? (window.openai && window.openai.toolOutput);
-    const resolved = resolveOutputPayload(payload) || {};
-    render(resolved);
-  });
-
-  // Fallbacks: attach ASAP once window.openai exists, and also handle tool calls from inside the UI
-  const tryInitial = () => {
-    const payload = (window.openai && window.openai.toolOutput) || {};
-    const resolved = resolveOutputPayload(payload) || {};
-    render(resolved);
+  // ---- Gate B: when Chart.js becomes ready, re-render with the latest payload ----
+  const onChartReady = () => {
+    if (chartReady) return;
+    if (typeof window.Chart !== 'undefined') {
+      chartReady = true;
+      if (latestPayload) render(latestPayload);
+    }
   };
 
-  // Try immediately; if host injects `window.openai` a tick later, catch it here
-  if (window.openai) {
-    tryInitial();
+  // If <script defer> executed already, Chart will be present now; otherwise wait for load
+  if (typeof window.Chart !== 'undefined') {
+    onChartReady();
   } else {
-    const t = setInterval(() => {
-      if (window.openai) { clearInterval(t); tryInitial(); }
+    const s = document.getElementById('chartjs');
+    if (s) s.addEventListener('load', onChartReady, { once: true });
+    // Safety: periodic poll in case the load event is swallowed
+    const poll = setInterval(() => {
+      if (typeof window.Chart !== 'undefined') { clearInterval(poll); onChartReady(); }
     }, 100);
-    // safety stop after ~5s
+    setTimeout(() => clearInterval(poll), 5000);
+  }
+
+  // ---- Gate A: capture tool output as soon as the host provides it ----
+  const handlePayload = (payload) => {
+    const resolved = resolveOutputPayload(payload) || {};
+    latestPayload = resolved;
+    render(resolved); // If Chart isn't ready yet, render() will stash and show "Loading…"
+  };
+
+  const attachListeners = () => {
+    const openai = window.openai;
+    if (!openai) return false;
+
+    // initial payload if present
+    if (openai.toolOutput) handlePayload(openai.toolOutput);
+
+    // official subscription APIs (varies by host version)
+    if (typeof openai.subscribeToToolOutput === 'function') {
+      openai.subscribeToToolOutput(handlePayload);
+    } else if (typeof openai.onToolOutput === 'function') {
+      openai.onToolOutput(handlePayload);
+    }
+
+    return true;
+  };
+
+  // Try immediately; if window.openai not injected yet, wait for host events
+  let attached = attachListeners();
+
+  if (!attached) {
+    // Fires when host injects globals (most reliable)
+    window.addEventListener('openai:set_globals', (evt) => {
+      // this event usually carries toolOutput on first tool completion
+      const payload = evt?.detail?.toolOutput ?? window.openai?.toolOutput;
+      if (!attached) attached = attachListeners();
+      if (payload) handlePayload(payload);
+    });
+
+    // As a backup, poll briefly for window.openai to appear
+    const t = setInterval(() => {
+      if (window.openai && !attached) attached = attachListeners();
+      if (attached) clearInterval(t);
+    }, 150);
     setTimeout(() => clearInterval(t), 5000);
   }
 
-  // If you ever call tools from within the component, this event delivers those results
-  window.addEventListener('openai:tool_response', (evt) => {
-    const payload = evt?.detail?.result ?? evt?.detail;
-    const resolved = resolveOutputPayload(payload) || {};
-    render(resolved);
+  // Also handle explicit tool-output events some hosts emit
+  window.addEventListener('openai:tool-output', e => handlePayload(e?.detail));
+  window.addEventListener('message', e => {
+    const p = e?.data;
+    if (p && (p.type === 'openai-tool-output' || p.type === 'tool-output')) {
+      handlePayload(p.detail ?? p.payload ?? p.data ?? p);
+    }
   });
+
+  // In case everything was already ready before our listeners attached:
+  const initial = resolveOutputPayload(window.openai?.toolOutput) || null;
+  if (initial) handlePayload(initial);
 </script>
+
 
   </body>
 </html>
