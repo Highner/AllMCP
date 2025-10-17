@@ -464,6 +464,54 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
         }
         return true;
       };
+      
+      // --- 🔁 Robust payload watcher: hydrates even if host doesn't fire events ---
+        (() => {
+          // safe stringify (handles cycles)
+          const safeStringify = (v) => {
+            const seen = new WeakSet();
+            return JSON.stringify(v, (k, val) => {
+              if (typeof val === 'object' && val !== null) {
+                if (seen.has(val)) return;
+                seen.add(val);
+              }
+              return val;
+            });
+          };
+
+          let lastStamp = null;
+          let lastRaw   = null;
+
+          const readCandidate = () =>
+            window.openai?.toolOutput ??
+            window.openai?.message?.toolOutput ??
+            null;
+
+          const tick = () => {
+            const candidate = readCandidate();
+            if (!candidate) return;
+
+            // build a stable stamp that changes when content changes
+            const stamp =
+              (candidate?.id ?? candidate?.$id ?? '') + '|' +
+              (candidate?.timestamp ?? candidate?.time ?? '') + '|' +
+              // fallback to content hash if no id/timestamp
+              safeStringify(candidate)?.slice(0, 2048); // cap for perf
+
+            if (stamp && stamp !== lastStamp) {
+              lastStamp = stamp;
+              lastRaw   = candidate;
+              handlePayload(candidate);
+            }
+          };
+
+  // Poll modestly; low CPU but responsive enough for UI
+  const interval = setInterval(tick, 300);
+
+  // Stop polling if the widget is torn down
+  window.addEventListener('beforeunload', () => clearInterval(interval));
+})();
+
 
       let attached = attachListeners();
 
