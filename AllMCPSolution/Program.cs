@@ -29,6 +29,10 @@ builder.Services.AddScoped<IArtworkRepository, ArtworkRepository>();
 builder.Services.AddScoped<IArtworkSaleRepository, ArtworkSaleRepository>();
 builder.Services.AddScoped<IArtworkSaleQueryRepository, ArtworkSaleQueryRepository>();
 builder.Services.AddScoped<IInflationIndexRepository, InflationIndexRepository>();
+builder.Services.AddScoped<ICountryRepository, CountryRepository>();
+builder.Services.AddScoped<IRegionRepository, RegionRepository>();
+builder.Services.AddScoped<IWineRepository, WineRepository>();
+builder.Services.AddScoped<IBottleRepository, BottleRepository>();
 
 // Register all tools (auto-discovered by ToolRegistry)
 builder.Services.AddScoped<SearchArtistsTool>();
