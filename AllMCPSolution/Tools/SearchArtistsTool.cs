@@ -26,13 +26,13 @@ public class SearchArtistsTool : IToolBase, IMcpTool
     {
         if (parameters == null || !parameters.ContainsKey("query"))
         {
-            throw new ArgumentException("Parameter 'query' is required");
+            return new { success = false, error = "Parameter 'query' is required" };
         }
 
         var query = parameters["query"]?.ToString();
         if (string.IsNullOrWhiteSpace(query))
         {
-            throw new ArgumentException("Search query cannot be empty");
+            return new { success = false, error = "Search query cannot be empty" };
         }
 
         // Get threshold for fuzzy matching (default to 3 for moderate tolerance)
@@ -326,10 +326,33 @@ public class SearchArtistsTool : IToolBase, IMcpTool
             }
 
             var result = await ExecuteAsync(dict);
+            var node = JsonSerializer.SerializeToNode(result) as JsonObject;
+            // Build a simple text message similar to HelloWorld for clients that read Content
+            var msg = "";
+            if (node != null)
+            {
+                if (node.TryGetPropertyValue("error", out var err) && err is JsonValue jvErr && jvErr.TryGetValue<string>(out var errStr))
+                {
+                    msg = $"search_artists: {errStr}";
+                }
+                else
+                {
+                    var q = node.TryGetPropertyValue("query", out var qn) && qn is JsonValue jvQ && jvQ.TryGetValue<string>(out var qs) ? qs : null;
+                    var c = node.TryGetPropertyValue("count", out var cn) && cn is JsonValue jvC && jvC.TryGetValue<int>(out var ci) ? ci : (int?)null;
+                    msg = q is not null && c.HasValue ? $"Found {c} artists for '{q}'." : "Search completed.";
+                }
+            }
+
             return new CallToolResult
             {
-                StructuredContent = JsonSerializer.SerializeToNode(result) as JsonObject
+                Content = string.IsNullOrEmpty(msg) ? null : [ new TextContentBlock { Type = "text", Text = msg } ],
+                StructuredContent = node
             };
+        }
+        catch (McpException)
+        {
+            // Re-throw MCP exceptions unchanged
+            throw;
         }
         catch (ArgumentException ex)
         {
