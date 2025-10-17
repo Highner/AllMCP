@@ -1,3 +1,12 @@
+window.onerror = (msg, src, line, col, err) => {
+    console.error("[artworks-widget] window.onerror:", msg, "at", src, line+":"+col, err);
+};
+window.addEventListener("unhandledrejection", e => {
+    console.error("[artworks-widget] unhandledrejection:", e.reason);
+});
+
+
+
 console.log("[artworks-widget] module boot");
 console.log("[artworks-widget] finding DOM…");
 console.log("[artworks-widget] container?", !!document.getElementById('chartContainer'));
