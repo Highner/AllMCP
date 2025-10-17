@@ -176,3 +176,4 @@
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/ModelContextProtocol.Core.dll
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/System.Net.ServerSentEvents.dll
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/Data/Seed/artists.json
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/2w63e20caj-vz6w382mfb.gz
