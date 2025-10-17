@@ -22,7 +22,7 @@ namespace AllMCPSolution.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("Artist", b =>
+            modelBuilder.Entity("AllMCPSolution.Models.Artist", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -38,10 +38,10 @@ namespace AllMCPSolution.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Artists", (string)null);
+                    b.ToTable("Artists");
                 });
 
-            modelBuilder.Entity("Artwork", b =>
+            modelBuilder.Entity("AllMCPSolution.Models.Artwork", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -67,10 +67,10 @@ namespace AllMCPSolution.Migrations
 
                     b.HasIndex("ArtistId");
 
-                    b.ToTable("Artworks", (string)null);
+                    b.ToTable("Artworks");
                 });
 
-            modelBuilder.Entity("ArtworkSale", b =>
+            modelBuilder.Entity("AllMCPSolution.Models.ArtworkSale", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -127,10 +127,56 @@ namespace AllMCPSolution.Migrations
                     b.HasIndex("Name", "Height", "Width", "HammerPrice", "SaleDate", "ArtistId")
                         .IsUnique();
 
-                    b.ToTable("ArtworkSales", (string)null);
+                    b.ToTable("ArtworkSales");
                 });
 
-            modelBuilder.Entity("InflationIndex", b =>
+            modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("Score")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TastingNote")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
+
+                    b.Property<Guid>("WineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WineId");
+
+                    b.ToTable("Bottles");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Country", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Countries");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.InflationIndex", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -152,12 +198,71 @@ namespace AllMCPSolution.Migrations
                     b.HasIndex("Year", "Month")
                         .IsUnique();
 
-                    b.ToTable("InflationIndices", (string)null);
+                    b.ToTable("InflationIndices");
                 });
 
-            modelBuilder.Entity("Artwork", b =>
+            modelBuilder.Entity("AllMCPSolution.Models.Region", b =>
                 {
-                    b.HasOne("Artist", "Artist")
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Regions");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Color")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("CountryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("GrapeVariety")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid>("RegionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Vintage")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryId");
+
+                    b.HasIndex("RegionId");
+
+                    b.HasIndex("Name", "Vintage", "CountryId", "RegionId")
+                        .IsUnique();
+
+                    b.ToTable("Wines");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Artwork", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.Artist", "Artist")
                         .WithMany("Artworks")
                         .HasForeignKey("ArtistId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -166,9 +271,9 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("Artist");
                 });
 
-            modelBuilder.Entity("ArtworkSale", b =>
+            modelBuilder.Entity("AllMCPSolution.Models.ArtworkSale", b =>
                 {
-                    b.HasOne("Artist", "Artist")
+                    b.HasOne("AllMCPSolution.Models.Artist", "Artist")
                         .WithMany()
                         .HasForeignKey("ArtistId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -177,9 +282,54 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("Artist");
                 });
 
-            modelBuilder.Entity("Artist", b =>
+            modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.Wine", "Wine")
+                        .WithMany("Bottles")
+                        .HasForeignKey("WineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Wine");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.Country", "Country")
+                        .WithMany("Wines")
+                        .HasForeignKey("CountryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AllMCPSolution.Models.Region", "Region")
+                        .WithMany("Wines")
+                        .HasForeignKey("RegionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Country");
+
+                    b.Navigation("Region");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Artist", b =>
                 {
                     b.Navigation("Artworks");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Country", b =>
+                {
+                    b.Navigation("Wines");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Region", b =>
+                {
+                    b.Navigation("Wines");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>
+                {
+                    b.Navigation("Bottles");
                 });
 #pragma warning restore 612, 618
         }

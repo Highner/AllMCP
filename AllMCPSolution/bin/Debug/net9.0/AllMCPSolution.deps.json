@@ -12,6 +12,7 @@
           "Microsoft.EntityFrameworkCore.Design": "9.0.9",
           "Microsoft.EntityFrameworkCore.SqlServer": "9.0.9",
           "Microsoft.EntityFrameworkCore.Tools": "9.0.9",
+          "ModelContextProtocol": "0.4.0-preview.2",
           "ModelContextProtocol.AspNetCore": "0.4.0-preview.2"
         },
         "runtime": {
