@@ -317,6 +317,16 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
               <div id="emptyState" class="empty" hidden>No results available for the selected filters.</div>
             </div>
             <script type="module">
+              const output = (window.openai && window.openai.toolOutput) || {};
+                const rawSeries = output.timeSeries;
+                let points = Array.isArray(rawSeries)
+                  ? rawSeries
+                  : (rawSeries && typeof rawSeries === 'object')
+                    ? Object.values(rawSeries.$values || rawSeries)
+                    : [];
+                
+                points = points.filter(p => p && typeof p === 'object');
+
               const container = document.getElementById('chartContainer');
               const emptyState = document.getElementById('emptyState');
               const ctx = document.getElementById('trendChart');
