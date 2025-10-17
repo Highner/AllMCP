@@ -293,7 +293,8 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
       <div id="emptyState" class="empty" hidden>No results available for the selected filters.</div>
     </div>
 
-    <script type="module">
+   <script type="module" defer>
+
       const container = document.getElementById('chartContainer');
       const emptyState = document.getElementById('emptyState');
       const ctx = document.getElementById('trendChart');
@@ -415,9 +416,28 @@ Example: a value of 0.34 means the hammer was 34% of the way from the low to the
         return true;
       };
 
-      if (!attachListeners()) {
-        const interval = setInterval(() => { if (attachListeners()) clearInterval(interval); }, 150);
-      }
+    // Attempt immediate attach
+    let attached = attachListeners();
+
+    if (!attached) {
+      // Fallback: wait until OpenAI sandbox is ready
+      window.addEventListener('openai:ready', () => {
+        attachListeners();
+        const initial = resolveOutputPayload(window.openai?.toolOutput) || {};
+        render(initial);
+      });
+
+      // Safety: periodic retry if event somehow doesn't fire
+      const interval = setInterval(() => {
+        attached = attachListeners();
+        if (attached) {
+          clearInterval(interval);
+          const initial = resolveOutputPayload(window.openai?.toolOutput) || {};
+          render(initial);
+        }
+      }, 250);
+    }
+
 
       window.addEventListener('openai:tool-output', evt => {
         if (evt && evt.detail) {
