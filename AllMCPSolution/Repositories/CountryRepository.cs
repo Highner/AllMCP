@@ -11,6 +11,7 @@ public interface ICountryRepository
     Task<Country?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Country?> FindByNameAsync(string name, CancellationToken ct = default);
     Task<IReadOnlyList<Country>> SearchByApproximateNameAsync(string name, int maxResults = 5, CancellationToken ct = default);
+    Task<Country> GetOrCreateAsync(string name, CancellationToken ct = default);
     Task AddAsync(Country country, CancellationToken ct = default);
     Task UpdateAsync(Country country, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
@@ -56,6 +57,32 @@ public class CountryRepository : ICountryRepository
             .ToListAsync(ct);
 
         return FuzzyMatchUtilities.FindClosestMatches(countries, name, c => c.Name, maxResults);
+    }
+
+    public async Task<Country> GetOrCreateAsync(string name, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Country name cannot be empty.", nameof(name));
+        }
+
+        var trimmed = name.Trim();
+        var existing = await FindByNameAsync(trimmed, ct);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var entity = new Country
+        {
+            Id = Guid.NewGuid(),
+            Name = trimmed
+        };
+
+        _db.Countries.Add(entity);
+        await _db.SaveChangesAsync(ct);
+
+        return entity;
     }
 
     public async Task AddAsync(Country country, CancellationToken ct = default)

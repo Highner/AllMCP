@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Data;
 using AllMCPSolution.Models;
@@ -38,9 +40,16 @@ public sealed class AppellationRepository : IAppellationRepository
             return null;
         }
 
-        var normalized = name.Trim().ToLowerInvariant();
+        var trimmed = name.Trim();
+        var localMatch = _db.Appellations.Local.FirstOrDefault(
+            a => a.RegionId == regionId && string.Equals(a.Name, trimmed, StringComparison.OrdinalIgnoreCase));
+        if (localMatch is not null)
+        {
+            return localMatch;
+        }
+
+        var normalized = trimmed.ToLowerInvariant();
         return await _db.Appellations
-            .AsNoTracking()
             .Include(a => a.Region)
                 .ThenInclude(r => r.Country)
             .FirstOrDefaultAsync(a => a.RegionId == regionId && a.Name.ToLower() == normalized, ct);

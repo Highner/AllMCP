@@ -291,72 +291,67 @@ public sealed class CreateBottleTool : BottleToolBase
             var regionName = ParameterHelpers.GetStringParameter(parameters, "region", "region");
             var appellationName = ParameterHelpers.GetStringParameter(parameters, "appellation", "appellation");
 
+            var trimmedCountryName = string.IsNullOrWhiteSpace(countryName) ? null : countryName.Trim();
+            var trimmedRegionName = string.IsNullOrWhiteSpace(regionName) ? null : regionName.Trim();
+            var normalizedAppellation = string.IsNullOrWhiteSpace(appellationName)
+                ? null
+                : appellationName.Trim();
+
             if (errors.Count > 0)
             {
                 return BottleProcessingResult.CreateFailure("Validation failed.", errors);
             }
 
             Country? country = null;
-            if (!string.IsNullOrWhiteSpace(countryName))
+            if (!string.IsNullOrWhiteSpace(trimmedCountryName))
             {
-                country = await CountryRepository.FindByNameAsync(countryName!, ct);
-                if (country is null)
-                {
-                    var suggestions = await CountryRepository.SearchByApproximateNameAsync(countryName!, 5, ct);
-                    return BottleProcessingResult.CreateFailure(
-                        $"Country '{countryName}' was not found.",
-                        new[] { $"Country '{countryName}' was not found." },
-                        new
-                        {
-                            type = "country",
-                            query = countryName,
-                            suggestions = suggestions.Select(BottleResponseMapper.MapCountry).ToList()
-                        });
-                }
+                country = await CountryRepository.GetOrCreateAsync(trimmedCountryName!, ct);
             }
 
             Region? region = null;
-            if (!string.IsNullOrWhiteSpace(regionName))
+            if (!string.IsNullOrWhiteSpace(trimmedRegionName))
             {
-                region = await RegionRepository.FindByNameAsync(regionName!, ct);
-                if (region is null)
+                var existingRegion = await RegionRepository.FindByNameAsync(trimmedRegionName!, ct);
+                if (existingRegion is not null)
                 {
-                    var suggestions = await RegionRepository.SearchByApproximateNameAsync(regionName!, 5, ct);
+                    if (country is not null && existingRegion.CountryId != country.Id)
+                    {
+                        return BottleProcessingResult.CreateFailure(
+                            $"Region '{existingRegion.Name}' belongs to country '{existingRegion.Country?.Name ?? "unknown"}'.",
+                            new[] { $"Region '{existingRegion.Name}' belongs to country '{existingRegion.Country?.Name ?? "unknown"}'." },
+                            new
+                            {
+                                type = "region_country_mismatch",
+                                requestedCountry = new { name = country.Name, id = country.Id },
+                                regionCountry = existingRegion.Country is null
+                                    ? null
+                                    : new { name = existingRegion.Country.Name, id = existingRegion.Country.Id }
+                            });
+                    }
+
+                    region = existingRegion;
+                }
+                else if (country is null)
+                {
                     return BottleProcessingResult.CreateFailure(
-                        $"Region '{regionName}' was not found.",
-                        new[] { $"Region '{regionName}' was not found." },
+                        $"Region '{trimmedRegionName}' was not found. Provide a country so it can be created automatically.",
+                        new[] { "Country is required to create a new region." },
                         new
                         {
-                            type = "region",
-                            query = regionName,
-                            suggestions = suggestions.Select(BottleResponseMapper.MapRegion).ToList()
+                            type = "region_creation_missing_country",
+                            query = trimmedRegionName
                         });
+                }
+                else
+                {
+                    region = await RegionRepository.GetOrCreateAsync(trimmedRegionName!, country, ct);
                 }
             }
 
             if (region is not null)
             {
-                if (country is not null && region.CountryId != country.Id)
-                {
-                    return BottleProcessingResult.CreateFailure(
-                        $"Region '{region.Name}' belongs to country '{region.Country?.Name ?? "unknown"}'.",
-                        new[] { $"Region '{region.Name}' belongs to country '{region.Country?.Name ?? "unknown"}'." },
-                        new
-                        {
-                            type = "region_country_mismatch",
-                            requestedCountry = new { name = country.Name, id = country.Id },
-                            regionCountry = region.Country is null
-                                ? null
-                                : new { name = region.Country.Name, id = region.Country.Id }
-                        });
-                }
-
                 country ??= region.Country;
             }
-
-            var normalizedAppellation = string.IsNullOrWhiteSpace(appellationName)
-                ? null
-                : appellationName.Trim();
 
             var wine = await WineRepository.FindByNameAsync(name!, normalizedAppellation, ct);
             if (wine is null)
