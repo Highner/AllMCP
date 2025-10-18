@@ -79,7 +79,7 @@ public class ApplicationDbContext : DbContext
             e.Property(b => b.TastingNote).HasMaxLength(1024);
             e.Property(b => b.Vintage).IsRequired();
             e.Property(b => b.IsDrunk).IsRequired();
-            e.Property(b => b.DrunkAt).HasColumnType("datetimeoffset(0)");
+            e.Property(b => b.DrunkAt).HasColumnType("datetime2");
 
             e.HasOne(b => b.Wine)
                 .WithMany(w => w.Bottles)

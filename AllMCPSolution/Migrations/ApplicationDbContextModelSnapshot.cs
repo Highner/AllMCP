@@ -38,7 +38,7 @@ namespace AllMCPSolution.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Artists");
+                    b.ToTable("Artists", (string)null);
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Artwork", b =>
@@ -67,7 +67,7 @@ namespace AllMCPSolution.Migrations
 
                     b.HasIndex("ArtistId");
 
-                    b.ToTable("Artworks");
+                    b.ToTable("Artworks", (string)null);
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.ArtworkSale", b =>
@@ -127,7 +127,7 @@ namespace AllMCPSolution.Migrations
                     b.HasIndex("Name", "Height", "Width", "HammerPrice", "SaleDate", "ArtistId")
                         .IsUnique();
 
-                    b.ToTable("ArtworkSales");
+                    b.ToTable("ArtworkSales", (string)null);
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
@@ -135,6 +135,12 @@ namespace AllMCPSolution.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DrunkAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDrunk")
+                        .HasColumnType("bit");
 
                     b.Property<decimal?>("Price")
                         .HasColumnType("decimal(18,2)");
@@ -157,7 +163,7 @@ namespace AllMCPSolution.Migrations
 
                     b.HasIndex("WineId");
 
-                    b.ToTable("Bottles");
+                    b.ToTable("Bottles", (string)null);
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Country", b =>
@@ -176,7 +182,7 @@ namespace AllMCPSolution.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Countries");
+                    b.ToTable("Countries", (string)null);
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.InflationIndex", b =>
@@ -201,7 +207,7 @@ namespace AllMCPSolution.Migrations
                     b.HasIndex("Year", "Month")
                         .IsUnique();
 
-                    b.ToTable("InflationIndices");
+                    b.ToTable("InflationIndices", (string)null);
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Region", b =>
@@ -220,7 +226,7 @@ namespace AllMCPSolution.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Regions");
+                    b.ToTable("Regions", (string)null);
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>
@@ -257,7 +263,7 @@ namespace AllMCPSolution.Migrations
                     b.HasIndex("Name", "CountryId", "RegionId")
                         .IsUnique();
 
-                    b.ToTable("Wines");
+                    b.ToTable("Wines", (string)null);
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Artwork", b =>
