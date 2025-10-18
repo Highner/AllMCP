@@ -141,9 +141,9 @@ public abstract class BottleToolBase : IToolBase, IMcpTool
         IReadOnlyList<string>? errors = null,
         object? suggestions = null,
         Exception? exception = null)
-        => BottleOperationResult.Failure(operation, message, errors, suggestions, exception);
+        => BottleOperationResult.CreateFailure(operation, message, errors, suggestions, exception);
 
-    protected sealed record BottleOperationResult
+    protected sealed record BottleOperationResult : IProcessingResult
     {
         public bool Success { get; init; }
         public string Operation { get; init; } = string.Empty;
@@ -157,7 +157,7 @@ public abstract class BottleToolBase : IToolBase, IMcpTool
         public static BottleOperationResult CreateSuccess(string operation, string message, object? data)
             => new() { Success = true, Operation = operation, Message = message, Data = data };
 
-        public static BottleOperationResult Failure(
+        public static BottleOperationResult CreateFailure(
             string operation,
             string message,
             IReadOnlyList<string>? errors = null,

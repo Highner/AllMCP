@@ -116,7 +116,7 @@ public abstract class CrudToolBase : IToolBase, IMcpTool
         Exception? exception = null)
         => CrudOperationResult.CreateFailure(operation, message, errors, suggestions, exception);
 
-    protected sealed record CrudOperationResult
+    protected sealed record CrudOperationResult : IProcessingResult
     {
         public bool Success { get; init; }
         public string Operation { get; init; } = string.Empty;

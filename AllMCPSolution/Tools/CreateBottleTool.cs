@@ -269,7 +269,7 @@ public sealed class CreateBottleTool : BottleToolBase
                 }
                 else
                 {
-                    return BottleProcessingResult.Failure(
+                    return BottleProcessingResult.CreateFailure(
                         $"Color '{colorInput}' is not recognised.",
                         new[] { $"Color '{colorInput}' is not recognised." },
                         new
@@ -286,7 +286,7 @@ public sealed class CreateBottleTool : BottleToolBase
 
             if (errors.Count > 0)
             {
-                return BottleProcessingResult.Failure("Validation failed.", errors);
+                return BottleProcessingResult.CreateFailure("Validation failed.", errors);
             }
 
             Country? country = null;
@@ -296,7 +296,7 @@ public sealed class CreateBottleTool : BottleToolBase
                 if (country is null)
                 {
                     var suggestions = await CountryRepository.SearchByApproximateNameAsync(countryName!, 5, ct);
-                    return BottleProcessingResult.Failure(
+                    return BottleProcessingResult.CreateFailure(
                         $"Country '{countryName}' was not found.",
                         new[] { $"Country '{countryName}' was not found." },
                         new
@@ -315,7 +315,7 @@ public sealed class CreateBottleTool : BottleToolBase
                 if (region is null)
                 {
                     var suggestions = await RegionRepository.SearchByApproximateNameAsync(regionName!, 5, ct);
-                    return BottleProcessingResult.Failure(
+                    return BottleProcessingResult.CreateFailure(
                         $"Region '{regionName}' was not found.",
                         new[] { $"Region '{regionName}' was not found." },
                         new
@@ -331,7 +331,7 @@ public sealed class CreateBottleTool : BottleToolBase
             {
                 if (country is not null && region.CountryId != country.Id)
                 {
-                    return BottleProcessingResult.Failure(
+                    return BottleProcessingResult.CreateFailure(
                         $"Region '{region.Name}' belongs to country '{region.Country?.Name ?? "unknown"}'.",
                         new[] { $"Region '{region.Name}' belongs to country '{region.Country?.Name ?? "unknown"}'." },
                         new
@@ -353,7 +353,7 @@ public sealed class CreateBottleTool : BottleToolBase
                 var suggestions = await WineRepository.FindClosestMatchesAsync(name!, 5, ct);
                 if (suggestions.Count > 0)
                 {
-                    return BottleProcessingResult.Failure(
+                    return BottleProcessingResult.CreateFailure(
                         $"Wine '{name}' does not have an exact match. Please confirm the correct wine before creating the bottle.",
                         new[] { $"Wine '{name}' does not have an exact match." },
                         new
@@ -366,7 +366,7 @@ public sealed class CreateBottleTool : BottleToolBase
 
                 if (!color.HasValue)
                 {
-                    return BottleProcessingResult.Failure(
+                    return BottleProcessingResult.CreateFailure(
                         $"Wine '{name}' does not exist. Provide a color so it can be created automatically.",
                         new[] { "Color is required to create a new wine." },
                         new
@@ -379,7 +379,7 @@ public sealed class CreateBottleTool : BottleToolBase
 
                 if (region is null)
                 {
-                    return BottleProcessingResult.Failure(
+                    return BottleProcessingResult.CreateFailure(
                         $"Wine '{name}' does not exist. Provide a region so it can be created automatically.",
                         new[] { "Region is required to create a new wine." },
                         new
@@ -408,7 +408,7 @@ public sealed class CreateBottleTool : BottleToolBase
 
             if (color.HasValue && wine.Color != color)
             {
-                return BottleProcessingResult.Failure(
+                return BottleProcessingResult.CreateFailure(
                     $"Wine '{wine.Name}' exists with color '{wine.Color}'.",
                     new[] { $"Wine '{wine.Name}' exists with color '{wine.Color}'." },
                     new
@@ -421,7 +421,7 @@ public sealed class CreateBottleTool : BottleToolBase
 
             if (country is not null && wineCountry?.Id != country.Id)
             {
-                return BottleProcessingResult.Failure(
+                return BottleProcessingResult.CreateFailure(
                     $"Wine '{wine.Name}' is recorded for country '{wineCountry?.Name ?? "unknown"}'.",
                     new[] { $"Wine '{wine.Name}' is recorded for country '{wineCountry?.Name ?? "unknown"}'." },
                     new
@@ -434,7 +434,7 @@ public sealed class CreateBottleTool : BottleToolBase
 
             if (region is not null && wine.RegionId != region.Id)
             {
-                return BottleProcessingResult.Failure(
+                return BottleProcessingResult.CreateFailure(
                     $"Wine '{wine.Name}' is recorded for region '{wine.Region?.Name ?? "unknown"}'.",
                     new[] { $"Wine '{wine.Name}' is recorded for region '{wine.Region?.Name ?? "unknown"}'." },
                     new
@@ -488,11 +488,11 @@ public sealed class CreateBottleTool : BottleToolBase
                 Wine = wine
             };
 
-            return BottleProcessingResult.Success("Bottle created successfully.", created);
+            return BottleProcessingResult.CreateSuccess("Bottle created successfully.", created);
         }
         catch (Exception ex)
         {
-            return BottleProcessingResult.Failure(
+            return BottleProcessingResult.CreateFailure(
                 "An unexpected error occurred while importing the bottle.",
                 new[] { ex.Message },
                 new { type = "exception" },
@@ -713,7 +713,7 @@ public sealed class CreateBottleTool : BottleToolBase
         return dict;
     }
 
-    private sealed record BottleProcessingResult
+    private sealed record BottleProcessingResult : IProcessingResult
     {
         private BottleProcessingResult()
         {
@@ -726,7 +726,7 @@ public sealed class CreateBottleTool : BottleToolBase
         public object? Suggestions { get; init; }
         public Exception? Exception { get; init; }
 
-        public static BottleProcessingResult Success(string message, Bottle bottle)
+        public static BottleProcessingResult CreateSuccess(string message, Bottle bottle)
             => new()
             {
                 Success = true,
@@ -734,7 +734,7 @@ public sealed class CreateBottleTool : BottleToolBase
                 Bottle = bottle
             };
 
-        public static BottleProcessingResult Failure(string message, IReadOnlyList<string>? errors = null, object? suggestions = null, Exception? exception = null)
+        public static BottleProcessingResult CreateFailure(string message, IReadOnlyList<string>? errors = null, object? suggestions = null, Exception? exception = null)
             => new()
             {
                 Success = false,
