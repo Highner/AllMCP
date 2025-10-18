@@ -22,54 +22,12 @@ internal static class BottleResponseMapper
             isDrunk = bottle.IsDrunk,
             drunkAt = bottle.DrunkAt,
             wineId = bottle.WineId,
-            wine = wine is null
-                ? null
-                : new
-                {
-                    id = wine.Id,
-                    name = wine.Name,
-                    grapeVariety = wine.GrapeVariety,
-                    color = wine.Color.ToString(),
-                    country = wine.Region?.Country is null
-                        ? null
-                        : new { id = wine.Region.Country.Id, name = wine.Region.Country.Name },
-                    region = wine.Region is null
-                        ? null
-                        : new
-                        {
-                            id = wine.Region.Id,
-                            name = wine.Region.Name,
-                            country = wine.Region.Country is null
-                                ? null
-                                : new { id = wine.Region.Country.Id, name = wine.Region.Country.Name }
-                        }
-                }
+            wine = wine is null ? null : MapWine(wine)
         };
     }
 
     public static object MapWineSummary(Wine wine)
-    {
-        return new
-        {
-            id = wine.Id,
-            name = wine.Name,
-            grapeVariety = wine.GrapeVariety,
-            color = wine.Color.ToString(),
-            country = wine.Region?.Country is null
-                ? null
-                : new { id = wine.Region.Country.Id, name = wine.Region.Country.Name },
-            region = wine.Region is null
-                ? null
-                : new
-                {
-                    id = wine.Region.Id,
-                    name = wine.Region.Name,
-                    country = wine.Region.Country is null
-                        ? null
-                        : new { id = wine.Region.Country.Id, name = wine.Region.Country.Name }
-                }
-        };
-    }
+        => MapWine(wine);
 
     public static object MapCountry(Country country)
         => new { id = country.Id, name = country.Name };
@@ -83,4 +41,30 @@ internal static class BottleResponseMapper
                 ? null
                 : new { id = region.Country.Id, name = region.Country.Name }
         };
+
+    private static object MapWine(Wine wine)
+    {
+        var appellation = wine.Appellation;
+        var region = appellation?.Region;
+        var country = region?.Country;
+
+        return new
+        {
+            id = wine.Id,
+            name = wine.Name,
+            grapeVariety = wine.GrapeVariety,
+            appellationId = appellation?.Id,
+            appellation = string.IsNullOrWhiteSpace(appellation?.Name) ? null : appellation.Name,
+            color = wine.Color.ToString(),
+            country = country is null ? null : new { id = country.Id, name = country.Name },
+            region = region is null
+                ? null
+                : new
+                {
+                    id = region.Id,
+                    name = region.Name,
+                    country = country is null ? null : new { id = country.Id, name = country.Name }
+                }
+        };
+    }
 }

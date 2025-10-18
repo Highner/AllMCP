@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Data;
 using AllMCPSolution.Models;
@@ -9,7 +10,7 @@ public interface IWineRepository
 {
     Task<List<Wine>> GetAllAsync(CancellationToken ct = default);
     Task<Wine?> GetByIdAsync(Guid id, CancellationToken ct = default);
-    Task<Wine?> FindByNameAsync(string name, CancellationToken ct = default);
+    Task<Wine?> FindByNameAsync(string name, string? appellation = null, CancellationToken ct = default);
     Task<IReadOnlyList<Wine>> FindClosestMatchesAsync(string name, int maxResults = 5, CancellationToken ct = default);
     Task AddAsync(Wine wine, CancellationToken ct = default);
     Task UpdateAsync(Wine wine, CancellationToken ct = default);
@@ -25,10 +26,12 @@ public class WineRepository : IWineRepository
     {
         return await _db.Wines
             .AsNoTracking()
-            .Include(w => w.Region)
-                .ThenInclude(r => r.Country)
+            .Include(w => w.Appellation)
+                .ThenInclude(a => a.Region)
+                    .ThenInclude(r => r.Country)
             .Include(w => w.Bottles)
             .OrderBy(w => w.Name)
+            .ThenBy(w => w.Appellation.Name)
             .ToListAsync(ct);
     }
 
@@ -36,13 +39,14 @@ public class WineRepository : IWineRepository
     {
         return await _db.Wines
             .AsNoTracking()
-            .Include(w => w.Region)
-                .ThenInclude(r => r.Country)
+            .Include(w => w.Appellation)
+                .ThenInclude(a => a.Region)
+                    .ThenInclude(r => r.Country)
             .Include(w => w.Bottles)
             .FirstOrDefaultAsync(w => w.Id == id, ct);
     }
 
-    public async Task<Wine?> FindByNameAsync(string name, CancellationToken ct = default)
+    public async Task<Wine?> FindByNameAsync(string name, string? appellation = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -50,22 +54,44 @@ public class WineRepository : IWineRepository
         }
 
         var normalized = name.Trim().ToLowerInvariant();
-        return await _db.Wines
+        var query = _db.Wines
             .AsNoTracking()
-            .Include(w => w.Region)
-                .ThenInclude(r => r.Country)
-            .FirstOrDefaultAsync(w => w.Name.ToLower() == normalized, ct);
+            .Include(w => w.Appellation)
+                .ThenInclude(a => a.Region)
+                    .ThenInclude(r => r.Country);
+
+        if (!string.IsNullOrWhiteSpace(appellation))
+        {
+            var normalizedAppellation = appellation.Trim().ToLowerInvariant();
+            return await query.FirstOrDefaultAsync(
+                w => w.Name.ToLower() == normalized
+                    && w.Appellation != null
+                    && w.Appellation.Name.ToLower() == normalizedAppellation,
+                ct);
+        }
+
+        return await query
+            .Where(w => w.Name.ToLower() == normalized)
+            .OrderBy(w => w.Appellation.Name)
+            .FirstOrDefaultAsync(ct);
     }
 
     public async Task<IReadOnlyList<Wine>> FindClosestMatchesAsync(string name, int maxResults = 5, CancellationToken ct = default)
     {
         var wines = await _db.Wines
             .AsNoTracking()
-            .Include(w => w.Region)
-                .ThenInclude(r => r.Country)
+            .Include(w => w.Appellation)
+                .ThenInclude(a => a.Region)
+                    .ThenInclude(r => r.Country)
             .ToListAsync(ct);
 
-        return FuzzyMatchUtilities.FindClosestMatches(wines, name, w => w.Name, maxResults);
+        return FuzzyMatchUtilities.FindClosestMatches(
+            wines,
+            name,
+            w => string.IsNullOrWhiteSpace(w.Appellation?.Name)
+                ? w.Name
+                : $"{w.Name} ({w.Appellation.Name})",
+            maxResults);
     }
 
     public async Task AddAsync(Wine wine, CancellationToken ct = default)

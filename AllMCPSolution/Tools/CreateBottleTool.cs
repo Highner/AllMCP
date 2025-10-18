@@ -27,8 +27,9 @@ public sealed class CreateBottleTool : BottleToolBase
         IBottleRepository bottleRepository,
         IWineRepository wineRepository,
         ICountryRepository countryRepository,
-        IRegionRepository regionRepository)
-        : base(bottleRepository, wineRepository, countryRepository, regionRepository)
+        IRegionRepository regionRepository,
+        IAppellationRepository appellationRepository)
+        : base(bottleRepository, wineRepository, countryRepository, regionRepository, appellationRepository)
     {
     }
 
@@ -170,7 +171,12 @@ public sealed class CreateBottleTool : BottleToolBase
             ["region"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "Sub-Appellation of the wine (such as Napa Valley, Pomerol or Chambolle-Musigny). Required when the wine must be created.",
+                ["description"] = "Region of the wine (such as Bordeaux, Burgundy, or California). Required when the wine must be created.",
+            },
+            ["appellation"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Appellation of the wine (such as Napa Valley, Pomerol or Chambolle-Musigny). Required when the wine must be created.",
             },
             ["color"] = new JsonObject
             {
@@ -225,7 +231,7 @@ public sealed class CreateBottleTool : BottleToolBase
         {
             ["type"] = "object",
             ["properties"] = properties,
-            ["required"] = new JsonArray("name", "vintage", "country", "region", "color")
+            ["required"] = new JsonArray("name", "vintage", "country", "region", "appellation", "color")
         };
     }
 
@@ -283,6 +289,7 @@ public sealed class CreateBottleTool : BottleToolBase
 
             var countryName = ParameterHelpers.GetStringParameter(parameters, "country", "country");
             var regionName = ParameterHelpers.GetStringParameter(parameters, "region", "region");
+            var appellationName = ParameterHelpers.GetStringParameter(parameters, "appellation", "appellation");
 
             if (errors.Count > 0)
             {
@@ -347,7 +354,11 @@ public sealed class CreateBottleTool : BottleToolBase
                 country ??= region.Country;
             }
 
-            var wine = await WineRepository.FindByNameAsync(name!, ct);
+            var normalizedAppellation = string.IsNullOrWhiteSpace(appellationName)
+                ? null
+                : appellationName.Trim();
+
+            var wine = await WineRepository.FindByNameAsync(name!, normalizedAppellation, ct);
             if (wine is null)
             {
                 if (!color.HasValue)
@@ -377,20 +388,52 @@ public sealed class CreateBottleTool : BottleToolBase
 
                 country ??= region.Country;
 
+                if (string.IsNullOrWhiteSpace(normalizedAppellation))
+                {
+                    return BottleProcessingResult.CreateFailure(
+                        $"Wine '{name}' does not exist. Provide an appellation so it can be created automatically.",
+                        new[] { "Appellation is required to create a new wine." },
+                        new
+                        {
+                            type = "wine_creation_missing_appellation",
+                            query = name
+                        });
+                }
+
+                var appellation = await AppellationRepository.GetOrCreateAsync(normalizedAppellation!, region.Id, ct);
+
                 var newWine = new Wine
                 {
                     Id = Guid.NewGuid(),
                     Name = name!.Trim(),
                     GrapeVariety = string.Empty,
                     Color = color.Value,
-                    RegionId = region.Id
+                    AppellationId = appellation.Id,
+                    Appellation = appellation
                 };
 
                 await WineRepository.AddAsync(newWine, ct);
                 wine = await WineRepository.GetByIdAsync(newWine.Id, ct) ?? newWine;
             }
 
-            var wineCountry = wine.Region?.Country;
+            var wineAppellation = wine.Appellation;
+            var wineRegion = wineAppellation?.Region;
+            var wineCountry = wineRegion?.Country;
+
+            if (!string.IsNullOrWhiteSpace(normalizedAppellation)
+                && !string.Equals(wineAppellation?.Name, normalizedAppellation, StringComparison.OrdinalIgnoreCase))
+            {
+                var recordedAppellation = string.IsNullOrWhiteSpace(wineAppellation?.Name) ? "unknown" : wineAppellation!.Name;
+                return BottleProcessingResult.CreateFailure(
+                    $"Wine '{wine.Name}' is recorded for appellation '{recordedAppellation}'.",
+                    new[] { $"Wine '{wine.Name}' is recorded for appellation '{recordedAppellation}'." },
+                    new
+                    {
+                        type = "wine_appellation_mismatch",
+                        requested = normalizedAppellation,
+                        actual = string.IsNullOrWhiteSpace(wineAppellation?.Name) ? null : wineAppellation.Name
+                    });
+            }
 
             if (color.HasValue && wine.Color != color)
             {
@@ -418,16 +461,17 @@ public sealed class CreateBottleTool : BottleToolBase
                     });
             }
 
-            if (region is not null && wine.RegionId != region.Id)
+            if (region is not null && wineRegion?.Id != region.Id)
             {
+                var recordedRegion = wineRegion?.Name ?? "unknown";
                 return BottleProcessingResult.CreateFailure(
-                    $"Wine '{wine.Name}' is recorded for region '{wine.Region?.Name ?? "unknown"}'.",
-                    new[] { $"Wine '{wine.Name}' is recorded for region '{wine.Region?.Name ?? "unknown"}'." },
+                    $"Wine '{wine.Name}' is recorded for region '{recordedRegion}'.",
+                    new[] { $"Wine '{wine.Name}' is recorded for region '{recordedRegion}'." },
                     new
                     {
                         type = "wine_region_mismatch",
                         requested = new { name = region.Name, id = region.Id },
-                        actual = wine.Region is null ? null : new { name = wine.Region.Name, id = wine.Region.Id }
+                        actual = wineRegion is null ? null : new { name = wineRegion.Name, id = wineRegion.Id }
                     });
             }
 

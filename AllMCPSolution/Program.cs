@@ -31,6 +31,7 @@ builder.Services.AddScoped<IArtworkSaleQueryRepository, ArtworkSaleQueryReposito
 builder.Services.AddScoped<IInflationIndexRepository, InflationIndexRepository>();
 builder.Services.AddScoped<ICountryRepository, CountryRepository>();
 builder.Services.AddScoped<IRegionRepository, RegionRepository>();
+builder.Services.AddScoped<IAppellationRepository, AppellationRepository>();
 builder.Services.AddScoped<IWineRepository, WineRepository>();
 builder.Services.AddScoped<IBottleRepository, BottleRepository>();
 

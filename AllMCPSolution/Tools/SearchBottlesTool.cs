@@ -16,7 +16,7 @@ using ModelContextProtocol.Server;
 
 namespace AllMCPSolution.Bottles;
 
-[McpTool("search_bottles", "Searches bottles by wine, region, country, vintage, or tasting notes using fuzzy matching")]
+[McpTool("search_bottles", "Searches bottles by wine, appellation, region, country, vintage, or tasting notes using fuzzy matching")]
 public sealed class SearchBottlesTool : IToolBase, IMcpTool
 {
     private readonly IBottleRepository _bottles;
@@ -27,7 +27,7 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
     }
 
     public string Name => "search_bottles";
-    public string Description => "Searches bottles by wine, region, country, vintage, or tasting notes using fuzzy matching.";
+    public string Description => "Searches bottles by wine, appellation, region, country, vintage, or tasting notes using fuzzy matching.";
     public string? SafetyLevel => "non_critical";
 
     public async Task<object> ExecuteAsync(Dictionary<string, object>? parameters)
@@ -131,8 +131,9 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
 
         EvaluateField("wine", bottle.Wine?.Name);
         EvaluateField("grapeVariety", bottle.Wine?.GrapeVariety);
-        EvaluateField("region", bottle.Wine?.Region?.Name);
-        EvaluateField("country", bottle.Wine?.Region?.Country?.Name);
+        EvaluateField("appellation", bottle.Wine?.Appellation?.Name);
+        EvaluateField("region", bottle.Wine?.Appellation?.Region?.Name);
+        EvaluateField("country", bottle.Wine?.Appellation?.Region?.Country?.Name);
         EvaluateField("vintage", bottle.Vintage.ToString());
         EvaluateField("tastingNote", bottle.TastingNote);
 

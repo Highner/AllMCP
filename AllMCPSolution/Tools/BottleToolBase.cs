@@ -17,23 +17,27 @@ public abstract class BottleToolBase : IToolBase, IMcpTool
     private readonly IWineRepository? _wineRepository;
     private readonly ICountryRepository? _countryRepository;
     private readonly IRegionRepository? _regionRepository;
+    private readonly IAppellationRepository? _appellationRepository;
 
     protected BottleToolBase(
         IBottleRepository bottleRepository,
         IWineRepository? wineRepository = null,
         ICountryRepository? countryRepository = null,
-        IRegionRepository? regionRepository = null)
+        IRegionRepository? regionRepository = null,
+        IAppellationRepository? appellationRepository = null)
     {
         _bottleRepository = bottleRepository;
         _wineRepository = wineRepository;
         _countryRepository = countryRepository;
         _regionRepository = regionRepository;
+        _appellationRepository = appellationRepository;
     }
 
     protected IBottleRepository BottleRepository => _bottleRepository;
     protected IWineRepository WineRepository => _wineRepository ?? throw new InvalidOperationException("Wine repository is required for this tool but was not provided.");
     protected ICountryRepository CountryRepository => _countryRepository ?? throw new InvalidOperationException("Country repository is required for this tool but was not provided.");
     protected IRegionRepository RegionRepository => _regionRepository ?? throw new InvalidOperationException("Region repository is required for this tool but was not provided.");
+    protected IAppellationRepository AppellationRepository => _appellationRepository ?? throw new InvalidOperationException("Appellation repository is required for this tool but was not provided.");
 
     public abstract string Name { get; }
     public abstract string Description { get; }
