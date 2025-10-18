@@ -183,9 +183,7 @@ public sealed class CreateBottleTool : BottleToolBase
                     GrapeVariety = string.Empty,
                     Color = color.Value,
                     CountryId = country.Id,
-                    RegionId = region.Id,
-                    Country = country,
-                    Region = region
+                    RegionId = region.Id
                 };
 
                 await WineRepository.AddAsync(newWine, ct);
