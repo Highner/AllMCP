@@ -29,6 +29,11 @@ public class TastingNoteRepository : ITastingNoteRepository
             .AsNoTracking()
             .Include(tn => tn.User)
             .Include(tn => tn.Bottle)
+                .ThenInclude(b => b.WineVintage)
+                    .ThenInclude(wv => wv.Wine)
+                        .ThenInclude(w => w.Appellation)
+                            .ThenInclude(a => a.Region)
+                                .ThenInclude(r => r.Country)
             .FirstOrDefaultAsync(tn => tn.Id == id, ct);
     }
 
@@ -38,6 +43,12 @@ public class TastingNoteRepository : ITastingNoteRepository
             .AsNoTracking()
             .Where(tn => tn.BottleId == bottleId)
             .Include(tn => tn.User)
+            .Include(tn => tn.Bottle)
+                .ThenInclude(b => b.WineVintage)
+                    .ThenInclude(wv => wv.Wine)
+                        .ThenInclude(w => w.Appellation)
+                            .ThenInclude(a => a.Region)
+                                .ThenInclude(r => r.Country)
             .OrderBy(tn => tn.Id)
             .ToListAsync(ct);
     }
