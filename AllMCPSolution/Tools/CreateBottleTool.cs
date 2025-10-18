@@ -350,20 +350,6 @@ public sealed class CreateBottleTool : BottleToolBase
             var wine = await WineRepository.FindByNameAsync(name!, ct);
             if (wine is null)
             {
-                var suggestions = await WineRepository.FindClosestMatchesAsync(name!, 5, ct);
-                if (suggestions.Count > 0)
-                {
-                    return BottleProcessingResult.CreateFailure(
-                        $"Wine '{name}' does not have an exact match. Please confirm the correct wine before creating the bottle.",
-                        new[] { $"Wine '{name}' does not have an exact match." },
-                        new
-                        {
-                            type = "wine_confirmation_required",
-                            query = name,
-                            suggestions = suggestions.Select(BottleResponseMapper.MapWineSummary).ToList()
-                        });
-                }
-
                 if (!color.HasValue)
                 {
                     return BottleProcessingResult.CreateFailure(
