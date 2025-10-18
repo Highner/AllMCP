@@ -192,65 +192,6 @@ public sealed class CreateBottleTool : BottleToolBase
             {
                 ["type"] = "number",
                 ["description"] = "Optional bottle price.",
-            },
-            ["userId"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["format"] = "uuid",
-                ["description"] = "User identifier required when providing tasting notes or scores when the name is not provided.",
-            },
-            ["user_id"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["format"] = "uuid",
-                ["description"] = "Snake_case alias for userId.",
-            },
-            ["userName"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Optional user name when the identifier is unknown.",
-            },
-            ["user_name"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Snake_case alias for userName.",
-            },
-            ["score"] = new JsonObject
-            {
-                ["type"] = "number",
-                ["description"] = "Optional rating or score (requires userId or userName).",
-            },
-            ["tastingNote"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Optional tasting notes (requires userId or userName).",
-            },
-            ["tasting_note"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Snake_case alias for tastingNote.",
-            },
-            ["isDrunk"] = new JsonObject
-            {
-                ["type"] = "boolean",
-                ["description"] = "Indicates whether the bottle has been consumed.",
-            },
-            ["is_drunk"] = new JsonObject
-            {
-                ["type"] = "boolean",
-                ["description"] = "Snake_case alias for isDrunk.",
-            },
-            ["drunkAt"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["format"] = "date-time",
-                ["description"] = "Timestamp of when the bottle was consumed (requires isDrunk=true).",
-            },
-            ["drunk_at"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["format"] = "date-time",
-                ["description"] = "Snake_case alias for drunkAt.",
             }
         };
 
