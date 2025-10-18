@@ -7,9 +7,6 @@ public class Wine
     public string GrapeVariety { get; set; } = string.Empty;
     public WineColor Color { get; set; }
 
-    public Guid CountryId { get; set; }
-    public Country Country { get; set; } = null!;
-
     public Guid RegionId { get; set; }
     public Region Region { get; set; } = null!;
 

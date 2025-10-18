@@ -30,12 +30,19 @@ internal static class BottleResponseMapper
                     name = wine.Name,
                     grapeVariety = wine.GrapeVariety,
                     color = wine.Color.ToString(),
-                    country = wine.Country is null
+                    country = wine.Region?.Country is null
                         ? null
-                        : new { id = wine.Country.Id, name = wine.Country.Name },
+                        : new { id = wine.Region.Country.Id, name = wine.Region.Country.Name },
                     region = wine.Region is null
                         ? null
-                        : new { id = wine.Region.Id, name = wine.Region.Name }
+                        : new
+                        {
+                            id = wine.Region.Id,
+                            name = wine.Region.Name,
+                            country = wine.Region.Country is null
+                                ? null
+                                : new { id = wine.Region.Country.Id, name = wine.Region.Country.Name }
+                        }
                 }
         };
     }
@@ -48,8 +55,19 @@ internal static class BottleResponseMapper
             name = wine.Name,
             grapeVariety = wine.GrapeVariety,
             color = wine.Color.ToString(),
-            country = wine.Country is null ? null : new { id = wine.Country.Id, name = wine.Country.Name },
-            region = wine.Region is null ? null : new { id = wine.Region.Id, name = wine.Region.Name }
+            country = wine.Region?.Country is null
+                ? null
+                : new { id = wine.Region.Country.Id, name = wine.Region.Country.Name },
+            region = wine.Region is null
+                ? null
+                : new
+                {
+                    id = wine.Region.Id,
+                    name = wine.Region.Name,
+                    country = wine.Region.Country is null
+                        ? null
+                        : new { id = wine.Region.Country.Id, name = wine.Region.Country.Name }
+                }
         };
     }
 
@@ -57,5 +75,12 @@ internal static class BottleResponseMapper
         => new { id = country.Id, name = country.Name };
 
     public static object MapRegion(Region region)
-        => new { id = region.Id, name = region.Name };
+        => new
+        {
+            id = region.Id,
+            name = region.Name,
+            country = region.Country is null
+                ? null
+                : new { id = region.Country.Id, name = region.Country.Name }
+        };
 }
