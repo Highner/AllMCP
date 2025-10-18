@@ -8,5 +8,5 @@ public class Region
     public Guid CountryId { get; set; }
     public Country Country { get; set; } = null!;
 
-    public ICollection<Wine> Wines { get; set; } = [];
+    public ICollection<Appellation> Appellations { get; set; } = [];
 }

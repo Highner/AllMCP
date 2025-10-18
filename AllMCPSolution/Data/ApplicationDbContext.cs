@@ -16,13 +16,14 @@ public class ApplicationDbContext : DbContext
     public DbSet<InflationIndex> InflationIndices { get; set; }
     public DbSet<Country> Countries { get; set; }
     public DbSet<Region> Regions { get; set; }
+    public DbSet<Appellation> Appellations { get; set; }
     public DbSet<Wine> Wines { get; set; }
     public DbSet<Bottle> Bottles { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        
+
         foreach (var property in modelBuilder.Model
                      .GetEntityTypes()
                      .SelectMany(t => t.GetProperties())
@@ -30,7 +31,7 @@ public class ApplicationDbContext : DbContext
         {
             property.SetColumnType("datetime2");
         }
-        
+
         modelBuilder.Entity<ArtworkSale>(e =>
         {
             e.Property(p => p.Height).HasColumnType("decimal(18,4)");
@@ -56,12 +57,25 @@ public class ApplicationDbContext : DbContext
             e.Property(w => w.Name).HasMaxLength(256);
             e.Property(w => w.GrapeVariety).HasMaxLength(256);
 
-            e.HasOne(w => w.Region)
-                .WithMany(r => r.Wines)
-                .HasForeignKey(w => w.RegionId)
+            e.HasOne(w => w.Appellation)
+                .WithMany(a => a.Wines)
+                .HasForeignKey(w => w.AppellationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            e.HasIndex(w => new { w.Name, w.RegionId })
+            e.HasIndex(w => new { w.Name, w.AppellationId })
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<Appellation>(e =>
+        {
+            e.Property(a => a.Name).HasMaxLength(256);
+
+            e.HasOne(a => a.Region)
+                .WithMany(r => r.Appellations)
+                .HasForeignKey(a => a.RegionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(a => new { a.Name, a.RegionId })
                 .IsUnique();
         });
 
