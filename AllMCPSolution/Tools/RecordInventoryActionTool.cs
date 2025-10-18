@@ -201,7 +201,6 @@ public sealed class RecordInventoryActionTool : CrudToolBase
         {
             null => new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase),
             Dictionary<string, object?> dict => CreateCaseInsensitiveDictionary(dict),
-            Dictionary<string, object> dict => CreateCaseInsensitiveDictionaryFromObjectDictionary(dict),
             JsonObject jsonObject => CreateCaseInsensitiveDictionaryFromJsonObject(jsonObject),
             JsonElement element => JsonElementToDictionary(element),
             IDictionary dictionary => DictionaryFromDictionary(dictionary),
@@ -261,17 +260,6 @@ public sealed class RecordInventoryActionTool : CrudToolBase
             return dict;
         }
 
-        foreach (var kvp in source)
-        {
-            dict[kvp.Key] = kvp.Value;
-        }
-
-        return dict;
-    }
-
-    private static Dictionary<string, object?> CreateCaseInsensitiveDictionaryFromObjectDictionary(Dictionary<string, object> source)
-    {
-        var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         foreach (var kvp in source)
         {
             dict[kvp.Key] = kvp.Value;
