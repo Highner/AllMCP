@@ -124,6 +124,20 @@ public sealed class UpdateBottleTool : BottleToolBase
             }
         }
 
+        if (region is not null && country is not null && region.CountryId != country.Id)
+        {
+            return Failure("update", $"Region '{region.Name}' belongs to country '{region.Country?.Name ?? "unknown"}'.",
+                new[] { $"Region '{region.Name}' belongs to country '{region.Country?.Name ?? "unknown"}'." },
+                new
+                {
+                    type = "region_country_mismatch",
+                    requestedCountry = new { name = country.Name, id = country.Id },
+                    regionCountry = region.Country is null
+                        ? null
+                        : new { name = region.Country.Name, id = region.Country.Id }
+                });
+        }
+
         Wine targetWine;
         if (!string.IsNullOrWhiteSpace(name))
         {
@@ -149,6 +163,8 @@ public sealed class UpdateBottleTool : BottleToolBase
                 ?? throw new InvalidOperationException($"Wine {bottle.WineId} referenced by bottle {bottle.Id} could not be resolved.");
         }
 
+        var wineCountry = targetWine.Region?.Country;
+
         if (color.HasValue && targetWine.Color != color)
         {
             return Failure("update", $"Wine '{targetWine.Name}' exists with color '{targetWine.Color}'.",
@@ -161,15 +177,15 @@ public sealed class UpdateBottleTool : BottleToolBase
                 });
         }
 
-        if (country is not null && targetWine.CountryId != country.Id)
+        if (country is not null && wineCountry?.Id != country.Id)
         {
-            return Failure("update", $"Wine '{targetWine.Name}' is recorded for country '{targetWine.Country?.Name ?? "unknown"}'.",
-                new[] { $"Wine '{targetWine.Name}' is recorded for country '{targetWine.Country?.Name ?? "unknown"}'." },
+            return Failure("update", $"Wine '{targetWine.Name}' is recorded for country '{wineCountry?.Name ?? "unknown"}'.",
+                new[] { $"Wine '{targetWine.Name}' is recorded for country '{wineCountry?.Name ?? "unknown"}'." },
                 new
                 {
                     type = "wine_country_mismatch",
                     requested = new { name = country.Name, id = country.Id },
-                    actual = targetWine.Country is null ? null : new { name = targetWine.Country.Name, id = targetWine.Country.Id }
+                    actual = wineCountry is null ? null : new { name = wineCountry.Name, id = wineCountry.Id }
                 });
         }
 

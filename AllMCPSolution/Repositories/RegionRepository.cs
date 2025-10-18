@@ -25,6 +25,7 @@ public class RegionRepository : IRegionRepository
     {
         return await _db.Regions
             .AsNoTracking()
+            .Include(r => r.Country)
             .OrderBy(r => r.Name)
             .ToListAsync(ct);
     }
@@ -33,6 +34,7 @@ public class RegionRepository : IRegionRepository
     {
         return await _db.Regions
             .AsNoTracking()
+            .Include(r => r.Country)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
     }
 
@@ -46,6 +48,7 @@ public class RegionRepository : IRegionRepository
         var normalized = name.Trim().ToLowerInvariant();
         return await _db.Regions
             .AsNoTracking()
+            .Include(r => r.Country)
             .FirstOrDefaultAsync(r => r.Name.ToLower() == normalized, ct);
     }
 
@@ -53,6 +56,7 @@ public class RegionRepository : IRegionRepository
     {
         var regions = await _db.Regions
             .AsNoTracking()
+            .Include(r => r.Country)
             .ToListAsync(ct);
 
         return FuzzyMatchUtilities.FindClosestMatches(regions, name, r => r.Name, maxResults);
