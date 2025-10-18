@@ -37,6 +37,7 @@ builder.Services.AddScoped<IWineVintageRepository, WineVintageRepository>();
 builder.Services.AddScoped<IBottleRepository, BottleRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITastingNoteRepository, TastingNoteRepository>();
+builder.Services.AddScoped<InventoryIntakeService>();
 
 // Register all tools (auto-discovered by ToolRegistry)
 builder.Services.AddScoped<SearchArtistsTool>();
@@ -45,6 +46,7 @@ builder.Services.AddScoped<IHammerPerAreaAnalyticsService, HammerPerAreaAnalytic
 builder.Services.AddScoped<GetArtworkSalesHammerPerAreaRolling12mTool>();
 builder.Services.AddScoped<GetArtworkSalesHammerPriceRolling12mTool>();
 builder.Services.AddScoped<GetArtworkSalesPriceVsEstimateRolling12mTool>();
+builder.Services.AddScoped<RecordInventoryActionTool>();
 
 // Inflation and related services
 builder.Services.AddScoped<IInflationService, EcbInflationService>();
