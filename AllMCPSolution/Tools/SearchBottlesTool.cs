@@ -66,8 +66,8 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
             .Where(candidate => candidate.Include)
             .OrderBy(candidate => candidate.ContainsMatch ? 0 : 1)
             .ThenBy(candidate => candidate.BestDistance)
-            .ThenBy(candidate => candidate.Bottle.Wine?.Name ?? string.Empty)
-            .ThenBy(candidate => candidate.Bottle.Vintage)
+            .ThenBy(candidate => candidate.Bottle.WineVintage?.Wine?.Name ?? string.Empty)
+            .ThenBy(candidate => candidate.Bottle.WineVintage?.Vintage ?? int.MaxValue)
             .ToList();
 
         var limited = candidates
@@ -129,12 +129,14 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
             }
         }
 
-        EvaluateField("wine", bottle.Wine?.Name);
-        EvaluateField("grapeVariety", bottle.Wine?.GrapeVariety);
-        EvaluateField("appellation", bottle.Wine?.Appellation?.Name);
-        EvaluateField("region", bottle.Wine?.Appellation?.Region?.Name);
-        EvaluateField("country", bottle.Wine?.Appellation?.Region?.Country?.Name);
-        EvaluateField("vintage", bottle.Vintage.ToString());
+        var wineVintage = bottle.WineVintage;
+        var wine = wineVintage?.Wine;
+        EvaluateField("wine", wine?.Name);
+        EvaluateField("grapeVariety", wine?.GrapeVariety);
+        EvaluateField("appellation", wine?.Appellation?.Name);
+        EvaluateField("region", wine?.Appellation?.Region?.Name);
+        EvaluateField("country", wine?.Appellation?.Region?.Country?.Name);
+        EvaluateField("vintage", wineVintage?.Vintage.ToString());
         EvaluateField("tastingNote", bottle.TastingNote);
 
         if (bestDistance == int.MaxValue)

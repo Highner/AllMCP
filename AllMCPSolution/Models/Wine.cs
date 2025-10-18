@@ -10,5 +10,5 @@ public class Wine
     public Guid AppellationId { get; set; }
     public Appellation Appellation { get; set; } = null!;
 
-    public ICollection<Bottle> Bottles { get; set; } = [];
+    public ICollection<WineVintage> WineVintages { get; set; } = [];
 }

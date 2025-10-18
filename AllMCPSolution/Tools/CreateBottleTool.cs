@@ -28,8 +28,9 @@ public sealed class CreateBottleTool : BottleToolBase
         IWineRepository wineRepository,
         ICountryRepository countryRepository,
         IRegionRepository regionRepository,
-        IAppellationRepository appellationRepository)
-        : base(bottleRepository, wineRepository, countryRepository, regionRepository, appellationRepository)
+        IAppellationRepository appellationRepository,
+        IWineVintageRepository wineVintageRepository)
+        : base(bottleRepository, wineRepository, countryRepository, regionRepository, appellationRepository, wineVintageRepository)
     {
     }
 
@@ -486,11 +487,12 @@ public sealed class CreateBottleTool : BottleToolBase
                 }
             }
 
+            var wineVintage = await WineVintageRepository.GetOrCreateAsync(wine.Id, vintage!.Value, ct);
+
             var bottle = new Bottle
             {
                 Id = Guid.NewGuid(),
-                WineId = wine.Id,
-                Vintage = vintage!.Value,
+                WineVintageId = wineVintage.Id,
                 Price = price,
                 Score = score,
                 TastingNote = tastingNote?.Trim() ?? string.Empty,
@@ -503,14 +505,13 @@ public sealed class CreateBottleTool : BottleToolBase
             var created = await BottleRepository.GetByIdAsync(bottle.Id, ct) ?? new Bottle
             {
                 Id = bottle.Id,
-                WineId = bottle.WineId,
-                Vintage = bottle.Vintage,
+                WineVintageId = bottle.WineVintageId,
                 Price = bottle.Price,
                 Score = bottle.Score,
                 TastingNote = bottle.TastingNote,
                 IsDrunk = bottle.IsDrunk,
                 DrunkAt = bottle.DrunkAt,
-                Wine = wine
+                WineVintage = wineVintage
             };
 
             return BottleProcessingResult.CreateSuccess("Bottle created successfully.", created);

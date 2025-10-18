@@ -11,17 +11,19 @@ internal static class BottleResponseMapper
             return new { };
         }
 
-        var wine = bottle.Wine;
+        var wineVintage = bottle.WineVintage;
+        var wine = wineVintage?.Wine;
         return new
         {
             id = bottle.Id,
             price = bottle.Price,
             score = bottle.Score,
             tastingNote = bottle.TastingNote,
-            vintage = bottle.Vintage,
+            vintage = wineVintage?.Vintage,
             isDrunk = bottle.IsDrunk,
             drunkAt = bottle.DrunkAt,
-            wineId = bottle.WineId,
+            wineVintageId = bottle.WineVintageId,
+            wineId = wine?.Id,
             wine = wine is null ? null : MapWine(wine)
         };
     }
