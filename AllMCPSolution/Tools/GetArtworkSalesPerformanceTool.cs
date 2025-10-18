@@ -10,7 +10,7 @@ using ModelContextProtocol.Server;
 namespace AllMCPSolution.Artworks;
 
 [McpTool("get_artwork_sales_performance_timeseries", "Returns a time series of artwork sales performance relative to estimates")]
-public class GetArtworkSalesPerformanceTool : IToolBase, IMcpTool
+public class GetArtworkSalesPerformanceTool //: IToolBase, IMcpTool
 {
     private readonly IArtworkSaleQueryRepository _repo;
     private const int MaxResults = 1000; // Limit for time series

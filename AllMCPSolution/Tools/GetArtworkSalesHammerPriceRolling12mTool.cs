@@ -11,7 +11,7 @@ using AllMCPSolution.Repositories;
 namespace AllMCPSolution.Artworks;
 
 [McpTool("get_artwork_sales_hammer_price_rolling_12m", "Returns 12-month rolling averages of hammer prices, including inflation-adjusted values, one data point per month.")]
-public class GetArtworkSalesHammerPriceRolling12mTool : IToolBase, IMcpTool
+public class GetArtworkSalesHammerPriceRolling12mTool //: IToolBase, IMcpTool
 {
     private readonly IArtworkSaleQueryRepository _repo;
     private readonly IInflationService _inflationService;

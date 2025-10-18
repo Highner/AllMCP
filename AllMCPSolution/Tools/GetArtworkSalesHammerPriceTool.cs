@@ -11,7 +11,7 @@ using ModelContextProtocol.Server;
 namespace AllMCPSolution.Artworks;
 
 [McpTool("get_artwork_sales_hammer_price_timeseries", "Returns a time series of hammer prices, including inflation-adjusted hammer prices using ECB HICP.")]
-public class GetArtworkSalesHammerPriceTool : IToolBase, IMcpTool
+public class GetArtworkSalesHammerPriceTool// : IToolBase, IMcpTool
 {
     private readonly IArtworkSaleQueryRepository _repo;
     private readonly IInflationService _inflationService;

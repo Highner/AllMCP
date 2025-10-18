@@ -13,7 +13,7 @@ using System.Linq;
 namespace AllMCPSolution.Artworks;
 
 [McpTool("get_artwork_sales_price_vs_estimate_rolling_12m", "Returns 12-month rolling averages for price vs estimate metrics, one data point per month.")]
-public class GetArtworkSalesPriceVsEstimateRolling12mTool : IToolBase, IMcpTool, IResourceProvider
+public class GetArtworkSalesPriceVsEstimateRolling12mTool// : IToolBase, IMcpTool, IResourceProvider
 {
     private readonly IArtworkSaleQueryRepository _repo;
     private readonly IConfiguration _config;

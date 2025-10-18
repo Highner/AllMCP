@@ -9,7 +9,7 @@ using ModelContextProtocol.Server;
 namespace AllMCPSolution.Artworks;
 
 [McpTool("get_artwork_sales_hammer_per_area_timeseries", "Returns hammer price per area (height*width) and inflation-adjusted per-area values.")]
-public class GetArtworkSalesHammerPerAreaTool : IToolBase, IMcpTool
+public class GetArtworkSalesHammerPerAreaTool //: IToolBase, IMcpTool
 {
     private readonly IHammerPerAreaAnalyticsService _analyticsService;
 

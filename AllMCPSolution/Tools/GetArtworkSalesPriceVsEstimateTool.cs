@@ -10,7 +10,7 @@ using ModelContextProtocol.Server;
 namespace AllMCPSolution.Artworks;
 
 [McpTool("get_artwork_sales_price_vs_estimate_timeseries", "Returns a time series of how hammer price relates to the estimate range (ratios and deltas).")]
-public class GetArtworkSalesPriceVsEstimateTool : IToolBase, IMcpTool
+public class GetArtworkSalesPriceVsEstimateTool// : IToolBase, IMcpTool
 {
     private readonly IArtworkSaleQueryRepository _repo;
     private const int MaxResults = 1000;

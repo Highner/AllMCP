@@ -9,7 +9,7 @@ using ModelContextProtocol.Server;
 namespace AllMCPSolution.Artists;
 
 [McpTool("search_artists", "Searches for artists using fuzzy matching on their names")]
-public class SearchArtistsTool : IToolBase, IMcpTool
+public class SearchArtistsTool //: IToolBase, IMcpTool
 {
     private readonly AllMCPSolution.Repositories.IArtistRepository _artists;
 
