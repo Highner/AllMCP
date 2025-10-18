@@ -117,7 +117,10 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
             if (normalizedValue.Contains(originalQuery, StringComparison.OrdinalIgnoreCase))
             {
                 containsMatch = true;
-                matchedFields.Add(fieldName);
+                if (!matchedFields.Contains(fieldName))
+                {
+                    matchedFields.Add(fieldName);
+                }
             }
 
             var candidateLower = normalizedValue.ToLowerInvariant();
@@ -137,7 +140,13 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
         EvaluateField("region", wine?.Appellation?.Region?.Name);
         EvaluateField("country", wine?.Appellation?.Region?.Country?.Name);
         EvaluateField("vintage", wineVintage?.Vintage.ToString());
-        EvaluateField("tastingNote", bottle.TastingNote);
+        if (bottle.TastingNotes is not null)
+        {
+            foreach (var note in bottle.TastingNotes)
+            {
+                EvaluateField("tastingNote", note.TastingNote);
+            }
+        }
 
         if (bestDistance == int.MaxValue)
         {
@@ -155,7 +164,7 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
             MatchedFields = matchedFields,
             BestDistance = bestDistance,
             RelevanceScore = relevance,
-            TastingNotePreview = BuildTastingNotePreview(bottle.TastingNote, originalQuery)
+            TastingNotePreview = BuildTastingNotePreview(bottle.TastingNotes, originalQuery)
         };
     }
 
@@ -176,29 +185,60 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
         return Math.Max(0, Math.Min(1.0, score));
     }
 
-    private static string? BuildTastingNotePreview(string? tastingNote, string query)
+    private static string? BuildTastingNotePreview(IEnumerable<TastingNote>? tastingNotes, string query)
     {
-        if (string.IsNullOrWhiteSpace(tastingNote))
+        if (tastingNotes is null)
         {
             return null;
         }
 
-        var index = tastingNote.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+        string? fallback = null;
+
+        foreach (var note in tastingNotes)
+        {
+            if (string.IsNullOrWhiteSpace(note.TastingNote))
+            {
+                continue;
+            }
+
+            var snippet = CreateTastingNoteSnippet(note.TastingNote, query, out var containsQuery);
+            if (containsQuery && !string.IsNullOrWhiteSpace(snippet))
+            {
+                return snippet;
+            }
+
+            fallback ??= snippet;
+        }
+
+        return fallback;
+    }
+
+    private static string? CreateTastingNoteSnippet(string tastingNote, string query, out bool containsQuery)
+    {
+        var trimmed = tastingNote.Trim();
+        if (trimmed.Length == 0)
+        {
+            containsQuery = false;
+            return null;
+        }
+
+        var index = trimmed.IndexOf(query, StringComparison.OrdinalIgnoreCase);
         if (index < 0)
         {
-            var trimmed = tastingNote.Trim();
+            containsQuery = false;
             return trimmed.Length <= 160 ? trimmed : trimmed.Substring(0, 160) + "…";
         }
 
+        containsQuery = true;
         var start = Math.Max(0, index - 40);
-        var end = Math.Min(tastingNote.Length, index + query.Length + 40);
-        var snippet = tastingNote.Substring(start, end - start).Trim();
+        var end = Math.Min(trimmed.Length, index + query.Length + 40);
+        var snippet = trimmed.Substring(start, end - start).Trim();
         if (start > 0)
         {
             snippet = "…" + snippet;
         }
 
-        if (end < tastingNote.Length)
+        if (end < trimmed.Length)
         {
             snippet += "…";
         }

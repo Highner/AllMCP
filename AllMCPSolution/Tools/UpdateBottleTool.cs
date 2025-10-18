@@ -22,8 +22,9 @@ public sealed class UpdateBottleTool : BottleToolBase
         ICountryRepository countryRepository,
         IRegionRepository regionRepository,
         IAppellationRepository appellationRepository,
-        IWineVintageRepository wineVintageRepository)
-        : base(bottleRepository, wineRepository, countryRepository, regionRepository, appellationRepository, wineVintageRepository)
+        IWineVintageRepository wineVintageRepository,
+        ITastingNoteRepository tastingNoteRepository)
+        : base(bottleRepository, wineRepository, countryRepository, regionRepository, appellationRepository, wineVintageRepository, tastingNoteRepository)
     {
     }
 
@@ -52,6 +53,7 @@ public sealed class UpdateBottleTool : BottleToolBase
         var score = ParameterHelpers.GetDecimalParameter(parameters, "score", "score");
         var tastingNote = ParameterHelpers.GetStringParameter(parameters, "tastingNote", "tasting_note")
             ?? ParameterHelpers.GetStringParameter(parameters, "tastingNotes", "tasting_notes");
+        var userId = ParameterHelpers.GetGuidParameter(parameters, "userId", "user_id");
         var name = ParameterHelpers.GetStringParameter(parameters, "name", "name");
         var colorInput = ParameterHelpers.GetStringParameter(parameters, "color", "color");
         var countryName = ParameterHelpers.GetStringParameter(parameters, "country", "country");
@@ -64,6 +66,11 @@ public sealed class UpdateBottleTool : BottleToolBase
         if (drunkAt.HasValue && isDrunk == false)
         {
             validationErrors.Add("'drunkAt' can only be provided when 'isDrunk' is true.");
+        }
+
+        if ((score.HasValue || !string.IsNullOrWhiteSpace(tastingNote)) && userId is null)
+        {
+            validationErrors.Add("'userId' is required when providing tasting notes or scores.");
         }
 
         if (validationErrors.Count > 0)
@@ -268,16 +275,6 @@ public sealed class UpdateBottleTool : BottleToolBase
             bottle.Price = price;
         }
 
-        if (score.HasValue)
-        {
-            bottle.Score = score;
-        }
-
-        if (tastingNote is not null)
-        {
-            bottle.TastingNote = tastingNote.Trim();
-        }
-
         if (isDrunk.HasValue)
         {
             bottle.IsDrunk = isDrunk.Value;
@@ -301,16 +298,29 @@ public sealed class UpdateBottleTool : BottleToolBase
 
         await BottleRepository.UpdateAsync(bottle, ct);
 
+        if (userId.HasValue && (score.HasValue || tastingNote is not null))
+        {
+            var tastingNoteEntity = new TastingNote
+            {
+                Id = Guid.NewGuid(),
+                BottleId = bottle.Id,
+                UserId = userId.Value,
+                Score = score,
+                TastingNote = tastingNote?.Trim() ?? string.Empty
+            };
+
+            await TastingNoteRepository.AddAsync(tastingNoteEntity, ct);
+        }
+
         var updated = await BottleRepository.GetByIdAsync(bottle.Id, ct) ?? new Bottle
         {
             Id = bottle.Id,
             WineVintageId = bottle.WineVintageId,
             Price = bottle.Price,
-            Score = bottle.Score,
-            TastingNote = bottle.TastingNote,
             IsDrunk = bottle.IsDrunk,
             DrunkAt = bottle.DrunkAt,
-            WineVintage = targetWineVintage
+            WineVintage = targetWineVintage,
+            TastingNotes = []
         };
 
         return Success("update", "Bottle updated successfully.", new
@@ -344,15 +354,27 @@ public sealed class UpdateBottleTool : BottleToolBase
                 ["type"] = "number",
                 ["description"] = "Updated price."
             },
+            ["userId"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["format"] = "uuid",
+                ["description"] = "User identifier required when providing tasting notes or scores."
+            },
+            ["user_id"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["format"] = "uuid",
+                ["description"] = "Snake_case alias for userId."
+            },
             ["score"] = new JsonObject
             {
                 ["type"] = "number",
-                ["description"] = "Updated score."
+                ["description"] = "Updated score (requires userId)."
             },
             ["tastingNote"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "Updated tasting notes."
+                ["description"] = "Updated tasting notes (requires userId)."
             },
             ["tasting_note"] = new JsonObject
             {
