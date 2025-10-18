@@ -54,6 +54,19 @@ public sealed class UpdateBottleTool : BottleToolBase
         var colorInput = ParameterHelpers.GetStringParameter(parameters, "color", "color");
         var countryName = ParameterHelpers.GetStringParameter(parameters, "country", "country");
         var regionName = ParameterHelpers.GetStringParameter(parameters, "region", "region");
+        var isDrunk = ParameterHelpers.GetBoolParameter(parameters, "isDrunk", "is_drunk");
+        var drunkAt = ParameterHelpers.GetDateTimeParameter(parameters, "drunkAt", "drunk_at");
+
+        var validationErrors = new List<string>();
+        if (drunkAt.HasValue && isDrunk == false)
+        {
+            validationErrors.Add("'drunkAt' can only be provided when 'isDrunk' is true.");
+        }
+
+        if (validationErrors.Count > 0)
+        {
+            return Failure("update", "Validation failed.", validationErrors);
+        }
 
         WineColor? color = null;
         if (!string.IsNullOrWhiteSpace(colorInput))
@@ -197,6 +210,27 @@ public sealed class UpdateBottleTool : BottleToolBase
             bottle.TastingNote = tastingNote.Trim();
         }
 
+        if (isDrunk.HasValue)
+        {
+            bottle.IsDrunk = isDrunk.Value;
+            if (!isDrunk.Value)
+            {
+                bottle.DrunkAt = null;
+            }
+        }
+
+        if (drunkAt.HasValue)
+        {
+            bottle.DrunkAt = drunkAt.Value.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(drunkAt.Value, DateTimeKind.Utc)
+                : drunkAt.Value.ToUniversalTime();
+            bottle.IsDrunk = true;
+        }
+        else if (isDrunk == true && !bottle.DrunkAt.HasValue)
+        {
+            bottle.DrunkAt = DateTime.UtcNow;
+        }
+
         await BottleRepository.UpdateAsync(bottle, ct);
 
         var updated = await BottleRepository.GetByIdAsync(bottle.Id, ct) ?? new Bottle
@@ -207,6 +241,8 @@ public sealed class UpdateBottleTool : BottleToolBase
             Price = bottle.Price,
             Score = bottle.Score,
             TastingNote = bottle.TastingNote,
+            IsDrunk = bottle.IsDrunk,
+            DrunkAt = bottle.DrunkAt,
             Wine = targetWine
         };
 
@@ -255,6 +291,28 @@ public sealed class UpdateBottleTool : BottleToolBase
             {
                 ["type"] = "string",
                 ["description"] = "Snake_case alias for tastingNote."
+            },
+            ["isDrunk"] = new JsonObject
+            {
+                ["type"] = "boolean",
+                ["description"] = "Set to true when the bottle has been consumed."
+            },
+            ["is_drunk"] = new JsonObject
+            {
+                ["type"] = "boolean",
+                ["description"] = "Snake_case alias for isDrunk."
+            },
+            ["drunkAt"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["format"] = "date-time",
+                ["description"] = "Timestamp of when the bottle was consumed."
+            },
+            ["drunk_at"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["format"] = "date-time",
+                ["description"] = "Snake_case alias for drunkAt."
             },
             ["color"] = new JsonObject
             {
