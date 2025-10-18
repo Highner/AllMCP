@@ -50,11 +50,20 @@ public static class FuzzyMatchUtilities
         return distance[sourceLength, targetLength];
     }
 
-    public static IReadOnlyList<T> FindClosestMatches<T>(IEnumerable<T> items, string query, Func<T, string> selector, int maxResults = 5)
+    public static IReadOnlyList<T> FindClosestMatches<T>(
+        IEnumerable<T> items,
+        string query,
+        Func<T, string> selector,
+        int maxResults = 5,
+        double maxNormalizedDistance = 0.45)
     {
         if (items is null) throw new ArgumentNullException(nameof(items));
         if (selector is null) throw new ArgumentNullException(nameof(selector));
         if (maxResults <= 0) return Array.Empty<T>();
+        if (double.IsNaN(maxNormalizedDistance) || maxNormalizedDistance < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxNormalizedDistance));
+        }
 
         var normalizedQuery = (query ?? string.Empty).Trim();
         if (normalizedQuery.Length == 0)
@@ -77,15 +86,19 @@ public static class FuzzyMatchUtilities
                 var loweredValue = normalizedValue.ToLowerInvariant();
                 var contains = loweredValue.Contains(loweredQuery, StringComparison.Ordinal);
                 var distance = CalculateLevenshteinDistance(loweredQuery, loweredValue);
+                var maxLength = Math.Max(loweredValue.Length, loweredQuery.Length);
+                var normalizedDistance = maxLength == 0 ? 0 : (double)distance / maxLength;
                 return new
                 {
                     item,
                     contains,
                     distance,
+                    normalizedDistance,
                     length = normalizedValue.Length,
                     original = value
                 };
             })
+            .Where(x => x.contains || x.normalizedDistance <= maxNormalizedDistance)
             .OrderBy(x => x.contains ? 0 : 1)
             .ThenBy(x => x.distance)
             .ThenBy(x => x.length)
