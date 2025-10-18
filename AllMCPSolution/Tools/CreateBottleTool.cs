@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,9 +13,14 @@ using AllMCPSolution.Services;
 
 namespace AllMCPSolution.Tools;
 
-[McpTool("create_bottle", "Creates a bottle for an existing wine after validating the wine metadata.")]
+[McpTool("create_bottle", "Imports bottles for existing wines after validating the wine metadata.")]
 public sealed class CreateBottleTool : BottleToolBase
 {
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.General)
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     private readonly string[] _colorOptions = Enum.GetNames(typeof(WineColor));
 
     public CreateBottleTool(
@@ -26,12 +33,203 @@ public sealed class CreateBottleTool : BottleToolBase
     }
 
     public override string Name => "create_bottle";
-    public override string Description => "Creates a bottle for an existing wine after validating the wine metadata.";
-    public override string Title => "Create Bottle";
-    protected override string InvokingMessage => "Creating bottle…";
-    protected override string InvokedMessage => "Bottle created.";
+    public override string Description => "Imports bottles for existing wines after validating the wine metadata.";
+    public override string Title => "Import Bottles";
+    protected override string InvokingMessage => "Importing bottles…";
+    protected override string InvokedMessage => "Bottle import complete.";
 
     protected override async Task<BottleOperationResult> ExecuteInternalAsync(Dictionary<string, object>? parameters, CancellationToken ct)
+    {
+        try
+        {
+            var requests = ExtractBottleRequests(parameters);
+            if (requests.Count == 0)
+            {
+                return Failure(
+                    "batch_create",
+                    "No bottles were provided for import.",
+                    new[] { "Provide at least one bottle in the 'bottles' array." });
+            }
+
+            var successes = new List<object>();
+            var failures = new List<object>();
+
+            for (var index = 0; index < requests.Count; index++)
+            {
+                var normalized = ToParameterDictionary(requests[index]);
+                var result = await ProcessBottleAsync(normalized, ct);
+
+                if (result.Success)
+                {
+                    successes.Add(new
+                    {
+                        index,
+                        message = result.Message,
+                        bottle = result.Bottle is null ? null : BottleResponseMapper.MapBottle(result.Bottle)
+                    });
+                }
+                else
+                {
+                    failures.Add(new
+                    {
+                        index,
+                        message = result.Message,
+                        errors = result.Errors,
+                        suggestions = result.Suggestions,
+                        exception = result.Exception is null
+                            ? null
+                            : new
+                            {
+                                message = result.Exception.Message,
+                                stackTrace = result.Exception.StackTrace
+                            }
+                    });
+                }
+            }
+
+            if (successes.Count == 0)
+            {
+                return Failure(
+                    "batch_create",
+                    "All bottle imports failed.",
+                    new[] { "None of the provided bottles could be imported." },
+                    new
+                    {
+                        failures
+                    });
+            }
+
+            var summaryMessage = failures.Count == 0
+                ? $"Imported {successes.Count} bottle(s) successfully."
+                : $"Imported {successes.Count} bottle(s) successfully. {failures.Count} failed.";
+
+            return Success(
+                "batch_create",
+                summaryMessage,
+                new
+                {
+                    processed = requests.Count,
+                    successful = successes.Count,
+                    failed = failures.Count,
+                    successes,
+                    failures
+                });
+        }
+        catch (Exception ex)
+        {
+            return Failure(
+                "batch_create",
+                ex.Message,
+                new[] { ex.Message },
+                new
+                {
+                    type = "exception",
+                    stackTrace = ex.StackTrace
+                },
+                ex);
+        }
+    }
+
+    protected override JsonObject BuildInputSchema()
+    {
+        return new JsonObject
+        {
+            ["type"] = "object",
+            ["properties"] = new JsonObject
+            {
+                ["bottles"] = new JsonObject
+                {
+                    ["type"] = "array",
+                    ["description"] = "Collection of bottles to import. Each entry must include at least a name and a vintage.",
+                    ["items"] = BuildBottleItemSchema()
+                }
+            },
+            ["required"] = new JsonArray("bottles")
+        };
+    }
+
+    private JsonObject BuildBottleItemSchema()
+    {
+        var properties = new JsonObject
+        {
+            ["name"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Name of the wine the bottle belongs to.",
+            },
+            ["vintage"] = new JsonObject
+            {
+                ["type"] = "integer",
+                ["description"] = "Vintage year for the bottle.",
+            },
+            ["country"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Country of the wine. Required when the wine must be created.",
+            },
+            ["region"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Region of the wine. Required when the wine must be created.",
+            },
+            ["color"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Wine color. Required when the wine must be created. Valid options: " + string.Join(", ", _colorOptions)
+            },
+            ["price"] = new JsonObject
+            {
+                ["type"] = "number",
+                ["description"] = "Optional bottle price.",
+            },
+            ["score"] = new JsonObject
+            {
+                ["type"] = "number",
+                ["description"] = "Optional rating or score.",
+            },
+            ["tastingNote"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Optional tasting notes.",
+            },
+            ["tasting_note"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Snake_case alias for tastingNote.",
+            },
+            ["isDrunk"] = new JsonObject
+            {
+                ["type"] = "boolean",
+                ["description"] = "Indicates whether the bottle has been consumed.",
+            },
+            ["is_drunk"] = new JsonObject
+            {
+                ["type"] = "boolean",
+                ["description"] = "Snake_case alias for isDrunk.",
+            },
+            ["drunkAt"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["format"] = "date-time",
+                ["description"] = "Timestamp of when the bottle was consumed (requires isDrunk=true).",
+            },
+            ["drunk_at"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["format"] = "date-time",
+                ["description"] = "Snake_case alias for drunkAt.",
+            }
+        };
+
+        return new JsonObject
+        {
+            ["type"] = "object",
+            ["properties"] = properties,
+            ["required"] = new JsonArray("name", "vintage")
+        };
+    }
+
+    private async Task<BottleProcessingResult> ProcessBottleAsync(Dictionary<string, object> parameters, CancellationToken ct)
     {
         try
         {
@@ -71,7 +269,8 @@ public sealed class CreateBottleTool : BottleToolBase
                 }
                 else
                 {
-                    return Failure("create", $"Color '{colorInput}' is not recognised.",
+                    return BottleProcessingResult.Failure(
+                        $"Color '{colorInput}' is not recognised.",
                         new[] { $"Color '{colorInput}' is not recognised." },
                         new
                         {
@@ -87,7 +286,7 @@ public sealed class CreateBottleTool : BottleToolBase
 
             if (errors.Count > 0)
             {
-                return Failure("create", "Validation failed.", errors);
+                return BottleProcessingResult.Failure("Validation failed.", errors);
             }
 
             Country? country = null;
@@ -97,7 +296,8 @@ public sealed class CreateBottleTool : BottleToolBase
                 if (country is null)
                 {
                     var suggestions = await CountryRepository.SearchByApproximateNameAsync(countryName!, 5, ct);
-                    return Failure("create", $"Country '{countryName}' was not found.",
+                    return BottleProcessingResult.Failure(
+                        $"Country '{countryName}' was not found.",
                         new[] { $"Country '{countryName}' was not found." },
                         new
                         {
@@ -115,7 +315,8 @@ public sealed class CreateBottleTool : BottleToolBase
                 if (region is null)
                 {
                     var suggestions = await RegionRepository.SearchByApproximateNameAsync(regionName!, 5, ct);
-                    return Failure("create", $"Region '{regionName}' was not found.",
+                    return BottleProcessingResult.Failure(
+                        $"Region '{regionName}' was not found.",
                         new[] { $"Region '{regionName}' was not found." },
                         new
                         {
@@ -130,7 +331,8 @@ public sealed class CreateBottleTool : BottleToolBase
             {
                 if (country is not null && region.CountryId != country.Id)
                 {
-                    return Failure("create", $"Region '{region.Name}' belongs to country '{region.Country?.Name ?? "unknown"}'.", 
+                    return BottleProcessingResult.Failure(
+                        $"Region '{region.Name}' belongs to country '{region.Country?.Name ?? "unknown"}'.",
                         new[] { $"Region '{region.Name}' belongs to country '{region.Country?.Name ?? "unknown"}'." },
                         new
                         {
@@ -151,7 +353,8 @@ public sealed class CreateBottleTool : BottleToolBase
                 var suggestions = await WineRepository.FindClosestMatchesAsync(name!, 5, ct);
                 if (suggestions.Count > 0)
                 {
-                    return Failure("create", $"Wine '{name}' does not have an exact match. Please confirm the correct wine before creating the bottle.",
+                    return BottleProcessingResult.Failure(
+                        $"Wine '{name}' does not have an exact match. Please confirm the correct wine before creating the bottle.",
                         new[] { $"Wine '{name}' does not have an exact match." },
                         new
                         {
@@ -163,7 +366,8 @@ public sealed class CreateBottleTool : BottleToolBase
 
                 if (!color.HasValue)
                 {
-                    return Failure("create", $"Wine '{name}' does not exist. Provide a color so it can be created automatically.",
+                    return BottleProcessingResult.Failure(
+                        $"Wine '{name}' does not exist. Provide a color so it can be created automatically.",
                         new[] { "Color is required to create a new wine." },
                         new
                         {
@@ -175,7 +379,8 @@ public sealed class CreateBottleTool : BottleToolBase
 
                 if (region is null)
                 {
-                    return Failure("create", $"Wine '{name}' does not exist. Provide a region so it can be created automatically.",
+                    return BottleProcessingResult.Failure(
+                        $"Wine '{name}' does not exist. Provide a region so it can be created automatically.",
                         new[] { "Region is required to create a new wine." },
                         new
                         {
@@ -203,7 +408,8 @@ public sealed class CreateBottleTool : BottleToolBase
 
             if (color.HasValue && wine.Color != color)
             {
-                return Failure("create", $"Wine '{wine.Name}' exists with color '{wine.Color}'.",
+                return BottleProcessingResult.Failure(
+                    $"Wine '{wine.Name}' exists with color '{wine.Color}'.",
                     new[] { $"Wine '{wine.Name}' exists with color '{wine.Color}'." },
                     new
                     {
@@ -215,7 +421,8 @@ public sealed class CreateBottleTool : BottleToolBase
 
             if (country is not null && wineCountry?.Id != country.Id)
             {
-                return Failure("create", $"Wine '{wine.Name}' is recorded for country '{wineCountry?.Name ?? "unknown"}'.",
+                return BottleProcessingResult.Failure(
+                    $"Wine '{wine.Name}' is recorded for country '{wineCountry?.Name ?? "unknown"}'.",
                     new[] { $"Wine '{wine.Name}' is recorded for country '{wineCountry?.Name ?? "unknown"}'." },
                     new
                     {
@@ -227,7 +434,8 @@ public sealed class CreateBottleTool : BottleToolBase
 
             if (region is not null && wine.RegionId != region.Id)
             {
-                return Failure("create", $"Wine '{wine.Name}' is recorded for region '{wine.Region?.Name ?? "unknown"}'.",
+                return BottleProcessingResult.Failure(
+                    $"Wine '{wine.Name}' is recorded for region '{wine.Region?.Name ?? "unknown"}'.",
                     new[] { $"Wine '{wine.Name}' is recorded for region '{wine.Region?.Name ?? "unknown"}'." },
                     new
                     {
@@ -280,104 +488,260 @@ public sealed class CreateBottleTool : BottleToolBase
                 Wine = wine
             };
 
-            return Success("create", "Bottle created successfully.", new
-            {
-                bottle = BottleResponseMapper.MapBottle(created)
-            });
+            return BottleProcessingResult.Success("Bottle created successfully.", created);
         }
         catch (Exception ex)
         {
-            return Failure(
-                "create",
-                ex.Message,
+            return BottleProcessingResult.Failure(
+                "An unexpected error occurred while importing the bottle.",
                 new[] { ex.Message },
-                new
-                {
-                    type = "exception",
-                    stackTrace = ex.StackTrace
-                },
+                new { type = "exception" },
                 ex);
         }
     }
 
-    protected override JsonObject BuildInputSchema()
+    private IReadOnlyList<Dictionary<string, object?>> ExtractBottleRequests(Dictionary<string, object>? parameters)
     {
-        var properties = new JsonObject
+        if (parameters is null || parameters.Count == 0)
         {
-            ["name"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Name of the wine the bottle belongs to."
-            },
-            ["vintage"] = new JsonObject
-            {
-                ["type"] = "integer",
-                ["description"] = "Vintage year for the bottle."
-            },
-            ["country"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Country of the wine. Required when the wine must be created."
-            },
-            ["region"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Region of the wine. Required when the wine must be created."
-            },
-            ["color"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Wine color. Required when the wine must be created. Valid options: " + string.Join(", ", _colorOptions)
-            },
-            ["price"] = new JsonObject
-            {
-                ["type"] = "number",
-                ["description"] = "Optional bottle price."
-            },
-            ["score"] = new JsonObject
-            {
-                ["type"] = "number",
-                ["description"] = "Optional rating or score."
-            },
-            ["tastingNote"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Optional tasting notes."
-            },
-            ["tasting_note"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["description"] = "Snake_case alias for tastingNote."
-            },
-            ["isDrunk"] = new JsonObject
-            {
-                ["type"] = "boolean",
-                ["description"] = "Indicates whether the bottle has been consumed."
-            },
-            ["is_drunk"] = new JsonObject
-            {
-                ["type"] = "boolean",
-                ["description"] = "Snake_case alias for isDrunk."
-            },
-            ["drunkAt"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["format"] = "date-time",
-                ["description"] = "Timestamp of when the bottle was consumed (requires isDrunk=true)."
-            },
-            ["drunk_at"] = new JsonObject
-            {
-                ["type"] = "string",
-                ["format"] = "date-time",
-                ["description"] = "Snake_case alias for drunkAt."
-            }
-        };
+            return Array.Empty<Dictionary<string, object?>>();
+        }
 
-        return new JsonObject
+        var requests = new List<Dictionary<string, object?>>();
+
+        if (TryGetParameter(parameters, "bottles", out var rawBottles))
         {
-            ["type"] = "object",
-            ["properties"] = properties,
-            ["required"] = new JsonArray("name", "vintage")
-        };
+            requests.AddRange(ConvertToRequestList(rawBottles));
+        }
+
+        if (requests.Count == 0 && TryGetParameter(parameters, "items", out var rawItems))
+        {
+            requests.AddRange(ConvertToRequestList(rawItems));
+        }
+
+        if (requests.Count == 0 && TryGetParameter(parameters, "records", out var rawRecords))
+        {
+            requests.AddRange(ConvertToRequestList(rawRecords));
+        }
+
+        if (requests.Count == 0 && ContainsBottleLikeFields(parameters))
+        {
+            requests.Add(CloneParameters(parameters));
+        }
+
+        return requests;
+    }
+
+    private static bool TryGetParameter(Dictionary<string, object> parameters, string key, out object? value)
+    {
+        if (parameters.TryGetValue(key, out value))
+        {
+            return true;
+        }
+
+        var snakeCase = ParameterHelpers.ToSnakeCase(key);
+        if (!string.Equals(snakeCase, key, StringComparison.OrdinalIgnoreCase)
+            && parameters.TryGetValue(snakeCase, out value))
+        {
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static bool ContainsBottleLikeFields(Dictionary<string, object> parameters)
+    {
+        return parameters.ContainsKey("name")
+            || parameters.ContainsKey("vintage")
+            || parameters.ContainsKey("color")
+            || parameters.ContainsKey("region")
+            || parameters.ContainsKey("country");
+    }
+
+    private static Dictionary<string, object?> CloneParameters(Dictionary<string, object> parameters)
+    {
+        var clone = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in parameters)
+        {
+            clone[kvp.Key] = kvp.Value;
+        }
+
+        return clone;
+    }
+
+    private static IEnumerable<Dictionary<string, object?>> ConvertToRequestList(object? raw)
+    {
+        if (raw is null)
+        {
+            yield break;
+        }
+
+        switch (raw)
+        {
+            case JsonElement element:
+                foreach (var entry in ConvertJsonElementToRequests(element))
+                {
+                    yield return entry;
+                }
+
+                break;
+            case JsonArray jsonArray:
+                foreach (var entry in ConvertJsonArray(jsonArray))
+                {
+                    yield return entry;
+                }
+
+                break;
+            case IDictionary dictionary:
+                yield return DictionaryFromDictionary(dictionary);
+                break;
+            case IEnumerable enumerable when raw is not string:
+                foreach (var item in enumerable)
+                {
+                    foreach (var entry in ConvertToRequestList(item))
+                    {
+                        yield return entry;
+                    }
+                }
+
+                break;
+        }
+    }
+
+    private static IEnumerable<Dictionary<string, object?>> ConvertJsonElementToRequests(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            Dictionary<string, object?>[]? items = null;
+            try
+            {
+                items = JsonSerializer.Deserialize<Dictionary<string, object?>[]?>(element.GetRawText(), SerializerOptions);
+            }
+            catch
+            {
+                items = null;
+            }
+
+            if (items is not null)
+            {
+                foreach (var item in items)
+                {
+                    yield return CreateCaseInsensitiveDictionary(item);
+                }
+            }
+
+            yield break;
+        }
+
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            yield return JsonElementToDictionary(element);
+        }
+    }
+
+    private static IEnumerable<Dictionary<string, object?>> ConvertJsonArray(JsonArray array)
+    {
+        Dictionary<string, object?>[]? items = null;
+        try
+        {
+            items = JsonSerializer.Deserialize<Dictionary<string, object?>[]?>(array.ToJsonString(), SerializerOptions);
+        }
+        catch
+        {
+            items = null;
+        }
+
+        if (items is null)
+        {
+            yield break;
+        }
+
+        foreach (var item in items)
+        {
+            yield return CreateCaseInsensitiveDictionary(item);
+        }
+    }
+
+    private static Dictionary<string, object?> DictionaryFromDictionary(IDictionary dictionary)
+    {
+        var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (DictionaryEntry entry in dictionary)
+        {
+            if (entry.Key is string key)
+            {
+                dict[key] = entry.Value;
+            }
+        }
+
+        return dict;
+    }
+
+    private static Dictionary<string, object?> JsonElementToDictionary(JsonElement element)
+    {
+        try
+        {
+            var deserialized = JsonSerializer.Deserialize<Dictionary<string, object?>>(element.GetRawText(), SerializerOptions)
+                ?? new Dictionary<string, object?>();
+            return CreateCaseInsensitiveDictionary(deserialized);
+        }
+        catch
+        {
+            return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static Dictionary<string, object?> CreateCaseInsensitiveDictionary(Dictionary<string, object?> source)
+    {
+        var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in source)
+        {
+            dict[kvp.Key] = kvp.Value;
+        }
+
+        return dict;
+    }
+
+    private static Dictionary<string, object> ToParameterDictionary(Dictionary<string, object?> source)
+    {
+        var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in source)
+        {
+            dict[kvp.Key] = kvp.Value!;
+        }
+
+        return dict;
+    }
+
+    private sealed record BottleProcessingResult
+    {
+        private BottleProcessingResult()
+        {
+        }
+
+        public bool Success { get; init; }
+        public string Message { get; init; } = string.Empty;
+        public Bottle? Bottle { get; init; }
+        public IReadOnlyList<string>? Errors { get; init; }
+        public object? Suggestions { get; init; }
+        public Exception? Exception { get; init; }
+
+        public static BottleProcessingResult Success(string message, Bottle bottle)
+            => new()
+            {
+                Success = true,
+                Message = message,
+                Bottle = bottle
+            };
+
+        public static BottleProcessingResult Failure(string message, IReadOnlyList<string>? errors = null, object? suggestions = null, Exception? exception = null)
+            => new()
+            {
+                Success = false,
+                Message = message,
+                Errors = errors,
+                Suggestions = suggestions,
+                Exception = exception
+            };
     }
 }
