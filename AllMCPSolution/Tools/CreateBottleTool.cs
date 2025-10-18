@@ -165,7 +165,7 @@ public sealed class CreateBottleTool : BottleToolBase
             ["country"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "Country of the wine. Required when the wine must be created.",
+                ["description"] = "Country name of the wine. Required when the wine must be created.",
             },
             ["region"] = new JsonObject
             {
