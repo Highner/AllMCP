@@ -121,14 +121,66 @@ public sealed class CreateBottleTool : BottleToolBase
         if (wine is null)
         {
             var suggestions = await WineRepository.FindClosestMatchesAsync(name!, 5, ct);
-            return Failure("create", $"Wine '{name}' does not exist.",
-                new[] { $"Wine '{name}' does not exist." },
-                new
-                {
-                    type = "wine",
-                    query = name,
-                    suggestions = suggestions.Select(BottleResponseMapper.MapWineSummary).ToList()
-                });
+            if (suggestions.Count > 0)
+            {
+                return Failure("create", $"Wine '{name}' does not have an exact match. Please confirm the correct wine before creating the bottle.",
+                    new[] { $"Wine '{name}' does not have an exact match." },
+                    new
+                    {
+                        type = "wine_confirmation_required",
+                        query = name,
+                        suggestions = suggestions.Select(BottleResponseMapper.MapWineSummary).ToList()
+                    });
+            }
+
+            if (!color.HasValue)
+            {
+                return Failure("create", $"Wine '{name}' does not exist. Provide a color so it can be created automatically.",
+                    new[] { "Color is required to create a new wine." },
+                    new
+                    {
+                        type = "wine_creation_missing_color",
+                        query = name,
+                        suggestions = _colorOptions
+                    });
+            }
+
+            if (country is null)
+            {
+                return Failure("create", $"Wine '{name}' does not exist. Provide a country so it can be created automatically.",
+                    new[] { "Country is required to create a new wine." },
+                    new
+                    {
+                        type = "wine_creation_missing_country",
+                        query = name
+                    });
+            }
+
+            if (region is null)
+            {
+                return Failure("create", $"Wine '{name}' does not exist. Provide a region so it can be created automatically.",
+                    new[] { "Region is required to create a new wine." },
+                    new
+                    {
+                        type = "wine_creation_missing_region",
+                        query = name
+                    });
+            }
+
+            var newWine = new Wine
+            {
+                Id = Guid.NewGuid(),
+                Name = name!.Trim(),
+                GrapeVariety = string.Empty,
+                Color = color.Value,
+                CountryId = country.Id,
+                RegionId = region.Id,
+                Country = country,
+                Region = region
+            };
+
+            await WineRepository.AddAsync(newWine, ct);
+            wine = await WineRepository.GetByIdAsync(newWine.Id, ct) ?? newWine;
         }
 
         if (color.HasValue && wine.Color != color)
@@ -213,17 +265,17 @@ public sealed class CreateBottleTool : BottleToolBase
             ["country"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "Country of the wine (optional but validated if provided)."
+                ["description"] = "Country of the wine. Required when the wine must be created."
             },
             ["region"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "Region of the wine (optional but validated if provided)."
+                ["description"] = "Region of the wine. Required when the wine must be created."
             },
             ["color"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "Wine color. Valid options: " + string.Join(", ", _colorOptions)
+                ["description"] = "Wine color. Required when the wine must be created. Valid options: " + string.Join(", ", _colorOptions)
             },
             ["price"] = new JsonObject
             {
