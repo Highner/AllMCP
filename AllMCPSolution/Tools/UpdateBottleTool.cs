@@ -21,8 +21,9 @@ public sealed class UpdateBottleTool : BottleToolBase
         IWineRepository wineRepository,
         ICountryRepository countryRepository,
         IRegionRepository regionRepository,
-        IAppellationRepository appellationRepository)
-        : base(bottleRepository, wineRepository, countryRepository, regionRepository, appellationRepository)
+        IAppellationRepository appellationRepository,
+        IWineVintageRepository wineVintageRepository)
+        : base(bottleRepository, wineRepository, countryRepository, regionRepository, appellationRepository, wineVintageRepository)
     {
     }
 
@@ -144,6 +145,9 @@ public sealed class UpdateBottleTool : BottleToolBase
             ? null
             : appellationName.Trim();
 
+        var currentWineVintage = bottle.WineVintage ?? await WineVintageRepository.GetByIdAsync(bottle.WineVintageId, ct)
+            ?? throw new InvalidOperationException($"Wine vintage {bottle.WineVintageId} referenced by bottle {bottle.Id} could not be resolved.");
+
         Wine targetWine;
         if (!string.IsNullOrWhiteSpace(name))
         {
@@ -187,8 +191,8 @@ public sealed class UpdateBottleTool : BottleToolBase
         }
         else
         {
-            targetWine = bottle.Wine ?? await WineRepository.GetByIdAsync(bottle.WineId, ct)
-                ?? throw new InvalidOperationException($"Wine {bottle.WineId} referenced by bottle {bottle.Id} could not be resolved.");
+            targetWine = currentWineVintage.Wine ?? await WineRepository.GetByIdAsync(currentWineVintage.WineId, ct)
+                ?? throw new InvalidOperationException($"Wine {currentWineVintage.WineId} referenced by bottle {bottle.Id} could not be resolved.");
         }
 
         var wineCountry = targetWine.Appellation?.Region?.Country;
@@ -245,15 +249,19 @@ public sealed class UpdateBottleTool : BottleToolBase
                 });
         }
 
-        if (!string.IsNullOrWhiteSpace(name))
+        var desiredVintage = vintage ?? currentWineVintage.Vintage;
+
+        WineVintage targetWineVintage;
+        if (targetWine.Id == currentWineVintage.WineId && desiredVintage == currentWineVintage.Vintage)
         {
-            bottle.WineId = targetWine.Id;
+            targetWineVintage = currentWineVintage;
+        }
+        else
+        {
+            targetWineVintage = await WineVintageRepository.GetOrCreateAsync(targetWine.Id, desiredVintage, ct);
         }
 
-        if (vintage.HasValue)
-        {
-            bottle.Vintage = vintage.Value;
-        }
+        bottle.WineVintageId = targetWineVintage.Id;
 
         if (price.HasValue)
         {
@@ -296,14 +304,13 @@ public sealed class UpdateBottleTool : BottleToolBase
         var updated = await BottleRepository.GetByIdAsync(bottle.Id, ct) ?? new Bottle
         {
             Id = bottle.Id,
-            WineId = bottle.WineId,
-            Vintage = bottle.Vintage,
+            WineVintageId = bottle.WineVintageId,
             Price = bottle.Price,
             Score = bottle.Score,
             TastingNote = bottle.TastingNote,
             IsDrunk = bottle.IsDrunk,
             DrunkAt = bottle.DrunkAt,
-            Wine = targetWine
+            WineVintage = targetWineVintage
         };
 
         return Success("update", "Bottle updated successfully.", new

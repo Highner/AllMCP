@@ -29,7 +29,8 @@ public class WineRepository : IWineRepository
             .Include(w => w.Appellation)
                 .ThenInclude(a => a.Region)
                     .ThenInclude(r => r.Country)
-            .Include(w => w.Bottles)
+            .Include(w => w.WineVintages)
+                .ThenInclude(wv => wv.Bottles)
             .OrderBy(w => w.Name)
             .ThenBy(w => w.Appellation.Name)
             .ToListAsync(ct);
@@ -42,7 +43,8 @@ public class WineRepository : IWineRepository
             .Include(w => w.Appellation)
                 .ThenInclude(a => a.Region)
                     .ThenInclude(r => r.Country)
-            .Include(w => w.Bottles)
+            .Include(w => w.WineVintages)
+                .ThenInclude(wv => wv.Bottles)
             .FirstOrDefaultAsync(w => w.Id == id, ct);
     }
 

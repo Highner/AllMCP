@@ -18,19 +18,22 @@ public abstract class BottleToolBase : IToolBase, IMcpTool
     private readonly ICountryRepository? _countryRepository;
     private readonly IRegionRepository? _regionRepository;
     private readonly IAppellationRepository? _appellationRepository;
+    private readonly IWineVintageRepository? _wineVintageRepository;
 
     protected BottleToolBase(
         IBottleRepository bottleRepository,
         IWineRepository? wineRepository = null,
         ICountryRepository? countryRepository = null,
         IRegionRepository? regionRepository = null,
-        IAppellationRepository? appellationRepository = null)
+        IAppellationRepository? appellationRepository = null,
+        IWineVintageRepository? wineVintageRepository = null)
     {
         _bottleRepository = bottleRepository;
         _wineRepository = wineRepository;
         _countryRepository = countryRepository;
         _regionRepository = regionRepository;
         _appellationRepository = appellationRepository;
+        _wineVintageRepository = wineVintageRepository;
     }
 
     protected IBottleRepository BottleRepository => _bottleRepository;
@@ -38,6 +41,7 @@ public abstract class BottleToolBase : IToolBase, IMcpTool
     protected ICountryRepository CountryRepository => _countryRepository ?? throw new InvalidOperationException("Country repository is required for this tool but was not provided.");
     protected IRegionRepository RegionRepository => _regionRepository ?? throw new InvalidOperationException("Region repository is required for this tool but was not provided.");
     protected IAppellationRepository AppellationRepository => _appellationRepository ?? throw new InvalidOperationException("Appellation repository is required for this tool but was not provided.");
+    protected IWineVintageRepository WineVintageRepository => _wineVintageRepository ?? throw new InvalidOperationException("Wine vintage repository is required for this tool but was not provided.");
 
     public abstract string Name { get; }
     public abstract string Description { get; }
