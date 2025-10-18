@@ -215,9 +215,14 @@ namespace AllMCPSolution.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
 
+                    b.Property<Guid>("CountryId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("CountryId");
+
+                    b.HasIndex("Name", "CountryId")
                         .IsUnique();
 
                     b.ToTable("Regions");
@@ -231,9 +236,6 @@ namespace AllMCPSolution.Migrations
 
                     b.Property<int>("Color")
                         .HasColumnType("int");
-
-                    b.Property<Guid>("CountryId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("GrapeVariety")
                         .IsRequired()
@@ -250,11 +252,9 @@ namespace AllMCPSolution.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CountryId");
-
                     b.HasIndex("RegionId");
 
-                    b.HasIndex("Name", "CountryId", "RegionId")
+                    b.HasIndex("Name", "RegionId")
                         .IsUnique();
 
                     b.ToTable("Wines");
@@ -313,21 +313,24 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("WineVintage");
                 });
 
-            modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>
+            modelBuilder.Entity("AllMCPSolution.Models.Region", b =>
                 {
                     b.HasOne("AllMCPSolution.Models.Country", "Country")
-                        .WithMany("Wines")
+                        .WithMany("Regions")
                         .HasForeignKey("CountryId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("Country");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>
+                {
                     b.HasOne("AllMCPSolution.Models.Region", "Region")
                         .WithMany("Wines")
                         .HasForeignKey("RegionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Country");
 
                     b.Navigation("Region");
                 });
@@ -350,7 +353,7 @@ namespace AllMCPSolution.Migrations
 
             modelBuilder.Entity("AllMCPSolution.Models.Country", b =>
                 {
-                    b.Navigation("Wines");
+                    b.Navigation("Regions");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Region", b =>

@@ -28,11 +28,18 @@ namespace AllMCPSolution.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false)
+                    Name = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                    CountryId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Regions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Regions_Countries_CountryId",
+                        column: x => x.CountryId,
+                        principalTable: "Countries",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -44,18 +51,11 @@ namespace AllMCPSolution.Migrations
                     GrapeVariety = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                     Vintage = table.Column<int>(type: "int", nullable: false),
                     Color = table.Column<int>(type: "int", nullable: false),
-                    CountryId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     RegionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Wines", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Wines_Countries_CountryId",
-                        column: x => x.CountryId,
-                        principalTable: "Countries",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Wines_Regions_RegionId",
                         column: x => x.RegionId,
@@ -99,18 +99,18 @@ namespace AllMCPSolution.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Regions_Name",
                 table: "Regions",
-                column: "Name",
+                columns: new[] { "Name", "CountryId" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Wines_CountryId",
-                table: "Wines",
+                name: "IX_Regions_CountryId",
+                table: "Regions",
                 column: "CountryId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Wines_Name_Vintage_CountryId_RegionId",
+                name: "IX_Wines_Name_Vintage_RegionId",
                 table: "Wines",
-                columns: new[] { "Name", "Vintage", "CountryId", "RegionId" },
+                columns: new[] { "Name", "Vintage", "RegionId" },
                 unique: true);
 
             migrationBuilder.CreateIndex(

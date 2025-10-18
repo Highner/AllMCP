@@ -126,6 +126,25 @@ public sealed class CreateBottleTool : BottleToolBase
                 }
             }
 
+            if (region is not null)
+            {
+                if (country is not null && region.CountryId != country.Id)
+                {
+                    return Failure("create", $"Region '{region.Name}' belongs to country '{region.Country?.Name ?? "unknown"}'.", 
+                        new[] { $"Region '{region.Name}' belongs to country '{region.Country?.Name ?? "unknown"}'." },
+                        new
+                        {
+                            type = "region_country_mismatch",
+                            requestedCountry = new { name = country.Name, id = country.Id },
+                            regionCountry = region.Country is null
+                                ? null
+                                : new { name = region.Country.Name, id = region.Country.Id }
+                        });
+                }
+
+                country ??= region.Country;
+            }
+
             var wine = await WineRepository.FindByNameAsync(name!, ct);
             if (wine is null)
             {
@@ -154,17 +173,6 @@ public sealed class CreateBottleTool : BottleToolBase
                         });
                 }
 
-                if (country is null)
-                {
-                    return Failure("create", $"Wine '{name}' does not exist. Provide a country so it can be created automatically.",
-                        new[] { "Country is required to create a new wine." },
-                        new
-                        {
-                            type = "wine_creation_missing_country",
-                            query = name
-                        });
-                }
-
                 if (region is null)
                 {
                     return Failure("create", $"Wine '{name}' does not exist. Provide a region so it can be created automatically.",
@@ -176,19 +184,22 @@ public sealed class CreateBottleTool : BottleToolBase
                         });
                 }
 
+                country ??= region.Country;
+
                 var newWine = new Wine
                 {
                     Id = Guid.NewGuid(),
                     Name = name!.Trim(),
                     GrapeVariety = string.Empty,
                     Color = color.Value,
-                    CountryId = country.Id,
                     RegionId = region.Id
                 };
 
                 await WineRepository.AddAsync(newWine, ct);
                 wine = await WineRepository.GetByIdAsync(newWine.Id, ct) ?? newWine;
             }
+
+            var wineCountry = wine.Region?.Country;
 
             if (color.HasValue && wine.Color != color)
             {
@@ -202,15 +213,15 @@ public sealed class CreateBottleTool : BottleToolBase
                     });
             }
 
-            if (country is not null && wine.CountryId != country.Id)
+            if (country is not null && wineCountry?.Id != country.Id)
             {
-                return Failure("create", $"Wine '{wine.Name}' is recorded for country '{wine.Country?.Name ?? "unknown"}'.",
-                    new[] { $"Wine '{wine.Name}' is recorded for country '{wine.Country?.Name ?? "unknown"}'." },
+                return Failure("create", $"Wine '{wine.Name}' is recorded for country '{wineCountry?.Name ?? "unknown"}'.",
+                    new[] { $"Wine '{wine.Name}' is recorded for country '{wineCountry?.Name ?? "unknown"}'." },
                     new
                     {
                         type = "wine_country_mismatch",
                         requested = new { name = country.Name, id = country.Id },
-                        actual = wine.Country is null ? null : new { name = wine.Country.Name, id = wine.Country.Id }
+                        actual = wineCountry is null ? null : new { name = wineCountry.Name, id = wineCountry.Id }
                     });
             }
 

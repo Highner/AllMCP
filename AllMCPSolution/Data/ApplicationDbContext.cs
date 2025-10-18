@@ -56,17 +56,12 @@ public class ApplicationDbContext : DbContext
             e.Property(w => w.Name).HasMaxLength(256);
             e.Property(w => w.GrapeVariety).HasMaxLength(256);
 
-            e.HasOne(w => w.Country)
-                .WithMany(c => c.Wines)
-                .HasForeignKey(w => w.CountryId)
-                .OnDelete(DeleteBehavior.Restrict);
-
             e.HasOne(w => w.Region)
                 .WithMany(r => r.Wines)
                 .HasForeignKey(w => w.RegionId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            e.HasIndex(w => new { w.Name, w.CountryId, w.RegionId })
+            e.HasIndex(w => new { w.Name, w.RegionId })
                 .IsUnique();
         });
 
@@ -79,7 +74,14 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Region>(e =>
         {
             e.Property(r => r.Name).HasMaxLength(128);
-            e.HasIndex(r => r.Name).IsUnique();
+
+            e.HasOne(r => r.Country)
+                .WithMany(c => c.Regions)
+                .HasForeignKey(r => r.CountryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(r => new { r.Name, r.CountryId })
+                .IsUnique();
         });
 
         modelBuilder.Entity<Bottle>(e =>

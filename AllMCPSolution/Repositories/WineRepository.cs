@@ -25,8 +25,8 @@ public class WineRepository : IWineRepository
     {
         return await _db.Wines
             .AsNoTracking()
-            .Include(w => w.Country)
             .Include(w => w.Region)
+                .ThenInclude(r => r.Country)
             .Include(w => w.Bottles)
             .OrderBy(w => w.Name)
             .ToListAsync(ct);
@@ -36,8 +36,8 @@ public class WineRepository : IWineRepository
     {
         return await _db.Wines
             .AsNoTracking()
-            .Include(w => w.Country)
             .Include(w => w.Region)
+                .ThenInclude(r => r.Country)
             .Include(w => w.Bottles)
             .FirstOrDefaultAsync(w => w.Id == id, ct);
     }
@@ -52,8 +52,8 @@ public class WineRepository : IWineRepository
         var normalized = name.Trim().ToLowerInvariant();
         return await _db.Wines
             .AsNoTracking()
-            .Include(w => w.Country)
             .Include(w => w.Region)
+                .ThenInclude(r => r.Country)
             .FirstOrDefaultAsync(w => w.Name.ToLower() == normalized, ct);
     }
 
@@ -61,8 +61,8 @@ public class WineRepository : IWineRepository
     {
         var wines = await _db.Wines
             .AsNoTracking()
-            .Include(w => w.Country)
             .Include(w => w.Region)
+                .ThenInclude(r => r.Country)
             .ToListAsync(ct);
 
         return FuzzyMatchUtilities.FindClosestMatches(wines, name, w => w.Name, maxResults);

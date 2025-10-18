@@ -16,7 +16,7 @@ namespace AllMCPSolution.Migrations
                 table: "Bottles");
 
             migrationBuilder.DropIndex(
-                name: "IX_Wines_Name_Vintage_CountryId_RegionId",
+                name: "IX_Wines_Name_Vintage_RegionId",
                 table: "Wines");
 
             migrationBuilder.DropColumn(
@@ -53,9 +53,9 @@ namespace AllMCPSolution.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Wines_Name_CountryId_RegionId",
+                name: "IX_Wines_Name_RegionId",
                 table: "Wines",
-                columns: new[] { "Name", "CountryId", "RegionId" },
+                columns: new[] { "Name", "RegionId" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -84,7 +84,7 @@ namespace AllMCPSolution.Migrations
                 name: "WineVintages");
 
             migrationBuilder.DropIndex(
-                name: "IX_Wines_Name_CountryId_RegionId",
+                name: "IX_Wines_Name_RegionId",
                 table: "Wines");
 
             migrationBuilder.RenameColumn(
@@ -105,9 +105,9 @@ namespace AllMCPSolution.Migrations
                 defaultValue: 0);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Wines_Name_Vintage_CountryId_RegionId",
+                name: "IX_Wines_Name_Vintage_RegionId",
                 table: "Wines",
-                columns: new[] { "Name", "Vintage", "CountryId", "RegionId" },
+                columns: new[] { "Name", "Vintage", "RegionId" },
                 unique: true);
 
             migrationBuilder.AddForeignKey(
