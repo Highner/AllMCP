@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Wine> Wines { get; set; }
     public DbSet<WineVintage> WineVintages { get; set; }
     public DbSet<Bottle> Bottles { get; set; }
+    public DbSet<User> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

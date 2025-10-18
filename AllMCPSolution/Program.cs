@@ -35,6 +35,7 @@ builder.Services.AddScoped<IAppellationRepository, AppellationRepository>();
 builder.Services.AddScoped<IWineRepository, WineRepository>();
 builder.Services.AddScoped<IWineVintageRepository, WineVintageRepository>();
 builder.Services.AddScoped<IBottleRepository, BottleRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 // Register all tools (auto-discovered by ToolRegistry)
 builder.Services.AddScoped<SearchArtistsTool>();
