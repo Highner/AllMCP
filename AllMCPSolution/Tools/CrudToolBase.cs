@@ -113,8 +113,9 @@ public abstract class CrudToolBase : IToolBase, IMcpTool
         string message,
         IReadOnlyList<string>? errors = null,
         object? suggestions = null,
-        Exception? exception = null)
-        => CrudOperationResult.CreateFailure(operation, message, errors, suggestions, exception);
+        Exception? exception = null,
+        object? data = null)
+        => CrudOperationResult.CreateFailure(operation, message, errors, suggestions, exception, data);
 
     protected sealed record CrudOperationResult : IProcessingResult
     {
@@ -135,7 +136,8 @@ public abstract class CrudToolBase : IToolBase, IMcpTool
             string message,
             IReadOnlyList<string>? errors,
             object? suggestions,
-            Exception? exception)
+            Exception? exception,
+            object? data)
             => new()
             {
                 Success = false,
@@ -143,6 +145,7 @@ public abstract class CrudToolBase : IToolBase, IMcpTool
                 Message = message,
                 Errors = errors,
                 Suggestions = suggestions,
+                Data = data,
                 ExceptionMessage = exception?.Message,
                 ExceptionStackTrace = exception?.StackTrace
             };
