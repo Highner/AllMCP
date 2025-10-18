@@ -1,3 +1,4 @@
+using System.Linq;
 using AllMCPSolution.Models;
 
 namespace AllMCPSolution.Tools;
@@ -13,12 +14,23 @@ internal static class BottleResponseMapper
 
         var wineVintage = bottle.WineVintage;
         var wine = wineVintage?.Wine;
+        var tastingNotes = bottle.TastingNotes?.OrderBy(note => note.Id).ToList();
+        var latestNote = tastingNotes?.LastOrDefault();
         return new
         {
             id = bottle.Id,
             price = bottle.Price,
-            score = bottle.Score,
-            tastingNote = bottle.TastingNote,
+            score = latestNote?.Score,
+            tastingNote = latestNote?.TastingNote,
+            tastingNotes = tastingNotes is null || tastingNotes.Count == 0
+                ? null
+                : tastingNotes.Select(note => new
+                {
+                    id = note.Id,
+                    tastingNote = note.TastingNote,
+                    score = note.Score,
+                    userId = note.UserId
+                }).ToList(),
             vintage = wineVintage?.Vintage,
             isDrunk = bottle.IsDrunk,
             drunkAt = bottle.DrunkAt,

@@ -19,6 +19,7 @@ public abstract class BottleToolBase : IToolBase, IMcpTool
     private readonly IRegionRepository? _regionRepository;
     private readonly IAppellationRepository? _appellationRepository;
     private readonly IWineVintageRepository? _wineVintageRepository;
+    private readonly ITastingNoteRepository? _tastingNoteRepository;
 
     protected BottleToolBase(
         IBottleRepository bottleRepository,
@@ -26,7 +27,8 @@ public abstract class BottleToolBase : IToolBase, IMcpTool
         ICountryRepository? countryRepository = null,
         IRegionRepository? regionRepository = null,
         IAppellationRepository? appellationRepository = null,
-        IWineVintageRepository? wineVintageRepository = null)
+        IWineVintageRepository? wineVintageRepository = null,
+        ITastingNoteRepository? tastingNoteRepository = null)
     {
         _bottleRepository = bottleRepository;
         _wineRepository = wineRepository;
@@ -34,6 +36,7 @@ public abstract class BottleToolBase : IToolBase, IMcpTool
         _regionRepository = regionRepository;
         _appellationRepository = appellationRepository;
         _wineVintageRepository = wineVintageRepository;
+        _tastingNoteRepository = tastingNoteRepository;
     }
 
     protected IBottleRepository BottleRepository => _bottleRepository;
@@ -42,6 +45,7 @@ public abstract class BottleToolBase : IToolBase, IMcpTool
     protected IRegionRepository RegionRepository => _regionRepository ?? throw new InvalidOperationException("Region repository is required for this tool but was not provided.");
     protected IAppellationRepository AppellationRepository => _appellationRepository ?? throw new InvalidOperationException("Appellation repository is required for this tool but was not provided.");
     protected IWineVintageRepository WineVintageRepository => _wineVintageRepository ?? throw new InvalidOperationException("Wine vintage repository is required for this tool but was not provided.");
+    protected ITastingNoteRepository TastingNoteRepository => _tastingNoteRepository ?? throw new InvalidOperationException("Tasting note repository is required for this tool but was not provided.");
 
     public abstract string Name { get; }
     public abstract string Description { get; }

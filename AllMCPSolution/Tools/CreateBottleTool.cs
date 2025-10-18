@@ -29,8 +29,9 @@ public sealed class CreateBottleTool : BottleToolBase
         ICountryRepository countryRepository,
         IRegionRepository regionRepository,
         IAppellationRepository appellationRepository,
-        IWineVintageRepository wineVintageRepository)
-        : base(bottleRepository, wineRepository, countryRepository, regionRepository, appellationRepository, wineVintageRepository)
+        IWineVintageRepository wineVintageRepository,
+        ITastingNoteRepository tastingNoteRepository)
+        : base(bottleRepository, wineRepository, countryRepository, regionRepository, appellationRepository, wineVintageRepository, tastingNoteRepository)
     {
     }
 
@@ -189,15 +190,27 @@ public sealed class CreateBottleTool : BottleToolBase
                 ["type"] = "number",
                 ["description"] = "Optional bottle price.",
             },
+            ["userId"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["format"] = "uuid",
+                ["description"] = "User identifier required when providing tasting notes or scores.",
+            },
+            ["user_id"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["format"] = "uuid",
+                ["description"] = "Snake_case alias for userId.",
+            },
             ["score"] = new JsonObject
             {
                 ["type"] = "number",
-                ["description"] = "Optional rating or score.",
+                ["description"] = "Optional rating or score (requires userId).",
             },
             ["tastingNote"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "Optional tasting notes.",
+                ["description"] = "Optional tasting notes (requires userId).",
             },
             ["tasting_note"] = new JsonObject
             {
@@ -258,12 +271,18 @@ public sealed class CreateBottleTool : BottleToolBase
             var score = ParameterHelpers.GetDecimalParameter(parameters, "score", "score");
             var tastingNote = ParameterHelpers.GetStringParameter(parameters, "tastingNote", "tasting_note")
                 ?? ParameterHelpers.GetStringParameter(parameters, "tastingNotes", "tasting_notes");
+            var userId = ParameterHelpers.GetGuidParameter(parameters, "userId", "user_id");
             var isDrunk = ParameterHelpers.GetBoolParameter(parameters, "isDrunk", "is_drunk");
             var drunkAt = ParameterHelpers.GetDateTimeParameter(parameters, "drunkAt", "drunk_at");
 
             if (drunkAt.HasValue && isDrunk != true)
             {
                 errors.Add("'drunkAt' can only be provided when 'isDrunk' is true.");
+            }
+
+            if ((score.HasValue || !string.IsNullOrWhiteSpace(tastingNote)) && userId is null)
+            {
+                errors.Add("'userId' is required when providing tasting notes or scores.");
             }
 
             var colorInput = ParameterHelpers.GetStringParameter(parameters, "color", "color");
@@ -494,24 +513,35 @@ public sealed class CreateBottleTool : BottleToolBase
                 Id = Guid.NewGuid(),
                 WineVintageId = wineVintage.Id,
                 Price = price,
-                Score = score,
-                TastingNote = tastingNote?.Trim() ?? string.Empty,
                 IsDrunk = hasBeenDrunk,
                 DrunkAt = resolvedDrunkAt
             };
 
             await BottleRepository.AddAsync(bottle, ct);
 
+            if (userId.HasValue && (score.HasValue || !string.IsNullOrWhiteSpace(tastingNote)))
+            {
+                var tastingNoteEntity = new TastingNote
+                {
+                    Id = Guid.NewGuid(),
+                    BottleId = bottle.Id,
+                    UserId = userId.Value,
+                    Score = score,
+                    TastingNote = tastingNote?.Trim() ?? string.Empty
+                };
+
+                await TastingNoteRepository.AddAsync(tastingNoteEntity, ct);
+            }
+
             var created = await BottleRepository.GetByIdAsync(bottle.Id, ct) ?? new Bottle
             {
                 Id = bottle.Id,
                 WineVintageId = bottle.WineVintageId,
                 Price = bottle.Price,
-                Score = bottle.Score,
-                TastingNote = bottle.TastingNote,
                 IsDrunk = bottle.IsDrunk,
                 DrunkAt = bottle.DrunkAt,
-                WineVintage = wineVintage
+                WineVintage = wineVintage,
+                TastingNotes = []
             };
 
             return BottleProcessingResult.CreateSuccess("Bottle created successfully.", created);

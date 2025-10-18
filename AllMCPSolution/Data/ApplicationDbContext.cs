@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<WineVintage> WineVintages { get; set; }
     public DbSet<Bottle> Bottles { get; set; }
     public DbSet<User> Users { get; set; }
+    public DbSet<TastingNote> TastingNotes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -115,12 +116,27 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<Bottle>(e =>
         {
-            e.Property(b => b.TastingNote).HasMaxLength(1024);
             e.Property(b => b.IsDrunk).IsRequired();
 
             e.HasOne(b => b.WineVintage)
                 .WithMany(wv => wv.Bottles)
                 .HasForeignKey(b => b.WineVintageId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TastingNote>(e =>
+        {
+            e.Property(tn => tn.TastingNote).HasMaxLength(2048);
+            e.Property(tn => tn.Score).HasColumnType("decimal(18,2)");
+
+            e.HasOne(tn => tn.Bottle)
+                .WithMany(b => b.TastingNotes)
+                .HasForeignKey(tn => tn.BottleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(tn => tn.User)
+                .WithMany(u => u.TastingNotes)
+                .HasForeignKey(tn => tn.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
