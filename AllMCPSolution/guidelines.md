@@ -5,6 +5,7 @@ These guidelines define mandatory practices for this repository.
 - All database operations must be wrapped in a Repository.
     - Do not access the DbContext directly from controllers, services, tools, or views.
     - Create an appropriate repository interface and implementation in the Repositories folder and inject it where needed.
+    - When you make changes to the database schema, DO NOT create migrations in the Migrations folder or update the DB Snapshot.
 
 - Tool interfaces and exposure (MANDATORY).
     - Every executable tool class MUST implement both interfaces: IToolBase and IMcpTool.
