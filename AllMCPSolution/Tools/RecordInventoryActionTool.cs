@@ -371,12 +371,13 @@ public sealed class RecordInventoryActionTool : CrudToolBase
             ["userName"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "User name alias when the identifier is unknown."
+                ["description"] = "The user's name or alias. Must be explicitly provided by the user; do not invent or assume any value. If unknown, ask the user for their username."
             },
+
             ["user_name"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "Snake_case alias for userName."
+                ["description"] = "The user's name or alias. Must be explicitly provided by the user; do not invent or assume any value. If unknown, ask the user for their username."
             },
             ["score"] = new JsonObject
             {
