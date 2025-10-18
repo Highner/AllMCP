@@ -334,7 +334,7 @@ public sealed class InventoryIntakeService
                     Score = score,
                     Note = tastingNote?.Trim() ?? string.Empty,
                     Bottle = null,
-                    User = userResolution.User
+                    User = null
                 };
 
                 await _tastingNoteRepository.AddAsync(tastingNoteEntity, ct);
@@ -439,8 +439,8 @@ public sealed class InventoryIntakeService
                 Score = score,
                 BottleId = bottle.Id,
                 UserId = userResolution.User!.Id,
-                Bottle = bottle,
-                User = userResolution.User
+                Bottle = null,
+                User = null
             };
 
             await _tastingNoteRepository.AddAsync(entity, ct);
