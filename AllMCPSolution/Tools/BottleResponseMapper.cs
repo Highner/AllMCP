@@ -21,13 +21,13 @@ internal static class BottleResponseMapper
             id = bottle.Id,
             price = bottle.Price,
             score = latestNote?.Score,
-            tastingNote = latestNote?.TastingNote,
+            tastingNote = latestNote?.Note,
             tastingNotes = tastingNotes is null || tastingNotes.Count == 0
                 ? null
                 : tastingNotes.Select(note => new
                 {
                     id = note.Id,
-                    tastingNote = note.TastingNote,
+                    tastingNote = note.Note,
                     score = note.Score,
                     userId = note.UserId
                 }).ToList(),

@@ -144,7 +144,7 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
         {
             foreach (var note in bottle.TastingNotes)
             {
-                EvaluateField("tastingNote", note.TastingNote);
+                EvaluateField("tastingNote", note.Note);
             }
         }
 
@@ -196,12 +196,12 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
 
         foreach (var note in tastingNotes)
         {
-            if (string.IsNullOrWhiteSpace(note.TastingNote))
+            if (string.IsNullOrWhiteSpace(note.Note))
             {
                 continue;
             }
 
-            var snippet = CreateTastingNoteSnippet(note.TastingNote, query, out var containsQuery);
+            var snippet = CreateTastingNoteSnippet(note.Note, query, out var containsQuery);
             if (containsQuery && !string.IsNullOrWhiteSpace(snippet))
             {
                 return snippet;

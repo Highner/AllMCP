@@ -126,7 +126,7 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<TastingNote>(e =>
         {
-            e.Property(tn => tn.TastingNote).HasMaxLength(2048);
+            e.Property(tn => tn.Note).HasMaxLength(2048);
             e.Property(tn => tn.Score).HasColumnType("decimal(18,2)");
 
             e.HasOne(tn => tn.Bottle)

@@ -4,6 +4,7 @@ using AllMCPSolution.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AllMCPSolution.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251018123011_appellation")]
+    partial class appellation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -169,12 +172,23 @@ namespace AllMCPSolution.Migrations
                     b.Property<decimal?>("Price")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid>("WineVintageId")
+                    b.Property<decimal?>("Score")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TastingNote")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
+
+                    b.Property<int>("Vintage")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("WineId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("WineVintageId");
+                    b.HasIndex("WineId");
 
                     b.ToTable("Bottles");
                 });
@@ -247,54 +261,6 @@ namespace AllMCPSolution.Migrations
                     b.ToTable("Regions");
                 });
 
-            modelBuilder.Entity("AllMCPSolution.Models.TastingNote", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("BottleId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Note")
-                        .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.Property<decimal?>("Score")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BottleId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("TastingNotes");
-                });
-
-            modelBuilder.Entity("AllMCPSolution.Models.User", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("TasteProfile")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Users");
-                });
-
             modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>
                 {
                     b.Property<Guid>("Id")
@@ -325,26 +291,6 @@ namespace AllMCPSolution.Migrations
                         .IsUnique();
 
                     b.ToTable("Wines");
-                });
-
-            modelBuilder.Entity("AllMCPSolution.Models.WineVintage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Vintage")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("WineId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("WineId", "Vintage")
-                        .IsUnique();
-
-                    b.ToTable("WineVintages");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Appellation", b =>
@@ -382,13 +328,13 @@ namespace AllMCPSolution.Migrations
 
             modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
                 {
-                    b.HasOne("AllMCPSolution.Models.WineVintage", "WineVintage")
+                    b.HasOne("AllMCPSolution.Models.Wine", "Wine")
                         .WithMany("Bottles")
-                        .HasForeignKey("WineVintageId")
+                        .HasForeignKey("WineId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("WineVintage");
+                    b.Navigation("Wine");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Region", b =>
@@ -402,25 +348,6 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("Country");
                 });
 
-            modelBuilder.Entity("AllMCPSolution.Models.TastingNote", b =>
-                {
-                    b.HasOne("AllMCPSolution.Models.Bottle", "Bottle")
-                        .WithMany("TastingNotes")
-                        .HasForeignKey("BottleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AllMCPSolution.Models.User", "User")
-                        .WithMany("TastingNotes")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Bottle");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>
                 {
                     b.HasOne("AllMCPSolution.Models.Appellation", "Appellation")
@@ -430,17 +357,6 @@ namespace AllMCPSolution.Migrations
                         .IsRequired();
 
                     b.Navigation("Appellation");
-                });
-
-            modelBuilder.Entity("AllMCPSolution.Models.WineVintage", b =>
-                {
-                    b.HasOne("AllMCPSolution.Models.Wine", "Wine")
-                        .WithMany("WineVintages")
-                        .HasForeignKey("WineId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Wine");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Appellation", b =>
@@ -453,11 +369,6 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("Artworks");
                 });
 
-            modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
-                {
-                    b.Navigation("TastingNotes");
-                });
-
             modelBuilder.Entity("AllMCPSolution.Models.Country", b =>
                 {
                     b.Navigation("Regions");
@@ -468,17 +379,7 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("Appellations");
                 });
 
-            modelBuilder.Entity("AllMCPSolution.Models.User", b =>
-                {
-                    b.Navigation("TastingNotes");
-                });
-
             modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>
-                {
-                    b.Navigation("WineVintages");
-                });
-
-            modelBuilder.Entity("AllMCPSolution.Models.WineVintage", b =>
                 {
                     b.Navigation("Bottles");
                 });

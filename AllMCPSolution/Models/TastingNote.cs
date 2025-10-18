@@ -4,7 +4,7 @@ public class TastingNote
 {
     public Guid Id { get; set; }
 
-    public string TastingNote { get; set; } = string.Empty;
+    public string Note { get; set; } = string.Empty;
     public decimal? Score { get; set; }
 
     public Guid UserId { get; set; }

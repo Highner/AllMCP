@@ -527,7 +527,7 @@ public sealed class CreateBottleTool : BottleToolBase
                     BottleId = bottle.Id,
                     UserId = userId.Value,
                     Score = score,
-                    TastingNote = tastingNote?.Trim() ?? string.Empty
+                    Note = tastingNote?.Trim() ?? string.Empty
                 };
 
                 await TastingNoteRepository.AddAsync(tastingNoteEntity, ct);
