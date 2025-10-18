@@ -9,6 +9,9 @@ public class Bottle
 
     public int Vintage { get; set; }
 
+    public bool IsDrunk { get; set; }
+    public DateTime? DrunkAt { get; set; }
+
     public Guid WineId { get; set; }
     public Wine Wine { get; set; } = null!;
 }

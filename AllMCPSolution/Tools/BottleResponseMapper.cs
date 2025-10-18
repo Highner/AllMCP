@@ -19,6 +19,8 @@ internal static class BottleResponseMapper
             score = bottle.Score,
             tastingNote = bottle.TastingNote,
             vintage = bottle.Vintage,
+            isDrunk = bottle.IsDrunk,
+            drunkAt = bottle.DrunkAt,
             wineId = bottle.WineId,
             wine = wine is null
                 ? null

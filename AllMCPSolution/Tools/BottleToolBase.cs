@@ -135,8 +135,13 @@ public abstract class BottleToolBase : IToolBase, IMcpTool
     protected BottleOperationResult Success(string operation, string message, object? data = null)
         => BottleOperationResult.CreateSuccess(operation, message, data);
 
-    protected BottleOperationResult Failure(string operation, string message, IReadOnlyList<string>? errors = null, object? suggestions = null)
-        => BottleOperationResult.Failure(operation, message, errors, suggestions);
+    protected BottleOperationResult Failure(
+        string operation,
+        string message,
+        IReadOnlyList<string>? errors = null,
+        object? suggestions = null,
+        Exception? exception = null)
+        => BottleOperationResult.Failure(operation, message, errors, suggestions, exception);
 
     protected sealed record BottleOperationResult
     {
@@ -146,11 +151,27 @@ public abstract class BottleToolBase : IToolBase, IMcpTool
         public object? Data { get; init; }
         public IReadOnlyList<string>? Errors { get; init; }
         public object? Suggestions { get; init; }
+        public string? ExceptionMessage { get; init; }
+        public string? ExceptionStackTrace { get; init; }
 
         public static BottleOperationResult CreateSuccess(string operation, string message, object? data)
             => new() { Success = true, Operation = operation, Message = message, Data = data };
 
-        public static BottleOperationResult Failure(string operation, string message, IReadOnlyList<string>? errors = null, object? suggestions = null)
-            => new() { Success = false, Operation = operation, Message = message, Errors = errors, Suggestions = suggestions };
+        public static BottleOperationResult Failure(
+            string operation,
+            string message,
+            IReadOnlyList<string>? errors = null,
+            object? suggestions = null,
+            Exception? exception = null)
+            => new()
+            {
+                Success = false,
+                Operation = operation,
+                Message = message,
+                Errors = errors,
+                Suggestions = suggestions,
+                ExceptionMessage = exception?.Message,
+                ExceptionStackTrace = exception?.StackTrace
+            };
     }
 }
