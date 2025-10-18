@@ -22,6 +22,7 @@ public sealed class CreateBottleTool : BottleToolBase
     };
 
     private readonly string[] _colorOptions = Enum.GetNames(typeof(WineColor));
+    private readonly InventoryIntakeService _inventoryIntakeService;
 
     public CreateBottleTool(
         IBottleRepository bottleRepository,
@@ -30,9 +31,11 @@ public sealed class CreateBottleTool : BottleToolBase
         IRegionRepository regionRepository,
         IAppellationRepository appellationRepository,
         IWineVintageRepository wineVintageRepository,
-        ITastingNoteRepository tastingNoteRepository)
+        ITastingNoteRepository tastingNoteRepository,
+        InventoryIntakeService inventoryIntakeService)
         : base(bottleRepository, wineRepository, countryRepository, regionRepository, appellationRepository, wineVintageRepository, tastingNoteRepository)
     {
+        _inventoryIntakeService = inventoryIntakeService;
     }
 
     public override string Name => "create_bottle";
@@ -59,8 +62,8 @@ public sealed class CreateBottleTool : BottleToolBase
 
             for (var index = 0; index < requests.Count; index++)
             {
-                var normalized = ToParameterDictionary(requests[index]);
-                var result = await ProcessBottleAsync(normalized, ct);
+                var parameters = requests[index];
+                var result = await _inventoryIntakeService.CreateBottleAsync(parameters, ct);
 
                 if (result.Success)
                 {
@@ -194,7 +197,7 @@ public sealed class CreateBottleTool : BottleToolBase
             {
                 ["type"] = "string",
                 ["format"] = "uuid",
-                ["description"] = "User identifier required when providing tasting notes or scores.",
+                ["description"] = "User identifier required when providing tasting notes or scores when the name is not provided.",
             },
             ["user_id"] = new JsonObject
             {
@@ -202,15 +205,25 @@ public sealed class CreateBottleTool : BottleToolBase
                 ["format"] = "uuid",
                 ["description"] = "Snake_case alias for userId.",
             },
+            ["userName"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Optional user name when the identifier is unknown.",
+            },
+            ["user_name"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Snake_case alias for userName.",
+            },
             ["score"] = new JsonObject
             {
                 ["type"] = "number",
-                ["description"] = "Optional rating or score (requires userId).",
+                ["description"] = "Optional rating or score (requires userId or userName).",
             },
             ["tastingNote"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "Optional tasting notes (requires userId).",
+                ["description"] = "Optional tasting notes (requires userId or userName).",
             },
             ["tasting_note"] = new JsonObject
             {
@@ -247,313 +260,6 @@ public sealed class CreateBottleTool : BottleToolBase
             ["properties"] = properties,
             ["required"] = new JsonArray("name", "vintage", "country", "region", "appellation", "color")
         };
-    }
-
-    private async Task<BottleProcessingResult> ProcessBottleAsync(Dictionary<string, object> parameters, CancellationToken ct)
-    {
-        try
-        {
-            var errors = new List<string>();
-
-            var name = ParameterHelpers.GetStringParameter(parameters, "name", "name");
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                errors.Add("'name' is required.");
-            }
-
-            var vintage = ParameterHelpers.GetIntParameter(parameters, "vintage", "vintage");
-            if (vintage is null)
-            {
-                errors.Add("'vintage' is required and must be a valid year.");
-            }
-
-            var price = ParameterHelpers.GetDecimalParameter(parameters, "price", "price");
-            var score = ParameterHelpers.GetDecimalParameter(parameters, "score", "score");
-            var tastingNote = ParameterHelpers.GetStringParameter(parameters, "tastingNote", "tasting_note")
-                ?? ParameterHelpers.GetStringParameter(parameters, "tastingNotes", "tasting_notes");
-            var userId = ParameterHelpers.GetGuidParameter(parameters, "userId", "user_id");
-            var isDrunk = ParameterHelpers.GetBoolParameter(parameters, "isDrunk", "is_drunk");
-            var drunkAt = ParameterHelpers.GetDateTimeParameter(parameters, "drunkAt", "drunk_at");
-
-            if (drunkAt.HasValue && isDrunk != true)
-            {
-                errors.Add("'drunkAt' can only be provided when 'isDrunk' is true.");
-            }
-
-            if ((score.HasValue || !string.IsNullOrWhiteSpace(tastingNote)) && userId is null)
-            {
-                errors.Add("'userId' is required when providing tasting notes or scores.");
-            }
-
-            var colorInput = ParameterHelpers.GetStringParameter(parameters, "color", "color");
-            WineColor? color = null;
-            if (!string.IsNullOrWhiteSpace(colorInput))
-            {
-                if (Enum.TryParse<WineColor>(colorInput, true, out var parsedColor))
-                {
-                    color = parsedColor;
-                }
-                else
-                {
-                    return BottleProcessingResult.CreateFailure(
-                        $"Color '{colorInput}' is not recognised.",
-                        new[] { $"Color '{colorInput}' is not recognised." },
-                        new
-                        {
-                            type = "color",
-                            query = colorInput,
-                            suggestions = _colorOptions
-                        });
-                }
-            }
-
-            var countryName = ParameterHelpers.GetStringParameter(parameters, "country", "country");
-            var regionName = ParameterHelpers.GetStringParameter(parameters, "region", "region");
-            var appellationName = ParameterHelpers.GetStringParameter(parameters, "appellation", "appellation");
-
-            var trimmedCountryName = string.IsNullOrWhiteSpace(countryName) ? null : countryName.Trim();
-            var trimmedRegionName = string.IsNullOrWhiteSpace(regionName) ? null : regionName.Trim();
-            var normalizedAppellation = string.IsNullOrWhiteSpace(appellationName)
-                ? null
-                : appellationName.Trim();
-
-            if (errors.Count > 0)
-            {
-                return BottleProcessingResult.CreateFailure("Validation failed.", errors);
-            }
-
-            Country? country = null;
-            if (!string.IsNullOrWhiteSpace(trimmedCountryName))
-            {
-                country = await CountryRepository.GetOrCreateAsync(trimmedCountryName!, ct);
-            }
-
-            Region? region = null;
-            if (!string.IsNullOrWhiteSpace(trimmedRegionName))
-            {
-                var existingRegion = await RegionRepository.FindByNameAsync(trimmedRegionName!, ct);
-                if (existingRegion is not null)
-                {
-                    if (country is not null && existingRegion.CountryId != country.Id)
-                    {
-                        return BottleProcessingResult.CreateFailure(
-                            $"Region '{existingRegion.Name}' belongs to country '{existingRegion.Country?.Name ?? "unknown"}'.",
-                            new[] { $"Region '{existingRegion.Name}' belongs to country '{existingRegion.Country?.Name ?? "unknown"}'." },
-                            new
-                            {
-                                type = "region_country_mismatch",
-                                requestedCountry = new { name = country.Name, id = country.Id },
-                                regionCountry = existingRegion.Country is null
-                                    ? null
-                                    : new { name = existingRegion.Country.Name, id = existingRegion.Country.Id }
-                            });
-                    }
-
-                    region = existingRegion;
-                }
-                else if (country is null)
-                {
-                    return BottleProcessingResult.CreateFailure(
-                        $"Region '{trimmedRegionName}' was not found. Provide a country so it can be created automatically.",
-                        new[] { "Country is required to create a new region." },
-                        new
-                        {
-                            type = "region_creation_missing_country",
-                            query = trimmedRegionName
-                        });
-                }
-                else
-                {
-                    region = await RegionRepository.GetOrCreateAsync(trimmedRegionName!, country, ct);
-                }
-            }
-
-            if (region is not null)
-            {
-                country ??= region.Country;
-            }
-
-            var wine = await WineRepository.FindByNameAsync(name!, normalizedAppellation, ct);
-            if (wine is null)
-            {
-                if (!color.HasValue)
-                {
-                    return BottleProcessingResult.CreateFailure(
-                        $"Wine '{name}' does not exist. Provide a color so it can be created automatically.",
-                        new[] { "Color is required to create a new wine." },
-                        new
-                        {
-                            type = "wine_creation_missing_color",
-                            query = name,
-                            suggestions = _colorOptions
-                        });
-                }
-
-                if (region is null)
-                {
-                    return BottleProcessingResult.CreateFailure(
-                        $"Wine '{name}' does not exist. Provide a region so it can be created automatically.",
-                        new[] { "Region is required to create a new wine." },
-                        new
-                        {
-                            type = "wine_creation_missing_region",
-                            query = name
-                        });
-                }
-
-                country ??= region.Country;
-
-                if (string.IsNullOrWhiteSpace(normalizedAppellation))
-                {
-                    return BottleProcessingResult.CreateFailure(
-                        $"Wine '{name}' does not exist. Provide an appellation so it can be created automatically.",
-                        new[] { "Appellation is required to create a new wine." },
-                        new
-                        {
-                            type = "wine_creation_missing_appellation",
-                            query = name
-                        });
-                }
-
-                var appellation = await AppellationRepository.GetOrCreateAsync(normalizedAppellation!, region.Id, ct);
-
-                var newWine = new Wine
-                {
-                    Id = Guid.NewGuid(),
-                    Name = name!.Trim(),
-                    GrapeVariety = string.Empty,
-                    Color = color.Value,
-                    AppellationId = appellation.Id,
-                    Appellation = appellation
-                };
-
-                await WineRepository.AddAsync(newWine, ct);
-                wine = await WineRepository.GetByIdAsync(newWine.Id, ct) ?? newWine;
-            }
-
-            var wineAppellation = wine.Appellation;
-            var wineRegion = wineAppellation?.Region;
-            var wineCountry = wineRegion?.Country;
-
-            if (!string.IsNullOrWhiteSpace(normalizedAppellation)
-                && !string.Equals(wineAppellation?.Name, normalizedAppellation, StringComparison.OrdinalIgnoreCase))
-            {
-                var recordedAppellation = string.IsNullOrWhiteSpace(wineAppellation?.Name) ? "unknown" : wineAppellation!.Name;
-                return BottleProcessingResult.CreateFailure(
-                    $"Wine '{wine.Name}' is recorded for appellation '{recordedAppellation}'.",
-                    new[] { $"Wine '{wine.Name}' is recorded for appellation '{recordedAppellation}'." },
-                    new
-                    {
-                        type = "wine_appellation_mismatch",
-                        requested = normalizedAppellation,
-                        actual = string.IsNullOrWhiteSpace(wineAppellation?.Name) ? null : wineAppellation.Name
-                    });
-            }
-
-            if (color.HasValue && wine.Color != color)
-            {
-                return BottleProcessingResult.CreateFailure(
-                    $"Wine '{wine.Name}' exists with color '{wine.Color}'.",
-                    new[] { $"Wine '{wine.Name}' exists with color '{wine.Color}'." },
-                    new
-                    {
-                        type = "wine_color_mismatch",
-                        requested = color.Value.ToString(),
-                        actual = wine.Color.ToString()
-                    });
-            }
-
-            if (country is not null && wineCountry?.Id != country.Id)
-            {
-                return BottleProcessingResult.CreateFailure(
-                    $"Wine '{wine.Name}' is recorded for country '{wineCountry?.Name ?? "unknown"}'.",
-                    new[] { $"Wine '{wine.Name}' is recorded for country '{wineCountry?.Name ?? "unknown"}'." },
-                    new
-                    {
-                        type = "wine_country_mismatch",
-                        requested = new { name = country.Name, id = country.Id },
-                        actual = wineCountry is null ? null : new { name = wineCountry.Name, id = wineCountry.Id }
-                    });
-            }
-
-            if (region is not null && wineRegion?.Id != region.Id)
-            {
-                var recordedRegion = wineRegion?.Name ?? "unknown";
-                return BottleProcessingResult.CreateFailure(
-                    $"Wine '{wine.Name}' is recorded for region '{recordedRegion}'.",
-                    new[] { $"Wine '{wine.Name}' is recorded for region '{recordedRegion}'." },
-                    new
-                    {
-                        type = "wine_region_mismatch",
-                        requested = new { name = region.Name, id = region.Id },
-                        actual = wineRegion is null ? null : new { name = wineRegion.Name, id = wineRegion.Id }
-                    });
-            }
-
-            var hasBeenDrunk = isDrunk ?? false;
-            DateTime? resolvedDrunkAt = null;
-            if (hasBeenDrunk)
-            {
-                if (drunkAt.HasValue)
-                {
-                    resolvedDrunkAt = drunkAt.Value.Kind == DateTimeKind.Unspecified
-                        ? DateTime.SpecifyKind(drunkAt.Value, DateTimeKind.Utc)
-                        : drunkAt.Value.ToUniversalTime();
-                }
-                else
-                {
-                    resolvedDrunkAt = DateTime.UtcNow;
-                }
-            }
-
-            var wineVintage = await WineVintageRepository.GetOrCreateAsync(wine.Id, vintage!.Value, ct);
-
-            var bottle = new Bottle
-            {
-                Id = Guid.NewGuid(),
-                WineVintageId = wineVintage.Id,
-                Price = price,
-                IsDrunk = hasBeenDrunk,
-                DrunkAt = resolvedDrunkAt
-            };
-
-            await BottleRepository.AddAsync(bottle, ct);
-
-            if (userId.HasValue && (score.HasValue || !string.IsNullOrWhiteSpace(tastingNote)))
-            {
-                var tastingNoteEntity = new TastingNote
-                {
-                    Id = Guid.NewGuid(),
-                    BottleId = bottle.Id,
-                    UserId = userId.Value,
-                    Score = score,
-                    Note = tastingNote?.Trim() ?? string.Empty
-                };
-
-                await TastingNoteRepository.AddAsync(tastingNoteEntity, ct);
-            }
-
-            var created = await BottleRepository.GetByIdAsync(bottle.Id, ct) ?? new Bottle
-            {
-                Id = bottle.Id,
-                WineVintageId = bottle.WineVintageId,
-                Price = bottle.Price,
-                IsDrunk = bottle.IsDrunk,
-                DrunkAt = bottle.DrunkAt,
-                WineVintage = wineVintage,
-                TastingNotes = []
-            };
-
-            return BottleProcessingResult.CreateSuccess("Bottle created successfully.", created);
-        }
-        catch (Exception ex)
-        {
-            return BottleProcessingResult.CreateFailure(
-                "An unexpected error occurred while importing the bottle.",
-                new[] { ex.Message },
-                new { type = "exception" },
-                ex);
-        }
     }
 
     private IReadOnlyList<Dictionary<string, object?>> ExtractBottleRequests(Dictionary<string, object>? parameters)
@@ -758,46 +464,4 @@ public sealed class CreateBottleTool : BottleToolBase
         return dict;
     }
 
-    private static Dictionary<string, object> ToParameterDictionary(Dictionary<string, object?> source)
-    {
-        var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in source)
-        {
-            dict[kvp.Key] = kvp.Value!;
-        }
-
-        return dict;
-    }
-
-    private sealed record BottleProcessingResult : IProcessingResult
-    {
-        private BottleProcessingResult()
-        {
-        }
-
-        public bool Success { get; init; }
-        public string Message { get; init; } = string.Empty;
-        public Bottle? Bottle { get; init; }
-        public IReadOnlyList<string>? Errors { get; init; }
-        public object? Suggestions { get; init; }
-        public Exception? Exception { get; init; }
-
-        public static BottleProcessingResult CreateSuccess(string message, Bottle bottle)
-            => new()
-            {
-                Success = true,
-                Message = message,
-                Bottle = bottle
-            };
-
-        public static BottleProcessingResult CreateFailure(string message, IReadOnlyList<string>? errors = null, object? suggestions = null, Exception? exception = null)
-            => new()
-            {
-                Success = false,
-                Message = message,
-                Errors = errors,
-                Suggestions = suggestions,
-                Exception = exception
-            };
-    }
 }
