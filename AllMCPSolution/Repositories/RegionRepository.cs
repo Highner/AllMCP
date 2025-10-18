@@ -12,6 +12,7 @@ public interface IRegionRepository
     Task<Region?> FindByNameAsync(string name, CancellationToken ct = default);
     Task<Region?> FindByNameAndCountryAsync(string name, Guid countryId, CancellationToken ct = default);
     Task<IReadOnlyList<Region>> SearchByApproximateNameAsync(string name, int maxResults = 5, CancellationToken ct = default);
+    Task<Region> GetOrCreateAsync(string name, Country country, CancellationToken ct = default);
     Task AddAsync(Region region, CancellationToken ct = default);
     Task UpdateAsync(Region region, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
@@ -75,6 +76,36 @@ public class RegionRepository : IRegionRepository
             .ToListAsync(ct);
 
         return FuzzyMatchUtilities.FindClosestMatches(regions, name, r => r.Name, maxResults);
+    }
+
+    public async Task<Region> GetOrCreateAsync(string name, Country country, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Region name cannot be empty.", nameof(name));
+        }
+
+        ArgumentNullException.ThrowIfNull(country);
+
+        var trimmed = name.Trim();
+        var existing = await FindByNameAndCountryAsync(trimmed, country.Id, ct);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var entity = new Region
+        {
+            Id = Guid.NewGuid(),
+            Name = trimmed,
+            CountryId = country.Id,
+            Country = country
+        };
+
+        _db.Regions.Add(entity);
+        await _db.SaveChangesAsync(ct);
+
+        return entity;
     }
 
     public async Task AddAsync(Region region, CancellationToken ct = default)
