@@ -225,7 +225,7 @@ public sealed class CreateBottleTool : BottleToolBase
         {
             ["type"] = "object",
             ["properties"] = properties,
-            ["required"] = new JsonArray("name", "vintage")
+            ["required"] = new JsonArray("name", "vintage", "country", "region", "color")
         };
     }
 
