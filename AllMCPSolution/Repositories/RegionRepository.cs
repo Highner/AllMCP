@@ -94,16 +94,36 @@ public class RegionRepository : IRegionRepository
             return existing;
         }
 
+        if (_db.Entry(country).State == EntityState.Detached)
+        {
+            _db.Countries.Attach(country);
+        }
+
         var entity = new Region
         {
             Id = Guid.NewGuid(),
             Name = trimmed,
-            CountryId = country.Id,
-            Country = country
+            CountryId = country.Id
         };
 
         _db.Regions.Add(entity);
-        await _db.SaveChangesAsync(ct);
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            var reloaded = await FindByNameAndCountryAsync(trimmed, country.Id, ct);
+            if (reloaded is not null)
+            {
+                return reloaded;
+            }
+
+            throw;
+        }
+
+        entity.Country = country;
 
         return entity;
     }
