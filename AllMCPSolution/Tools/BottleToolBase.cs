@@ -38,7 +38,7 @@ public abstract class BottleToolBase : IToolBase, IMcpTool
     public abstract string Name { get; }
     public abstract string Description { get; }
     public virtual string Title => Description;
-    public virtual string? SafetyLevel => "critical";
+    public virtual string? SafetyLevel => "non_critical";
     protected virtual string InvokingMessage => "Processing bottle operation…";
     protected virtual string InvokedMessage => "Bottle operation complete.";
 
