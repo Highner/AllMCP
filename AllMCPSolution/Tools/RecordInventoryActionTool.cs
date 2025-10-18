@@ -319,12 +319,14 @@ public sealed class RecordInventoryActionTool : CrudToolBase
             return null;
         }
 
-        return value switch
+        var text = value switch
         {
             JsonElement element when element.ValueKind == JsonValueKind.String => element.GetString(),
             JsonElement element when element.ValueKind == JsonValueKind.Number => element.ToString(),
             _ => value.ToString()
-        }?.Trim();
+        };
+
+        return text?.Trim();
     }
 
     private JsonObject BuildBottleSchema()
