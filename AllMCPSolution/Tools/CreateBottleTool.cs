@@ -62,8 +62,8 @@ public sealed class CreateBottleTool : BottleToolBase
 
             for (var index = 0; index < requests.Count; index++)
             {
-                var parameters = requests[index];
-                var result = await _inventoryIntakeService.CreateBottleAsync(parameters, ct);
+                var request = requests[index];
+                var result = await _inventoryIntakeService.CreateBottleAsync(request, ct);
 
                 if (result.Success)
                 {
