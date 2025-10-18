@@ -37,18 +37,113 @@ public sealed class RecordInventoryActionTool : CrudToolBase
     protected override async Task<CrudOperationResult> ExecuteInternalAsync(Dictionary<string, object>? parameters, CancellationToken ct)
     {
         var normalized = NormalizeParameters(parameters);
+
+        if (normalized.TryGetValue("actions", out var rawActions) && rawActions is not null)
+        {
+            var actionBatch = ConvertToDictionaryList(rawActions).ToList();
+
+            if (actionBatch.Count == 0)
+            {
+                return Failure(
+                    "inventory",
+                    "No valid actions were provided in the 'actions' array.",
+                    new[] { "Provide at least one action object with an 'action' field." });
+            }
+
+            return await ProcessBatchAsync(actionBatch, ct);
+        }
+
+        return await ProcessSingleActionAsync(normalized, ct);
+    }
+
+    private async Task<CrudOperationResult> ProcessSingleActionAsync(Dictionary<string, object?> normalized, CancellationToken ct)
+    {
         var action = GetString(normalized, "action");
         if (string.IsNullOrWhiteSpace(action))
         {
             return Failure("inventory", "Action is required.", new[] { "'action' is required." });
         }
 
-        switch (action)
+        return await ExecuteActionCoreAsync(action, normalized, ct);
+    }
+
+    private async Task<CrudOperationResult> ProcessBatchAsync(IReadOnlyList<Dictionary<string, object?>> actions, CancellationToken ct)
+    {
+        var results = new List<object>(actions.Count);
+        var successCount = 0;
+
+        for (var index = 0; index < actions.Count; index++)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var actionParameters = actions[index];
+            var action = GetString(actionParameters, "action");
+            var trimmedAction = action?.Trim();
+
+            CrudOperationResult actionResult;
+            if (string.IsNullOrWhiteSpace(trimmedAction))
+            {
+                actionResult = Failure(
+                    "inventory",
+                    $"Action at index {index} is missing 'action'.",
+                    new[] { "'action' is required." });
+            }
+            else
+            {
+                actionResult = await ExecuteActionCoreAsync(trimmedAction!, actionParameters, ct);
+                if (actionResult.Success)
+                {
+                    successCount++;
+                }
+            }
+
+            results.Add(new
+            {
+                index,
+                action = trimmedAction,
+                actionResult.Success,
+                actionResult.Message,
+                actionResult.Data,
+                actionResult.Errors,
+                actionResult.Suggestions,
+                actionResult.ExceptionMessage,
+                actionResult.ExceptionStackTrace
+            });
+        }
+
+        var failureCount = actions.Count - successCount;
+        var message = failureCount == 0
+            ? $"Processed {actions.Count} inventory action(s)."
+            : $"Processed {actions.Count} inventory action(s) with {failureCount} failure(s).";
+
+        var data = new
+        {
+            total = actions.Count,
+            succeeded = successCount,
+            failed = failureCount,
+            results
+        };
+
+        if (failureCount == 0)
+        {
+            return Success("inventory", message, data);
+        }
+
+        var errors = new List<string> { $"{failureCount} of {actions.Count} actions failed." };
+        return Failure("inventory", message, errors, suggestions: null, exception: null, data: data);
+    }
+
+    private async Task<CrudOperationResult> ExecuteActionCoreAsync(string action, Dictionary<string, object?> parameters, CancellationToken ct)
+    {
+        var trimmedAction = action.Trim();
+        var actionKey = trimmedAction.ToLowerInvariant();
+
+        switch (actionKey)
         {
             case "add_bottle":
             case "add_bottle_with_note":
             {
-                var bottleParameters = ExtractBottlePayload(normalized);
+                var bottleParameters = ExtractBottlePayload(parameters);
                 if (bottleParameters.Count == 0)
                 {
                     return Failure("inventory", "Bottle payload is required.", new[] { "Provide bottle details under 'bottle' or alongside the action." });
@@ -62,7 +157,7 @@ public sealed class RecordInventoryActionTool : CrudToolBase
 
                 var data = new
                 {
-                    action,
+                    action = trimmedAction,
                     bottle = result.Bottle is null ? null : BottleResponseMapper.MapBottle(result.Bottle),
                     tastingNote = result.TastingNote is null ? null : TastingNoteResponseMapper.MapTastingNote(result.TastingNote)
                 };
@@ -72,7 +167,7 @@ public sealed class RecordInventoryActionTool : CrudToolBase
 
             case "add_tasting_note":
             {
-                var tastingNoteParameters = ExtractTastingNotePayload(normalized);
+                var tastingNoteParameters = ExtractTastingNotePayload(parameters);
                 if (tastingNoteParameters.Count == 0)
                 {
                     return Failure("inventory", "Tasting note payload is required.", new[] { "Provide tasting note details under 'tastingNote' or alongside the action." });
@@ -86,7 +181,7 @@ public sealed class RecordInventoryActionTool : CrudToolBase
 
                 var data = new
                 {
-                    action,
+                    action = trimmedAction,
                     tastingNote = result.TastingNote is null ? null : TastingNoteResponseMapper.MapTastingNote(result.TastingNote)
                 };
 
@@ -94,30 +189,59 @@ public sealed class RecordInventoryActionTool : CrudToolBase
             }
 
             default:
-                return Failure("inventory", $"Unsupported action '{action}'.", new[] { "Valid actions: add_bottle, add_bottle_with_note, add_tasting_note." });
+                return Failure("inventory", $"Unsupported action '{trimmedAction}'.", new[] { "Valid actions: add_bottle, add_bottle_with_note, add_tasting_note." });
         }
     }
 
     protected override JsonObject BuildInputSchema()
     {
+        var properties = CreateActionProperties();
+
+        properties["actions"] = new JsonObject
+        {
+            ["type"] = "array",
+            ["description"] = "Batch of inventory actions to process sequentially.",
+            ["minItems"] = 1,
+            ["items"] = new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = CreateActionProperties(),
+                ["required"] = new JsonArray("action")
+            }
+        };
+
         return new JsonObject
         {
             ["type"] = "object",
-            ["properties"] = new JsonObject
+            ["properties"] = properties,
+            ["anyOf"] = new JsonArray
             {
-                ["action"] = new JsonObject
-                {
-                    ["type"] = "string",
-                    ["enum"] = new JsonArray("add_bottle", "add_bottle_with_note", "add_tasting_note"),
-                    ["description"] = "Inventory action to perform."
-                },
-                ["bottle"] = BuildBottleSchema(),
-                ["bottle_payload"] = BuildBottleSchema(),
-                ["payload"] = BuildBottleSchema(),
-                ["tastingNote"] = BuildTastingNoteSchema(),
-                ["tasting_note"] = BuildTastingNoteSchema()
-            },
-            ["required"] = new JsonArray("action")
+                new JsonObject { ["required"] = new JsonArray("action") },
+                new JsonObject { ["required"] = new JsonArray("actions") }
+            }
+        };
+    }
+
+    private JsonObject CreateActionProperties()
+    {
+        return new JsonObject
+        {
+            ["action"] = BuildActionProperty(),
+            ["bottle"] = BuildBottleSchema(),
+            ["bottle_payload"] = BuildBottleSchema(),
+            ["payload"] = BuildBottleSchema(),
+            ["tastingNote"] = BuildTastingNoteSchema(),
+            ["tasting_note"] = BuildTastingNoteSchema()
+        };
+    }
+
+    private static JsonObject BuildActionProperty()
+    {
+        return new JsonObject
+        {
+            ["type"] = "string",
+            ["enum"] = new JsonArray("add_bottle", "add_bottle_with_note", "add_tasting_note"),
+            ["description"] = "Inventory action to perform."
         };
     }
 
@@ -208,6 +332,141 @@ public sealed class RecordInventoryActionTool : CrudToolBase
         };
     }
 
+    private static IReadOnlyList<Dictionary<string, object?>> ConvertToDictionaryList(object? value)
+    {
+        if (value is null)
+        {
+            return Array.Empty<Dictionary<string, object?>>();
+        }
+
+        switch (value)
+        {
+            case JsonElement element:
+                return JsonElementToDictionaryList(element);
+            case JsonObject jsonObject:
+                return new[] { CreateCaseInsensitiveDictionaryFromJsonObject(jsonObject) };
+            case JsonArray jsonArray:
+                return ConvertJsonArrayToDictionaryList(jsonArray);
+            case Dictionary<string, object?> dictionary:
+                return new[] { CreateCaseInsensitiveDictionary(dictionary) };
+            case IDictionary dictionary:
+                return new[] { DictionaryFromDictionary(dictionary) };
+            case IEnumerable enumerable when value is not string:
+                return ConvertEnumerableToDictionaryList(enumerable);
+            default:
+                return Array.Empty<Dictionary<string, object?>>();
+        }
+    }
+
+    private static IReadOnlyList<Dictionary<string, object?>> ConvertJsonArrayToDictionaryList(JsonArray array)
+    {
+        var results = new List<Dictionary<string, object?>>();
+
+        foreach (var item in array)
+        {
+            switch (item)
+            {
+                case null:
+                    results.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase));
+                    break;
+                case JsonObject jsonObject:
+                    results.Add(CreateCaseInsensitiveDictionaryFromJsonObject(jsonObject));
+                    break;
+                case JsonArray nestedArray:
+                    var nestedResults = ConvertJsonArrayToDictionaryList(nestedArray);
+                    if (nestedResults.Count > 0)
+                    {
+                        results.AddRange(nestedResults);
+                    }
+                    else
+                    {
+                        results.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase));
+                    }
+                    break;
+                case JsonValue jsonValue when jsonValue.TryGetValue(out JsonElement element):
+                    var nested = JsonElementToDictionaryList(element);
+                    if (nested.Count > 0)
+                    {
+                        results.AddRange(nested);
+                    }
+                    else
+                    {
+                        results.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase));
+                    }
+                    break;
+                default:
+                    results.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase));
+                    break;
+            }
+        }
+
+        return results;
+    }
+
+    private static IReadOnlyList<Dictionary<string, object?>> ConvertEnumerableToDictionaryList(IEnumerable enumerable)
+    {
+        var results = new List<Dictionary<string, object?>>();
+
+        foreach (var item in enumerable)
+        {
+            if (item is null)
+            {
+                continue;
+            }
+
+            switch (item)
+            {
+                case Dictionary<string, object?> dictionary:
+                    results.Add(CreateCaseInsensitiveDictionary(dictionary));
+                    break;
+                case IDictionary dictionary:
+                    results.Add(DictionaryFromDictionary(dictionary));
+                    break;
+                case JsonObject jsonObject:
+                    results.Add(CreateCaseInsensitiveDictionaryFromJsonObject(jsonObject));
+                    break;
+                case JsonArray jsonArray:
+                    var nestedResults = ConvertJsonArrayToDictionaryList(jsonArray);
+                    if (nestedResults.Count > 0)
+                    {
+                        results.AddRange(nestedResults);
+                    }
+                    else
+                    {
+                        results.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase));
+                    }
+                    break;
+                case JsonValue jsonValue when jsonValue.TryGetValue(out JsonElement element):
+                    var nested = JsonElementToDictionaryList(element);
+                    if (nested.Count > 0)
+                    {
+                        results.AddRange(nested);
+                    }
+                    else
+                    {
+                        results.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase));
+                    }
+                    break;
+                case JsonElement element:
+                    var fromElement = JsonElementToDictionaryList(element);
+                    if (fromElement.Count > 0)
+                    {
+                        results.AddRange(fromElement);
+                    }
+                    else
+                    {
+                        results.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase));
+                    }
+                    break;
+                default:
+                    results.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase));
+                    break;
+            }
+        }
+
+        return results;
+    }
+
     private static Dictionary<string, object?> JsonElementToDictionary(JsonElement element)
     {
         if (element.ValueKind == JsonValueKind.Object)
@@ -236,6 +495,39 @@ public sealed class RecordInventoryActionTool : CrudToolBase
         }
 
         return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static IReadOnlyList<Dictionary<string, object?>> JsonElementToDictionaryList(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            return new[] { JsonElementToDictionary(element) };
+        }
+
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            var results = new List<Dictionary<string, object?>>();
+
+            foreach (var item in element.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Object)
+                {
+                    results.Add(JsonElementToDictionary(item));
+                }
+                else if (item.ValueKind == JsonValueKind.Array)
+                {
+                    results.AddRange(JsonElementToDictionaryList(item));
+                }
+                else
+                {
+                    results.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase));
+                }
+            }
+
+            return results;
+        }
+
+        return Array.Empty<Dictionary<string, object?>>();
     }
 
     private static Dictionary<string, object?> DictionaryFromDictionary(IDictionary dictionary)
