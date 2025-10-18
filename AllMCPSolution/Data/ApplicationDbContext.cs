@@ -23,6 +23,14 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
         
+        foreach (var property in modelBuilder.Model
+                     .GetEntityTypes()
+                     .SelectMany(t => t.GetProperties())
+                     .Where(p => p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?)))
+        {
+            property.SetColumnType("datetime2");
+        }
+        
         modelBuilder.Entity<ArtworkSale>(e =>
         {
             e.Property(p => p.Height).HasColumnType("decimal(18,4)");
@@ -79,7 +87,6 @@ public class ApplicationDbContext : DbContext
             e.Property(b => b.TastingNote).HasMaxLength(1024);
             e.Property(b => b.Vintage).IsRequired();
             e.Property(b => b.IsDrunk).IsRequired();
-            e.Property(b => b.DrunkAt).HasColumnType("datetime2");
 
             e.HasOne(b => b.Wine)
                 .WithMany(w => w.Bottles)
