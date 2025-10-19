@@ -10,4 +10,6 @@ public class WineVintage
     public int Vintage { get; set; }
 
     public ICollection<Bottle> Bottles { get; set; } = [];
+
+    public ICollection<WineVintageEvolutionScore> EvolutionScores { get; set; } = [];
 }

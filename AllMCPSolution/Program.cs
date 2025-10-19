@@ -39,6 +39,7 @@ builder.Services.AddScoped<IRegionRepository, RegionRepository>();
 builder.Services.AddScoped<IAppellationRepository, AppellationRepository>();
 builder.Services.AddScoped<IWineRepository, WineRepository>();
 builder.Services.AddScoped<IWineVintageRepository, WineVintageRepository>();
+builder.Services.AddScoped<IWineVintageEvolutionScoreRepository, WineVintageEvolutionScoreRepository>();
 builder.Services.AddScoped<IBottleRepository, BottleRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITastingNoteRepository, TastingNoteRepository>();
