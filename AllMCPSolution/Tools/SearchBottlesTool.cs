@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Attributes;
@@ -52,17 +55,23 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
 
         limit = Math.Min(limit, 100);
 
-        var normalizedQuery = query.Trim();
-        if (normalizedQuery.Length == 0)
+        var trimmedQuery = query.Trim();
+        if (trimmedQuery.Length == 0)
         {
             return new { success = false, error = "Search query cannot be empty" };
         }
 
+        var tokens = TokenizeQuery(trimmedQuery);
+        if (tokens.Count == 0)
+        {
+            return new { success = false, error = "Search query did not contain any searchable terms" };
+        }
+
+        var normalizedQuery = string.Join(" ", tokens.Select(t => t.Normalized));
         var bottles = await _bottles.GetAllAsync(CancellationToken.None);
-        var queryLower = normalizedQuery.ToLowerInvariant();
 
         var candidates = bottles
-            .Select(bottle => EvaluateBottle(bottle, queryLower, normalizedQuery, threshold))
+            .Select(bottle => EvaluateBottle(bottle, tokens, threshold))
             .Where(candidate => candidate.Include)
             .OrderBy(candidate => candidate.ContainsMatch ? 0 : 1)
             .ThenBy(candidate => candidate.BestDistance)
@@ -79,14 +88,41 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
                 containsMatch = candidate.ContainsMatch,
                 relevanceScore = candidate.RelevanceScore,
                 bestDistance = candidate.BestDistance,
-                tastingNotePreview = candidate.TastingNotePreview
+                tastingNotePreview = candidate.TastingNotePreview,
+                tokenMatches = candidate.TokenMatches
+                    .Where(tm => tm.HasMatches)
+                    .Select(tm => new
+                    {
+                        token = tm.Token.Original,
+                        normalizedToken = tm.Token.Normalized,
+                        fields = tm.FieldMatches
+                            .Select(f => new { field = f.Field, matchType = f.MatchType })
+                            .ToList(),
+                        tastingNotes = tm.TastingNoteSnippets
+                            .Select(sn => new
+                            {
+                                noteId = sn.NoteId,
+                                matchType = sn.MatchType,
+                                snippet = sn.Snippet
+                            })
+                            .ToList()
+                    })
+                    .ToList()
             })
             .ToList();
 
         return new
         {
             success = true,
-            query = normalizedQuery,
+            query = trimmedQuery,
+            normalizedQuery,
+            tokens = tokens
+                .Select(t => new
+                {
+                    original = t.Original,
+                    normalized = t.Normalized
+                })
+                .ToList(),
             totalMatches = candidates.Count,
             count = limited.Count,
             limit,
@@ -94,41 +130,99 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
         };
     }
 
-    private static BottleCandidate EvaluateBottle(Bottle bottle, string queryLower, string originalQuery, int threshold)
+    private static BottleCandidate EvaluateBottle(Bottle bottle, IReadOnlyList<QueryToken> tokens, int threshold)
     {
-        var matchedFields = new List<string>();
+        var matchedFieldSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var matchedFieldsList = new List<string>();
+        var tokenMatches = tokens
+            .Select(token => new TokenMatch(token))
+            .ToDictionary(match => match.Token, match => match);
         var containsMatch = false;
+        var hasFuzzyMatch = false;
         var bestDistance = int.MaxValue;
-        var bestFieldLength = originalQuery.Length;
+        var queryLength = Math.Max(1, tokens.Sum(t => t.Normalized.Length));
+        var bestFieldLength = queryLength;
+
+        void UpdateBest(int distance, int candidateLength)
+        {
+            if (distance < bestDistance || (distance == bestDistance && candidateLength < bestFieldLength))
+            {
+                bestDistance = distance;
+                bestFieldLength = Math.Max(1, candidateLength);
+            }
+        }
+
+        void RegisterMatch(QueryToken token, string fieldName, string matchType, TastingNote? note, bool attachSnippet)
+        {
+            if (matchType == MatchTypes.Substring)
+            {
+                containsMatch = true;
+            }
+            else
+            {
+                hasFuzzyMatch = true;
+            }
+
+            if (matchedFieldSet.Add(fieldName))
+            {
+                matchedFieldsList.Add(fieldName);
+            }
+
+            var tokenMatch = tokenMatches[token];
+            if (!tokenMatch.FieldMatches.Any(f => f.Field.Equals(fieldName, StringComparison.OrdinalIgnoreCase) && f.MatchType == matchType))
+            {
+                tokenMatch.FieldMatches.Add(new FieldMatch
+                {
+                    Field = fieldName,
+                    MatchType = matchType
+                });
+            }
+
+            if (attachSnippet && note is not null)
+            {
+                var snippet = CreateTastingNoteSnippet(note.Note, token.Original, out _);
+                if (!string.IsNullOrWhiteSpace(snippet)
+                    && tokenMatch.TastingNoteSnippets.All(sn => sn.NoteId != note.Id || !string.Equals(sn.Snippet, snippet, StringComparison.Ordinal)))
+                {
+                    tokenMatch.TastingNoteSnippets.Add(new TastingNoteSnippet(note.Id, snippet, matchType));
+                }
+            }
+        }
 
         void EvaluateField(string fieldName, string? value)
+        {
+            EvaluateFieldInternal(fieldName, value, null, false);
+        }
+
+        void EvaluateFieldInternal(string fieldName, string? value, TastingNote? note, bool attachSnippet)
         {
             if (string.IsNullOrWhiteSpace(value))
             {
                 return;
             }
 
-            var normalizedValue = value.Trim();
+            var normalizedValue = NormalizeForComparison(value);
             if (normalizedValue.Length == 0)
             {
                 return;
             }
 
-            if (normalizedValue.Contains(originalQuery, StringComparison.OrdinalIgnoreCase))
+            foreach (var token in tokens)
             {
-                containsMatch = true;
-                if (!matchedFields.Contains(fieldName))
+                var candidateLength = normalizedValue.Length;
+                if (normalizedValue.Contains(token.Normalized, StringComparison.Ordinal))
                 {
-                    matchedFields.Add(fieldName);
+                    RegisterMatch(token, fieldName, MatchTypes.Substring, note, attachSnippet);
+                    UpdateBest(0, candidateLength);
+                    continue;
                 }
-            }
 
-            var candidateLower = normalizedValue.ToLowerInvariant();
-            var distance = CalculateLevenshteinDistance(queryLower, candidateLower);
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
-                bestFieldLength = normalizedValue.Length;
+                var distance = CalculateLevenshteinDistance(token.Normalized, normalizedValue);
+                UpdateBest(distance, candidateLength);
+                if (distance <= threshold)
+                {
+                    RegisterMatch(token, fieldName, MatchTypes.Fuzzy, note, attachSnippet);
+                }
             }
         }
 
@@ -144,27 +238,37 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
         {
             foreach (var note in bottle.TastingNotes)
             {
-                EvaluateField("tastingNote", note.Note);
+                EvaluateFieldInternal("tastingNote", note.Note, note, attachSnippet: true);
+
+                if (note.Score.HasValue)
+                {
+                    var formattedScore = note.Score.Value.ToString("0.##", CultureInfo.InvariantCulture);
+                    EvaluateFieldInternal("tastingNoteScore", formattedScore, note, attachSnippet: false);
+                    EvaluateFieldInternal("tastingNoteScoreKeywords", "score pts points rating", note, attachSnippet: false);
+                }
             }
         }
 
         if (bestDistance == int.MaxValue)
         {
-            bestDistance = originalQuery.Length;
+            bestDistance = queryLength;
+            bestFieldLength = queryLength;
         }
 
-        var include = containsMatch || bestDistance <= threshold;
-        var relevance = CalculateRelevanceScore(bestDistance, originalQuery.Length, bestFieldLength, containsMatch);
+        var include = containsMatch || hasFuzzyMatch || bestDistance <= threshold;
+        var relevance = CalculateRelevanceScore(bestDistance, queryLength, bestFieldLength, containsMatch);
+        var orderedMatches = tokens.Select(token => tokenMatches[token]).ToList();
 
         return new BottleCandidate
         {
             Bottle = bottle,
             Include = include,
             ContainsMatch = containsMatch,
-            MatchedFields = matchedFields,
+            MatchedFields = matchedFieldsList,
             BestDistance = bestDistance,
             RelevanceScore = relevance,
-            TastingNotePreview = BuildTastingNotePreview(bottle.TastingNotes, originalQuery)
+            TastingNotePreview = BuildTastingNotePreview(orderedMatches),
+            TokenMatches = orderedMatches
         };
     }
 
@@ -185,53 +289,42 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
         return Math.Max(0, Math.Min(1.0, score));
     }
 
-    private static string? BuildTastingNotePreview(IEnumerable<TastingNote>? tastingNotes, string query)
+    private static string? BuildTastingNotePreview(IEnumerable<TokenMatch> tokenMatches)
     {
-        if (tastingNotes is null)
+        foreach (var match in tokenMatches)
         {
-            return null;
+            foreach (var snippet in match.TastingNoteSnippets)
+            {
+                if (!string.IsNullOrWhiteSpace(snippet.Snippet))
+                {
+                    return snippet.Snippet;
+                }
+            }
         }
 
-        string? fallback = null;
-
-        foreach (var note in tastingNotes)
-        {
-            if (string.IsNullOrWhiteSpace(note.Note))
-            {
-                continue;
-            }
-
-            var snippet = CreateTastingNoteSnippet(note.Note, query, out var containsQuery);
-            if (containsQuery && !string.IsNullOrWhiteSpace(snippet))
-            {
-                return snippet;
-            }
-
-            fallback ??= snippet;
-        }
-
-        return fallback;
+        return null;
     }
 
-    private static string? CreateTastingNoteSnippet(string tastingNote, string query, out bool containsQuery)
+    private static string? CreateTastingNoteSnippet(string tastingNote, string token, out bool containsToken)
     {
         var trimmed = tastingNote.Trim();
         if (trimmed.Length == 0)
         {
-            containsQuery = false;
+            containsToken = false;
             return null;
         }
 
-        var index = trimmed.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+        var compareInfo = CultureInfo.InvariantCulture.CompareInfo;
+        var index = compareInfo.IndexOf(trimmed, token, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace);
         if (index < 0)
         {
-            containsQuery = false;
+            containsToken = false;
             return trimmed.Length <= 160 ? trimmed : trimmed.Substring(0, 160) + "…";
         }
 
-        containsQuery = true;
+        containsToken = true;
         var start = Math.Max(0, index - 40);
-        var end = Math.Min(trimmed.Length, index + query.Length + 40);
+        var end = Math.Min(trimmed.Length, index + token.Length + 40);
         var snippet = trimmed.Substring(start, end - start).Trim();
         if (start > 0)
         {
@@ -244,6 +337,47 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
         }
 
         return snippet;
+    }
+
+    private static string NormalizeForComparison(string value)
+    {
+        var normalized = value.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(normalized.Length);
+
+        foreach (var ch in normalized)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(ch);
+            if (category != UnicodeCategory.NonSpacingMark)
+            {
+                sb.Append(char.ToLowerInvariant(ch));
+            }
+        }
+
+        return sb.ToString().Normalize(NormalizationForm.FormC).Trim();
+    }
+
+    private static List<QueryToken> TokenizeQuery(string query)
+    {
+        var tokens = new List<QueryToken>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var raw in TokenSeparatorRegex.Split(query))
+        {
+            var trimmed = raw.Trim();
+            if (trimmed.Length == 0)
+            {
+                continue;
+            }
+
+            var normalized = NormalizeForComparison(trimmed);
+            if (normalized.Length == 0 || !seen.Add(normalized))
+            {
+                continue;
+            }
+
+            tokens.Add(new QueryToken(trimmed, normalized));
+        }
+
+        return tokens;
     }
 
     private static int CalculateLevenshteinDistance(string source, string target)
@@ -286,6 +420,8 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
 
         return distance[sourceLength, targetLength];
     }
+
+    private static readonly Regex TokenSeparatorRegex = new("[,;\\s]+", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public object GetToolDefinition()
     {
@@ -394,6 +530,20 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
                                     ["totalMatches"] = new Dictionary<string, object> { ["type"] = "integer" },
                                     ["count"] = new Dictionary<string, object> { ["type"] = "integer" },
                                     ["limit"] = new Dictionary<string, object> { ["type"] = "integer" },
+                                    ["normalizedQuery"] = new Dictionary<string, object> { ["type"] = "string" },
+                                    ["tokens"] = new Dictionary<string, object>
+                                    {
+                                        ["type"] = "array",
+                                        ["items"] = new Dictionary<string, object>
+                                        {
+                                            ["type"] = "object",
+                                            ["properties"] = new Dictionary<string, object>
+                                            {
+                                                ["original"] = new Dictionary<string, object> { ["type"] = "string" },
+                                                ["normalized"] = new Dictionary<string, object> { ["type"] = "string" }
+                                            }
+                                        }
+                                    },
                                     ["results"] = new Dictionary<string, object>
                                     {
                                         ["type"] = "array",
@@ -411,7 +561,47 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
                                                 ["containsMatch"] = new Dictionary<string, object> { ["type"] = "boolean" },
                                                 ["relevanceScore"] = new Dictionary<string, object> { ["type"] = "number" },
                                                 ["bestDistance"] = new Dictionary<string, object> { ["type"] = "integer" },
-                                                ["tastingNotePreview"] = new Dictionary<string, object> { ["type"] = "string", ["nullable"] = true }
+                                                ["tastingNotePreview"] = new Dictionary<string, object> { ["type"] = "string", ["nullable"] = true },
+                                                ["tokenMatches"] = new Dictionary<string, object>
+                                                {
+                                                    ["type"] = "array",
+                                                    ["items"] = new Dictionary<string, object>
+                                                    {
+                                                        ["type"] = "object",
+                                                        ["properties"] = new Dictionary<string, object>
+                                                        {
+                                                            ["token"] = new Dictionary<string, object> { ["type"] = "string" },
+                                                            ["normalizedToken"] = new Dictionary<string, object> { ["type"] = "string" },
+                                                            ["fields"] = new Dictionary<string, object>
+                                                            {
+                                                                ["type"] = "array",
+                                                                ["items"] = new Dictionary<string, object>
+                                                                {
+                                                                    ["type"] = "object",
+                                                                    ["properties"] = new Dictionary<string, object>
+                                                                    {
+                                                                        ["field"] = new Dictionary<string, object> { ["type"] = "string" },
+                                                                        ["matchType"] = new Dictionary<string, object> { ["type"] = "string" }
+                                                                    }
+                                                                }
+                                                            },
+                                                            ["tastingNotes"] = new Dictionary<string, object>
+                                                            {
+                                                                ["type"] = "array",
+                                                                ["items"] = new Dictionary<string, object>
+                                                                {
+                                                                    ["type"] = "object",
+                                                                    ["properties"] = new Dictionary<string, object>
+                                                                    {
+                                                                        ["noteId"] = new Dictionary<string, object> { ["type"] = "string", ["format"] = "uuid" },
+                                                                        ["matchType"] = new Dictionary<string, object> { ["type"] = "string" },
+                                                                        ["snippet"] = new Dictionary<string, object> { ["type"] = "string" }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -428,8 +618,8 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
     {
         Name = Name,
         Title = "Search bottles",
-        Description = Description,
-        InputSchema = JsonDocument.Parse("""
+            Description = Description,
+            InputSchema = JsonDocument.Parse("""
         {
           "type": "object",
           "properties": {
@@ -559,5 +749,57 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
         public required int BestDistance { get; init; }
         public required double RelevanceScore { get; init; }
         public string? TastingNotePreview { get; init; }
+        public required List<TokenMatch> TokenMatches { get; init; }
+    }
+
+    private sealed class QueryToken
+    {
+        public QueryToken(string original, string normalized)
+        {
+            Original = original;
+            Normalized = normalized;
+        }
+
+        public string Original { get; }
+        public string Normalized { get; }
+    }
+
+    private sealed class TokenMatch
+    {
+        public TokenMatch(QueryToken token)
+        {
+            Token = token;
+        }
+
+        public QueryToken Token { get; }
+        public List<FieldMatch> FieldMatches { get; } = new();
+        public List<TastingNoteSnippet> TastingNoteSnippets { get; } = new();
+        public bool HasMatches => FieldMatches.Count > 0 || TastingNoteSnippets.Count > 0;
+    }
+
+    private sealed class FieldMatch
+    {
+        public required string Field { get; init; }
+        public required string MatchType { get; init; }
+    }
+
+    private sealed class TastingNoteSnippet
+    {
+        public TastingNoteSnippet(Guid noteId, string snippet, string matchType)
+        {
+            NoteId = noteId;
+            Snippet = snippet;
+            MatchType = matchType;
+        }
+
+        public Guid NoteId { get; }
+        public string Snippet { get; }
+        public string MatchType { get; }
+    }
+
+    private static class MatchTypes
+    {
+        public const string Substring = "substring";
+        public const string Fuzzy = "fuzzy";
     }
 }
