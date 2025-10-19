@@ -99,17 +99,61 @@ public class WineInventoryController : Controller
             .ThenBy(b => b.WineVintage.Vintage)
             .ThenBy(b => b.Id);
 
-        var items = orderedWithTies
-            .Select(b => new WineInventoryBottleViewModel
+        var groupedBottles = orderedWithTies
+            .GroupBy(b => b.WineVintageId)
+            .Select(group =>
             {
-                Id = b.Id,
-                WineName = b.WineVintage.Wine.Name,
-                Appellation = b.WineVintage.Wine.Appellation?.Name,
-                Vintage = b.WineVintage.Vintage,
-                Color = b.WineVintage.Wine.Color.ToString(),
-                IsDrunk = b.IsDrunk,
-                AverageScore = averageScores.TryGetValue(b.WineVintageId, out var avg) ? avg : null
+                var firstBottle = group.First();
+                var totalCount = group.Count();
+                var drunkCount = group.Count(b => b.IsDrunk);
+
+                var (statusLabel, statusClass) = drunkCount switch
+                {
+                    var d when d == 0 => ("Cellared", "cellared"),
+                    var d when d == totalCount => ("Drunk", "drunk"),
+                    _ => ("Mixed", "mixed")
+                };
+
+                return new WineInventoryBottleViewModel
+                {
+                    WineVintageId = group.Key,
+                    WineName = firstBottle.WineVintage.Wine.Name,
+                    Appellation = firstBottle.WineVintage.Wine.Appellation?.Name,
+                    Vintage = firstBottle.WineVintage.Vintage,
+                    Color = firstBottle.WineVintage.Wine.Color.ToString(),
+                    BottleCount = totalCount,
+                    StatusLabel = statusLabel,
+                    StatusCssClass = statusClass,
+                    AverageScore = averageScores.TryGetValue(group.Key, out var avg) ? avg : null
+                };
             })
+            .ToList();
+
+        IOrderedEnumerable<WineInventoryBottleViewModel> orderedGroups = normalizedSortField switch
+        {
+            "appellation" => descending
+                ? groupedBottles.OrderByDescending(b => b.Appellation)
+                : groupedBottles.OrderBy(b => b.Appellation),
+            "vintage" => descending
+                ? groupedBottles.OrderByDescending(b => b.Vintage)
+                : groupedBottles.OrderBy(b => b.Vintage),
+            "color" => descending
+                ? groupedBottles.OrderByDescending(b => b.Color)
+                : groupedBottles.OrderBy(b => b.Color),
+            "status" => descending
+                ? groupedBottles.OrderByDescending(b => b.StatusLabel)
+                : groupedBottles.OrderBy(b => b.StatusLabel),
+            "score" => descending
+                ? groupedBottles.OrderByDescending(b => b.AverageScore)
+                : groupedBottles.OrderBy(b => b.AverageScore),
+            _ => descending
+                ? groupedBottles.OrderByDescending(b => b.WineName)
+                : groupedBottles.OrderBy(b => b.WineName)
+        };
+
+        var items = orderedGroups
+            .ThenBy(b => b.WineName)
+            .ThenBy(b => b.Vintage)
             .ToList();
 
         var viewModel = new WineInventoryViewModel
@@ -154,12 +198,14 @@ public class WineInventoryViewModel
 
 public class WineInventoryBottleViewModel
 {
-    public Guid Id { get; set; }
+    public Guid WineVintageId { get; set; }
     public string WineName { get; set; } = string.Empty;
     public string? Appellation { get; set; }
     public int Vintage { get; set; }
     public string Color { get; set; } = string.Empty;
-    public bool IsDrunk { get; set; }
+    public int BottleCount { get; set; }
+    public string StatusLabel { get; set; } = string.Empty;
+    public string StatusCssClass { get; set; } = string.Empty;
     public decimal? AverageScore { get; set; }
 }
 
