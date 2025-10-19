@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Data;
 using AllMCPSolution.Models;
@@ -7,6 +8,7 @@ namespace AllMCPSolution.Repositories;
 public interface IBottleRepository
 {
     Task<List<Bottle>> GetAllAsync(CancellationToken ct = default);
+    Task<List<Bottle>> GetAllWithTastingNotesAsync(CancellationToken ct = default);
     Task<Bottle?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task AddAsync(Bottle bottle, CancellationToken ct = default);
     Task UpdateAsync(Bottle bottle, CancellationToken ct = default);
@@ -21,7 +23,18 @@ public class BottleRepository : IBottleRepository
 
     public async Task<List<Bottle>> GetAllAsync(CancellationToken ct = default)
     {
-        return await _db.Bottles
+        return await BuildBottleQuery()
+            .ToListAsync(ct);
+    }
+
+    public Task<List<Bottle>> GetAllWithTastingNotesAsync(CancellationToken ct = default)
+    {
+        return GetAllAsync(ct);
+    }
+
+    private IQueryable<Bottle> BuildBottleQuery()
+    {
+        return _db.Bottles
             .AsNoTracking()
             .Include(b => b.TastingNotes)
                 .ThenInclude(tn => tn.User)
@@ -33,8 +46,7 @@ public class BottleRepository : IBottleRepository
             .Include(b => b.WineVintage)
                 .ThenInclude(wv => wv.EvolutionScores)
             .OrderBy(b => b.WineVintage.Wine.Name)
-            .ThenBy(b => b.WineVintage.Vintage)
-            .ToListAsync(ct);
+            .ThenBy(b => b.WineVintage.Vintage);
     }
 
     public async Task<Bottle?> GetByIdAsync(Guid id, CancellationToken ct = default)

@@ -15,7 +15,8 @@ public class WineInventoryController : Controller
 {
     private readonly IBottleRepository _bottleRepository;
 
-    public WineInventoryController(IBottleRepository bottleRepository)
+    public WineInventoryController(
+        IBottleRepository bottleRepository)
     {
         _bottleRepository = bottleRepository;
     }
@@ -29,49 +30,33 @@ public class WineInventoryController : Controller
         [FromQuery] string? sortDir,
         CancellationToken cancellationToken)
     {
-        var bottles = await _bottleRepository.GetAllAsync(cancellationToken);
+        var bottles = await _bottleRepository.GetAllWithTastingNotesAsync(cancellationToken);
 
-        var averageScores = bottles
+        var bottleGroups = bottles
             .GroupBy(b => b.WineVintageId)
-            .Select(group =>
+            .ToList();
+
+        var averageScores = bottleGroups
+            .Select(group => new
             {
-                var tastingScores = group
-                    .SelectMany(b => b.TastingNotes)
-                    .Select(tn => tn.Score)
+                group.Key,
+                Scores = group
+                    .Where(bottle => bottle.IsDrunk)
+                    .SelectMany(bottle => bottle.TastingNotes)
+                    .Select(note => note.Score)
                     .Where(score => score.HasValue && score.Value > 0)
                     .Select(score => score.Value)
-                    .ToList();
-
-                if (tastingScores.Count > 0)
-                {
-                    var average = tastingScores.Average();
-                    return new
-                    {
-                        group.Key,
-                        Average = (decimal?)decimal.Round(average, 1, MidpointRounding.AwayFromZero)
-                    };
-                }
-
-                var firstBottle = group.First();
-                var evolutionScores = firstBottle.WineVintage?.EvolutionScores?
-                    .Select(es => es.Score)
-                    .Where(score => score > 0)
-                    .ToList();
-
-                if (evolutionScores is { Count: > 0 })
-                {
-                    var average = evolutionScores.Average();
-                    return new
-                    {
-                        group.Key,
-                        Average = (decimal?)decimal.Round(average, 1, MidpointRounding.AwayFromZero)
-                    };
-                }
-
-                return new { group.Key, Average = (decimal?)null };
+                    .ToList()
             })
-            .Where(x => x.Average.HasValue)
-            .ToDictionary(x => x.Key, x => x.Average);
+            .Where(entry => entry.Scores.Count > 0)
+            .ToDictionary(
+                entry => entry.Key,
+                entry => decimal.Round(entry.Scores.Average(), 1, MidpointRounding.AwayFromZero));
+
+        decimal? GetAverageScore(Guid wineVintageId) =>
+            averageScores.TryGetValue(wineVintageId, out var avg)
+                ? avg
+                : null;
 
         var normalizedStatus = string.IsNullOrWhiteSpace(status) ? "all" : status.Trim().ToLowerInvariant();
         WineColor? filterColor = null;
@@ -122,8 +107,8 @@ public class WineInventoryController : Controller
                 ? query.OrderByDescending(b => b.IsDrunk)
                 : query.OrderBy(b => b.IsDrunk),
             "score" => descending
-                ? query.OrderByDescending(b => averageScores.TryGetValue(b.WineVintageId, out var avg) ? avg : null)
-                : query.OrderBy(b => averageScores.TryGetValue(b.WineVintageId, out var avg) ? avg : null),
+                ? query.OrderByDescending(b => GetAverageScore(b.WineVintageId))
+                : query.OrderBy(b => GetAverageScore(b.WineVintageId)),
             _ => descending
                 ? query.OrderByDescending(b => b.WineVintage.Wine.Name)
                 : query.OrderBy(b => b.WineVintage.Wine.Name)
@@ -159,7 +144,7 @@ public class WineInventoryController : Controller
                     BottleCount = totalCount,
                     StatusLabel = statusLabel,
                     StatusCssClass = statusClass,
-                    AverageScore = averageScores.TryGetValue(group.Key, out var avg) ? avg : null
+                    AverageScore = GetAverageScore(group.Key)
                 };
             })
             .ToList();
