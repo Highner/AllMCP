@@ -10,7 +10,7 @@ using ModelContextProtocol.Server;
 namespace AllMCPSolution.Tools;
 
 [McpTool("list_artists", "Lists all artists and exposes a reusable UI resource.")]
-public sealed class ListArtistsTool : IToolBase, IMcpTool, IResourceProvider
+public sealed class ListArtistsTool //: IToolBase, IMcpTool, IResourceProvider
 {
     private readonly IArtistRepository _artists;
     private const string UiUri = "ui://artists/list.html";
