@@ -347,6 +347,29 @@ namespace AllMCPSolution.Migrations
                     b.ToTable("WineVintages");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.WineVintageEvolutionScore", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Score")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("WineVintageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WineVintageId", "Year")
+                        .IsUnique();
+
+                    b.ToTable("WineVintageEvolutionScores");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.Appellation", b =>
                 {
                     b.HasOne("AllMCPSolution.Models.Region", "Region")
@@ -443,6 +466,17 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("Wine");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.WineVintageEvolutionScore", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.WineVintage", "WineVintage")
+                        .WithMany("EvolutionScores")
+                        .HasForeignKey("WineVintageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WineVintage");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.Appellation", b =>
                 {
                     b.Navigation("Wines");
@@ -481,6 +515,8 @@ namespace AllMCPSolution.Migrations
             modelBuilder.Entity("AllMCPSolution.Models.WineVintage", b =>
                 {
                     b.Navigation("Bottles");
+
+                    b.Navigation("EvolutionScores");
                 });
 #pragma warning restore 612, 618
         }

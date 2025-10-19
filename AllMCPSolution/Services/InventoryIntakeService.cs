@@ -402,7 +402,7 @@ public sealed class InventoryIntakeService
 
             if (score is not null && (score < 0 || score > 100))
             {
-                errors.Add("'score' must be between 0 and 100.");
+                errors.Add("'score' must be between 0 and 10.");
             }
 
             if (errors.Count > 0)
