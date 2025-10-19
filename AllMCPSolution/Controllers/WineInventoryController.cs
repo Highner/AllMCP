@@ -30,7 +30,7 @@ public class WineInventoryController : Controller
         [FromQuery] string? sortDir,
         CancellationToken cancellationToken)
     {
-        var bottles = await _bottleRepository.GetAllAsync(cancellationToken);
+        var bottles = await _bottleRepository.GetAllWithTastingNotesAsync(cancellationToken);
 
         var bottleGroups = bottles
             .GroupBy(b => b.WineVintageId)
