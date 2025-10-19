@@ -1,5 +1,4 @@
-
-
+using System.Collections;
 using System.Text.Json;
 
 using AllMCPSolution.Data;
@@ -83,6 +82,34 @@ public static class ParameterHelpers
     public static string? GetStringParameter(Dictionary<string, object>? parameters, string camelCase, string snakeCase)
     {
         return GetStringParameterInternal(parameters, camelCase, snakeCase);
+    }
+
+    public static IReadOnlyList<string>? GetStringArrayParameter(Dictionary<string, object>? parameters, string camelCase, string snakeCase)
+    {
+        if (parameters == null)
+        {
+            return null;
+        }
+
+        if (parameters.ContainsKey(camelCase))
+        {
+            var result = ConvertToStringList(parameters[camelCase]);
+            if (result != null)
+            {
+                return result;
+            }
+        }
+
+        if (parameters.ContainsKey(snakeCase))
+        {
+            var result = ConvertToStringList(parameters[snakeCase]);
+            if (result != null)
+            {
+                return result;
+            }
+        }
+
+        return null;
     }
 
     public static decimal? GetDecimalParameter(Dictionary<string, object>? parameters, string camelCase, string snakeCase)
@@ -217,6 +244,74 @@ public static class ParameterHelpers
         {
             return "Filter by category (partial match)";
         }
+    }
+
+    private static IReadOnlyList<string>? ConvertToStringList(object? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (value is JsonElement jsonElement)
+        {
+            switch (jsonElement.ValueKind)
+            {
+                case JsonValueKind.Null:
+                case JsonValueKind.Undefined:
+                    return null;
+                case JsonValueKind.Array:
+                    var arrayItems = new List<string>();
+                    foreach (var item in jsonElement.EnumerateArray())
+                    {
+                        if (item.ValueKind == JsonValueKind.Null || item.ValueKind == JsonValueKind.Undefined)
+                        {
+                            continue;
+                        }
+
+                        arrayItems.Add(item.ToString());
+                    }
+
+                    return arrayItems.Count > 0 ? arrayItems : null;
+                default:
+                    var singleValue = jsonElement.ToString();
+                    return string.IsNullOrWhiteSpace(singleValue)
+                        ? null
+                        : new List<string> { singleValue };
+            }
+        }
+
+        if (value is string str)
+        {
+            return string.IsNullOrWhiteSpace(str)
+                ? null
+                : new List<string> { str };
+        }
+
+        if (value is IEnumerable enumerable)
+        {
+            var list = new List<string>();
+            foreach (var item in enumerable)
+            {
+                if (item == null)
+                {
+                    continue;
+                }
+
+                var text = item.ToString();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    list.Add(text);
+                }
+            }
+
+            return list.Count > 0 ? list : null;
+        }
+
+        var valueText = value.ToString();
+        return string.IsNullOrWhiteSpace(valueText)
+            ? null
+            : new List<string> { valueText };
     }
 
     /// <summary>

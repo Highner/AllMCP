@@ -67,10 +67,21 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
             return new { success = false, error = "Search query did not contain any searchable terms" };
         }
 
+        var countryFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "countries", "countries"));
+        var regionFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "regions", "regions"));
+        var appellationFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "appellations", "appellations"));
+        var wineNameFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "wineNames", "wine_names"));
+        var grapeVarietyFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "grapeVarieties", "grape_varieties"));
+        var vintageFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "vintages", "vintages"));
+        var structuredFilters = new StructuredFilters(countryFilters, regionFilters, appellationFilters, wineNameFilters, grapeVarietyFilters, vintageFilters);
+
         var normalizedQuery = string.Join(" ", tokens.Select(t => t.Normalized));
         var bottles = await _bottles.GetAllAsync(CancellationToken.None);
+        var filteredBottles = structuredFilters.HasFilters
+            ? bottles.Where(bottle => MatchesStructuredFilters(bottle, structuredFilters)).ToList()
+            : bottles;
 
-        var candidates = bottles
+        var candidates = filteredBottles
             .Select(bottle => EvaluateBottle(bottle, tokens, threshold))
             .Where(candidate => candidate.Include)
             .OrderBy(candidate => candidate.ContainsMatch ? 0 : 1)
@@ -272,6 +283,112 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
         };
     }
 
+    private static bool MatchesStructuredFilters(Bottle bottle, StructuredFilters filters)
+    {
+        if (!filters.HasFilters)
+        {
+            return true;
+        }
+
+        var wineVintage = bottle.WineVintage;
+        var wine = wineVintage?.Wine;
+
+        if (filters.Countries.Count > 0)
+        {
+            var candidate = NormalizeFieldValue(wine?.Appellation?.Region?.Country?.Name);
+            if (candidate is null || !filters.Countries.Contains(candidate))
+            {
+                return false;
+            }
+        }
+
+        if (filters.Regions.Count > 0)
+        {
+            var candidate = NormalizeFieldValue(wine?.Appellation?.Region?.Name);
+            if (candidate is null || !filters.Regions.Contains(candidate))
+            {
+                return false;
+            }
+        }
+
+        if (filters.Appellations.Count > 0)
+        {
+            var candidate = NormalizeFieldValue(wine?.Appellation?.Name);
+            if (candidate is null || !filters.Appellations.Contains(candidate))
+            {
+                return false;
+            }
+        }
+
+        if (filters.WineNames.Count > 0)
+        {
+            var candidate = NormalizeFieldValue(wine?.Name);
+            if (candidate is null || !filters.WineNames.Contains(candidate))
+            {
+                return false;
+            }
+        }
+
+        if (filters.GrapeVarieties.Count > 0)
+        {
+            var candidate = NormalizeFieldValue(wine?.GrapeVariety);
+            if (candidate is null || !filters.GrapeVarieties.Contains(candidate))
+            {
+                return false;
+            }
+        }
+
+        if (filters.Vintages.Count > 0)
+        {
+            var candidate = wineVintage?.Vintage;
+            var normalized = candidate.HasValue
+                ? NormalizeFieldValue(candidate.Value.ToString(CultureInfo.InvariantCulture))
+                : null;
+            if (normalized is null || !filters.Vintages.Contains(normalized))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static HashSet<string> NormalizeFilterValues(IReadOnlyList<string>? values)
+    {
+        var normalized = new HashSet<string>(StringComparer.Ordinal);
+        if (values is null)
+        {
+            return normalized;
+        }
+
+        foreach (var value in values)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            var normalizedValue = NormalizeForComparison(value);
+            if (normalizedValue.Length > 0)
+            {
+                normalized.Add(normalizedValue);
+            }
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeFieldValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = NormalizeForComparison(value);
+        return normalized.Length == 0 ? null : normalized;
+    }
+
     private static double CalculateRelevanceScore(int distance, int queryLength, int fieldLength, bool containsMatch)
     {
         if (containsMatch)
@@ -457,6 +574,42 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
                         minimum = 1,
                         maximum = 100,
                         @default = 25
+                    },
+                    countries = new
+                    {
+                        type = "array",
+                        description = "Optional list of countries. Matches if the bottle country equals any value (case-insensitive).",
+                        items = new { type = "string" }
+                    },
+                    regions = new
+                    {
+                        type = "array",
+                        description = "Optional list of regions. Matches if the bottle region equals any value (case-insensitive).",
+                        items = new { type = "string" }
+                    },
+                    appellations = new
+                    {
+                        type = "array",
+                        description = "Optional list of appellations. Matches if the bottle appellation equals any value (case-insensitive).",
+                        items = new { type = "string" }
+                    },
+                    wineNames = new
+                    {
+                        type = "array",
+                        description = "Optional list of wine names. Matches if the bottle wine name equals any value (case-insensitive).",
+                        items = new { type = "string" }
+                    },
+                    grapeVarieties = new
+                    {
+                        type = "array",
+                        description = "Optional list of grape varieties. Matches if the bottle grape variety equals any value (case-insensitive).",
+                        items = new { type = "string" }
+                    },
+                    vintages = new
+                    {
+                        type = "array",
+                        description = "Optional list of vintages. Matches if the bottle vintage equals any value (case-insensitive).",
+                        items = new { type = "string" }
                     }
                 },
                 required = new[] { "query" }
@@ -509,6 +662,108 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
                         ["maximum"] = 100
                     },
                     ["description"] = "Maximum number of results to return"
+                },
+                new Dictionary<string, object>
+                {
+                    ["name"] = "countries",
+                    ["in"] = "query",
+                    ["required"] = false,
+                    ["schema"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "array",
+                        ["items"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "string"
+                        }
+                    },
+                    ["style"] = "form",
+                    ["explode"] = true,
+                    ["description"] = "Optional list of countries. Matches if the bottle country equals any value."
+                },
+                new Dictionary<string, object>
+                {
+                    ["name"] = "regions",
+                    ["in"] = "query",
+                    ["required"] = false,
+                    ["schema"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "array",
+                        ["items"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "string"
+                        }
+                    },
+                    ["style"] = "form",
+                    ["explode"] = true,
+                    ["description"] = "Optional list of regions. Matches if the bottle region equals any value."
+                },
+                new Dictionary<string, object>
+                {
+                    ["name"] = "appellations",
+                    ["in"] = "query",
+                    ["required"] = false,
+                    ["schema"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "array",
+                        ["items"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "string"
+                        }
+                    },
+                    ["style"] = "form",
+                    ["explode"] = true,
+                    ["description"] = "Optional list of appellations. Matches if the bottle appellation equals any value."
+                },
+                new Dictionary<string, object>
+                {
+                    ["name"] = "wineNames",
+                    ["in"] = "query",
+                    ["required"] = false,
+                    ["schema"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "array",
+                        ["items"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "string"
+                        }
+                    },
+                    ["style"] = "form",
+                    ["explode"] = true,
+                    ["description"] = "Optional list of wine names. Matches if the bottle wine name equals any value."
+                },
+                new Dictionary<string, object>
+                {
+                    ["name"] = "grapeVarieties",
+                    ["in"] = "query",
+                    ["required"] = false,
+                    ["schema"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "array",
+                        ["items"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "string"
+                        }
+                    },
+                    ["style"] = "form",
+                    ["explode"] = true,
+                    ["description"] = "Optional list of grape varieties. Matches if the bottle grape variety equals any value."
+                },
+                new Dictionary<string, object>
+                {
+                    ["name"] = "vintages",
+                    ["in"] = "query",
+                    ["required"] = false,
+                    ["schema"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "array",
+                        ["items"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "string"
+                        }
+                    },
+                    ["style"] = "form",
+                    ["explode"] = true,
+                    ["description"] = "Optional list of vintages. Matches if the bottle vintage equals any value."
                 }
             },
             ["responses"] = new Dictionary<string, object>
@@ -633,16 +888,58 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
               "minimum": 0,
               "default": 3
             },
-            "limit": {
-              "type": "integer",
-              "description": "Maximum number of results to return (default: 25, max: 100)",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 25
-            }
-          },
-          "required": ["query"]
-        }
+              "limit": {
+                "type": "integer",
+                "description": "Maximum number of results to return (default: 25, max: 100)",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 25
+              },
+              "countries": {
+                "type": "array",
+                "description": "Optional list of countries. Matches if the bottle country equals any value (case-insensitive).",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "regions": {
+                "type": "array",
+                "description": "Optional list of regions. Matches if the bottle region equals any value (case-insensitive).",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "appellations": {
+                "type": "array",
+                "description": "Optional list of appellations. Matches if the bottle appellation equals any value (case-insensitive).",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "wineNames": {
+                "type": "array",
+                "description": "Optional list of wine names. Matches if the bottle wine name equals any value (case-insensitive).",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "grapeVarieties": {
+                "type": "array",
+                "description": "Optional list of grape varieties. Matches if the bottle grape variety equals any value (case-insensitive).",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "vintages": {
+                "type": "array",
+                "description": "Optional list of vintages. Matches if the bottle vintage equals any value (case-insensitive).",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["query"]
+          }
         """).RootElement
     };
 
@@ -738,6 +1035,39 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
                     : null
             };
         }
+    }
+
+    private sealed class StructuredFilters
+    {
+        public StructuredFilters(
+            HashSet<string> countries,
+            HashSet<string> regions,
+            HashSet<string> appellations,
+            HashSet<string> wineNames,
+            HashSet<string> grapeVarieties,
+            HashSet<string> vintages)
+        {
+            Countries = countries;
+            Regions = regions;
+            Appellations = appellations;
+            WineNames = wineNames;
+            GrapeVarieties = grapeVarieties;
+            Vintages = vintages;
+            HasFilters = countries.Count > 0
+                || regions.Count > 0
+                || appellations.Count > 0
+                || wineNames.Count > 0
+                || grapeVarieties.Count > 0
+                || vintages.Count > 0;
+        }
+
+        public bool HasFilters { get; }
+        public HashSet<string> Countries { get; }
+        public HashSet<string> Regions { get; }
+        public HashSet<string> Appellations { get; }
+        public HashSet<string> WineNames { get; }
+        public HashSet<string> GrapeVarieties { get; }
+        public HashSet<string> Vintages { get; }
     }
 
     private sealed class BottleCandidate
