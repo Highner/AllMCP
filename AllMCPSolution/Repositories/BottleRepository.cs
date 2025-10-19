@@ -11,6 +11,7 @@ public interface IBottleRepository
     Task AddAsync(Bottle bottle, CancellationToken ct = default);
     Task UpdateAsync(Bottle bottle, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
+    Task<List<ActiveBottleLocation>> GetActiveBottleLocationsAsync(CancellationToken ct = default);
 }
 
 public class BottleRepository : IBottleRepository
@@ -70,5 +71,27 @@ public class BottleRepository : IBottleRepository
 
         _db.Bottles.Remove(entity);
         await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<ActiveBottleLocation>> GetActiveBottleLocationsAsync(CancellationToken ct = default)
+    {
+        return await _db.Bottles
+            .AsNoTracking()
+            .Where(b => !b.IsDrunk)
+            .Select(b => new ActiveBottleLocation(
+                b.WineVintage.Wine.Appellation != null && b.WineVintage.Wine.Appellation.Region != null
+                    ? b.WineVintage.Wine.Appellation.Region.Id
+                    : (Guid?)null,
+                b.WineVintage.Wine.Appellation != null && b.WineVintage.Wine.Appellation.Region != null
+                    ? b.WineVintage.Wine.Appellation.Region.Name
+                    : null,
+                b.WineVintage.Wine.Appellation != null
+                    ? b.WineVintage.Wine.Appellation.Id
+                    : (Guid?)null,
+                b.WineVintage.Wine.Appellation != null
+                    ? b.WineVintage.Wine.Appellation.Name
+                    : null,
+                (int?)b.WineVintage.Vintage))
+            .ToListAsync(ct);
     }
 }
