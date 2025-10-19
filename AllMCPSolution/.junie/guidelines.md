@@ -43,8 +43,4 @@ These guidelines define mandatory practices for this repository.
   - Validate inputs early; return informative error messages in structured results when appropriate.
   - Throw McpException with a suitable McpErrorCode for MCP-specific validation errors; do not leak internal exceptions.
 
-- Testing (strongly recommended).
-  - Unit-test repositories independently of tools.
-  - Add integration tests that cover: OpenAPI /tools/{name} invocation and MCP list_tools + call_tool for the same tool to ensure parity.
-
 Feel free to extend this document with additional conventions (naming, testing, error handling) as the project evolves.
