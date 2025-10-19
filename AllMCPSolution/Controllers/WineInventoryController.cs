@@ -135,6 +135,7 @@ public class WineInventoryController : Controller
             }
         };
 
+        Response.ContentType = "text/html; charset=utf-8";
         return View("Index", viewModel);
     }
 }
