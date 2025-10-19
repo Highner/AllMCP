@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -31,11 +32,46 @@ public class WineInventoryController : Controller
         var bottles = await _bottleRepository.GetAllAsync(cancellationToken);
 
         var averageScores = bottles
-            .SelectMany(b => b.TastingNotes
-                .Where(tn => tn.Score.HasValue)
-                .Select(tn => new { b.WineVintageId, Score = tn.Score!.Value }))
-            .GroupBy(x => x.WineVintageId)
-            .ToDictionary(g => g.Key, g => (decimal?)g.Average(x => x.Score));
+            .GroupBy(b => b.WineVintageId)
+            .Select(group =>
+            {
+                var tastingScores = group
+                    .SelectMany(b => b.TastingNotes)
+                    .Select(tn => tn.Score)
+                    .Where(score => score.HasValue && score.Value > 0)
+                    .Select(score => score.Value)
+                    .ToList();
+
+                if (tastingScores.Count > 0)
+                {
+                    var average = tastingScores.Average();
+                    return new
+                    {
+                        group.Key,
+                        Average = decimal.Round(average, 1, MidpointRounding.AwayFromZero)
+                    };
+                }
+
+                var firstBottle = group.First();
+                var evolutionScores = firstBottle.WineVintage?.EvolutionScores?
+                    .Select(es => es.Score)
+                    .Where(score => score > 0)
+                    .ToList();
+
+                if (evolutionScores is { Count: > 0 })
+                {
+                    var average = evolutionScores.Average();
+                    return new
+                    {
+                        group.Key,
+                        Average = decimal.Round(average, 1, MidpointRounding.AwayFromZero)
+                    };
+                }
+
+                return new { group.Key, Average = (decimal?)null };
+            })
+            .Where(x => x.Average.HasValue)
+            .ToDictionary(x => x.Key, x => x.Average);
 
         var normalizedStatus = string.IsNullOrWhiteSpace(status) ? "all" : status.Trim().ToLowerInvariant();
         WineColor? filterColor = null;
