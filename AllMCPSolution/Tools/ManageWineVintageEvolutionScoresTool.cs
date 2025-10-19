@@ -7,7 +7,7 @@ using AllMCPSolution.Models;
 
 namespace AllMCPSolution.Tools;
 
-[McpTool("manage_wine_vintage_evolution_scores", "Adds, reads, removes, or replaces wine vintage evolution scores for a wine.")]
+[McpTool("manage_wine_vintage_evolution_scores", "Reads, removes, or creates/replaces wine vintage evolution scores for a wine.")]
 public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
 {
     private readonly IWineRepository _wineRepository;
@@ -25,7 +25,7 @@ public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
     }
 
     public override string Name => "manage_wine_vintage_evolution_scores";
-    public override string Description => "Adds, reads, removes, or replaces wine vintage evolution scores for a wine.";
+    public override string Description => "Reads, removes, or creates/replaces wine vintage evolution scores for a wine.";
     public override string Title => "Manage Wine Vintage Evolution Scores";
     protected override string InvokingMessage => "Managing wine vintage evolution scores…";
     protected override string InvokedMessage => "Wine vintage evolution score operation completed.";
@@ -53,10 +53,9 @@ public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
         return operation switch
         {
             "read" => await ReadScoresAsync(wine, parameters, ct),
-            "add" => await AddScoresAsync(wine, parameters, ct),
             "remove" => await RemoveScoresAsync(wine, parameters, ct),
-            "replace" => await ReplaceScoresAsync(wine, parameters, ct),
-            _ => Failure("validate", $"Unsupported operation '{operation}'.", new[] { "Supported operations: read, add, remove, replace." })
+            "create_or_replace" => await CreateOrReplaceScoresAsync(wine, parameters, ct),
+            _ => Failure("validate", $"Unsupported operation '{operation}'.", new[] { "Supported operations: read, remove, create_or_replace." })
         };
     }
 
@@ -83,36 +82,6 @@ public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
         }
 
         return Success("read", $"Retrieved {filtered.Count} evolution score(s) for wine '{wine.Name}'.", BuildResponse(wine, filtered));
-    }
-
-    private async Task<CrudOperationResult> AddScoresAsync(Wine wine, Dictionary<string, object>? parameters, CancellationToken ct)
-    {
-        var (provided, payloads, errors) = ParseScorePayloads(parameters);
-        if (!provided)
-        {
-            return Failure("validate", "'scores' is required for add operations.", new[] { "'scores' is required for add operations." });
-        }
-
-        if (errors.Count > 0)
-        {
-            return Failure("validate", "One or more score entries could not be parsed.", errors);
-        }
-
-        if (payloads.Count == 0)
-        {
-            return Failure("validate", "At least one score entry must be provided for add operations.", new[] { "Provide one or more score objects under 'scores'." });
-        }
-
-        var preparation = await PrepareScoreEntitiesAsync(wine, payloads, createMissingWineVintage: true, ct);
-        if (preparation.Errors.Count > 0)
-        {
-            return Failure("validate", "One or more score entries are invalid.", preparation.Errors);
-        }
-
-        await _scoreRepository.UpsertRangeAsync(preparation.Scores, ct);
-        var refreshed = await _scoreRepository.GetByWineIdAsync(wine.Id, ct);
-
-        return Success("add", $"Recorded {preparation.Scores.Count} evolution score(s) for wine '{wine.Name}'.", BuildResponse(wine, refreshed));
     }
 
     private async Task<CrudOperationResult> RemoveScoresAsync(Wine wine, Dictionary<string, object>? parameters, CancellationToken ct)
@@ -145,12 +114,12 @@ public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
         return Success("remove", $"Removed {removal.Keys.Count} evolution score(s) from wine '{wine.Name}'.", BuildResponse(wine, refreshed));
     }
 
-    private async Task<CrudOperationResult> ReplaceScoresAsync(Wine wine, Dictionary<string, object>? parameters, CancellationToken ct)
+    private async Task<CrudOperationResult> CreateOrReplaceScoresAsync(Wine wine, Dictionary<string, object>? parameters, CancellationToken ct)
     {
         var (provided, payloads, errors) = ParseScorePayloads(parameters);
         if (!provided)
         {
-            return Failure("validate", "'scores' is required for replace operations.", new[] { "'scores' is required for replace operations." });
+            return Failure("validate", "'scores' is required for create_or_replace operations.", new[] { "'scores' is required for create_or_replace operations." });
         }
 
         if (errors.Count > 0)
@@ -169,9 +138,9 @@ public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
 
         var message = payloads.Count == 0
             ? $"Cleared all evolution scores for wine '{wine.Name}'."
-            : $"Replaced evolution scores for wine '{wine.Name}' with {preparation.Scores.Count} entries.";
+            : $"Created or replaced evolution scores for wine '{wine.Name}' with {preparation.Scores.Count} entries.";
 
-        return Success("replace", message, BuildResponse(wine, refreshed));
+        return Success("create_or_replace", message, BuildResponse(wine, refreshed));
     }
 
     private async Task<(bool Success, Wine? Wine, CrudOperationResult? Result)> ResolveWineAsync(Guid? wineId, string? wineName, string? appellation, CancellationToken ct)
@@ -574,8 +543,8 @@ public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
                 ["operation"] = new JsonObject
                 {
                     ["type"] = "string",
-                    ["description"] = "Operation to perform. Supported values: read, add, remove, replace.",
-                    ["enum"] = new JsonArray("read", "add", "remove", "replace")
+                    ["description"] = "Operation to perform. Supported values: read, remove, create_or_replace.",
+                    ["enum"] = new JsonArray("read", "remove", "create_or_replace")
                 },
                 ["wineId"] = new JsonObject
                 {
@@ -606,7 +575,7 @@ public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
                 ["scores"] = new JsonObject
                 {
                     ["type"] = "array",
-                    ["description"] = "Array of score objects. Each object must include 'year' and either 'wineVintageId' or 'vintage'. 'score' is required for add/replace operations.",
+                    ["description"] = "Array of score objects. Each object must include 'year' and either 'wineVintageId' or 'vintage'. 'score' is required for create_or_replace operations.",
                     ["items"] = new JsonObject
                     {
                         ["type"] = "object",
