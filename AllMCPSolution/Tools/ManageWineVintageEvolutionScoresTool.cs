@@ -402,8 +402,8 @@ public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
                 }
             }
 
-            var element = JsonSerializer.SerializeToElement(dict);
-            return ConvertFromJsonElement(element);
+            var serializedElement = JsonSerializer.SerializeToElement(dict);
+            return ConvertFromJsonElement(serializedElement);
         }
 
         if (raw is IEnumerable enumerable)
