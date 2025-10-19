@@ -539,7 +539,7 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
 
         message.Append("Update the request to follow that hierarchy and try again.");
 
-        throw new McpException(message.ToString(), McpErrorCode.InvalidArguments);
+        throw new McpException(message.ToString(), McpErrorCode.InvalidParams);
     }
 
     private static double CalculateRelevanceScore(int distance, int queryLength, int fieldLength, bool containsMatch)
