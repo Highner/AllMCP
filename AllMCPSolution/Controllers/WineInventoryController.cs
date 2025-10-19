@@ -48,7 +48,7 @@ public class WineInventoryController : Controller
                     return new
                     {
                         group.Key,
-                        Average = decimal.Round(average, 1, MidpointRounding.AwayFromZero)
+                        Average = (decimal?)decimal.Round(average, 1, MidpointRounding.AwayFromZero)
                     };
                 }
 
@@ -64,7 +64,7 @@ public class WineInventoryController : Controller
                     return new
                     {
                         group.Key,
-                        Average = decimal.Round(average, 1, MidpointRounding.AwayFromZero)
+                        Average = (decimal?)decimal.Round(average, 1, MidpointRounding.AwayFromZero)
                     };
                 }
 
