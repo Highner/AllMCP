@@ -19,6 +19,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Appellation> Appellations { get; set; }
     public DbSet<Wine> Wines { get; set; }
     public DbSet<WineVintage> WineVintages { get; set; }
+    public DbSet<WineVintageEvolutionScore> WineVintageEvolutionScores { get; set; }
     public DbSet<Bottle> Bottles { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<TastingNote> TastingNotes { get; set; }
@@ -79,6 +80,20 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             e.HasIndex(wv => new { wv.WineId, wv.Vintage })
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<WineVintageEvolutionScore>(e =>
+        {
+            e.Property(ev => ev.Score).HasColumnType("decimal(18,2)");
+            e.Property(ev => ev.Year).IsRequired();
+
+            e.HasOne(ev => ev.WineVintage)
+                .WithMany(wv => wv.EvolutionScores)
+                .HasForeignKey(ev => ev.WineVintageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(ev => new { ev.WineVintageId, ev.Year })
                 .IsUnique();
         });
 
