@@ -67,16 +67,29 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
             return new { success = false, error = "Search query did not contain any searchable terms" };
         }
 
-        var countryFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "countries", "countries"));
-        var regionFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "regions", "regions"));
-        var appellationFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "appellations", "appellations"));
-        var wineNameFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "wineNames", "wine_names"));
-        var grapeVarietyFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "grapeVarieties", "grape_varieties"));
-        var vintageFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "vintages", "vintages"));
-        var structuredFilters = new StructuredFilters(countryFilters, regionFilters, appellationFilters, wineNameFilters, grapeVarietyFilters, vintageFilters);
+        var countryFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "countries", "countries"), out _);
+        var regionFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "regions", "regions"), out var regionOriginalValues);
+        var appellationFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "appellations", "appellations"), out var appellationOriginalValues);
+        var wineNameFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "wineNames", "wine_names"), out _);
+        var grapeVarietyFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "grapeVarieties", "grape_varieties"), out _);
+        var vintageFilters = NormalizeFilterValues(ParameterHelpers.GetStringArrayParameter(parameters, "vintages", "vintages"), out _);
 
         var normalizedQuery = string.Join(" ", tokens.Select(t => t.Normalized));
         var bottles = await _bottles.GetAllAsync(CancellationToken.None);
+        var (knownRegionNames, knownRegionExamples) = BuildKnownNameCatalog(bottles.Select(b => b.WineVintage?.Wine?.Appellation?.Region?.Name));
+        var (knownAppellationNames, knownAppellationExamples) = BuildKnownNameCatalog(bottles.Select(b => b.WineVintage?.Wine?.Appellation?.Name));
+
+        ValidateRegionAppellationFilters(
+            regionFilters,
+            appellationFilters,
+            knownRegionNames,
+            knownAppellationNames,
+            regionOriginalValues,
+            appellationOriginalValues,
+            knownRegionExamples,
+            knownAppellationExamples);
+
+        var structuredFilters = new StructuredFilters(countryFilters, regionFilters, appellationFilters, wineNameFilters, grapeVarietyFilters, vintageFilters);
         var filteredBottles = structuredFilters.HasFilters
             ? bottles.Where(bottle => MatchesStructuredFilters(bottle, structuredFilters)).ToList()
             : bottles;
@@ -353,9 +366,10 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
         return true;
     }
 
-    private static HashSet<string> NormalizeFilterValues(IReadOnlyList<string>? values)
+    private static HashSet<string> NormalizeFilterValues(IReadOnlyList<string>? values, out Dictionary<string, string> normalizedToOriginal)
     {
         var normalized = new HashSet<string>(StringComparer.Ordinal);
+        normalizedToOriginal = new Dictionary<string, string>(StringComparer.Ordinal);
         if (values is null)
         {
             return normalized;
@@ -368,10 +382,15 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
                 continue;
             }
 
-            var normalizedValue = NormalizeForComparison(value);
+            var trimmed = value.Trim();
+            var normalizedValue = NormalizeForComparison(trimmed);
             if (normalizedValue.Length > 0)
             {
                 normalized.Add(normalizedValue);
+                if (!normalizedToOriginal.ContainsKey(normalizedValue))
+                {
+                    normalizedToOriginal[normalizedValue] = trimmed;
+                }
             }
         }
 
@@ -387,6 +406,140 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
 
         var normalized = NormalizeForComparison(value);
         return normalized.Length == 0 ? null : normalized;
+    }
+
+    private static (HashSet<string> Normalized, List<string> DisplayNames) BuildKnownNameCatalog(IEnumerable<string?> names)
+    {
+        var normalized = new HashSet<string>(StringComparer.Ordinal);
+        var displaySet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var displayNames = new List<string>();
+
+        foreach (var name in names)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            var trimmed = name.Trim();
+            if (displaySet.Add(trimmed))
+            {
+                displayNames.Add(trimmed);
+            }
+
+            var normalizedName = NormalizeForComparison(trimmed);
+            if (normalizedName.Length > 0)
+            {
+                normalized.Add(normalizedName);
+            }
+        }
+
+        displayNames.Sort(StringComparer.OrdinalIgnoreCase);
+        return (normalized, displayNames);
+    }
+
+    private static void ValidateRegionAppellationFilters(
+        HashSet<string> regionFilters,
+        HashSet<string> appellationFilters,
+        HashSet<string> knownRegionNames,
+        HashSet<string> knownAppellationNames,
+        IReadOnlyDictionary<string, string> regionOriginalValues,
+        IReadOnlyDictionary<string, string> appellationOriginalValues,
+        IReadOnlyList<string> knownRegionExamples,
+        IReadOnlyList<string> knownAppellationExamples)
+    {
+        if (regionFilters.Count == 0 && appellationFilters.Count == 0)
+        {
+            return;
+        }
+
+        var incorrectRegions = new List<string>();
+        if (knownAppellationNames.Count > 0)
+        {
+            foreach (var filter in regionFilters)
+            {
+                var looksLikeAppellation = knownAppellationNames.Contains(filter);
+                var alsoKnownRegion = knownRegionNames.Count > 0 && knownRegionNames.Contains(filter);
+                if (looksLikeAppellation && !alsoKnownRegion)
+                {
+                    incorrectRegions.Add(regionOriginalValues.TryGetValue(filter, out var original) ? original : filter);
+                }
+            }
+        }
+
+        var incorrectAppellations = new List<string>();
+        if (knownRegionNames.Count > 0)
+        {
+            foreach (var filter in appellationFilters)
+            {
+                var looksLikeRegion = knownRegionNames.Contains(filter);
+                var alsoKnownAppellation = knownAppellationNames.Count > 0 && knownAppellationNames.Contains(filter);
+                if (looksLikeRegion && !alsoKnownAppellation)
+                {
+                    incorrectAppellations.Add(appellationOriginalValues.TryGetValue(filter, out var original) ? original : filter);
+                }
+            }
+        }
+
+        if (incorrectRegions.Count == 0 && incorrectAppellations.Count == 0)
+        {
+            return;
+        }
+
+        var message = new StringBuilder();
+        message.Append("Some location filters look like they belong to the wrong hierarchy level. ");
+
+        if (incorrectRegions.Count > 0)
+        {
+            message.Append("Move these values from 'regions' to 'appellations': ");
+            message.Append(string.Join(", ", incorrectRegions));
+            message.Append(". ");
+        }
+
+        if (incorrectAppellations.Count > 0)
+        {
+            message.Append("Move these values from 'appellations' to 'regions': ");
+            message.Append(string.Join(", ", incorrectAppellations));
+            message.Append(". ");
+        }
+
+        if (knownRegionExamples.Count > 0)
+        {
+            var regionSample = string.Join(", ", knownRegionExamples.Take(5));
+            if (knownRegionExamples.Count > 5)
+            {
+                regionSample += ", …";
+            }
+
+            message.Append("Regions cover broad areas such as ");
+            message.Append(regionSample);
+            message.Append(". ");
+        }
+        else
+        {
+            message.Append("Regions cover broad areas such as Bordeaux, Burgundy, or Napa Valley. ");
+        }
+
+        if (knownAppellationExamples.Count > 0)
+        {
+            var appellationSample = string.Join(", ", knownAppellationExamples.Take(5));
+            if (knownAppellationExamples.Count > 5)
+            {
+                appellationSample += ", …";
+            }
+
+            message.Append("Appellations are specific subzones such as ");
+            message.Append(appellationSample);
+            message.Append(". ");
+        }
+        else
+        {
+            message.Append("Appellations are specific subzones such as Pomerol, Côte de Beaune, or Pauillac. ");
+        }
+
+        message.Append("Update the request to follow that hierarchy and try again.");
+
+        throw new McpException(message.ToString(), McpErrorCode.InvalidArguments);
     }
 
     private static double CalculateRelevanceScore(int distance, int queryLength, int fieldLength, bool containsMatch)
@@ -584,13 +737,13 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
                     regions = new
                     {
                         type = "array",
-                        description = "Optional list of regions. Matches if the bottle region equals any value (case-insensitive).",
+                        description = "Optional list of regions. Regions are broad winegrowing areas (e.g., Bordeaux, Burgundy, Napa Valley, Rioja). Use this for higher-level geography rather than specific appellations.",
                         items = new { type = "string" }
                     },
                     appellations = new
                     {
                         type = "array",
-                        description = "Optional list of appellations. Matches if the bottle appellation equals any value (case-insensitive).",
+                        description = "Optional list of appellations. Appellations are sub-regions within a region (e.g., Pomerol, Côte de Beaune, Pauillac, Barolo). Use this for commune/cru-level filters.",
                         items = new { type = "string" }
                     },
                     wineNames = new
@@ -695,7 +848,7 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
                     },
                     ["style"] = "form",
                     ["explode"] = true,
-                    ["description"] = "Optional list of regions. Matches if the bottle region equals any value."
+                    ["description"] = "Optional list of regions. Regions are broad winegrowing areas (e.g., Bordeaux, Burgundy, Napa Valley, Rioja) and should be used for higher-level geography."
                 },
                 new Dictionary<string, object>
                 {
@@ -712,7 +865,7 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
                     },
                     ["style"] = "form",
                     ["explode"] = true,
-                    ["description"] = "Optional list of appellations. Matches if the bottle appellation equals any value."
+                    ["description"] = "Optional list of appellations. Appellations are specific sub-regions within a region (e.g., Pomerol, Côte de Beaune, Pauillac, Barolo) and should contain the commune/cru-level filters."
                 },
                 new Dictionary<string, object>
                 {
@@ -904,14 +1057,14 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
               },
               "regions": {
                 "type": "array",
-                "description": "Optional list of regions. Matches if the bottle region equals any value (case-insensitive).",
+                "description": "Optional list of regions. Regions are broad winegrowing areas (e.g., Bordeaux, Burgundy, Napa Valley, Rioja) and should be used for higher-level geography rather than appellations.",
                 "items": {
                   "type": "string"
                 }
               },
               "appellations": {
                 "type": "array",
-                "description": "Optional list of appellations. Matches if the bottle appellation equals any value (case-insensitive).",
+                "description": "Optional list of appellations. Appellations are sub-regions within a region (e.g., Pomerol, Côte de Beaune, Pauillac, Barolo) and should contain the commune/cru-level values instead of regions.",
                 "items": {
                   "type": "string"
                 }
