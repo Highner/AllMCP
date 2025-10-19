@@ -8,7 +8,6 @@ namespace AllMCPSolution.Repositories;
 public interface IBottleRepository
 {
     Task<List<Bottle>> GetAllAsync(CancellationToken ct = default);
-    Task<List<Bottle>> GetAllWithTastingNotesAsync(CancellationToken ct = default);
     Task<Bottle?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task AddAsync(Bottle bottle, CancellationToken ct = default);
     Task UpdateAsync(Bottle bottle, CancellationToken ct = default);
@@ -26,11 +25,7 @@ public class BottleRepository : IBottleRepository
         return await BuildBottleQuery()
             .ToListAsync(ct);
     }
-
-    public Task<List<Bottle>> GetAllWithTastingNotesAsync(CancellationToken ct = default)
-    {
-        return GetAllAsync(ct);
-    }
+    
 
     private IQueryable<Bottle> BuildBottleQuery()
     {
