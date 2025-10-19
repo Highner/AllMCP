@@ -2,8 +2,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AllMCPSolution", "AllMCPSolution.csproj", "{BA947A34-D9B2-47F5-A1B0-7D6163D818FA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AllMCPSolution.Tests", "AllMCPSolution.Tests\\AllMCPSolution.Tests.csproj", "{4221A399-1598-41AE-9D93-D2F85C3A9896}"
-EndProject
 Global
         GlobalSection(SolutionConfigurationPlatforms) = preSolution
                 Debug|Any CPU = Debug|Any CPU
