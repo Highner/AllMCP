@@ -1,0 +1,244 @@
+@model AllMCPSolution.Controllers.WineInventoryViewModel
+@using Microsoft.AspNetCore.WebUtilities
+@using System.Collections.Generic
+@using System.Linq
+@{
+    Layout = null;
+    string BuildSortUrl(string field)
+    {
+        var nextDir = string.Equals(Model.SortField, field, StringComparison.OrdinalIgnoreCase) &&
+                      !string.Equals(Model.SortDirection, "desc", StringComparison.OrdinalIgnoreCase)
+            ? "desc"
+            : "asc";
+
+        var parameters = new Dictionary<string, string?>
+        {
+            ["status"] = string.Equals(Model.Status, "all", StringComparison.OrdinalIgnoreCase) ? null : Model.Status,
+            ["color"] = string.IsNullOrWhiteSpace(Model.Color) ? null : Model.Color,
+            ["search"] = string.IsNullOrWhiteSpace(Model.Search) ? null : Model.Search,
+            ["sortField"] = field,
+            ["sortDir"] = nextDir
+        };
+
+        var filtered = parameters
+            .Where(kvp => !string.IsNullOrWhiteSpace(kvp.Value))
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value!);
+
+        return QueryHelpers.AddQueryString("/wine-manager", filtered);
+    }
+
+    string SortIndicator(string field)
+    {
+        if (!string.Equals(Model.SortField, field, StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        return string.Equals(Model.SortDirection, "desc", StringComparison.OrdinalIgnoreCase) ? " ↓" : " ↑";
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wine Waves</title>
+    <style>
+        body {
+            background-color: #050505;
+            color: #f4f1ea;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 40px;
+        }
+
+        h1 {
+            font-size: 48px;
+            margin-bottom: 30px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .inventory-shell {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        .filters label {
+            display: flex;
+            flex-direction: column;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #d7d2c4;
+        }
+
+        .filters select,
+        .filters input[type="text"] {
+            margin-top: 6px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(244, 241, 234, 0.3);
+            background: rgba(10, 10, 10, 0.85);
+            color: #f4f1ea;
+            min-width: 200px;
+        }
+
+        .filters button {
+            align-self: flex-end;
+            padding: 12px 24px;
+            border-radius: 6px;
+            border: none;
+            background: #f4f1ea;
+            color: #050505;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .filters button:hover {
+            background: #d7d2c4;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        th, td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid rgba(244, 241, 234, 0.06);
+        }
+
+        th a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        th a:hover {
+            text-decoration: underline;
+        }
+
+        tbody tr:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .status-pill {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .status-pill.drunk {
+            background: rgba(255, 99, 132, 0.2);
+            color: #ff6384;
+        }
+
+        .status-pill.cellared {
+            background: rgba(75, 192, 192, 0.2);
+            color: #4bc0c0;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="inventory-shell">
+        <h1>Wine Waves</h1>
+        <form method="get" class="filters">
+            <label>
+                Status
+                <select name="status">
+                    @foreach (var option in Model.StatusOptions)
+                    {
+                        var isSelected = string.Equals(option.Value, Model.Status, StringComparison.OrdinalIgnoreCase) ||
+                                         (string.IsNullOrEmpty(option.Value) && string.Equals(Model.Status, "all", StringComparison.OrdinalIgnoreCase));
+                        <option value="@option.Value" selected="@(isSelected ? "selected" : null)">@option.Label</option>
+                    }
+                </select>
+            </label>
+            <label>
+                Color
+                <select name="color">
+                    @foreach (var option in Model.ColorOptions)
+                    {
+                        var currentColor = Model.Color ?? string.Empty;
+                        var isSelected = string.Equals(option.Value, currentColor, StringComparison.OrdinalIgnoreCase);
+                        <option value="@option.Value" selected="@(isSelected ? "selected" : null)">@option.Label</option>
+                    }
+                </select>
+            </label>
+            <label>
+                Search
+                <input type="text" name="search" value="@Model.Search" placeholder="Wine, appellation, vintage" />
+            </label>
+            <input type="hidden" name="sortField" value="@Model.SortField" />
+            <input type="hidden" name="sortDir" value="@Model.SortDirection" />
+            <button type="submit">Apply</button>
+        </form>
+
+        @if (!Model.Bottles.Any())
+        {
+            <div class="no-results">No bottles match the current filters.</div>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th><a href="@BuildSortUrl("wine")">Wine@SortIndicator("wine")</a></th>
+                        <th><a href="@BuildSortUrl("appellation")">Appellation@SortIndicator("appellation")</a></th>
+                        <th><a href="@BuildSortUrl("vintage")">Vintage@SortIndicator("vintage")</a></th>
+                        <th><a href="@BuildSortUrl("color")">Color@SortIndicator("color")</a></th>
+                        <th><a href="@BuildSortUrl("status")">Status@SortIndicator("status")</a></th>
+                        <th><a href="@BuildSortUrl("score")">Average Drunk Score@SortIndicator("score")</a></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var bottle in Model.Bottles)
+                    {
+                        var statusClass = bottle.IsDrunk ? "drunk" : "cellared";
+                        var statusLabel = bottle.IsDrunk ? "Drunk" : "Cellared";
+                        <tr>
+                            <td>@bottle.WineName</td>
+                            <td>@(string.IsNullOrEmpty(bottle.Appellation) ? "—" : bottle.Appellation)</td>
+                            <td>@bottle.Vintage</td>
+                            <td>@bottle.Color</td>
+                            <td><span class="status-pill @statusClass">@statusLabel</span></td>
+                            <td>@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</body>
+</html>
