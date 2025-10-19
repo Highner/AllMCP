@@ -27,14 +27,16 @@
         return QueryHelpers.AddQueryString("/wine-manager", filtered);
     }
 
-    string SortIndicator(string field)
+    bool IsSorted(string field) => string.Equals(Model.SortField, field, StringComparison.OrdinalIgnoreCase);
+
+    string SortStateClass(string field)
     {
-        if (!string.Equals(Model.SortField, field, StringComparison.OrdinalIgnoreCase))
+        if (!IsSorted(field))
         {
             return string.Empty;
         }
 
-        return string.Equals(Model.SortDirection, "desc", StringComparison.OrdinalIgnoreCase) ? " ↓" : " ↑";
+        return string.Equals(Model.SortDirection, "desc", StringComparison.OrdinalIgnoreCase) ? "sorted-desc" : "sorted-asc";
     }
 }
 <!DOCTYPE html>
@@ -130,6 +132,12 @@
             border-bottom: 1px solid rgba(244, 241, 234, 0.06);
         }
 
+        thead th {
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
         th a {
             color: inherit;
             text-decoration: none;
@@ -137,6 +145,32 @@
 
         th a:hover {
             text-decoration: underline;
+        }
+
+        .sort-header {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .sort-icon {
+            display: none;
+            font-size: 12px;
+        }
+
+        .sort-header.sorted-asc .sort-icon,
+        .sort-header.sorted-desc .sort-icon {
+            display: inline-block;
+        }
+
+        .sort-header.sorted-asc .sort-icon::before {
+            content: "▲";
+        }
+
+        .sort-header.sorted-desc .sort-icon::before {
+            content: "▼";
         }
 
         tbody tr:hover {
@@ -214,12 +248,42 @@
             <table>
                 <thead>
                     <tr>
-                        <th><a href="@BuildSortUrl("wine")">Wine@SortIndicator("wine")</a></th>
-                        <th><a href="@BuildSortUrl("appellation")">Appellation@SortIndicator("appellation")</a></th>
-                        <th><a href="@BuildSortUrl("vintage")">Vintage@SortIndicator("vintage")</a></th>
-                        <th><a href="@BuildSortUrl("color")">Color@SortIndicator("color")</a></th>
-                        <th><a href="@BuildSortUrl("status")">Status@SortIndicator("status")</a></th>
-                        <th><a href="@BuildSortUrl("score")">Average Drunk Score@SortIndicator("score")</a></th>
+                        <th>
+                            <a class="sort-header @SortStateClass("wine")" href="@BuildSortUrl("wine")">
+                                <span class="header-text">Wine</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
+                        <th>
+                            <a class="sort-header @SortStateClass("appellation")" href="@BuildSortUrl("appellation")">
+                                <span class="header-text">Appellation</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
+                        <th>
+                            <a class="sort-header @SortStateClass("vintage")" href="@BuildSortUrl("vintage")">
+                                <span class="header-text">Vintage</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
+                        <th>
+                            <a class="sort-header @SortStateClass("color")" href="@BuildSortUrl("color")">
+                                <span class="header-text">Color</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
+                        <th>
+                            <a class="sort-header @SortStateClass("status")" href="@BuildSortUrl("status")">
+                                <span class="header-text">Status</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
+                        <th>
+                            <a class="sort-header @SortStateClass("score")" href="@BuildSortUrl("score")">
+                                <span class="header-text">Score</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
