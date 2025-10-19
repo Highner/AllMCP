@@ -31,7 +31,6 @@ public class WineInventoryController : Controller
         var bottles = await _bottleRepository.GetAllAsync(cancellationToken);
 
         var averageScores = bottles
-            .Where(b => b.IsDrunk)
             .SelectMany(b => b.TastingNotes
                 .Where(tn => tn.Score.HasValue)
                 .Select(tn => new { b.WineVintageId, Score = tn.Score!.Value }))
