@@ -125,6 +125,7 @@ AllMCPSolution.Services.ServiceLocator.Provider = app.Services;
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+app.UseRouting();
 app.UseCors("AllowAIAgents");
 app.UseAuthorization();
 app.MapControllers();
