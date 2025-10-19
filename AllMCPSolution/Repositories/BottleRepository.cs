@@ -30,6 +30,8 @@ public class BottleRepository : IBottleRepository
                     .ThenInclude(w => w.Appellation)
                         .ThenInclude(a => a.Region)
                             .ThenInclude(r => r.Country)
+            .Include(b => b.WineVintage)
+                .ThenInclude(wv => wv.EvolutionScores)
             .OrderBy(b => b.WineVintage.Wine.Name)
             .ThenBy(b => b.WineVintage.Vintage)
             .ToListAsync(ct);
@@ -46,6 +48,8 @@ public class BottleRepository : IBottleRepository
                     .ThenInclude(w => w.Appellation)
                         .ThenInclude(a => a.Region)
                             .ThenInclude(r => r.Country)
+            .Include(b => b.WineVintage)
+                .ThenInclude(wv => wv.EvolutionScores)
             .FirstOrDefaultAsync(b => b.Id == id, ct);
     }
 
