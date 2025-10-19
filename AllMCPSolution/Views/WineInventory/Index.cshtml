@@ -196,6 +196,11 @@
             color: #4bc0c0;
         }
 
+        .status-pill.mixed {
+            background: rgba(153, 102, 255, 0.2);
+            color: #9966ff;
+        }
+
         .no-results {
             text-align: center;
             padding: 40px;
@@ -267,6 +272,9 @@
                             </a>
                         </th>
                         <th>
+                            <span class="header-text">Bottles</span>
+                        </th>
+                        <th>
                             <a class="sort-header @SortStateClass("color")" href="@BuildSortUrl("color")">
                                 <span class="header-text">Color</span>
                                 <span class="sort-icon" aria-hidden="true"></span>
@@ -289,14 +297,13 @@
                 <tbody>
                     @foreach (var bottle in Model.Bottles)
                     {
-                        var statusClass = bottle.IsDrunk ? "drunk" : "cellared";
-                        var statusLabel = bottle.IsDrunk ? "Drunk" : "Cellared";
                         <tr>
                             <td>@bottle.WineName</td>
                             <td>@(string.IsNullOrEmpty(bottle.Appellation) ? "—" : bottle.Appellation)</td>
                             <td>@bottle.Vintage</td>
+                            <td>@bottle.BottleCount</td>
                             <td>@bottle.Color</td>
-                            <td><span class="status-pill @statusClass">@statusLabel</span></td>
+                            <td><span class="status-pill @bottle.StatusCssClass">@bottle.StatusLabel</span></td>
                             <td>@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
                         </tr>
                     }
