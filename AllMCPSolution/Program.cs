@@ -10,6 +10,7 @@ using AllMCPSolution.Services;
 using AllMCPSolution.Tools;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol;
@@ -173,6 +174,11 @@ AllMCPSolution.Services.ServiceLocator.Provider = app.Services;
  //   var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
  //   db.Database.Migrate();
 //}
+
+ app.UseForwardedHeaders(new ForwardedHeadersOptions {
+     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+ });
+ app.UseHttpsRedirection();
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
