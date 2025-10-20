@@ -299,7 +299,26 @@
                     {
                         <tr>
                             <td>@bottle.WineName</td>
-                            <td>@(string.IsNullOrEmpty(bottle.Appellation) ? "—" : bottle.Appellation)</td>
+                            <td>
+                                @{
+                                    var subAppellation = string.IsNullOrWhiteSpace(bottle.SubAppellation) ? null : bottle.SubAppellation;
+                                    var appellation = string.IsNullOrWhiteSpace(bottle.Appellation) ? null : bottle.Appellation;
+                                    string display = "—";
+                                    if (!string.IsNullOrEmpty(subAppellation) && !string.IsNullOrEmpty(appellation) && !string.Equals(subAppellation, appellation, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        display = $"{subAppellation} ({appellation})";
+                                    }
+                                    else if (!string.IsNullOrEmpty(subAppellation))
+                                    {
+                                        display = subAppellation;
+                                    }
+                                    else if (!string.IsNullOrEmpty(appellation))
+                                    {
+                                        display = appellation;
+                                    }
+                                }
+                                @display
+                            </td>
                             <td>@bottle.Vintage</td>
                             <td>@bottle.BottleCount</td>
                             <td>@bottle.Color</td>

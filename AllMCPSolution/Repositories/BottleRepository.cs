@@ -35,9 +35,10 @@ public class BottleRepository : IBottleRepository
                 .ThenInclude(tn => tn.User)
             .Include(b => b.WineVintage)
                 .ThenInclude(wv => wv.Wine)
-                    .ThenInclude(w => w.Appellation)
-                        .ThenInclude(a => a.Region)
-                            .ThenInclude(r => r.Country)
+                    .ThenInclude(w => w.SubAppellation)
+                        .ThenInclude(sa => sa.Appellation)
+                            .ThenInclude(a => a.Region)
+                                .ThenInclude(r => r.Country)
             .Include(b => b.WineVintage)
                 .ThenInclude(wv => wv.EvolutionScores)
             .OrderBy(b => b.WineVintage.Wine.Name)
@@ -52,9 +53,10 @@ public class BottleRepository : IBottleRepository
                 .ThenInclude(tn => tn.User)
             .Include(b => b.WineVintage)
                 .ThenInclude(wv => wv.Wine)
-                    .ThenInclude(w => w.Appellation)
-                        .ThenInclude(a => a.Region)
-                            .ThenInclude(r => r.Country)
+                    .ThenInclude(w => w.SubAppellation)
+                        .ThenInclude(sa => sa.Appellation)
+                            .ThenInclude(a => a.Region)
+                                .ThenInclude(r => r.Country)
             .Include(b => b.WineVintage)
                 .ThenInclude(wv => wv.EvolutionScores)
             .FirstOrDefaultAsync(b => b.Id == id, ct);
@@ -90,17 +92,28 @@ public class BottleRepository : IBottleRepository
             .AsNoTracking()
             .Where(b => !b.IsDrunk)
             .Select(b => new ActiveBottleLocation(
-                b.WineVintage.Wine.Appellation != null && b.WineVintage.Wine.Appellation.Region != null
-                    ? b.WineVintage.Wine.Appellation.Region.Id
-                    : (Guid?)null,
-                b.WineVintage.Wine.Appellation != null && b.WineVintage.Wine.Appellation.Region != null
-                    ? b.WineVintage.Wine.Appellation.Region.Name
+                b.WineVintage.Wine.SubAppellation != null
+                    && b.WineVintage.Wine.SubAppellation.Appellation != null
+                    && b.WineVintage.Wine.SubAppellation.Appellation.Region != null
+                    ? (Guid?)b.WineVintage.Wine.SubAppellation.Appellation.Region.Id
                     : null,
-                b.WineVintage.Wine.Appellation != null
-                    ? b.WineVintage.Wine.Appellation.Id
-                    : (Guid?)null,
-                b.WineVintage.Wine.Appellation != null
-                    ? b.WineVintage.Wine.Appellation.Name
+                b.WineVintage.Wine.SubAppellation != null
+                    && b.WineVintage.Wine.SubAppellation.Appellation != null
+                    && b.WineVintage.Wine.SubAppellation.Appellation.Region != null
+                    ? b.WineVintage.Wine.SubAppellation.Appellation.Region.Name
+                    : null,
+                b.WineVintage.Wine.SubAppellation != null
+                    ? (Guid?)b.WineVintage.Wine.SubAppellation.AppellationId
+                    : null,
+                b.WineVintage.Wine.SubAppellation != null
+                    && b.WineVintage.Wine.SubAppellation.Appellation != null
+                    ? b.WineVintage.Wine.SubAppellation.Appellation.Name
+                    : null,
+                b.WineVintage.Wine.SubAppellation != null
+                    ? (Guid?)b.WineVintage.Wine.SubAppellation.Id
+                    : null,
+                b.WineVintage.Wine.SubAppellation != null
+                    ? b.WineVintage.Wine.SubAppellation.Name
                     : null,
                 (int?)b.WineVintage.Vintage))
             .ToListAsync(ct);

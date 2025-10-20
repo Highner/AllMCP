@@ -7,8 +7,8 @@ public class Wine
     public string GrapeVariety { get; set; } = string.Empty;
     public WineColor Color { get; set; }
 
-    public Guid AppellationId { get; set; }
-    public Appellation Appellation { get; set; } = null!;
+    public Guid SubAppellationId { get; set; }
+    public SubAppellation SubAppellation { get; set; } = null!;
 
     public ICollection<WineVintage> WineVintages { get; set; } = [];
 }

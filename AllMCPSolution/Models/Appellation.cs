@@ -8,5 +8,5 @@ public class Appellation
     public Guid RegionId { get; set; }
     public Region Region { get; set; } = null!;
 
-    public ICollection<Wine> Wines { get; set; } = [];
+    public ICollection<SubAppellation> SubAppellations { get; set; } = [];
 }

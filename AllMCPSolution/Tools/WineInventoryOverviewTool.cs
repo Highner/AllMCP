@@ -46,11 +46,33 @@ public sealed class WineInventoryOverviewTool : IToolBase, IMcpTool
                         a.AppellationId,
                         Name = string.IsNullOrWhiteSpace(a.AppellationName) ? "Unknown appellation" : a.AppellationName!.Trim()
                     })
-                    .Select(appGroup => new
+                    .Select(appGroup =>
                     {
-                        appellationId = appGroup.Key.AppellationId,
-                        appellationName = appGroup.Key.Name,
-                        count = appGroup.Count()
+                        var subAppellations = appGroup
+                            .GroupBy(sa => new
+                            {
+                                sa.SubAppellationId,
+                                Name = string.IsNullOrWhiteSpace(sa.SubAppellationName) ? "Unknown sub-appellation" : sa.SubAppellationName!.Trim()
+                            })
+                            .Select(subGroup => new
+                            {
+                                subAppellationId = subGroup.Key.SubAppellationId,
+                                subAppellationName = subGroup.Key.Name,
+                                count = subGroup.Count()
+                            })
+                            .OrderByDescending(sa => sa.count)
+                            .ThenBy(sa => sa.subAppellationName)
+                            .ToList();
+
+                        var total = subAppellations.Sum(sa => sa.count);
+
+                        return new
+                        {
+                            appellationId = appGroup.Key.AppellationId,
+                            appellationName = appGroup.Key.Name,
+                            count = total,
+                            subAppellations = subAppellations
+                        };
                     })
                     .OrderByDescending(a => a.count)
                     .ThenBy(a => a.appellationName)
@@ -61,6 +83,7 @@ public sealed class WineInventoryOverviewTool : IToolBase, IMcpTool
             .ToList();
 
         var totalAppellations = regions.Sum(r => r.appellations.Count);
+        var totalSubAppellations = regions.Sum(r => r.appellations.Sum(a => a.subAppellations.Count));
 
         var vintages = locations
             .GroupBy(l => l.Vintage)
@@ -82,6 +105,7 @@ public sealed class WineInventoryOverviewTool : IToolBase, IMcpTool
             {
                 regions = regions.Count,
                 appellations = totalAppellations,
+                subAppellations = totalSubAppellations,
                 vintages = vintages.Count
             },
             regions,
