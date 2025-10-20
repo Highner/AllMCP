@@ -148,7 +148,7 @@ app.MapControllers();
 // Map MVC routes for server-rendered views
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=WineSurfer}/{action=Index}/{id?}");
 
 // Get services
 var mcpServer = app.Services.GetRequiredService<AllMCPSolution.Services.McpServer>();
