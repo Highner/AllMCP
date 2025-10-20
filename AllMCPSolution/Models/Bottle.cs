@@ -11,5 +11,8 @@ public class Bottle
     public Guid WineVintageId { get; set; }
     public WineVintage WineVintage { get; set; } = null!;
 
+    public Guid? BottleLocationId { get; set; }
+    public BottleLocation? BottleLocation { get; set; }
+
     public ICollection<TastingNote> TastingNotes { get; set; } = [];
 }

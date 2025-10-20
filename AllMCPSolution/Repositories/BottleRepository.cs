@@ -31,6 +31,7 @@ public class BottleRepository : IBottleRepository
     {
         return _db.Bottles
             .AsNoTracking()
+            .Include(b => b.BottleLocation)
             .Include(b => b.TastingNotes)
                 .ThenInclude(tn => tn.User)
             .Include(b => b.WineVintage)
@@ -49,6 +50,7 @@ public class BottleRepository : IBottleRepository
     {
         return await _db.Bottles
             .AsNoTracking()
+            .Include(b => b.BottleLocation)
             .Include(b => b.TastingNotes)
                 .ThenInclude(tn => tn.User)
             .Include(b => b.WineVintage)
