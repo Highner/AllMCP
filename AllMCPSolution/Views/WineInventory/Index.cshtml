@@ -280,13 +280,20 @@
         .details-controls button,
         .details-table input,
         .details-table button,
-        .details-table select {
+        .details-table select,
+        .notes-table input,
+        .notes-table button,
+        .notes-table select,
+        .notes-table textarea {
             font: inherit;
         }
 
         .details-controls input,
         .details-table input,
-        .details-table select {
+        .details-table select,
+        .notes-table input,
+        .notes-table select,
+        .notes-table textarea {
             margin-top: 6px;
             padding: 8px 10px;
             border-radius: 6px;
@@ -297,7 +304,8 @@
         }
 
         .details-controls input[type="checkbox"],
-        .details-table input[type="checkbox"] {
+        .details-table input[type="checkbox"],
+        .notes-table input[type="checkbox"] {
             min-width: auto;
             width: 18px;
             height: 18px;
@@ -305,7 +313,8 @@
         }
 
         .details-controls button,
-        .details-table button {
+        .details-table button,
+        .notes-table button {
             padding: 10px 16px;
             border-radius: 6px;
             border: none;
@@ -316,12 +325,14 @@
         }
 
         .details-controls button:disabled,
-        .details-table button:disabled {
+        .details-table button:disabled,
+        .notes-table button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
 
-        .details-table {
+        .details-table,
+        .notes-table {
             width: 100%;
             border-collapse: collapse;
             background: rgba(255, 255, 255, 0.03);
@@ -330,31 +341,38 @@
         }
 
         .details-table th,
-        .details-table td {
+        .details-table td,
+        .notes-table th,
+        .notes-table td {
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid rgba(244, 241, 234, 0.05);
             font-size: 14px;
         }
 
-        .details-table thead {
+        .details-table thead,
+        .notes-table thead {
             background: rgba(255, 255, 255, 0.07);
         }
 
-        .details-table tbody tr:last-child td {
+        .details-table tbody tr:last-child td,
+        .notes-table tbody tr:last-child td {
             border-bottom: none;
         }
 
-        .details-table tbody tr.loading td {
+        .details-table tbody tr.loading td,
+        .notes-table tbody tr.loading td {
             opacity: 0.5;
         }
 
-        .details-table .actions {
+        .details-table .actions,
+        .notes-table .actions {
             display: flex;
             gap: 8px;
         }
 
-        .details-table tbody .actions button {
+        .details-table tbody .actions button,
+        .notes-table tbody .actions button {
             padding: 8px 12px;
             border-radius: 6px;
             border: 1px solid rgba(244, 241, 234, 0.2);
@@ -363,16 +381,19 @@
             cursor: pointer;
         }
 
-        .details-table tbody .actions button:hover {
+        .details-table tbody .actions button:hover,
+        .notes-table tbody .actions button:hover {
             background: rgba(244, 241, 234, 0.12);
         }
 
-        .details-table tbody .actions button.secondary {
+        .details-table tbody .actions button.secondary,
+        .notes-table tbody .actions button.secondary {
             border-color: rgba(255, 99, 132, 0.45);
             color: #ffb3c7;
         }
 
-        .details-table tbody .actions button.secondary:hover {
+        .details-table tbody .actions button.secondary:hover,
+        .notes-table tbody .actions button.secondary:hover {
             background: rgba(255, 99, 132, 0.15);
         }
 
@@ -435,7 +456,10 @@
         }
 
         .details-table .add-row input,
-        .details-table .add-row select {
+        .details-table .add-row select,
+        .notes-table .add-row input,
+        .notes-table .add-row select,
+        .notes-table .add-row textarea {
             width: 100%;
             padding: 8px 10px;
             border-radius: 6px;
@@ -446,11 +470,13 @@
             box-sizing: border-box;
         }
 
-        .details-table .add-row .actions button {
+        .details-table .add-row .actions button,
+        .notes-table .add-row .actions button {
             width: 100%;
         }
 
-        .details-table .empty-row td {
+        .details-table .empty-row td,
+        .notes-table .empty-row td {
             text-align: center;
             padding: 24px;
             color: rgba(244, 241, 234, 0.7);
@@ -462,6 +488,125 @@
             display: flex;
             gap: 8px;
             flex-direction: row;
+        }
+
+        .detail-row.selected {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .details-layout {
+            display: flex;
+            gap: 24px;
+            transition: gap 0.3s ease;
+        }
+
+        .details-main {
+            flex: 1 1 100%;
+            transition: flex-basis 0.3s ease, max-width 0.3s ease;
+        }
+
+        .details-panel.notes-visible .details-main {
+            flex-basis: 60%;
+            max-width: 60%;
+        }
+
+        .notes-panel {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            padding: 20px;
+            flex: 0 0 0;
+            max-width: 0;
+            opacity: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transition: flex-basis 0.3s ease, max-width 0.3s ease, opacity 0.3s ease;
+        }
+
+        .details-panel.notes-visible .notes-panel {
+            flex: 0 0 40%;
+            max-width: 40%;
+            opacity: 1;
+        }
+
+        .notes-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .notes-heading h3 {
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: 1px;
+        }
+
+        .notes-heading p {
+            margin: 4px 0 0 0;
+            font-size: 13px;
+            color: rgba(244, 241, 234, 0.75);
+        }
+
+        .notes-close {
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(244, 241, 234, 0.2);
+            background: transparent;
+            color: #f4f1ea;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .notes-close:hover {
+            background: rgba(244, 241, 234, 0.1);
+        }
+
+        .notes-message {
+            margin: 0;
+            padding: 10px 12px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.06);
+            display: none;
+            font-size: 13px;
+        }
+
+        .notes-message[data-state="error"] {
+            background: rgba(255, 99, 132, 0.18);
+            color: #ffb3c7;
+        }
+
+        .notes-message[data-state="success"] {
+            background: rgba(75, 192, 192, 0.2);
+            color: #a9ecec;
+        }
+
+        .notes-message[data-state="info"] {
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(244, 241, 234, 0.85);
+        }
+
+        .notes-table textarea {
+            resize: vertical;
+            min-height: 72px;
+        }
+
+        @media (max-width: 900px) {
+            .details-layout {
+                flex-direction: column;
+            }
+
+            .details-panel.notes-visible .details-main,
+            .details-panel.notes-visible .notes-panel {
+                flex-basis: 100%;
+                max-width: 100%;
+            }
+
+            .notes-panel {
+                opacity: 1;
+            }
         }
 
         .no-results {
@@ -640,52 +785,97 @@
                     <p id="details-subtitle">Select a wine group to view individual bottles.</p>
                 </header>
                 <div id="details-message" class="details-message" role="status"></div>
-                <table class="details-table" id="details-table">
-                    <thead>
-                        <tr class="add-row" id="detail-add-row" hidden>
-                            <td>
-                                <select class="detail-add-location" aria-label="Bottle location">
-                                    <option value="">No location</option>
-                                </select>
-                            </td>
-                            <td>
-                                <select class="detail-add-user" aria-label="Bottle owner">
-                                    <option value="">No user</option>
-                                </select>
-                            </td>
-                            <td>
-                                <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
-                            </td>
-                            <td class="detail-add-average" aria-label="Average score">—</td>
-                            <td>
-                                <label class="checkbox-row">
-                                    <input type="checkbox" class="detail-add-is-drunk" />
-                                    <span>No</span>
-                                </label>
-                            </td>
-                            <td>
-                                <input type="datetime-local" class="detail-add-drunk-at" aria-label="Drunk date" disabled />
-                            </td>
-                            <td class="actions">
-                                <button type="button" class="detail-add-submit">Add Bottle</button>
-                            </td>
-                        </tr>
-                        <tr class="header-row">
-                            <th scope="col">Bottle Location</th>
-                            <th scope="col">User</th>
-                            <th scope="col">Price</th>
-                            <th scope="col">Avg Score</th>
-                            <th scope="col">Drunk</th>
-                            <th scope="col">Drunk Date</th>
-                            <th scope="col">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr class="empty-row">
-                            <td colspan="6">Select a wine group to see its bottles.</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="details-layout">
+                    <div class="details-main">
+                        <table class="details-table" id="details-table">
+                            <thead>
+                                <tr class="add-row" id="detail-add-row" hidden>
+                                    <td>
+                                        <select class="detail-add-location" aria-label="Bottle location">
+                                            <option value="">No location</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select class="detail-add-user" aria-label="Bottle owner">
+                                            <option value="">No user</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
+                                    </td>
+                                    <td class="detail-add-average" aria-label="Average score">—</td>
+                                    <td>
+                                        <label class="checkbox-row">
+                                            <input type="checkbox" class="detail-add-is-drunk" />
+                                            <span>No</span>
+                                        </label>
+                                    </td>
+                                    <td>
+                                        <input type="datetime-local" class="detail-add-drunk-at" aria-label="Drunk date" disabled />
+                                    </td>
+                                    <td class="actions">
+                                        <button type="button" class="detail-add-submit">Add Bottle</button>
+                                    </td>
+                                </tr>
+                                <tr class="header-row">
+                                    <th scope="col">Bottle Location</th>
+                                    <th scope="col">User</th>
+                                    <th scope="col">Price</th>
+                                    <th scope="col">Avg Score</th>
+                                    <th scope="col">Drunk</th>
+                                    <th scope="col">Drunk Date</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="empty-row">
+                                    <td colspan="6">Select a wine group to see its bottles.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <aside class="notes-panel" id="notes-panel" aria-hidden="true">
+                        <header class="notes-header">
+                            <div class="notes-heading">
+                                <h3 id="notes-title">Consumption Notes</h3>
+                                <p id="notes-subtitle">Select a bottle to view consumption notes.</p>
+                            </div>
+                            <button type="button" id="notes-close" class="notes-close">Close</button>
+                        </header>
+                        <div id="notes-message" class="notes-message" role="status"></div>
+                        <table class="notes-table" id="notes-table">
+                            <thead>
+                                <tr class="add-row" id="note-add-row">
+                                    <td>
+                                        <select class="note-add-user" aria-label="Note author">
+                                            <option value="">Select user</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="note-add-score" step="0.1" min="0" max="10" placeholder="0-10" aria-label="Score" />
+                                    </td>
+                                    <td>
+                                        <textarea class="note-add-text" rows="3" placeholder="Tasting note" aria-label="Tasting note"></textarea>
+                                    </td>
+                                    <td class="actions">
+                                        <button type="button" class="note-add-submit">Add Note</button>
+                                    </td>
+                                </tr>
+                                <tr class="header-row">
+                                    <th scope="col">User</th>
+                                    <th scope="col">Score</th>
+                                    <th scope="col">Note</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="empty-row">
+                                    <td colspan="4">Select a bottle to view consumption notes.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </aside>
+                </div>
             </section>
         }
     </div>
@@ -699,8 +889,22 @@
             const detailsTitle = document.getElementById('details-title');
             const detailsSubtitle = document.getElementById('details-subtitle');
             const messageBanner = document.getElementById('details-message');
+            const detailsPanel = document.querySelector('.details-panel');
+            const notesPanel = document.getElementById('notes-panel');
+            const notesTable = document.getElementById('notes-table');
+            const notesBody = notesTable?.querySelector('tbody');
+            const notesAddRow = notesTable?.querySelector('#note-add-row');
+            const notesEmptyRow = notesBody?.querySelector('.empty-row');
+            const notesAddUser = notesAddRow?.querySelector('.note-add-user');
+            const notesAddScore = notesAddRow?.querySelector('.note-add-score');
+            const notesAddText = notesAddRow?.querySelector('.note-add-text');
+            const notesAddButton = notesAddRow?.querySelector('.note-add-submit');
+            const notesMessage = document.getElementById('notes-message');
+            const notesTitle = document.getElementById('notes-title');
+            const notesSubtitle = document.getElementById('notes-subtitle');
+            const notesCloseButton = document.getElementById('notes-close');
 
-            if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner) {
+            if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner || !detailsPanel || !notesPanel || !notesTable || !notesBody || !notesAddRow || !notesEmptyRow || !notesAddUser || !notesAddScore || !notesAddText || !notesAddButton || !notesMessage || !notesTitle || !notesSubtitle || !notesCloseButton) {
                 return;
             }
 
@@ -723,7 +927,10 @@
             let selectedGroupId = null;
             let selectedSummary = null;
             let selectedRow = null;
+            let notesSelectedBottleId = null;
+            let selectedDetailRowElement = null;
             let loading = false;
+            let notesLoading = false;
 
             const referenceData = {
                 subAppellations: [],
@@ -735,6 +942,7 @@
             initializeSummaryRows();
             bindSummaryAddRow();
             bindDetailAddRow();
+            bindNotesPanel();
 
             function initializeSummaryRows() {
                 const rows = Array.from(inventoryTable.querySelectorAll('tbody tr.group-row'));
@@ -911,6 +1119,27 @@
                 detailAddButton?.addEventListener('click', handleAddBottle);
             }
 
+            function bindNotesPanel() {
+                initializeNotesPanel();
+                notesCloseButton.addEventListener('click', closeNotesPanel);
+                notesAddButton.addEventListener('click', handleAddNote);
+            }
+
+            function initializeNotesPanel() {
+                if (notesAddUser) {
+                    notesAddUser.innerHTML = '';
+                    const placeholder = document.createElement('option');
+                    placeholder.value = '';
+                    placeholder.textContent = 'Select user';
+                    notesAddUser.appendChild(placeholder);
+                }
+
+                clearNotesAddInputs();
+                disableNotesAddRow(true);
+                setNotesHeader(null);
+                showNotesMessage('', 'info');
+            }
+
             async function loadReferenceData() {
                 try {
                     const response = await sendJson('/wine-manager/options', { method: 'GET' });
@@ -937,6 +1166,10 @@
                     populateSubAppellationSelect(summaryAddSubApp, summaryAddSubApp?.value ?? '');
                     populateLocationSelect(detailAddLocation, detailAddLocation?.value ?? '');
                     populateUserSelect(detailAddUser, detailAddUser?.value ?? '');
+                    populateUserSelect(notesAddUser, notesAddUser?.value ?? '');
+                    if (notesAddUser.firstElementChild) {
+                        notesAddUser.firstElementChild.textContent = 'Select user';
+                    }
                 } catch (error) {
                     showMessage(error.message, 'error');
                 }
@@ -1291,6 +1524,7 @@
                         selectedGroupId = null;
                         selectedSummary = null;
                         selectedRow = null;
+                        closeNotesPanel();
                         detailsTitle.textContent = 'Bottle Details';
                         detailsSubtitle.textContent = 'Select a wine group to view individual bottles.';
                         detailAddRow.hidden = true;
@@ -1408,22 +1642,40 @@
                     detailAddUser.value = '';
                 }
                 detailAddButton.disabled = loading;
+                populateUserSelect(notesAddUser, notesAddUser?.value ?? '');
+                if (notesAddUser.firstElementChild) {
+                    notesAddUser.firstElementChild.textContent = 'Select user';
+                }
+                disableNotesAddRow(notesLoading || !notesSelectedBottleId);
             } else {
                 detailsTitle.textContent = 'Bottle Details';
                 detailsSubtitle.textContent = 'No bottles remain for the selected group.';
                 detailAddRow.hidden = true;
-                }
+                closeNotesPanel();
+            }
 
                 detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
+                selectedDetailRowElement = null;
 
                 if (details.length === 0) {
                     emptyRow.hidden = false;
+                    closeNotesPanel();
                 } else {
                     emptyRow.hidden = true;
+                    let detailMatchFound = false;
                     details.forEach(detail => {
                         const row = buildDetailRow(detail, summary);
                         detailsBody.appendChild(row);
+                        if (notesSelectedBottleId && row.dataset.bottleId === notesSelectedBottleId) {
+                            row.classList.add('selected');
+                            selectedDetailRowElement = row;
+                            detailMatchFound = true;
+                        }
                     });
+
+                    if (notesSelectedBottleId && !detailMatchFound) {
+                        closeNotesPanel();
+                    }
                 }
 
                 if (shouldUpdateRow) {
@@ -1574,6 +1826,19 @@
                     }
                 });
 
+                row.addEventListener('click', async (event) => {
+                    if (shouldIgnoreDetailRowClick(event)) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    try {
+                        await handleDetailRowSelection(row, detail, summary);
+                    } catch (error) {
+                        showNotesMessage(error?.message ?? String(error), 'error');
+                    }
+                });
+
                 return row;
             }
 
@@ -1654,6 +1919,461 @@
                 row.querySelectorAll('input, button, select').forEach(element => {
                     element.disabled = state;
                 });
+            }
+
+            function disableNotesAddRow(disabled) {
+                if (notesAddUser) {
+                    notesAddUser.disabled = disabled;
+                }
+                if (notesAddScore) {
+                    notesAddScore.disabled = disabled;
+                }
+                if (notesAddText) {
+                    notesAddText.disabled = disabled;
+                }
+                if (notesAddButton) {
+                    notesAddButton.disabled = disabled;
+                }
+            }
+
+            function clearNotesAddInputs() {
+                if (notesAddUser) {
+                    notesAddUser.value = '';
+                }
+                if (notesAddScore) {
+                    notesAddScore.value = '';
+                }
+                if (notesAddText) {
+                    notesAddText.value = '';
+                }
+            }
+
+            function showNotesMessage(text, state) {
+                if (!notesMessage) {
+                    return;
+                }
+
+                if (!text) {
+                    notesMessage.style.display = 'none';
+                    notesMessage.textContent = '';
+                    return;
+                }
+
+                notesMessage.dataset.state = state ?? 'info';
+                notesMessage.textContent = text;
+                notesMessage.style.display = 'block';
+            }
+
+            function setNotesHeader(summary, noteCount) {
+                if (!notesTitle || !notesSubtitle) {
+                    return;
+                }
+
+                if (!summary) {
+                    notesTitle.textContent = 'Consumption Notes';
+                    notesSubtitle.textContent = 'Select a bottle to view consumption notes.';
+                    return;
+                }
+
+                const wineName = summary.wineName ?? '';
+                const vintage = summary.vintage ?? '';
+                notesTitle.textContent = wineName && vintage ? `${wineName} • ${vintage}` : wineName || 'Consumption Notes';
+
+                const parts = [];
+
+                if (typeof noteCount === 'number') {
+                    parts.push(`${noteCount} note${noteCount === 1 ? '' : 's'}`);
+                }
+
+                const owner = summary.userName ?? '';
+                if (owner) {
+                    parts.push(`Owner: ${owner}`);
+                }
+
+                const location = summary.bottleLocation ?? '';
+                if (location) {
+                    parts.push(`Location: ${location}`);
+                }
+
+                if (summary.isDrunk) {
+                    const formatted = formatDateTime(summary.drunkAt ?? '')?.replace('T', ' ');
+                    parts.push(formatted ? `Drunk at ${formatted}` : 'Drunk');
+                }
+
+                notesSubtitle.textContent = parts.length > 0 ? parts.join(' · ') : 'Consumption notes';
+            }
+
+            function setNotesLoading(state) {
+                notesLoading = state;
+                disableNotesAddRow(state || !notesSelectedBottleId);
+            }
+
+            function setNoteRowLoading(row, state) {
+                if (!row) {
+                    return;
+                }
+
+                if (state) {
+                    row.classList.add('loading');
+                } else {
+                    row.classList.remove('loading');
+                }
+
+                row.querySelectorAll('button, select, textarea, input').forEach(element => {
+                    element.disabled = state;
+                });
+            }
+
+            function shouldIgnoreDetailRowClick(event) {
+                const target = event.target;
+                return Boolean(target && target.closest('button, select, input, textarea, label, a'));
+            }
+
+            async function handleDetailRowSelection(row, detail, summary) {
+                if (!row || !detail) {
+                    return;
+                }
+
+                await referenceDataPromise;
+                await openNotesPanel(row, detail, summary);
+            }
+
+            async function openNotesPanel(row, detail, summary) {
+                const bottleId = detail?.bottleId ?? detail?.BottleId ?? row?.dataset?.bottleId;
+                if (!bottleId) {
+                    return;
+                }
+
+                notesSelectedBottleId = bottleId;
+
+                if (selectedDetailRowElement && selectedDetailRowElement !== row) {
+                    selectedDetailRowElement.classList.remove('selected');
+                }
+
+                selectedDetailRowElement = row;
+                row.classList.add('selected');
+
+                detailsPanel.classList.add('notes-visible');
+                notesPanel.setAttribute('aria-hidden', 'false');
+
+                const headerSummary = {
+                    wineName: summary?.wineName ?? summary?.WineName ?? '',
+                    vintage: summary?.vintage ?? summary?.Vintage,
+                    bottleLocation: detail?.bottleLocation ?? detail?.BottleLocation ?? '',
+                    userName: detail?.userName ?? detail?.UserName ?? '',
+                    isDrunk: Boolean(detail?.isDrunk ?? detail?.IsDrunk),
+                    drunkAt: detail?.drunkAt ?? detail?.DrunkAt ?? null
+                };
+
+                setNotesHeader(headerSummary);
+                showNotesMessage('', 'info');
+
+                populateUserSelect(notesAddUser, notesAddUser?.value ?? '');
+                if (notesAddUser.firstElementChild) {
+                    notesAddUser.firstElementChild.textContent = 'Select user';
+                }
+                clearNotesAddInputs();
+                disableNotesAddRow(notesLoading);
+
+                await loadNotesForBottle(bottleId);
+            }
+
+            async function loadNotesForBottle(bottleId) {
+                if (!notesBody) {
+                    return;
+                }
+
+                notesBody.querySelectorAll('.note-row').forEach(r => r.remove());
+                if (notesEmptyRow) {
+                    notesEmptyRow.hidden = false;
+                }
+
+                if (!bottleId) {
+                    return;
+                }
+
+                try {
+                    setNotesLoading(true);
+                    showNotesMessage('Loading consumption notes…', 'info');
+                    const response = await sendJson(`/wine-manager/bottles/${bottleId}/notes`, { method: 'GET' });
+                    renderNotes(response);
+                    showNotesMessage('', 'info');
+                } catch (error) {
+                    showNotesMessage(error.message, 'error');
+                } finally {
+                    setNotesLoading(false);
+                }
+            }
+
+            function renderNotes(data) {
+                if (!notesBody) {
+                    return;
+                }
+
+                const rawBottle = data?.bottle ?? data?.Bottle ?? null;
+                const summary = normalizeBottleNoteSummary(rawBottle);
+                const rawNotes = Array.isArray(data?.notes)
+                    ? data.notes
+                    : Array.isArray(data?.Notes)
+                        ? data.Notes
+                        : [];
+                const notes = rawNotes.map(normalizeNote).filter(Boolean);
+
+                if (summary) {
+                    setNotesHeader(summary, notes.length);
+                } else if (!notesSelectedBottleId) {
+                    setNotesHeader(null);
+                }
+
+                notesBody.querySelectorAll('.note-row').forEach(r => r.remove());
+
+                if (notes.length === 0) {
+                    if (notesEmptyRow) {
+                        notesEmptyRow.hidden = false;
+                    }
+                    return;
+                }
+
+                if (notesEmptyRow) {
+                    notesEmptyRow.hidden = true;
+                }
+
+                notes.forEach(note => {
+                    const row = buildNoteRow(note);
+                    notesBody.appendChild(row);
+                });
+            }
+
+            function buildNoteRow(note) {
+                const row = document.createElement('tr');
+                row.className = 'note-row';
+                row.dataset.noteId = note.id ?? note.Id ?? '';
+
+                const scoreValue = note.score ?? note.Score ?? '';
+                const noteText = note.note ?? note.Note ?? '';
+
+                row.innerHTML = `
+                    <td></td>
+                    <td><input type="number" class="note-score" min="0" max="10" step="0.1" value="${scoreValue}" placeholder="0-10" /></td>
+                    <td><textarea class="note-text" rows="3">${escapeHtml(noteText)}</textarea></td>
+                    <td class="actions">
+                        <button type="button" class="save-note">Save</button>
+                        <button type="button" class="secondary delete-note">Delete</button>
+                    </td>`;
+
+                const userCell = row.children[0];
+                const userSelect = document.createElement('select');
+                userSelect.className = 'note-user';
+                userSelect.setAttribute('aria-label', 'Note author');
+                populateUserSelect(userSelect, note.userId ?? note.UserId ?? '');
+                if (userSelect.firstElementChild) {
+                    userSelect.firstElementChild.textContent = 'Select user';
+                }
+                const selectedUserId = note.userId ?? note.UserId ?? '';
+                if (selectedUserId && userSelect.value !== selectedUserId) {
+                    const fallbackOption = document.createElement('option');
+                    fallbackOption.value = selectedUserId;
+                    fallbackOption.textContent = note.userName ?? note.UserName ?? selectedUserId;
+                    userSelect.appendChild(fallbackOption);
+                    userSelect.value = selectedUserId;
+                }
+                userCell.appendChild(userSelect);
+
+                const scoreInput = row.querySelector('.note-score');
+                const noteTextarea = row.querySelector('.note-text');
+                const saveButton = row.querySelector('.save-note');
+                const deleteButton = row.querySelector('.delete-note');
+
+                saveButton?.addEventListener('click', async () => {
+                    if (!notesSelectedBottleId || notesLoading) {
+                        return;
+                    }
+
+                    const noteValue = noteTextarea?.value?.trim() ?? '';
+                    if (!noteValue) {
+                        showNotesMessage('Note text is required.', 'error');
+                        return;
+                    }
+
+                    const userId = userSelect.value;
+                    if (!userId) {
+                        showNotesMessage('Select an author for the note.', 'error');
+                        return;
+                    }
+
+                    const parsedScore = parseScore(scoreInput?.value ?? '');
+                    if (parsedScore === undefined) {
+                        showNotesMessage('Score must be between 0 and 10.', 'error');
+                        return;
+                    }
+
+                    const payload = {
+                        note: noteValue,
+                        userId,
+                        score: parsedScore
+                    };
+
+                    try {
+                        setNoteRowLoading(row, true);
+                        const response = await sendJson(`/wine-manager/notes/${note.id ?? note.Id}`, {
+                            method: 'PUT',
+                            body: JSON.stringify(payload)
+                        });
+                        renderNotes(response);
+                        showNotesMessage('Note updated.', 'success');
+                    } catch (error) {
+                        showNotesMessage(error.message, 'error');
+                    } finally {
+                        setNoteRowLoading(row, false);
+                    }
+                });
+
+                deleteButton?.addEventListener('click', async () => {
+                    if (!notesSelectedBottleId || notesLoading) {
+                        return;
+                    }
+
+                    const confirmed = window.confirm('Delete this consumption note?');
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    try {
+                        setNoteRowLoading(row, true);
+                        const response = await sendJson(`/wine-manager/notes/${note.id ?? note.Id}`, {
+                            method: 'DELETE'
+                        });
+                        renderNotes(response);
+                        showNotesMessage('Note deleted.', 'success');
+                    } catch (error) {
+                        showNotesMessage(error.message, 'error');
+                    } finally {
+                        setNoteRowLoading(row, false);
+                    }
+                });
+
+                return row;
+            }
+
+            function closeNotesPanel() {
+                if (!detailsPanel || !notesPanel) {
+                    return;
+                }
+
+                if (selectedDetailRowElement) {
+                    selectedDetailRowElement.classList.remove('selected');
+                }
+
+                selectedDetailRowElement = null;
+                notesSelectedBottleId = null;
+                detailsPanel.classList.remove('notes-visible');
+                notesPanel.setAttribute('aria-hidden', 'true');
+
+                if (notesBody) {
+                    notesBody.querySelectorAll('.note-row').forEach(r => r.remove());
+                }
+
+                if (notesEmptyRow) {
+                    notesEmptyRow.hidden = false;
+                }
+
+                clearNotesAddInputs();
+                disableNotesAddRow(true);
+                setNotesHeader(null);
+                showNotesMessage('', 'info');
+            }
+
+            async function handleAddNote() {
+                if (!notesSelectedBottleId || notesLoading) {
+                    return;
+                }
+
+                const noteValue = notesAddText?.value?.trim() ?? '';
+                if (!noteValue) {
+                    showNotesMessage('Note text is required.', 'error');
+                    return;
+                }
+
+                const userId = notesAddUser?.value ?? '';
+                if (!userId) {
+                    showNotesMessage('Select an author for the note.', 'error');
+                    return;
+                }
+
+                const parsedScore = parseScore(notesAddScore?.value ?? '');
+                if (parsedScore === undefined) {
+                    showNotesMessage('Score must be between 0 and 10.', 'error');
+                    return;
+                }
+
+                const payload = {
+                    bottleId: notesSelectedBottleId,
+                    note: noteValue,
+                    userId,
+                    score: parsedScore
+                };
+
+                try {
+                    setNotesLoading(true);
+                    const response = await sendJson('/wine-manager/notes', {
+                        method: 'POST',
+                        body: JSON.stringify(payload)
+                    });
+                    renderNotes(response);
+                    showNotesMessage('Note added.', 'success');
+                    clearNotesAddInputs();
+                } catch (error) {
+                    showNotesMessage(error.message, 'error');
+                } finally {
+                    setNotesLoading(false);
+                }
+            }
+
+            function parseScore(value) {
+                if (value == null || value === '') {
+                    return null;
+                }
+
+                const parsed = Number.parseFloat(value);
+                if (!Number.isFinite(parsed)) {
+                    return undefined;
+                }
+
+                if (parsed < 0 || parsed > 10) {
+                    return undefined;
+                }
+
+                return parsed;
+            }
+
+            function normalizeBottleNoteSummary(raw) {
+                if (!raw) {
+                    return null;
+                }
+
+                return {
+                    bottleId: pick(raw, ['bottleId', 'BottleId']),
+                    wineName: pick(raw, ['wineName', 'WineName']) ?? '',
+                    vintage: pick(raw, ['vintage', 'Vintage']),
+                    bottleLocation: pick(raw, ['bottleLocation', 'BottleLocation']) ?? '',
+                    userName: pick(raw, ['userName', 'UserName']) ?? '',
+                    isDrunk: Boolean(pick(raw, ['isDrunk', 'IsDrunk'])),
+                    drunkAt: pick(raw, ['drunkAt', 'DrunkAt'])
+                };
+            }
+
+            function normalizeNote(raw) {
+                if (!raw) {
+                    return null;
+                }
+
+                return {
+                    id: pick(raw, ['id', 'Id']),
+                    note: pick(raw, ['note', 'Note']) ?? '',
+                    score: pick(raw, ['score', 'Score']),
+                    userId: pick(raw, ['userId', 'UserId']) ?? '',
+                    userName: pick(raw, ['userName', 'UserName']) ?? ''
+                };
             }
 
             function parsePrice(value) {
