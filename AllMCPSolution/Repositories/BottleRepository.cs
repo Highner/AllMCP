@@ -91,35 +91,26 @@ public class BottleRepository : IBottleRepository
         return await _db.Bottles
             .AsNoTracking()
             .Where(b => !b.IsDrunk)
-            .Select(b => new ActiveBottleLocation(
-                b.WineVintage.Wine.SubAppellation != null
+            .Select(b => new
+            {
+                SubAppellation = b.WineVintage.Wine.SubAppellation,
+                Appellation = b.WineVintage.Wine.SubAppellation != null
+                    ? b.WineVintage.Wine.SubAppellation.Appellation
+                    : null,
+                Region = b.WineVintage.Wine.SubAppellation != null
                     && b.WineVintage.Wine.SubAppellation.Appellation != null
-                    && b.WineVintage.Wine.SubAppellation.Appellation.Region != null
-                    ? (Guid?)b.WineVintage.Wine.SubAppellation.Appellation.Region.Id
-                    : null,
-                b.WineVintage.Wine.SubAppellation != null
-                    && b.WineVintage.Wine.SubAppellation.Appellation != null
-                    && b.WineVintage.Wine.SubAppellation.Appellation.Region != null
-                    ? b.WineVintage.Wine.SubAppellation.Appellation.Region.Name
-                    : null,
-                b.WineVintage.Wine.SubAppellation != null
-                    ? (Guid?)b.WineVintage.Wine.SubAppellation.AppellationId
-                    : null,
-                b.WineVintage.Wine.SubAppellation != null
-                    && b.WineVintage.Wine.SubAppellation.Appellation != null
-                    ? b.WineVintage.Wine.SubAppellation.Appellation.Name
-                    : null,
-                b.WineVintage.Wine.SubAppellation != null
-                    ? (Guid?)b.WineVintage.Wine.SubAppellation.Id
-                    : null,
-                b.WineVintage.Wine.SubAppellation != null
-                    ? b.WineVintage.Wine.SubAppellation.Name
-                    : null,
-                b.WineVintage.Wine.SubAppellation?.AppellationId,
-                b.WineVintage.Wine.SubAppellation?.Appellation?.Name,
-                b.WineVintage.Wine.SubAppellation?.Id,
-                b.WineVintage.Wine.SubAppellation?.Name,
-                (int?)b.WineVintage.Vintage))
+                        ? b.WineVintage.Wine.SubAppellation.Appellation.Region
+                        : null,
+                Vintage = b.WineVintage.Vintage
+            })
+            .Select(x => new ActiveBottleLocation(
+                x.Region != null ? (Guid?)x.Region.Id : null,
+                x.Region != null ? x.Region.Name : null,
+                x.Appellation != null ? (Guid?)x.Appellation.Id : null,
+                x.Appellation != null ? x.Appellation.Name : null,
+                x.SubAppellation != null ? (Guid?)x.SubAppellation.Id : null,
+                x.SubAppellation != null ? x.SubAppellation.Name : null,
+                (int?)x.Vintage))
             .ToListAsync(ct);
     }
 }
