@@ -396,7 +396,7 @@
             background: rgba(244, 241, 234, 0.12);
         }
 
-        .inventory-table thead tr:first-child {
+        .inventory-table thead .header-row {
             background: rgba(255, 255, 255, 0.07);
         }
 
@@ -513,7 +513,37 @@
         {
             <table id="inventory-table" class="inventory-table">
                 <thead>
-                    <tr>
+                    <tr class="add-summary-row">
+                        <td>
+                            <input type="text" class="summary-add-name" placeholder="Wine name" aria-label="Wine name" />
+                        </td>
+                        <td>
+                            <select class="summary-add-sub-app" aria-label="Sub-appellation">
+                                <option value="">Select sub-appellation</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" class="summary-add-vintage" min="1900" max="2100" placeholder="Vintage" aria-label="Vintage" />
+                        </td>
+                        <td>
+                            <input type="number" class="summary-add-count" min="1" value="1" aria-label="Initial bottle count" />
+                        </td>
+                        <td>
+                            <select class="summary-add-color" aria-label="Color">
+                                <option value="Red">Red</option>
+                                <option value="White">White</option>
+                                <option value="Rose">Rosé</option>
+                            </select>
+                        </td>
+                        <td class="summary-add-status">—</td>
+                        <td class="summary-add-score">—</td>
+                        <td>
+                            <div class="actions">
+                                <button type="button" class="summary-add-submit">Add Wine</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="header-row">
                         <th>
                             <a class="sort-header @SortStateClass("wine")" href="@BuildSortUrl("wine")">
                                 <span class="header-text">Wine</span>
@@ -556,36 +586,6 @@
                         <th>
                             <span class="header-text">Actions</span>
                         </th>
-                    </tr>
-                    <tr class="add-summary-row">
-                        <td>
-                            <input type="text" class="summary-add-name" placeholder="Wine name" aria-label="Wine name" />
-                        </td>
-                        <td>
-                            <select class="summary-add-sub-app" aria-label="Sub-appellation">
-                                <option value="">Select sub-appellation</option>
-                            </select>
-                        </td>
-                        <td>
-                            <input type="number" class="summary-add-vintage" min="1900" max="2100" placeholder="Vintage" aria-label="Vintage" />
-                        </td>
-                        <td>
-                            <input type="number" class="summary-add-count" min="1" value="1" aria-label="Initial bottle count" />
-                        </td>
-                        <td>
-                            <select class="summary-add-color" aria-label="Color">
-                                <option value="Red">Red</option>
-                                <option value="White">White</option>
-                                <option value="Rose">Rosé</option>
-                            </select>
-                        </td>
-                        <td class="summary-add-status">—</td>
-                        <td class="summary-add-score">—</td>
-                        <td>
-                            <div class="actions">
-                                <button type="button" class="summary-add-submit">Add Wine</button>
-                            </div>
-                        </td>
                     </tr>
                 </thead>
                 <tbody>
@@ -640,13 +640,6 @@
                 <div id="details-message" class="details-message" role="status"></div>
                 <table class="details-table" id="details-table">
                     <thead>
-                        <tr>
-                            <th scope="col">Bottle Location</th>
-                            <th scope="col">Price</th>
-                            <th scope="col">Drunk</th>
-                            <th scope="col">Drunk Date</th>
-                            <th scope="col">Actions</th>
-                        </tr>
                         <tr class="add-row" id="detail-add-row" hidden>
                             <td>
                                 <select class="detail-add-location" aria-label="Bottle location">
@@ -668,6 +661,13 @@
                             <td class="actions">
                                 <button type="button" class="detail-add-submit">Add Bottle</button>
                             </td>
+                        </tr>
+                        <tr class="header-row">
+                            <th scope="col">Bottle Location</th>
+                            <th scope="col">Price</th>
+                            <th scope="col">Drunk</th>
+                            <th scope="col">Drunk Date</th>
+                            <th scope="col">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
