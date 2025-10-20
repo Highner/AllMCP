@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AllMCPSolution.Controllers;
 
@@ -122,7 +122,30 @@ public class WineSurferController : Controller
             .OrderBy(point => point.Label)
             .ToList();
 
-        var model = new WineSurferLandingViewModel(highlightPoints);
+        WineSurferCurrentUser? currentUser = null;
+        if (User?.Identity?.IsAuthenticated == true)
+        {
+            var displayName = User.Identity?.Name;
+            User? domainUser = null;
+
+            if (!string.IsNullOrWhiteSpace(displayName))
+            {
+                domainUser = await _userRepository.FindByNameAsync(displayName, cancellationToken);
+            }
+
+            var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
+
+            if (!string.IsNullOrWhiteSpace(displayName) || !string.IsNullOrWhiteSpace(email) || domainUser is not null)
+            {
+                currentUser = new WineSurferCurrentUser(
+                    domainUser?.Id,
+                    displayName ?? email ?? string.Empty,
+                    email,
+                    domainUser?.TasteProfile);
+            }
+        }
+
+        var model = new WineSurferLandingViewModel(highlightPoints, currentUser);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
     }
@@ -146,48 +169,6 @@ public class WineSurferController : Controller
             .ToList();
 
         return Json(response);
-    }
-
-    [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] WineSurferLoginRequest request, CancellationToken cancellationToken)
-    {
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(ModelState);
-        }
-
-        var trimmedName = request.Name?.Trim();
-        if (string.IsNullOrWhiteSpace(trimmedName))
-        {
-            ModelState.AddModelError(nameof(request.Name), "Name is required.");
-            return ValidationProblem(ModelState);
-        }
-
-        var trimmedTasteProfile = request.TasteProfile?.Trim() ?? string.Empty;
-
-        User? user;
-        if (request.CreateIfMissing)
-        {
-            user = await _userRepository.GetOrCreateAsync(trimmedName, trimmedTasteProfile, cancellationToken);
-        }
-        else
-        {
-            user = await _userRepository.FindByNameAsync(trimmedName, cancellationToken);
-            if (user is null)
-            {
-                ModelState.AddModelError(nameof(request.Name), "We couldn't find a matching profile.");
-                return ValidationProblem(ModelState);
-            }
-
-            if (!string.IsNullOrWhiteSpace(trimmedTasteProfile) && !string.Equals(user.TasteProfile, trimmedTasteProfile, StringComparison.Ordinal))
-            {
-                user.TasteProfile = trimmedTasteProfile;
-                await _userRepository.UpdateAsync(user, cancellationToken);
-            }
-        }
-
-        var response = new WineSurferLoginResponse(user.Id, user.Name, user.TasteProfile ?? string.Empty);
-        return Ok(response);
     }
 
     private static RegionInventoryMetrics CalculateRegionInventoryMetrics(IEnumerable<Wine> wines)
@@ -262,7 +243,7 @@ public class WineSurferController : Controller
     }
 }
 
-public record WineSurferLandingViewModel(IReadOnlyList<MapHighlightPoint> HighlightPoints);
+public record WineSurferLandingViewModel(IReadOnlyList<MapHighlightPoint> HighlightPoints, WineSurferCurrentUser? CurrentUser);
 
 public record MapHighlightPoint(
     string Label,
@@ -283,17 +264,4 @@ public record RegionInventoryMetrics(
 public record RegionUserAverageScore(Guid UserId, decimal AverageScore);
 
 public record WineSurferUserSummary(Guid Id, string Name, string TasteProfile);
-
-public class WineSurferLoginRequest
-{
-    [Required]
-    [StringLength(256, MinimumLength = 1)]
-    public string Name { get; set; } = string.Empty;
-
-    [StringLength(512)]
-    public string? TasteProfile { get; set; }
-
-    public bool CreateIfMissing { get; set; }
-}
-
-public record WineSurferLoginResponse(Guid UserId, string Name, string TasteProfile);
+public record WineSurferCurrentUser(Guid? DomainUserId, string DisplayName, string? Email, string? TasteProfile);

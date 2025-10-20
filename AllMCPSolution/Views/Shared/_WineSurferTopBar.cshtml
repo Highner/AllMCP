@@ -1,7 +1,7 @@
 @using System.Linq
 @model string
 
-@{
+@{ 
     var navItems = new (string Href, string Label)[]
     {
         ("/wine-surfer", "Home"),
@@ -26,6 +26,13 @@
         ? User.Identity?.Name ?? string.Empty
         : string.Empty;
 
+    if (User?.Identity?.IsAuthenticated == true && string.IsNullOrWhiteSpace(userDisplayName))
+    {
+        userDisplayName = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+            ?? User.FindFirst("email")?.Value
+            ?? string.Empty;
+    }
+
     var avatarLetter = "?";
 
     if (!string.IsNullOrWhiteSpace(userDisplayName))
@@ -40,6 +47,15 @@
     var avatarLabel = string.IsNullOrWhiteSpace(userDisplayName)
         ? "Guest avatar"
         : $"User avatar for {userDisplayName}";
+
+    var returnUrl = string.IsNullOrWhiteSpace(Model) ? "/wine-surfer" : Model;
+    if (!returnUrl.StartsWith('/'))
+    {
+        returnUrl = "/wine-surfer";
+    }
+
+    var googleSignInUrl = Url.Action("SignInWithGoogle", "Account", new { returnUrl });
+    var microsoftSignInUrl = Url.Action("SignInWithMicrosoft", "Account", new { returnUrl });
 }
 
 <header class="top-bar">
@@ -61,7 +77,32 @@
             </div>
             <div class="menu-divider" aria-hidden="true"></div>
         }
-        <button id="authToggle" class="auth-toggle" type="button" data-auth-state="login">Log in</button>
+        <div class="menu-user">
+            @if (User?.Identity?.IsAuthenticated == true)
+            {
+                <span class="menu-user-label">Signed in as</span>
+                <span class="menu-user-name">@(string.IsNullOrWhiteSpace(userDisplayName) ? "Account" : userDisplayName)</span>
+                <form asp-controller="Account" asp-action="SignOut" method="post" class="auth-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button class="auth-toggle" type="submit" data-auth-state="logout">Sign out</button>
+                </form>
+            }
+            else
+            {
+                <span class="menu-user-label">Sign in</span>
+                <div class="menu-auth-options">
+                    @if (!string.IsNullOrEmpty(googleSignInUrl))
+                    {
+                        <a class="auth-toggle" href="@googleSignInUrl">Continue with Google</a>
+                    }
+                    @if (!string.IsNullOrEmpty(microsoftSignInUrl))
+                    {
+                        <a class="auth-toggle" href="@microsoftSignInUrl">Continue with Microsoft</a>
+                    }
+                </div>
+            }
+        </div>
     </nav>
 </header>
 <script>
