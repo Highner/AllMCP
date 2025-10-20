@@ -62,19 +62,39 @@ builder.Services.AddScoped<ITastingNoteRepository, TastingNoteRepository>();
 builder.Services.AddScoped<ISisterhoodRepository, SisterhoodRepository>();
 builder.Services.AddScoped<InventoryIntakeService>();
 
-builder.Services
-    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie()
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = "Microsoft"; // oder "Google", oder per Policy wählen
+    })
+    .AddCookie(o =>
+    {
+        o.LoginPath  = "/Account/Login";
+        o.LogoutPath = "/Account/Logout";
+        o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        // o.Cookie.SameSite = SameSiteMode.Lax; // bei Bedarf
+    })
     .AddOpenIdConnect("Google", options =>
     {
         options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
         builder.Configuration.Bind("Authentication:Google", options);
+        options.ResponseType = "code";
+        options.CallbackPath = "/signin-oidc"; // explizit, entspricht Standard
+        options.SaveTokens   = true;
     })
     .AddOpenIdConnect("Microsoft", options =>
     {
         options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
         builder.Configuration.Bind("Authentication:Microsoft", options);
+        options.ResponseType = "code";
+        options.CallbackPath = "/signin-oidc"; // explizit, entspricht Standard
+        options.SaveTokens   = true;
+        // Optional: Scopes
+        options.Scope.Add("openid");
+        options.Scope.Add("profile");
+        options.Scope.Add("email");
     });
+
 
 // Register all tools (auto-discovered by ToolRegistry)
 builder.Services.AddScoped<SearchArtistsTool>();
