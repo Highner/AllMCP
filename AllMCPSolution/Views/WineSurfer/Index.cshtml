@@ -1,6 +1,7 @@
 @model AllMCPSolution.Controllers.WineSurferLandingViewModel
 @using System.Globalization
 @using System.Linq
+@using System.Text.Json
 @{
     Layout = null;
 }
@@ -183,12 +184,13 @@
             inset: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
+            pointer-events: auto;
         }
 
         .world-map svg {
             width: 100%;
             height: 100%;
+            display: block;
         }
 
         .world-map .country {
@@ -196,46 +198,48 @@
             stroke: none;
         }
 
-        .highlight-layer {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
+        .highlight-group {
+            cursor: pointer;
         }
 
-        .highlight {
-            position: absolute;
-            width: 18px;
-            height: 18px;
-            margin-left: -9px;
-            margin-top: -9px;
-            border-radius: 999px;
-            background: rgba(244, 241, 234, 0.95);
-            box-shadow: 0 0 25px 12px rgba(244, 241, 234, 0.55);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
+        .highlight-point circle {
+            transition: r 0.25s ease, fill 0.25s ease, opacity 0.25s ease;
         }
 
-        .highlight::after {
-            content: attr(data-label);
-            position: absolute;
-            top: 22px;
-            left: 50%;
-            transform: translateX(-50%);
-            white-space: nowrap;
-            background: rgba(5, 5, 5, 0.9);
-            border: 1px solid rgba(244, 241, 234, 0.12);
-            border-radius: 999px;
-            padding: 6px 12px;
-            font-size: 11px;
-            letter-spacing: 1px;
+        .highlight-point circle.halo {
+            fill: rgba(244, 241, 234, 0.15);
+            opacity: 0.65;
+        }
+
+        .highlight-point circle.core {
+            fill: rgba(244, 241, 234, 0.9);
+        }
+
+        .highlight-point.is-hovered circle.halo,
+        .highlight-point.is-selected circle.halo {
+            opacity: 1;
+            fill: rgba(244, 241, 234, 0.35);
+        }
+
+        .highlight-point.is-hovered circle.core,
+        .highlight-point.is-selected circle.core {
+            r: 4.8;
+        }
+
+        .highlight-label {
+            font-size: 10px;
             text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.85);
+            letter-spacing: 1.5px;
+            fill: rgba(244, 241, 234, 0.82);
+            paint-order: stroke;
+            stroke: rgba(5, 5, 5, 0.8);
+            stroke-width: 2;
+            opacity: 0;
+            transition: opacity 0.25s ease;
         }
 
-        .highlight.is-visible {
+        .highlight-point.is-hovered .highlight-label,
+        .highlight-point.is-selected .highlight-label {
             opacity: 1;
         }
 
@@ -261,6 +265,16 @@
         .region-card:hover {
             transform: translateY(-4px);
             border-color: rgba(244, 241, 234, 0.35);
+        }
+
+        .region-card.is-hovered,
+        .region-card.is-selected {
+            border-color: rgba(244, 241, 234, 0.45);
+            box-shadow: 0 0 24px rgba(244, 241, 234, 0.12);
+        }
+
+        .region-card.is-selected {
+            transform: translateY(-6px);
         }
 
         .region-card .label {
@@ -294,8 +308,8 @@
                 letter-spacing: 8px;
             }
 
-            .highlight::after {
-                font-size: 10px;
+            .highlight-label {
+                font-size: 9px;
             }
         }
     </style>
@@ -315,19 +329,23 @@
         <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
         <section class="map-shell" aria-label="World map highlighting wine regions">
             <div id="map" class="world-map" role="img" aria-hidden="true"></div>
-            <div class="highlight-layer">
-                @foreach (var point in Model.HighlightPoints)
-                {
-                    var lat = point.Latitude.ToString("G", CultureInfo.InvariantCulture);
-                    var lon = point.Longitude.ToString("G", CultureInfo.InvariantCulture);
-                    <div class="highlight" data-label="@point.Label" data-lat="@lat" data-lon="@lon"></div>
-                }
-            </div>
         </section>
+        <script id="wineHighlightData" type="application/json">
+            @Html.Raw(JsonSerializer.Serialize(Model.HighlightPoints
+                .Select((point, index) => new
+                {
+                    index,
+                    point.Label,
+                    point.Country,
+                    point.Latitude,
+                    point.Longitude
+                }), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
+        </script>
         <section class="regions-panel" aria-label="Highlighted wine regions">
-            @foreach (var point in Model.HighlightPoints)
+            @for (var i = 0; i < Model.HighlightPoints.Count; i++)
             {
-                <article class="region-card">
+                var point = Model.HighlightPoints[i];
+                <article class="region-card" data-region-index="@i">
                     <span class="label">@point.Label</span>
                     @if (!string.IsNullOrWhiteSpace(point.Country))
                     {
@@ -356,6 +374,12 @@
             const width = 960;
             const height = 540;
 
+            const highlightDataElement = document.getElementById('wineHighlightData');
+            const highlightData = highlightDataElement?.textContent?.trim()?.length
+                ? JSON.parse(highlightDataElement.textContent)
+                : [];
+            highlightDataElement?.remove();
+
             const svg = d3.select(mapContainer)
                 .append('svg')
                 .attr('class', 'map-svg')
@@ -363,15 +387,32 @@
                 .attr('preserveAspectRatio', 'xMidYMid meet')
                 .attr('aria-hidden', 'true');
 
+            const mapGroup = svg.append('g')
+                .attr('class', 'map-group');
+
+            const countryLayer = mapGroup.append('g')
+                .attr('class', 'country-layer');
+
+            const highlightGroup = mapGroup.append('g')
+                .attr('class', 'highlight-group');
+
             const projection = d3.geoMercator();
             const path = d3.geoPath(projection);
-            const highlights = Array.from(document.querySelectorAll('.highlight'));
+
+            const zoomBehavior = d3.zoom()
+                .scaleExtent([1, 8])
+                .translateExtent([[0, 0], [width, height]])
+                .on('zoom', (event) => {
+                    mapGroup.attr('transform', event.transform);
+                });
+
+            svg.call(zoomBehavior).on('dblclick.zoom', null);
 
             fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
                 .then(response => response.json())
                 .then(worldData => {
                     const countries = topojson.feature(worldData, worldData.objects.countries);
-                    const latitudeLimit = 80;
+                    const latitudeLimit = 60;
                     const visibleBand = {
                         type: 'Polygon',
                         coordinates: [[
@@ -388,40 +429,116 @@
                         visibleBand
                     );
 
-                    svg.append('g')
-                        .attr('class', 'country-layer')
+                    countryLayer
                         .selectAll('path')
                         .data(countries.features)
                         .join('path')
                         .attr('class', 'country')
                         .attr('d', path);
 
-                    const positionHighlights = () => {
-                        highlights.forEach((node) => {
-                            const latitude = Number.parseFloat(node.dataset.lat ?? 'NaN');
-                            const longitude = Number.parseFloat(node.dataset.lon ?? 'NaN');
+                    const highlightPoints = highlightGroup
+                        .selectAll('g.highlight-point')
+                        .data(highlightData)
+                        .join('g')
+                        .attr('class', 'highlight-point')
+                        .attr('transform', d => {
+                            const projected = projection([d.longitude, d.latitude]);
+                            return projected ? `translate(${projected[0]}, ${projected[1]})` : null;
+                        });
 
-                            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-                                return;
-                            }
+                    highlightPoints.append('circle')
+                        .attr('class', 'halo')
+                        .attr('r', 9);
 
-                            const projected = projection([longitude, latitude]);
-                            if (!projected) {
-                                return;
-                            }
+                    highlightPoints.append('circle')
+                        .attr('class', 'core')
+                        .attr('r', 3.2);
 
-                            const [x, y] = projected;
-                            const leftPercent = (x / width) * 100;
-                            const topPercent = (y / height) * 100;
+                    highlightPoints.append('text')
+                        .attr('class', 'highlight-label')
+                        .attr('y', 16)
+                        .attr('text-anchor', 'middle')
+                        .text(d => d.label ?? '');
 
-                            node.style.left = `${leftPercent}%`;
-                            node.style.top = `${topPercent}%`;
-                            node.classList.add('is-visible');
+                    highlightPoints.append('title')
+                        .text(d => d.label ?? '');
+
+                    const regionCards = Array.from(document.querySelectorAll('.region-card'));
+
+                    let selectedIndex = null;
+
+                    const setHoveredIndex = (index) => {
+                        highlightPoints.classed('is-hovered', d => d.index === index);
+                        regionCards.forEach(card => {
+                            const cardIndex = Number(card.dataset?.regionIndex ?? -1);
+                            card.classList.toggle('is-hovered', cardIndex === index);
                         });
                     };
 
-                    positionHighlights();
-                    window.addEventListener('resize', positionHighlights);
+                    const focusOnPoint = (point) => {
+                        if (!point) {
+                            return;
+                        }
+
+                        const coordinates = projection([point.longitude, point.latitude]);
+                        if (!coordinates) {
+                            return;
+                        }
+
+                        const [x, y] = coordinates;
+                        const scale = 3.2;
+                        svg.transition()
+                            .duration(600)
+                            .call(
+                                zoomBehavior.transform,
+                                d3.zoomIdentity
+                                    .translate(width / 2, height / 2)
+                                    .scale(scale)
+                                    .translate(-x, -y)
+                            );
+                    };
+
+                    const setSelectedIndex = (index, { focus = false } = {}) => {
+                        if (index === selectedIndex) {
+                            return;
+                        }
+
+                        selectedIndex = index;
+                        highlightPoints.classed('is-selected', d => d.index === index);
+                        regionCards.forEach(card => {
+                            const cardIndex = Number(card.dataset?.regionIndex ?? -1);
+                            const isSelected = cardIndex === index;
+                            card.classList.toggle('is-selected', isSelected);
+                            if (isSelected) {
+                                card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            }
+                        });
+
+                        if (focus) {
+                            const point = highlightData.find(d => d.index === index);
+                            focusOnPoint(point);
+                        }
+                    };
+
+                    highlightPoints
+                        .on('mouseenter', (_, d) => setHoveredIndex(d.index))
+                        .on('mouseleave', () => setHoveredIndex(null))
+                        .on('click', (_, d) => setSelectedIndex(d.index, { focus: true }));
+
+                    regionCards.forEach(card => {
+                        const index = Number(card.dataset?.regionIndex ?? -1);
+                        if (!Number.isInteger(index) || index < 0) {
+                            return;
+                        }
+
+                        card.addEventListener('mouseenter', () => setHoveredIndex(index));
+                        card.addEventListener('mouseleave', () => setHoveredIndex(null));
+                        card.addEventListener('click', () => setSelectedIndex(index, { focus: true }));
+                    });
+
+                    if (highlightData.length) {
+                        setSelectedIndex(highlightData[0].index, { focus: false });
+                    }
                 })
                 .catch(error => {
                     console.error('Failed to render world map', error);
