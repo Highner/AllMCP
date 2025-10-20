@@ -516,20 +516,6 @@
     </style>
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
 </head>
-<body>
-    <header class="top-bar">
-        <div class="brand">Wine Surfer</div>
-        <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
-            <span></span>
-        </button>
-        <nav id="menuPanel" class="menu-panel" aria-hidden="true">
-            <a href="/wine-manager">Wine Inventory</a>
-            <a href="/wine-surfer/sisterhoods">Sisterhoods</a>
-        </nav>
-    </header>
-    <main>
-        <h1>Wine Surfer</h1>
-        <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
 <body class="requires-auth">
     <div id="loginOverlay" class="login-overlay" role="dialog" aria-modal="true" aria-labelledby="loginHeading">
         <section class="login-card" aria-labelledby="loginHeading">
@@ -564,68 +550,69 @@
             </button>
             <nav id="menuPanel" class="menu-panel" aria-hidden="true">
                 <a href="/wine-manager">Wine Inventory</a>
+                <a href="/wine-surfer/sisterhoods">Sisterhoods</a>
             </nav>
         </header>
         <main>
-        <h1>Wine Surfer</h1>
-        <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
-        <a id="loginContinue" class="login-continue" href="/wine-manager" hidden>Open wine manager</a>
-        <section class="map-shell" aria-label="World map highlighting wine regions">
-            <div id="map" class="world-map" role="img" aria-hidden="true"></div>
-        </section>
-        <script id="wineHighlightData" type="application/json">
-            @Html.Raw(JsonSerializer.Serialize(Model.HighlightPoints
-                .Select((point, index) => new
-                {
-                    index,
-                    point.Label,
-                    point.Country,
-                    point.Latitude,
-                    point.Longitude,
-                    point.BottlesCellared,
-                    point.BottlesConsumed,
-                    point.AverageScore
-                }), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
-        </script>
-        <section class="regions-panel" aria-label="Highlighted wine regions">
-            @for (var i = 0; i < Model.HighlightPoints.Count; i++)
-            {
-                var point = Model.HighlightPoints[i];
-                <article class="region-card" data-region-index="@i">
-                    <span class="label">@point.Label</span>
-                    @if (!string.IsNullOrWhiteSpace(point.Country))
+            <h1>Wine Surfer</h1>
+            <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
+            <a id="loginContinue" class="login-continue" href="/wine-manager" hidden>Open wine manager</a>
+            <section class="map-shell" aria-label="World map highlighting wine regions">
+                <div id="map" class="world-map" role="img" aria-hidden="true"></div>
+            </section>
+            <script id="wineHighlightData" type="application/json">
+                @Html.Raw(JsonSerializer.Serialize(Model.HighlightPoints
+                    .Select((point, index) => new
                     {
-                        <span class="country">@point.Country</span>
-                    }
-                    <dl class="inventory-overview" aria-label="Inventory overview for @point.Label">
-                        <div class="metric">
-                            <dt>Cellared</dt>
-                            <dd>@point.BottlesCellared</dd>
-                        </div>
-                        <div class="metric">
-                            <dt>Consumed</dt>
-                            <dd>@point.BottlesConsumed</dd>
-                        </div>
-                        <div class="metric">
-                            <dt>Avg. Score</dt>
-                            <dd>
-                                @(point.AverageScore.HasValue
-                                    ? point.AverageScore.Value.ToString("0.0", CultureInfo.InvariantCulture)
-                                    : "—")
-                            </dd>
-                        </div>
-                    </dl>
-                </article>
-            }
-            @if (!Model.HighlightPoints.Any())
-            {
-                <article class="region-card">
-                    <span class="label">No wine regions available yet</span>
-                    <span class="country">Add bottles to your inventory to light up the map.</span>
-                </article>
-            }
-        </section>
-    </main>
+                        index,
+                        point.Label,
+                        point.Country,
+                        point.Latitude,
+                        point.Longitude,
+                        point.BottlesCellared,
+                        point.BottlesConsumed,
+                        point.AverageScore
+                    }), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
+            </script>
+            <section class="regions-panel" aria-label="Highlighted wine regions">
+                @for (var i = 0; i < Model.HighlightPoints.Count; i++)
+                {
+                    var point = Model.HighlightPoints[i];
+                    <article class="region-card" data-region-index="@i">
+                        <span class="label">@point.Label</span>
+                        @if (!string.IsNullOrWhiteSpace(point.Country))
+                        {
+                            <span class="country">@point.Country</span>
+                        }
+                        <dl class="inventory-overview" aria-label="Inventory overview for @point.Label">
+                            <div class="metric">
+                                <dt>Cellared</dt>
+                                <dd>@point.BottlesCellared</dd>
+                            </div>
+                            <div class="metric">
+                                <dt>Consumed</dt>
+                                <dd>@point.BottlesConsumed</dd>
+                            </div>
+                            <div class="metric">
+                                <dt>Avg. Score</dt>
+                                <dd>
+                                    @(point.AverageScore.HasValue
+                                        ? point.AverageScore.Value.ToString("0.0", CultureInfo.InvariantCulture)
+                                        : "—")
+                                </dd>
+                            </div>
+                        </dl>
+                    </article>
+                }
+                @if (!Model.HighlightPoints.Any())
+                {
+                    <article class="region-card">
+                        <span class="label">No wine regions available yet</span>
+                        <span class="country">Add bottles to your inventory to light up the map.</span>
+                    </article>
+                }
+            </section>
+          </main>
     </div>
     <script>
         (function setupWineSurferLogin() {
