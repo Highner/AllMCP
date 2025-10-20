@@ -197,6 +197,28 @@ public sealed class CreateBottleTool : BottleToolBase
             {
                 ["type"] = "number",
                 ["description"] = "Optional bottle price.",
+            },
+            ["userId"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["format"] = "uuid",
+                ["description"] = "Optional identifier of the bottle owner.",
+            },
+            ["user_id"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["format"] = "uuid",
+                ["description"] = "Snake_case alias for userId.",
+            },
+            ["userName"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Optional name of the bottle owner when the id is unknown.",
+            },
+            ["user_name"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Snake_case alias for userName.",
             }
         };
 

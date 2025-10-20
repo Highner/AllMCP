@@ -649,6 +649,11 @@
                                 </select>
                             </td>
                             <td>
+                                <select class="detail-add-user" aria-label="Bottle owner">
+                                    <option value="">No user</option>
+                                </select>
+                            </td>
+                            <td>
                                 <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
                             </td>
                             <td>
@@ -666,6 +671,7 @@
                         </tr>
                         <tr class="header-row">
                             <th scope="col">Bottle Location</th>
+                            <th scope="col">User</th>
                             <th scope="col">Price</th>
                             <th scope="col">Drunk</th>
                             <th scope="col">Drunk Date</th>
@@ -674,7 +680,7 @@
                     </thead>
                     <tbody>
                         <tr class="empty-row">
-                            <td colspan="5">Select a wine group to see its bottles.</td>
+                            <td colspan="6">Select a wine group to see its bottles.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -705,6 +711,7 @@
             const summaryAddButton = summaryAddRow?.querySelector('.summary-add-submit');
 
             const detailAddLocation = detailAddRow.querySelector('.detail-add-location');
+            const detailAddUser = detailAddRow.querySelector('.detail-add-user');
             const detailAddPrice = detailAddRow.querySelector('.detail-add-price');
             const detailAddIsDrunk = detailAddRow.querySelector('.detail-add-is-drunk');
             const detailAddLabel = detailAddRow.querySelector('.checkbox-row span');
@@ -718,7 +725,8 @@
 
             const referenceData = {
                 subAppellations: [],
-                bottleLocations: []
+                bottleLocations: [],
+                users: []
             };
             const referenceDataPromise = loadReferenceData();
 
@@ -914,12 +922,19 @@
                         : Array.isArray(response?.BottleLocations)
                             ? response.BottleLocations
                             : [];
+                    const users = Array.isArray(response?.users)
+                        ? response.users
+                        : Array.isArray(response?.Users)
+                            ? response.Users
+                            : [];
 
                     referenceData.subAppellations = subApps;
                     referenceData.bottleLocations = locations;
+                    referenceData.users = users;
 
                     populateSubAppellationSelect(summaryAddSubApp, summaryAddSubApp?.value ?? '');
                     populateLocationSelect(detailAddLocation, detailAddLocation?.value ?? '');
+                    populateUserSelect(detailAddUser, detailAddUser?.value ?? '');
                 } catch (error) {
                     showMessage(error.message, 'error');
                 }
@@ -970,6 +985,37 @@
                 select.appendChild(placeholder);
 
                 referenceData.bottleLocations.forEach(option => {
+                    const id = option?.id ?? option?.Id;
+                    const name = option?.name ?? option?.Name;
+                    if (!id) {
+                        return;
+                    }
+
+                    const opt = document.createElement('option');
+                    opt.value = id;
+                    opt.textContent = name ?? id;
+                    select.appendChild(opt);
+                });
+
+                if (previousValue) {
+                    select.value = previousValue;
+                }
+            }
+
+            function populateUserSelect(select, selectedId) {
+                if (!select) {
+                    return;
+                }
+
+                const previousValue = selectedId ?? select.value ?? '';
+                select.innerHTML = '';
+
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'No user';
+                select.appendChild(placeholder);
+
+                referenceData.users.forEach(option => {
                     const id = option?.id ?? option?.Id;
                     const name = option?.name ?? option?.Name;
                     if (!id) {
@@ -1350,16 +1396,20 @@
                     detailAddPrice.value = '';
                     detailAddIsDrunk.checked = false;
                     if (detailAddLabel) {
-                        detailAddLabel.textContent = 'No';
-                    }
-                    detailAddDrunkAt.value = '';
-                    detailAddDrunkAt.setAttribute('disabled', 'disabled');
-                    populateLocationSelect(detailAddLocation, '');
-                    detailAddButton.disabled = loading;
-                } else {
-                    detailsTitle.textContent = 'Bottle Details';
-                    detailsSubtitle.textContent = 'No bottles remain for the selected group.';
-                    detailAddRow.hidden = true;
+                    detailAddLabel.textContent = 'No';
+                }
+                detailAddDrunkAt.value = '';
+                detailAddDrunkAt.setAttribute('disabled', 'disabled');
+                populateLocationSelect(detailAddLocation, '');
+                populateUserSelect(detailAddUser, '');
+                if (detailAddUser) {
+                    detailAddUser.value = '';
+                }
+                detailAddButton.disabled = loading;
+            } else {
+                detailsTitle.textContent = 'Bottle Details';
+                detailsSubtitle.textContent = 'No bottles remain for the selected group.';
+                detailAddRow.hidden = true;
                 }
 
                 detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
@@ -1409,6 +1459,7 @@
 
                 row.innerHTML = `
                     <td></td>
+                    <td></td>
                     <td><input type="number" step="0.01" min="0" class="detail-price" value="${detail.price ?? detail.Price ?? ''}" placeholder="0.00" /></td>
                     <td>
                         <label class="checkbox-row">
@@ -1423,10 +1474,26 @@
                     </td>`;
 
                 const locationCell = row.children[0];
+                const userCell = row.children[1];
                 const locationSelect = document.createElement('select');
                 locationSelect.className = 'detail-location';
                 populateLocationSelect(locationSelect, detail.bottleLocationId ?? detail.BottleLocationId ?? '');
                 locationCell.appendChild(locationSelect);
+
+                const userSelect = document.createElement('select');
+                userSelect.className = 'detail-user';
+                userSelect.setAttribute('aria-label', 'Bottle owner');
+                const selectedUserId = detail.userId ?? detail.UserId ?? '';
+                const selectedUserName = detail.userName ?? detail.UserName ?? '';
+                populateUserSelect(userSelect, selectedUserId || '');
+                if (selectedUserId && userSelect.value !== selectedUserId) {
+                    const fallbackOption = document.createElement('option');
+                    fallbackOption.value = selectedUserId;
+                    fallbackOption.textContent = selectedUserName || selectedUserId;
+                    userSelect.appendChild(fallbackOption);
+                    userSelect.value = selectedUserId;
+                }
+                userCell.appendChild(userSelect);
 
                 const drunkCheckbox = row.querySelector('.detail-is-drunk');
                 const drunkLabel = row.querySelector('.detail-is-drunk')?.nextElementSibling;
@@ -1461,7 +1528,8 @@
                         price: parsePrice(row.querySelector('.detail-price')?.value ?? ''),
                         isDrunk: drunkCheckbox?.checked ?? false,
                         drunkAt: parseDateTime(drunkInput?.value ?? ''),
-                        bottleLocationId: locationSelect.value || null
+                        bottleLocationId: locationSelect.value || null,
+                        userId: userSelect.value || null
                     };
 
                     try {
@@ -1516,7 +1584,8 @@
                     price: parsePrice(detailAddPrice.value),
                     isDrunk: detailAddIsDrunk.checked,
                     drunkAt: parseDateTime(detailAddDrunkAt.value),
-                    bottleLocationId: detailAddLocation.value || null
+                    bottleLocationId: detailAddLocation.value || null,
+                    userId: detailAddUser?.value || null
                 };
 
                 try {
@@ -1534,6 +1603,9 @@
                     detailAddDrunkAt.value = '';
                     detailAddDrunkAt.setAttribute('disabled', 'disabled');
                     detailAddLocation.value = '';
+                    if (detailAddUser) {
+                        detailAddUser.value = '';
+                    }
 
                     await renderDetails(response, true);
                     showMessage('Bottle added successfully.', 'success');
@@ -1551,6 +1623,9 @@
                 }
                 if (detailAddButton) {
                     detailAddButton.disabled = state || detailAddRow.hidden;
+                }
+                if (detailAddUser) {
+                    detailAddUser.disabled = state || detailAddRow.hidden;
                 }
             }
 
@@ -1706,6 +1781,8 @@
                     drunkAt: pick(raw, ['drunkAt', 'DrunkAt']),
                     bottleLocationId: pick(raw, ['bottleLocationId', 'BottleLocationId']),
                     bottleLocation: pick(raw, ['bottleLocation', 'BottleLocation']),
+                    userId: pick(raw, ['userId', 'UserId']),
+                    userName: pick(raw, ['userName', 'UserName']) ?? '',
                     vintage: pick(raw, ['vintage', 'Vintage']),
                     wineName: pick(raw, ['wineName', 'WineName'])
                 };

@@ -329,19 +329,8 @@ public sealed class InventoryIntakeService
 
             var wineVintage = await _wineVintageRepository.GetOrCreateAsync(wine.Id, vintage!.Value, ct);
 
-            var bottle = new Bottle
-            {
-                Id = Guid.NewGuid(),
-                WineVintageId = wineVintage.Id,
-                Price = price,
-                IsDrunk = hasBeenDrunk,
-                DrunkAt = resolvedDrunkAt
-            };
-
-            await _bottleRepository.AddAsync(bottle, ct);
-
-            TastingNote? persistedNote = null;
-            if ((score.HasValue || !string.IsNullOrWhiteSpace(tastingNote)) && (userId.HasValue || !string.IsNullOrWhiteSpace(userName)))
+            User? resolvedUser = null;
+            if (userId.HasValue || !string.IsNullOrWhiteSpace(userName))
             {
                 var userResolution = await ResolveUserAsync(userId, userName, ct);
                 if (!userResolution.Success)
@@ -352,11 +341,29 @@ public sealed class InventoryIntakeService
                         userResolution.Suggestions);
                 }
 
+                resolvedUser = userResolution.User;
+            }
+
+            var bottle = new Bottle
+            {
+                Id = Guid.NewGuid(),
+                WineVintageId = wineVintage.Id,
+                Price = price,
+                IsDrunk = hasBeenDrunk,
+                DrunkAt = resolvedDrunkAt,
+                UserId = resolvedUser?.Id
+            };
+
+            await _bottleRepository.AddAsync(bottle, ct);
+
+            TastingNote? persistedNote = null;
+            if ((score.HasValue || !string.IsNullOrWhiteSpace(tastingNote)) && resolvedUser is not null)
+            {
                 var tastingNoteEntity = new TastingNote
                 {
                     Id = Guid.NewGuid(),
                     BottleId = bottle.Id,
-                    UserId = userResolution.User!.Id,
+                    UserId = resolvedUser.Id,
                     Score = score,
                     Note = tastingNote?.Trim() ?? string.Empty,
                     Bottle = null,
@@ -367,8 +374,15 @@ public sealed class InventoryIntakeService
                 persistedNote = await _tastingNoteRepository.GetByIdAsync(tastingNoteEntity.Id, ct) ?? tastingNoteEntity;
                 if (persistedNote.User is null)
                 {
-                    persistedNote.User = userResolution.User;
+                    persistedNote.User = resolvedUser;
                 }
+            }
+
+            if ((score.HasValue || !string.IsNullOrWhiteSpace(tastingNote)) && resolvedUser is null)
+            {
+                return InventoryBottleResult.CreateFailure(
+                    "User information is required to record tasting notes.",
+                    new[] { "'userId' or 'userName' is required when providing tasting notes or scores." });
             }
 
             var created = await _bottleRepository.GetByIdAsync(bottle.Id, ct) ?? new Bottle
@@ -378,6 +392,8 @@ public sealed class InventoryIntakeService
                 Price = bottle.Price,
                 IsDrunk = bottle.IsDrunk,
                 DrunkAt = bottle.DrunkAt,
+                UserId = bottle.UserId,
+                User = resolvedUser,
                 WineVintage = wineVintage,
                 TastingNotes = []
             };

@@ -20,19 +20,22 @@ public class WineInventoryController : Controller
     private readonly IWineRepository _wineRepository;
     private readonly IWineVintageRepository _wineVintageRepository;
     private readonly ISubAppellationRepository _subAppellationRepository;
+    private readonly IUserRepository _userRepository;
 
     public WineInventoryController(
         IBottleRepository bottleRepository,
         IBottleLocationRepository bottleLocationRepository,
         IWineRepository wineRepository,
         IWineVintageRepository wineVintageRepository,
-        ISubAppellationRepository subAppellationRepository)
+        ISubAppellationRepository subAppellationRepository,
+        IUserRepository userRepository)
     {
         _bottleRepository = bottleRepository;
         _bottleLocationRepository = bottleLocationRepository;
         _wineRepository = wineRepository;
         _wineVintageRepository = wineVintageRepository;
         _subAppellationRepository = subAppellationRepository;
+        _userRepository = userRepository;
     }
 
     [HttpGet("")]
@@ -216,6 +219,7 @@ public class WineInventoryController : Controller
     {
         var subAppellations = await _subAppellationRepository.GetAllAsync(cancellationToken);
         var bottleLocations = await _bottleLocationRepository.GetAllAsync(cancellationToken);
+        var users = await _userRepository.GetAllAsync(cancellationToken);
 
         var response = new InventoryReferenceDataResponse
         {
@@ -231,6 +235,13 @@ public class WineInventoryController : Controller
                 {
                     Id = bl.Id,
                     Name = bl.Name
+                })
+                .ToList(),
+            Users = users
+                .Select(u => new UserOption
+                {
+                    Id = u.Id,
+                    Name = u.Name
                 })
                 .ToList()
         };
@@ -424,6 +435,17 @@ public class WineInventoryController : Controller
             }
         }
 
+        User? user = null;
+        if (request.UserId.HasValue)
+        {
+            user = await _userRepository.GetByIdAsync(request.UserId.Value, cancellationToken);
+            if (user is null)
+            {
+                ModelState.AddModelError(nameof(request.UserId), "User was not found.");
+                return ValidationProblem(ModelState);
+            }
+        }
+
         var bottle = new Bottle
         {
             Id = Guid.NewGuid(),
@@ -431,7 +453,8 @@ public class WineInventoryController : Controller
             Price = request.Price,
             IsDrunk = request.IsDrunk,
             DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt),
-            BottleLocationId = bottleLocation?.Id
+            BottleLocationId = bottleLocation?.Id,
+            UserId = user?.Id
         };
 
         await _bottleRepository.AddAsync(bottle, cancellationToken);
@@ -468,6 +491,22 @@ public class WineInventoryController : Controller
                 ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
                 return ValidationProblem(ModelState);
             }
+        }
+
+        if (request.UserId.HasValue)
+        {
+            var user = await _userRepository.GetByIdAsync(request.UserId.Value, cancellationToken);
+            if (user is null)
+            {
+                ModelState.AddModelError(nameof(request.UserId), "User was not found.");
+                return ValidationProblem(ModelState);
+            }
+
+            bottle.UserId = user.Id;
+        }
+        else
+        {
+            bottle.UserId = null;
         }
 
         bottle.Price = request.Price;
@@ -530,6 +569,8 @@ public class WineInventoryController : Controller
                 DrunkAt = b.DrunkAt,
                 BottleLocationId = b.BottleLocationId,
                 BottleLocation = b.BottleLocation?.Name ?? "—",
+                UserId = b.UserId,
+                UserName = b.User?.Name ?? string.Empty,
                 Vintage = b.WineVintage.Vintage,
                 WineName = b.WineVintage.Wine.Name
             })
@@ -669,6 +710,8 @@ public class WineInventoryBottleDetailViewModel
     public DateTime? DrunkAt { get; set; }
     public Guid? BottleLocationId { get; set; }
     public string BottleLocation { get; set; } = string.Empty;
+    public Guid? UserId { get; set; }
+    public string UserName { get; set; } = string.Empty;
     public int Vintage { get; set; }
     public string WineName { get; set; } = string.Empty;
 }
@@ -691,6 +734,8 @@ public class BottleMutationRequest
     public DateTime? DrunkAt { get; set; }
 
     public Guid? BottleLocationId { get; set; }
+
+    public Guid? UserId { get; set; }
 }
 
 public record FilterOption(string Value, string Label);
@@ -723,6 +768,7 @@ public class InventoryReferenceDataResponse
 {
     public IReadOnlyList<SubAppellationOption> SubAppellations { get; set; } = Array.Empty<SubAppellationOption>();
     public IReadOnlyList<BottleLocationOption> BottleLocations { get; set; } = Array.Empty<BottleLocationOption>();
+    public IReadOnlyList<UserOption> Users { get; set; } = Array.Empty<UserOption>();
 }
 
 public class SubAppellationOption
@@ -732,6 +778,12 @@ public class SubAppellationOption
 }
 
 public class BottleLocationOption
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
+public class UserOption
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;

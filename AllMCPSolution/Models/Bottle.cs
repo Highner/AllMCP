@@ -14,5 +14,8 @@ public class Bottle
     public Guid? BottleLocationId { get; set; }
     public BottleLocation? BottleLocation { get; set; }
 
+    public Guid? UserId { get; set; }
+    public User? User { get; set; }
+
     public ICollection<TastingNote> TastingNotes { get; set; } = [];
 }
