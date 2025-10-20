@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 using AllMCPSolution.Repositories;
@@ -7,7 +6,6 @@ using AllMCPSolution.Services;
 namespace AllMCPSolution.Charts;
 
 [ApiController]
-[Authorize]
 [Route("api")] // Preserve exact routes
 public class ChartsController : ControllerBase
 {
