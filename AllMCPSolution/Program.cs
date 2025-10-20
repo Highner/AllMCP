@@ -8,6 +8,8 @@ using AllMCPSolution.Data;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
 using AllMCPSolution.Tools;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol;
@@ -59,6 +61,20 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITastingNoteRepository, TastingNoteRepository>();
 builder.Services.AddScoped<ISisterhoodRepository, SisterhoodRepository>();
 builder.Services.AddScoped<InventoryIntakeService>();
+
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie()
+    .AddOpenIdConnect("Google", options =>
+    {
+        options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        builder.Configuration.Bind("Authentication:Google", options);
+    })
+    .AddOpenIdConnect("Microsoft", options =>
+    {
+        options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        builder.Configuration.Bind("Authentication:Microsoft", options);
+    });
 
 // Register all tools (auto-discovered by ToolRegistry)
 builder.Services.AddScoped<SearchArtistsTool>();
@@ -142,6 +158,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseCors("AllowAIAgents");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
