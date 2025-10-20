@@ -1,6 +1,7 @@
 @model AllMCPSolution.Controllers.WineSurferLandingViewModel
 @using System.Linq
 @using System.Text.Json
+@using System.Text.Json.Serialization
 @{
     Layout = null;
 }
@@ -27,48 +28,11 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        body.requires-auth {
-            overflow: hidden;
-        }
-
         .page-content {
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             transition: filter 0.25s ease;
-        }
-
-        body.requires-auth .page-content {
-            filter: blur(14px);
-            pointer-events: none;
-            user-select: none;
-        }
-
-        .login-overlay {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 32px 20px;
-            background: rgba(5, 5, 5, 0.78);
-            backdrop-filter: blur(10px);
-            z-index: 100;
-            opacity: 0;
-            pointer-events: none;
-            visibility: hidden;
-            transition: opacity 0.3s ease;
-        }
-
-        body.requires-auth .login-overlay {
-            opacity: 1;
-            pointer-events: auto;
-            visibility: visible;
-        }
-
-        body.is-authenticated .login-overlay {
-            opacity: 0;
-            pointer-events: none;
         }
 
         .top-bar {
@@ -153,11 +117,15 @@
         }
 
         .auth-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             padding: 12px 24px;
             border-radius: 12px;
             border: 1px solid rgba(244, 241, 234, 0.2);
             background: rgba(244, 241, 234, 0.08);
             color: #f4f1ea;
+            text-decoration: none;
             text-transform: uppercase;
             letter-spacing: 2px;
             font-size: 12px;
@@ -166,10 +134,50 @@
             transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
         }
 
+        .auth-toggle:link,
+        .auth-toggle:visited {
+            color: #f4f1ea;
+        }
+
         .auth-toggle:hover {
             transform: translateY(-2px);
             border-color: rgba(244, 241, 234, 0.35);
             background: rgba(244, 241, 234, 0.12);
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .auth-form button {
+            width: 100%;
+        }
+
+        .menu-user {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .menu-user-label {
+            font-size: 11px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .menu-user-name {
+            font-weight: 600;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+        }
+
+        .menu-auth-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .menu-panel {
@@ -199,6 +207,26 @@
             text-transform: uppercase;
             font-size: 12px;
             transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .top-bar-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .top-bar-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid rgba(244, 241, 234, 0.2);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: #f4f1ea;
         }
 
         .menu-panel a:hover {
@@ -233,109 +261,20 @@
             text-transform: uppercase;
         }
 
-        .login-card {
-            width: min(100%, 520px);
-            padding: 28px 32px;
-            border-radius: 20px;
+        .auth-callout {
+            margin: 0;
+            padding: 14px 18px;
+            border-radius: 12px;
             border: 1px solid rgba(244, 241, 234, 0.12);
-            background: rgba(12, 12, 12, 0.85);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-        }
-
-        .login-card h2 {
-            margin: 0;
-            font-size: 20px;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-        }
-
-        .login-card p {
-            margin: 0;
-            font-size: 14px;
+            background: rgba(12, 12, 12, 0.7);
+            font-size: 13px;
             letter-spacing: 1.6px;
             text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.6);
+            color: rgba(244, 241, 234, 0.7);
         }
 
-        .login-card form {
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-        }
-
-        .login-field {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .login-field label {
-            font-size: 12px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.65);
-        }
-
-        .login-field input {
-            padding: 12px 14px;
-            border-radius: 10px;
-            border: 1px solid rgba(244, 241, 234, 0.18);
-            background: rgba(20, 20, 20, 0.9);
+        .auth-callout strong {
             color: #f4f1ea;
-            font-size: 16px;
-            letter-spacing: 0.5px;
-        }
-
-        .login-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        .login-actions button {
-            padding: 12px 24px;
-            border-radius: 10px;
-            border: none;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            cursor: pointer;
-            transition: transform 0.2s ease, background 0.2s ease;
-        }
-
-        .login-actions button.primary {
-            background: #f4f1ea;
-            color: #050505;
-        }
-
-        .login-actions button.secondary {
-            background: rgba(244, 241, 234, 0.08);
-            color: #f4f1ea;
-            border: 1px solid rgba(244, 241, 234, 0.2);
-        }
-
-        .login-actions button:hover {
-            transform: translateY(-2px);
-        }
-
-        .login-status {
-            min-height: 20px;
-            font-size: 13px;
-            letter-spacing: 1.4px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.65);
-        }
-
-        .login-status.success {
-            color: #7bd88f;
-        }
-
-        .login-status.error {
-            color: #ff9d9d;
         }
 
         .map-shell {
@@ -521,37 +460,35 @@
     </style>
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
 </head>
-<body class="requires-auth">
-    <div id="loginOverlay" class="login-overlay" role="dialog" aria-modal="true" aria-labelledby="loginHeading">
-        <section class="login-card" aria-labelledby="loginHeading">
-            <div>
-                <h2 id="loginHeading">Sign in to your cellar</h2>
-                <p>Log in to continue tracking bottles and tasting notes.</p>
-            </div>
-            <form id="loginForm" novalidate>
-                <div class="login-field">
-                    <label for="loginName">Name</label>
-                    <input id="loginName" name="name" type="text" list="loginUserSuggestions" placeholder="Ada Lovelace" autocomplete="name" required />
-                    <datalist id="loginUserSuggestions"></datalist>
-                </div>
-                <div class="login-field">
-                    <label for="loginTaste">Taste profile <span aria-hidden="true">(optional)</span></label>
-                    <input id="loginTaste" name="tasteProfile" type="text" placeholder="Bold reds, coastal whites" autocomplete="off" />
-                </div>
-                <input type="hidden" id="loginAction" name="action" value="login" />
-                <div class="login-actions">
-                    <button type="submit" class="primary" data-login-action="login">Sign in</button>
-                    <button type="submit" class="secondary" data-login-action="create">Create profile</button>
-                </div>
-            </form>
-            <div id="loginStatus" class="login-status" role="status" aria-live="polite"></div>
-        </section>
-    </div>
+
+@{ 
+    var bodyClass = Model.CurrentUser is null ? "requires-auth" : "is-authenticated";
+    var currentUserOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+    var serializedCurrentUser = Model.CurrentUser is null
+        ? "null"
+        : JsonSerializer.Serialize(Model.CurrentUser, currentUserOptions);
+    var requestPath = Context.Request.Path.HasValue ? Context.Request.Path.Value : string.Empty;
+    var requestQuery = Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value : string.Empty;
+    var currentLocation = string.Concat(requestPath, requestQuery);
+}
+<body class="@bodyClass">
     <div class="page-content">
-        @await Html.PartialAsync("_WineSurferTopBar", Context.Request.Path.Value ?? string.Empty)
+        @await Html.PartialAsync("_WineSurferTopBar", currentLocation)
         <main>
             <h1>Wine Surfer</h1>
             <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
+            @if (Model.CurrentUser is not null)
+            {
+                <p class="auth-callout" role="status">Signed in as <strong>@Model.CurrentUser.DisplayName</strong>.</p>
+            }
+            else
+            {
+                <p class="auth-callout" role="status">Sign in from the menu to view your tasting history and personalize region scores.</p>
+            }
             <section class="map-shell" aria-label="World map highlighting wine regions">
                 <div id="map" class="world-map" role="img" aria-hidden="true"></div>
             </section>
@@ -604,32 +541,15 @@
                     </article>
                 }
             </section>
-          </main>
+        </main>
     </div>
     <script>
-        (function setupWineSurferLogin() {
-            const loginForm = document.getElementById('loginForm');
-            if (!loginForm) {
-                return;
-            }
-
-            const loginAction = document.getElementById('loginAction');
-            const loginStatus = document.getElementById('loginStatus');
-            const nameInput = document.getElementById('loginName');
-            const tasteInput = document.getElementById('loginTaste');
-            const suggestions = document.getElementById('loginUserSuggestions');
-            const loginOverlay = document.getElementById('loginOverlay');
-            const bodyElement = document.body;
-            const actionButtons = loginForm.querySelectorAll('[data-login-action]');
-            const authToggle = document.getElementById('authToggle');
-            const knownSuggestionKeys = new Set();
-
-            let highlightData = Array.isArray(window.wineSurferHighlightData)
-                ? window.wineSurferHighlightData
-                : [];
-
+        window.wineSurferCurrentUser = @Html.Raw(serializedCurrentUser);
+        (function initializeWineSurfer() {
             const highlightDataElement = document.getElementById('wineHighlightData');
-            if ((!Array.isArray(highlightData) || highlightData.length === 0) && highlightDataElement?.textContent?.trim()?.length) {
+            let highlightData = [];
+
+            if (highlightDataElement?.textContent?.trim()?.length) {
                 try {
                     highlightData = JSON.parse(highlightDataElement.textContent);
                 } catch (error) {
@@ -659,32 +579,11 @@
                     return '';
                 }
 
+                if (typeof value === 'string') {
+                    return value.trim().toLowerCase();
+                }
+
                 return String(value).trim().toLowerCase();
-            }
-
-            function getDisplayName(user) {
-                return user?.name ?? user?.Name ?? '';
-            }
-
-            function buildCurrentUser(user) {
-                if (!user) {
-                    return null;
-                }
-
-                const rawId = user.userId ?? user.UserId ?? '';
-                const normalizedId = normalizeUserId(rawId);
-                const name = getDisplayName(user);
-
-                if (!normalizedId || !name) {
-                    return null;
-                }
-
-                return {
-                    id: normalizedId,
-                    rawId: String(rawId),
-                    name,
-                    tasteProfile: user.tasteProfile ?? user.TasteProfile ?? ''
-                };
             }
 
             function formatScore(value) {
@@ -702,14 +601,21 @@
                     : [];
 
                 regionAverageElements.forEach((element, index) => {
-                    let displayValue = '—';
+                    const point = points.find(entry => entry.index === index);
+                    if (!point) {
+                        element.textContent = '—';
+                        return;
+                    }
+
+                    let displayValue = formatScore(point.averageScore);
+
                     if (normalizedUserId) {
-                        const point = points.find(entry => entry.index === index);
-                        if (point?.userAverageScores) {
-                            const matchingScore = point.userAverageScores.find(scoreEntry => normalizeUserId(scoreEntry.userId) === normalizedUserId);
-                            if (matchingScore && matchingScore.averageScore != null) {
-                                displayValue = formatScore(matchingScore.averageScore);
-                            }
+                        const matchingScore = Array.isArray(point.userAverageScores)
+                            ? point.userAverageScores.find(scoreEntry => normalizeUserId(scoreEntry.userId) === normalizedUserId)
+                            : null;
+
+                        if (matchingScore && matchingScore.averageScore != null) {
+                            displayValue = formatScore(matchingScore.averageScore);
                         }
                     }
 
@@ -717,262 +623,15 @@
                 });
             }
 
-            let currentUser = null;
+            const currentUser = window.wineSurferCurrentUser;
+            const normalizedId = currentUser?.domainUserId
+                ? normalizeUserId(currentUser.domainUserId)
+                : '';
 
-            function updateAuthToggle() {
-                if (!authToggle) {
-                    return;
-                }
-
-                if (currentUser) {
-                    authToggle.textContent = 'Log out';
-                    authToggle.setAttribute('data-auth-state', 'logout');
-                } else {
-                    authToggle.textContent = 'Log in';
-                    authToggle.setAttribute('data-auth-state', 'login');
-                }
-            }
-
-            function setCurrentUser(user) {
-                currentUser = buildCurrentUser(user);
-                applyUserAverageScores(currentUser?.id ?? '');
-                updateAuthToggle();
-            }
-
-            function setAuthenticationState(isAuthenticated) {
-                if (isAuthenticated) {
-                    bodyElement?.classList.add('is-authenticated');
-                    bodyElement?.classList.remove('requires-auth');
-                    loginOverlay?.setAttribute('aria-hidden', 'true');
-                    loginOverlay?.setAttribute('inert', '');
-                } else {
-                    bodyElement?.classList.remove('is-authenticated');
-                    bodyElement?.classList.add('requires-auth');
-                    loginOverlay?.setAttribute('aria-hidden', 'false');
-                    loginOverlay?.removeAttribute('inert');
-                    if (nameInput) {
-                        window.requestAnimationFrame(() => nameInput.focus());
-                    }
-                }
-
-                updateAuthToggle();
-            }
-
-            function setStatus(message, tone) {
-                if (!loginStatus) {
-                    return;
-                }
-
-                loginStatus.textContent = message ?? '';
-                loginStatus.className = `login-status ${tone ?? ''}`.trim();
-            }
-
-            function persistUser(user) {
-                try {
-                    const current = buildCurrentUser(user);
-                    if (!current) {
-                        return;
-                    }
-
-                    const payload = {
-                        userId: current.rawId,
-                        name: current.name,
-                        tasteProfile: current.tasteProfile ?? ''
-                    };
-
-                    window.localStorage?.setItem('wineSurferUser', JSON.stringify(payload));
-                } catch (error) {
-                    console.warn('Unable to persist login information', error);
-                }
-            }
-
-            function clearStoredUser() {
-                try {
-                    window.localStorage?.removeItem('wineSurferUser');
-                } catch (error) {
-                    console.warn('Unable to clear stored login information', error);
-                }
-            }
-
-            function ensureSuggestion(name) {
-                if (!suggestions || !name) {
-                    return;
-                }
-
-                const key = name.trim().toLowerCase();
-                if (!key || knownSuggestionKeys.has(key)) {
-                    return;
-                }
-
-                const option = document.createElement('option');
-                option.value = name;
-                suggestions.appendChild(option);
-                knownSuggestionKeys.add(key);
-            }
-
-            async function loadUsers() {
-                if (!suggestions) {
-                    return;
-                }
-
-                try {
-                    const response = await fetch('/wine-surfer/users', { headers: { Accept: 'application/json' } });
-                    if (!response.ok) {
-                        return;
-                    }
-
-                    const items = await response.json();
-                    if (!Array.isArray(items)) {
-                        return;
-                    }
-
-                    suggestions.innerHTML = '';
-                    knownSuggestionKeys.clear();
-
-                    items.forEach(item => {
-                        const name = item?.name ?? item?.Name;
-                        if (!name) {
-                            return;
-                        }
-
-                        ensureSuggestion(name);
-                    });
-                } catch (error) {
-                    console.warn('Unable to load user suggestions', error);
-                }
-            }
-
-            function restoreStoredUser() {
-                try {
-                    const raw = window.localStorage?.getItem('wineSurferUser');
-                    if (!raw) {
-                        return false;
-                    }
-
-                    const stored = JSON.parse(raw);
-                    if (!stored || !stored.name || !stored.userId) {
-                        return false;
-                    }
-
-                    setCurrentUser(stored);
-                    setAuthenticationState(true);
-                    setStatus(`Signed in as ${stored.name}.`, 'success');
-                    ensureSuggestion(stored.name);
-                    return true;
-                } catch (error) {
-                    console.warn('Unable to restore stored login', error);
-                    return false;
-                }
-            }
-
-            actionButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    if (loginAction) {
-                        loginAction.value = button.dataset.loginAction ?? 'login';
-                    }
-                });
-            });
-
-            authToggle?.addEventListener('click', () => {
-                const isAuthenticated = bodyElement?.classList.contains('is-authenticated');
-                if (isAuthenticated) {
-                    const previousName = currentUser?.name ?? '';
-                    clearStoredUser();
-                    setCurrentUser(null);
-                    setStatus('You have been signed out.', null);
-                    setAuthenticationState(false);
-                    if (nameInput && previousName) {
-                        nameInput.value = previousName;
-                    }
-                    if (tasteInput) {
-                        tasteInput.value = '';
-                    }
-                } else {
-                    setStatus('', null);
-                    setAuthenticationState(false);
-                }
-            });
-
-            loginForm.addEventListener('submit', async (event) => {
-                event.preventDefault();
-
-                if (!nameInput) {
-                    return;
-                }
-
-                const nameValue = nameInput.value?.trim();
-                if (!nameValue) {
-                    setStatus('Please enter your name to continue.', 'error');
-                    nameInput.focus();
-                    return;
-                }
-
-                const payload = {
-                    name: nameValue,
-                    tasteProfile: tasteInput?.value?.trim() || null,
-                    createIfMissing: (loginAction?.value ?? 'login') === 'create'
-                };
-
-                try {
-                    setStatus('Signing in…', null);
-                    const response = await fetch('/wine-surfer/login', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Accept: 'application/json'
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) {
-                        let message = 'Unable to sign in right now.';
-                        try {
-                            const problem = await response.json();
-                            if (problem?.errors) {
-                                const allErrors = Object.values(problem.errors)
-                                    .flat()
-                                    .filter(Boolean);
-                                if (allErrors.length) {
-                                    message = allErrors.join(' ');
-                                }
-                            } else if (problem?.title) {
-                                message = problem.title;
-                            }
-                        } catch (error) {
-                            console.warn('Unable to parse login error response', error);
-                        }
-
-                        setStatus(message, 'error');
-                        return;
-                    }
-
-                    const result = await response.json();
-                    persistUser(result);
-                    ensureSuggestion(result?.name ?? result?.Name ?? nameValue);
-                    setCurrentUser(result);
-                    setAuthenticationState(true);
-                    setStatus(`Signed in as ${result?.name ?? result?.Name ?? nameValue}.`, 'success');
-                    if (tasteInput && payload.createIfMissing) {
-                        tasteInput.value = payload.tasteProfile ?? '';
-                    }
-                } catch (error) {
-                    console.error('Login request failed', error);
-                    setStatus('Login failed — please try again.', 'error');
-                }
-            });
-
-            setCurrentUser(null);
-
-            const wasRestored = restoreStoredUser();
-            if (!wasRestored) {
-                setAuthenticationState(false);
-                setStatus('', null);
-            }
-
-            loadUsers();
+            applyUserAverageScores(normalizedId);
         })();
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js" crossorigin="anonymous"></script>
     <script>
         (function renderMap() {
