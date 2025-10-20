@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Data;
@@ -9,6 +10,7 @@ namespace AllMCPSolution.Repositories;
 
 public interface ISubAppellationRepository
 {
+    Task<IReadOnlyList<SubAppellation>> GetAllAsync(CancellationToken ct = default);
     Task<SubAppellation?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<SubAppellation?> FindByNameAndAppellationAsync(string name, Guid appellationId, CancellationToken ct = default);
     Task<IReadOnlyList<SubAppellation>> SearchByApproximateNameAsync(string name, Guid appellationId, int maxResults = 5, CancellationToken ct = default);
@@ -23,6 +25,19 @@ public sealed class SubAppellationRepository : ISubAppellationRepository
     public SubAppellationRepository(ApplicationDbContext db)
     {
         _db = db;
+    }
+
+    public async Task<IReadOnlyList<SubAppellation>> GetAllAsync(CancellationToken ct = default)
+    {
+        return await _db.SubAppellations
+            .AsNoTracking()
+            .Include(sa => sa.Appellation)
+                .ThenInclude(a => a.Region)
+                    .ThenInclude(r => r.Country)
+            .OrderBy(sa => sa.Appellation != null && sa.Appellation.Region != null ? sa.Appellation.Region.Name : string.Empty)
+            .ThenBy(sa => sa.Appellation != null ? sa.Appellation.Name : string.Empty)
+            .ThenBy(sa => sa.Name)
+            .ToListAsync(ct);
     }
 
     public async Task<SubAppellation?> GetByIdAsync(Guid id, CancellationToken ct = default)

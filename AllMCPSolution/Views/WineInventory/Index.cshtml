@@ -361,6 +361,63 @@
             color: #ffb3c7;
         }
 
+        .inventory-table .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .inventory-table .actions button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(244, 241, 234, 0.2);
+            background: transparent;
+            color: #f4f1ea;
+            cursor: pointer;
+        }
+
+        .inventory-table .actions button.secondary:hover {
+            background: rgba(244, 241, 234, 0.12);
+        }
+
+        .summary-add-row input,
+        .summary-add-row select {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(244, 241, 234, 0.2);
+            background: rgba(10, 10, 10, 0.85);
+            color: #f4f1ea;
+        }
+
+        .summary-add-row .actions button {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: none;
+            background: #f4f1ea;
+            color: #050505;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .summary-add-row .actions button:hover {
+            background: #d7d2c4;
+        }
+
+        .details-table .add-row input,
+        .details-table .add-row select {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(244, 241, 234, 0.2);
+            background: rgba(10, 10, 10, 0.85);
+            color: #f4f1ea;
+        }
+
+        .details-table .add-row .actions button {
+            width: 100%;
+        }
+
         .details-table .empty-row td {
             text-align: center;
             padding: 24px;
@@ -466,9 +523,42 @@
                                 <span class="sort-icon" aria-hidden="true"></span>
                             </a>
                         </th>
+                        <th>
+                            <span class="header-text">Actions</span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
+                    <tr class="add-summary-row">
+                        <td>
+                            <input type="text" class="summary-add-name" placeholder="Wine name" aria-label="Wine name" />
+                        </td>
+                        <td>
+                            <select class="summary-add-sub-app" aria-label="Sub-appellation">
+                                <option value="">Select sub-appellation</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" class="summary-add-vintage" min="1900" max="2100" placeholder="Vintage" aria-label="Vintage" />
+                        </td>
+                        <td>
+                            <input type="number" class="summary-add-count" min="1" value="1" aria-label="Initial bottle count" />
+                        </td>
+                        <td>
+                            <select class="summary-add-color" aria-label="Color">
+                                <option value="Red">Red</option>
+                                <option value="White">White</option>
+                                <option value="Rose">Rosé</option>
+                            </select>
+                        </td>
+                        <td class="summary-add-status">—</td>
+                        <td class="summary-add-score">—</td>
+                        <td>
+                            <div class="actions">
+                                <button type="button" class="summary-add-submit">Add Wine</button>
+                            </div>
+                        </td>
+                    </tr>
                     @foreach (var bottle in Model.Bottles)
                     {
                         var subAppellation = string.IsNullOrWhiteSpace(bottle.SubAppellation) ? null : bottle.SubAppellation;
@@ -486,14 +576,27 @@
                         {
                             display = appellation;
                         }
-                        <tr class="group-row" data-group-id="@bottle.WineVintageId" tabindex="0" role="button" aria-controls="details-table">
-                            <td>@bottle.WineName</td>
-                            <td>@display</td>
-                            <td>@bottle.Vintage</td>
-                            <td data-field="bottle-count">@bottle.BottleCount</td>
-                            <td>@bottle.Color</td>
-                            <td><span class="status-pill @bottle.StatusCssClass" data-field="status">@bottle.StatusLabel</span></td>
-                            <td data-field="score">@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
+                        <tr class="group-row"
+                            data-group-id="@bottle.WineVintageId"
+                            data-wine-id="@bottle.WineId"
+                            data-sub-appellation-id="@(bottle.SubAppellationId?.ToString() ?? string.Empty)"
+                            data-appellation-id="@(bottle.AppellationId?.ToString() ?? string.Empty)"
+                            tabindex="0"
+                            role="button"
+                            aria-controls="details-table">
+                            <td class="summary-wine">@bottle.WineName</td>
+                            <td class="summary-appellation">@display</td>
+                            <td class="summary-vintage">@bottle.Vintage</td>
+                            <td class="summary-bottles" data-field="bottle-count">@bottle.BottleCount</td>
+                            <td class="summary-color">@bottle.Color</td>
+                            <td class="summary-status"><span class="status-pill @bottle.StatusCssClass" data-field="status">@bottle.StatusLabel</span></td>
+                            <td class="summary-score" data-field="score">@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
+                            <td class="summary-actions">
+                                <div class="actions">
+                                    <button type="button" class="secondary edit-group">Edit</button>
+                                    <button type="button" class="secondary delete-group">Delete</button>
+                                </div>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -505,29 +608,11 @@
                     <p id="details-subtitle">Select a wine group to view individual bottles.</p>
                 </header>
                 <div id="details-message" class="details-message" role="status"></div>
-                <div class="details-controls" id="details-controls" hidden>
-                    <form id="add-bottle-form" class="details-form" autocomplete="off">
-                        <input type="hidden" name="wineVintageId" value="" />
-                        <label>
-                            Price
-                            <input type="number" name="price" step="0.01" min="0" placeholder="0.00" />
-                        </label>
-                        <label class="checkbox-row">
-                            <input type="checkbox" name="isDrunk" id="add-is-drunk" />
-                            <span>Drunk</span>
-                        </label>
-                        <label>
-                            Drunk Date
-                            <input type="datetime-local" name="drunkAt" id="add-drunk-at" disabled />
-                        </label>
-                        <button type="submit" id="add-submit">Add Bottle</button>
-                    </form>
-                </div>
                 <table class="details-table" id="details-table">
                     <thead>
                         <tr>
-                            <th scope="col">Identifier</th>
-                            <th scope="col">Location</th>
+                            <th scope="col">Wine</th>
+                            <th scope="col">Bottle Location</th>
                             <th scope="col">Vintage</th>
                             <th scope="col">Price</th>
                             <th scope="col">Drunk</th>
@@ -536,6 +621,30 @@
                         </tr>
                     </thead>
                     <tbody>
+                        <tr class="add-row" id="detail-add-row" hidden>
+                            <td class="add-wine">—</td>
+                            <td>
+                                <select class="detail-add-location" aria-label="Bottle location">
+                                    <option value="">No location</option>
+                                </select>
+                            </td>
+                            <td class="add-vintage">—</td>
+                            <td>
+                                <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
+                            </td>
+                            <td>
+                                <label class="checkbox-row">
+                                    <input type="checkbox" class="detail-add-is-drunk" />
+                                    <span>No</span>
+                                </label>
+                            </td>
+                            <td>
+                                <input type="datetime-local" class="detail-add-drunk-at" aria-label="Drunk date" disabled />
+                            </td>
+                            <td class="actions">
+                                <button type="button" class="detail-add-submit">Add Bottle</button>
+                            </td>
+                        </tr>
                         <tr class="empty-row">
                             <td colspan="7">Select a wine group to see its bottles.</td>
                         </tr>
@@ -548,151 +657,644 @@
         (function () {
             const inventoryTable = document.getElementById('inventory-table');
             const detailsTable = document.getElementById('details-table');
-            const detailsBody = detailsTable.querySelector('tbody');
+            const detailsBody = detailsTable?.querySelector('tbody');
+            const detailAddRow = detailsBody?.querySelector('#detail-add-row');
+            const emptyRow = detailsBody?.querySelector('.empty-row');
             const detailsTitle = document.getElementById('details-title');
             const detailsSubtitle = document.getElementById('details-subtitle');
             const messageBanner = document.getElementById('details-message');
-            const detailsControls = document.getElementById('details-controls');
-            const addForm = document.getElementById('add-bottle-form');
-            const addIsDrunk = document.getElementById('add-is-drunk');
-            const addDrunkAt = document.getElementById('add-drunk-at');
-            const addSubmit = document.getElementById('add-submit');
 
-            if (!inventoryTable) {
+            if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner) {
                 return;
             }
+
+            const summaryAddRow = inventoryTable.querySelector('.add-summary-row');
+            const summaryAddName = summaryAddRow?.querySelector('.summary-add-name');
+            const summaryAddSubApp = summaryAddRow?.querySelector('.summary-add-sub-app');
+            const summaryAddVintage = summaryAddRow?.querySelector('.summary-add-vintage');
+            const summaryAddCount = summaryAddRow?.querySelector('.summary-add-count');
+            const summaryAddColor = summaryAddRow?.querySelector('.summary-add-color');
+            const summaryAddButton = summaryAddRow?.querySelector('.summary-add-submit');
+
+            const detailAddLocation = detailAddRow.querySelector('.detail-add-location');
+            const detailAddPrice = detailAddRow.querySelector('.detail-add-price');
+            const detailAddIsDrunk = detailAddRow.querySelector('.detail-add-is-drunk');
+            const detailAddLabel = detailAddRow.querySelector('.checkbox-row span');
+            const detailAddDrunkAt = detailAddRow.querySelector('.detail-add-drunk-at');
+            const detailAddButton = detailAddRow.querySelector('.detail-add-submit');
+            const detailAddWineCell = detailAddRow.querySelector('.add-wine');
+            const detailAddVintageCell = detailAddRow.querySelector('.add-vintage');
 
             let selectedGroupId = null;
             let selectedSummary = null;
             let selectedRow = null;
             let loading = false;
 
-            function pick(obj, keys) {
-                for (const key of keys) {
-                    if (obj && obj[key] !== undefined && obj[key] !== null) {
-                        return obj[key];
+            const referenceData = {
+                subAppellations: [],
+                bottleLocations: []
+            };
+            const referenceDataPromise = loadReferenceData();
+
+            initializeSummaryRows();
+            bindSummaryAddRow();
+            bindDetailAddRow();
+
+            function initializeSummaryRows() {
+                const rows = Array.from(inventoryTable.querySelectorAll('tbody tr.group-row'));
+                rows.forEach(attachSummaryRowHandlers);
+            }
+
+            function attachSummaryRowHandlers(row) {
+                row.addEventListener('click', (event) => {
+                    const target = event.target;
+
+                    if (target.closest('.save-group')) {
+                        event.stopPropagation();
+                        saveSummaryEdit(row);
+                        return;
                     }
-                }
 
-                return undefined;
-            }
+                    if (target.closest('.cancel-group')) {
+                        event.stopPropagation();
+                        cancelSummaryEdit(row);
+                        return;
+                    }
 
-            function normalizeSummary(raw) {
-                if (!raw) {
-                    return null;
-                }
+                    if (target.closest('.edit-group')) {
+                        event.stopPropagation();
+                        referenceDataPromise
+                            .then(() => enterEditMode(row))
+                            .catch(error => showMessage(error?.message ?? String(error), 'error'));
+                        return;
+                    }
 
-                return {
-                    wineVintageId: pick(raw, ['wineVintageId', 'WineVintageId']),
-                    wineName: pick(raw, ['wineName', 'WineName']) ?? '',
-                    vintage: pick(raw, ['vintage', 'Vintage']) ?? '',
-                    bottleCount: Number(pick(raw, ['bottleCount', 'BottleCount']) ?? 0),
-                    statusLabel: pick(raw, ['statusLabel', 'StatusLabel']) ?? '',
-                    statusCssClass: pick(raw, ['statusCssClass', 'StatusCssClass']) ?? '',
-                    averageScore: pick(raw, ['averageScore', 'AverageScore'])
-                };
-            }
+                    if (target.closest('.delete-group')) {
+                        event.stopPropagation();
+                        handleSummaryDelete(row);
+                        return;
+                    }
 
-            function normalizeDetail(raw) {
-                if (!raw) {
-                    return null;
-                }
+                    if (row.classList.contains('editing')) {
+                        return;
+                    }
 
-                return {
-                    bottleId: pick(raw, ['bottleId', 'BottleId']) ?? '',
-                    price: pick(raw, ['price', 'Price']),
-                    isDrunk: Boolean(pick(raw, ['isDrunk', 'IsDrunk'])),
-                    drunkAt: pick(raw, ['drunkAt', 'DrunkAt']),
-                    location: pick(raw, ['location', 'Location']) ?? '—',
-                    vintage: pick(raw, ['vintage', 'Vintage'])
-                };
-            }
+                    if (target.closest('.summary-actions')) {
+                        return;
+                    }
 
-            const rows = Array.from(inventoryTable.querySelectorAll('tbody tr.group-row'));
-            rows.forEach(row => {
-                row.addEventListener('click', () => handleRowSelection(row));
+                    handleRowSelection(row).catch(error => showMessage(error?.message ?? String(error), 'error'));
+                });
+
                 row.addEventListener('keydown', (event) => {
+                    if (row.classList.contains('editing')) {
+                        return;
+                    }
+
                     if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        handleRowSelection(row);
+                        handleRowSelection(row).catch(error => showMessage(error?.message ?? String(error), 'error'));
                     }
                 });
-            });
+            }
 
-            addIsDrunk.addEventListener('change', () => {
-                if (addIsDrunk.checked) {
-                    addDrunkAt.removeAttribute('disabled');
-                } else {
-                    addDrunkAt.value = '';
-                    addDrunkAt.setAttribute('disabled', 'disabled');
+            function bindSummaryAddRow() {
+                if (!summaryAddButton) {
+                    return;
                 }
-            });
 
-            addForm.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                if (!selectedSummary || loading) {
+                summaryAddButton.addEventListener('click', async () => {
+                    await referenceDataPromise;
+
+                    if (loading) {
+                        return;
+                    }
+
+                    const name = summaryAddName?.value?.trim() ?? '';
+                    const subAppellationId = summaryAddSubApp?.value ?? '';
+                    const vintageValue = Number(summaryAddVintage?.value ?? '');
+                    const bottleCountValue = Number(summaryAddCount?.value ?? '');
+                    const color = summaryAddColor?.value ?? '';
+
+                    if (!name) {
+                        showMessage('Wine name is required.', 'error');
+                        return;
+                    }
+
+                    if (!subAppellationId) {
+                        showMessage('Select a sub-appellation for the wine.', 'error');
+                        return;
+                    }
+
+                    if (!Number.isInteger(vintageValue)) {
+                        showMessage('Enter a valid vintage year.', 'error');
+                        return;
+                    }
+
+                    if (!Number.isInteger(bottleCountValue) || bottleCountValue < 1) {
+                        showMessage('Initial bottle count must be at least 1.', 'error');
+                        return;
+                    }
+
+                    if (!color) {
+                        showMessage('Choose a wine color.', 'error');
+                        return;
+                    }
+
+                    const payload = {
+                        wineName: name,
+                        subAppellationId,
+                        vintage: vintageValue,
+                        color,
+                        initialBottleCount: bottleCountValue
+                    };
+
+                    try {
+                        setLoading(true);
+                        const response = await sendJson('/wine-manager/groups', {
+                            method: 'POST',
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (summaryAddName) {
+                            summaryAddName.value = '';
+                        }
+
+                        if (summaryAddSubApp) {
+                            summaryAddSubApp.value = '';
+                        }
+
+                        if (summaryAddVintage) {
+                            summaryAddVintage.value = '';
+                        }
+
+                        if (summaryAddCount) {
+                            summaryAddCount.value = '1';
+                        }
+
+                        if (summaryAddColor) {
+                            summaryAddColor.value = 'Red';
+                        }
+
+                        const summary = normalizeSummary(response?.group ?? response?.Group);
+                        if (!summary) {
+                            showMessage('Wine group created, but it could not be displayed.', 'warning');
+                            return;
+                        }
+
+                        const newRow = buildSummaryRow(summary);
+                        attachSummaryRowHandlers(newRow);
+                        inventoryTable.querySelector('tbody')?.appendChild(newRow);
+                        showMessage('Wine group created.', 'success');
+                        await handleRowSelection(newRow, { force: true, response });
+                        newRow.focus();
+                    } catch (error) {
+                        showMessage(error.message, 'error');
+                    } finally {
+                        setLoading(false);
+                    }
+                });
+            }
+
+            function bindDetailAddRow() {
+                detailAddIsDrunk?.addEventListener('change', () => {
+                    if (detailAddIsDrunk.checked) {
+                        detailAddDrunkAt.removeAttribute('disabled');
+                        if (detailAddLabel) {
+                            detailAddLabel.textContent = 'Yes';
+                        }
+                    } else {
+                        detailAddDrunkAt.value = '';
+                        detailAddDrunkAt.setAttribute('disabled', 'disabled');
+                        if (detailAddLabel) {
+                            detailAddLabel.textContent = 'No';
+                        }
+                    }
+                });
+
+                detailAddButton?.addEventListener('click', handleAddBottle);
+            }
+
+            async function loadReferenceData() {
+                try {
+                    const response = await sendJson('/wine-manager/options', { method: 'GET' });
+                    const subApps = Array.isArray(response?.subAppellations)
+                        ? response.subAppellations
+                        : Array.isArray(response?.SubAppellations)
+                            ? response.SubAppellations
+                            : [];
+                    const locations = Array.isArray(response?.bottleLocations)
+                        ? response.bottleLocations
+                        : Array.isArray(response?.BottleLocations)
+                            ? response.BottleLocations
+                            : [];
+
+                    referenceData.subAppellations = subApps;
+                    referenceData.bottleLocations = locations;
+
+                    populateSubAppellationSelect(summaryAddSubApp, summaryAddSubApp?.value ?? '');
+                    populateLocationSelect(detailAddLocation, detailAddLocation?.value ?? '');
+                } catch (error) {
+                    showMessage(error.message, 'error');
+                }
+            }
+
+            function populateSubAppellationSelect(select, selectedId) {
+                if (!select) {
+                    return;
+                }
+
+                const previousValue = selectedId ?? select.value ?? '';
+                select.innerHTML = '';
+
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select sub-appellation';
+                select.appendChild(placeholder);
+
+                referenceData.subAppellations.forEach(option => {
+                    const id = option?.id ?? option?.Id;
+                    const label = option?.label ?? option?.Label;
+                    if (!id) {
+                        return;
+                    }
+
+                    const opt = document.createElement('option');
+                    opt.value = id;
+                    opt.textContent = label ?? id;
+                    select.appendChild(opt);
+                });
+
+                if (previousValue) {
+                    select.value = previousValue;
+                }
+            }
+
+            function populateLocationSelect(select, selectedId) {
+                if (!select) {
+                    return;
+                }
+
+                const previousValue = selectedId ?? select.value ?? '';
+                select.innerHTML = '';
+
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'No location';
+                select.appendChild(placeholder);
+
+                referenceData.bottleLocations.forEach(option => {
+                    const id = option?.id ?? option?.Id;
+                    const name = option?.name ?? option?.Name;
+                    if (!id) {
+                        return;
+                    }
+
+                    const opt = document.createElement('option');
+                    opt.value = id;
+                    opt.textContent = name ?? id;
+                    select.appendChild(opt);
+                });
+
+                if (previousValue) {
+                    select.value = previousValue;
+                }
+            }
+
+            function buildSummaryRow(summary) {
+                const row = document.createElement('tr');
+                row.className = 'group-row';
+                row.setAttribute('tabindex', '0');
+                row.setAttribute('role', 'button');
+                row.setAttribute('aria-controls', 'details-table');
+                applySummaryToRow(row, summary, true);
+                return row;
+            }
+
+            function ensureSummaryRowStructure(row) {
+                if (row.querySelector('.summary-wine')) {
+                    return;
+                }
+
+                row.innerHTML = `
+                    <td class="summary-wine"></td>
+                    <td class="summary-appellation"></td>
+                    <td class="summary-vintage"></td>
+                    <td class="summary-bottles" data-field="bottle-count"></td>
+                    <td class="summary-color"></td>
+                    <td class="summary-status"><span class="status-pill" data-field="status"></span></td>
+                    <td class="summary-score" data-field="score"></td>
+                    <td class="summary-actions">
+                        <div class="actions">
+                            <button type="button" class="secondary edit-group">Edit</button>
+                            <button type="button" class="secondary delete-group">Delete</button>
+                        </div>
+                    </td>`;
+            }
+
+            function applySummaryToRow(row, summary, isNewRow = false) {
+                ensureSummaryRowStructure(row);
+
+                row.dataset.groupId = summary?.wineVintageId ?? summary?.WineVintageId ?? '';
+                row.dataset.wineId = summary?.wineId ?? summary?.WineId ?? '';
+                row.dataset.subAppellationId = summary?.subAppellationId ?? summary?.SubAppellationId ?? '';
+                row.dataset.appellationId = summary?.appellationId ?? summary?.AppellationId ?? '';
+
+                const wineCell = row.querySelector('.summary-wine');
+                const appCell = row.querySelector('.summary-appellation');
+                const vintageCell = row.querySelector('.summary-vintage');
+                const bottlesCell = row.querySelector('.summary-bottles');
+                const colorCell = row.querySelector('.summary-color');
+                const statusSpan = row.querySelector('[data-field="status"]');
+                const scoreCell = row.querySelector('[data-field="score"]');
+                const actionsCell = row.querySelector('.summary-actions .actions');
+
+                if (wineCell) {
+                    wineCell.textContent = summary?.wineName ?? summary?.WineName ?? '';
+                }
+
+                if (appCell) {
+                    appCell.textContent = buildAppellationDisplay(summary);
+                }
+
+                if (vintageCell) {
+                    const vintageValue = summary?.vintage ?? summary?.Vintage;
+                    vintageCell.textContent = vintageValue != null ? String(vintageValue) : '';
+                }
+
+                if (bottlesCell) {
+                    const count = summary?.bottleCount ?? summary?.BottleCount ?? 0;
+                    bottlesCell.textContent = Number(count).toString();
+                }
+
+                if (colorCell) {
+                    colorCell.textContent = summary?.color ?? summary?.Color ?? '';
+                }
+
+                if (statusSpan) {
+                    const label = summary?.statusLabel ?? summary?.StatusLabel ?? '';
+                    const cssClass = summary?.statusCssClass ?? summary?.StatusCssClass ?? '';
+                    statusSpan.textContent = label;
+                    statusSpan.className = `status-pill ${cssClass}`;
+                }
+
+                if (scoreCell) {
+                    const score = summary?.averageScore ?? summary?.AverageScore;
+                    scoreCell.textContent = score != null ? Number(score).toFixed(1) : '—';
+                }
+
+                if (actionsCell) {
+                    actionsCell.innerHTML = `
+                        <button type="button" class="secondary edit-group">Edit</button>
+                        <button type="button" class="secondary delete-group">Delete</button>`;
+                }
+
+                if (isNewRow) {
+                    row.classList.remove('editing', 'selected');
+                }
+            }
+
+            async function enterEditMode(row) {
+                if (row.classList.contains('editing') || loading) {
+                    return;
+                }
+
+                await referenceDataPromise;
+
+                const summary = extractSummaryFromRow(row);
+                row.dataset.originalSummary = JSON.stringify(summary);
+                row.classList.add('editing');
+
+                const wineCell = row.querySelector('.summary-wine');
+                const appCell = row.querySelector('.summary-appellation');
+                const vintageCell = row.querySelector('.summary-vintage');
+                const colorCell = row.querySelector('.summary-color');
+                const actionsCell = row.querySelector('.summary-actions .actions');
+
+                if (wineCell) {
+                    wineCell.innerHTML = `<input type="text" class="summary-edit-name" value="${escapeHtml(summary.wineName ?? '')}" />`;
+                }
+
+                if (appCell) {
+                    const select = document.createElement('select');
+                    select.className = 'summary-edit-sub-app';
+                    populateSubAppellationSelect(select, summary.subAppellationId ?? '');
+                    appCell.innerHTML = '';
+                    appCell.appendChild(select);
+                }
+
+                if (vintageCell) {
+                    vintageCell.innerHTML = `<input type="number" class="summary-edit-vintage" min="1900" max="2100" value="${summary.vintage ?? ''}" />`;
+                }
+
+                if (colorCell) {
+                    const select = document.createElement('select');
+                    select.className = 'summary-edit-color';
+                    select.innerHTML = `
+                        <option value="Red">Red</option>
+                        <option value="White">White</option>
+                        <option value="Rose">Rosé</option>`;
+                    select.value = summary.color ?? 'Red';
+                    colorCell.innerHTML = '';
+                    colorCell.appendChild(select);
+                }
+
+                if (actionsCell) {
+                    actionsCell.innerHTML = `
+                        <button type="button" class="save-group">Save</button>
+                        <button type="button" class="secondary cancel-group">Cancel</button>`;
+                }
+            }
+
+            function cancelSummaryEdit(row) {
+                const original = row.dataset.originalSummary
+                    ? JSON.parse(row.dataset.originalSummary)
+                    : extractSummaryFromRow(row);
+
+                applySummaryToRow(row, original);
+                row.classList.remove('editing');
+            }
+
+            async function saveSummaryEdit(row) {
+                if (!row.classList.contains('editing') || loading) {
+                    return;
+                }
+
+                await referenceDataPromise;
+
+                const nameInput = row.querySelector('.summary-edit-name');
+                const subAppSelect = row.querySelector('.summary-edit-sub-app');
+                const vintageInput = row.querySelector('.summary-edit-vintage');
+                const colorSelect = row.querySelector('.summary-edit-color');
+
+                const name = nameInput?.value?.trim() ?? '';
+                const subAppellationId = subAppSelect?.value ?? '';
+                const vintageValue = Number(vintageInput?.value ?? '');
+                const color = colorSelect?.value ?? '';
+
+                if (!name) {
+                    showMessage('Wine name is required.', 'error');
+                    return;
+                }
+
+                if (!subAppellationId) {
+                    showMessage('Select a sub-appellation for the wine.', 'error');
+                    return;
+                }
+
+                if (!Number.isInteger(vintageValue)) {
+                    showMessage('Enter a valid vintage year.', 'error');
+                    return;
+                }
+
+                if (!color) {
+                    showMessage('Choose a wine color.', 'error');
                     return;
                 }
 
                 const payload = {
-                    wineVintageId: selectedSummary.wineVintageId,
-                    price: parsePrice(addForm.elements['price'].value),
-                    isDrunk: addForm.elements['isDrunk'].checked,
-                    drunkAt: parseDateTime(addForm.elements['drunkAt'].value)
+                    wineName: name,
+                    subAppellationId,
+                    vintage: vintageValue,
+                    color
                 };
 
+                const groupId = row.dataset.groupId;
+                if (!groupId) {
+                    showMessage('Unable to determine the selected wine group.', 'error');
+                    return;
+                }
+
                 try {
-                    setLoading(true);
-                    const response = await sendJson('/wine-manager/bottles', {
-                        method: 'POST',
+                    setSummaryRowLoading(row, true);
+                    const response = await sendJson(`/wine-manager/groups/${groupId}`, {
+                        method: 'PUT',
                         body: JSON.stringify(payload)
                     });
-                    addForm.reset();
-                    addIsDrunk.checked = false;
-                    addDrunkAt.value = '';
-                    addDrunkAt.setAttribute('disabled', 'disabled');
-                    renderDetails(response, true);
-                    showMessage('Bottle added successfully.', 'success');
+
+                    const summary = normalizeSummary(response?.group ?? response?.Group);
+                    if (!summary) {
+                        showMessage('Wine group updated, but it could not be displayed.', 'warning');
+                        cancelSummaryEdit(row);
+                        return;
+                    }
+
+                    applySummaryToRow(row, summary);
+                    row.classList.remove('editing');
+                    if (selectedRow === row) {
+                        selectedSummary = summary;
+                    }
+
+                    showMessage('Wine group updated.', 'success');
+                    await renderDetails(response, selectedRow === row);
                 } catch (error) {
                     showMessage(error.message, 'error');
                 } finally {
-                    setLoading(false);
+                    setSummaryRowLoading(row, false);
                 }
-            });
+            }
 
-            async function handleRowSelection(row) {
+            async function handleSummaryDelete(row) {
                 if (loading) {
                     return;
                 }
 
-                const groupId = row.getAttribute('data-group-id');
-                if (!groupId || groupId === selectedGroupId) {
+                const groupId = row.dataset.groupId;
+                if (!groupId) {
                     return;
                 }
 
-                if (selectedRow) {
+                const confirmed = window.confirm('Delete this wine group and all of its bottles?');
+                if (!confirmed) {
+                    return;
+                }
+
+                try {
+                    setSummaryRowLoading(row, true);
+                    await sendJson(`/wine-manager/groups/${groupId}`, { method: 'DELETE' });
+
+                    if (selectedRow === row) {
+                        selectedGroupId = null;
+                        selectedSummary = null;
+                        selectedRow = null;
+                        detailsTitle.textContent = 'Bottle Details';
+                        detailsSubtitle.textContent = 'Select a wine group to view individual bottles.';
+                        detailAddRow.hidden = true;
+                        emptyRow.hidden = false;
+                        detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
+                    }
+
+                    row.remove();
+                    showMessage('Wine group deleted.', 'success');
+                } catch (error) {
+                    showMessage(error.message, 'error');
+                } finally {
+                    setSummaryRowLoading(row, false);
+                }
+            }
+
+            function extractSummaryFromRow(row) {
+                return {
+                    wineVintageId: row.dataset.groupId ?? '',
+                    wineId: row.dataset.wineId ?? '',
+                    wineName: row.querySelector('.summary-wine')?.textContent?.trim() ?? '',
+                    subAppellation: row.querySelector('.summary-appellation')?.textContent?.trim() ?? '',
+                    subAppellationId: row.dataset.subAppellationId ?? '',
+                    appellationId: row.dataset.appellationId ?? '',
+                    vintage: Number(row.querySelector('.summary-vintage')?.textContent ?? '') || null,
+                    bottleCount: Number(row.querySelector('.summary-bottles')?.textContent ?? '') || 0,
+                    color: row.querySelector('.summary-color')?.textContent?.trim() ?? '',
+                    statusLabel: row.querySelector('[data-field="status"]')?.textContent?.trim() ?? '',
+                    statusCssClass: row.querySelector('[data-field="status"]')?.className?.replace('status-pill', '').trim() ?? '',
+                    averageScore: (() => {
+                        const value = row.querySelector('[data-field="score"]')?.textContent?.trim() ?? '';
+                        const parsed = Number(value);
+                        return Number.isFinite(parsed) ? parsed : null;
+                    })()
+                };
+            }
+
+            async function handleRowSelection(row, options = {}) {
+                if (loading && !options.force) {
+                    return;
+                }
+
+                const groupId = row.dataset.groupId;
+                if (!groupId) {
+                    return;
+                }
+
+                if (selectedGroupId === groupId && !options.force) {
+                    return;
+                }
+
+                if (selectedRow && selectedRow !== row) {
                     selectedRow.classList.remove('selected');
                     selectedRow.setAttribute('aria-expanded', 'false');
                 }
 
                 selectedRow = row;
-                selectedRow.classList.add('selected');
-                selectedRow.setAttribute('aria-expanded', 'true');
-
                 selectedGroupId = groupId;
+                row.classList.add('selected');
+                row.setAttribute('aria-expanded', 'true');
+
+                if (options.response) {
+                    await renderDetails(options.response, true);
+                    return;
+                }
+
                 await loadDetails(groupId, false);
             }
 
             async function loadDetails(groupId, updateRow) {
                 showMessage('Loading bottle details…', 'info');
-                detailsBody.innerHTML = '<tr class="empty-row"><td colspan="7">Loading…</td></tr>';
+                emptyRow.hidden = false;
+                detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
 
                 try {
                     setLoading(true);
-                    const response = await sendJson(`/wine-manager/bottles/${groupId}`, {
-                        method: 'GET'
-                    });
-                    renderDetails(response, updateRow);
+                    const response = await sendJson(`/wine-manager/bottles/${groupId}`, { method: 'GET' });
+                    await renderDetails(response, updateRow);
                     showMessage('', 'info');
                 } catch (error) {
                     showMessage(error.message, 'error');
@@ -701,7 +1303,9 @@
                 }
             }
 
-            function renderDetails(data, shouldUpdateRow) {
+            async function renderDetails(data, shouldUpdateRow) {
+                await referenceDataPromise;
+
                 const rawSummary = data?.group ?? data?.Group ?? null;
                 const summary = normalizeSummary(rawSummary);
                 const rawDetails = Array.isArray(data?.details)
@@ -714,22 +1318,32 @@
                 selectedSummary = summary;
 
                 if (summary) {
-                    detailsTitle.textContent = `${summary.wineName} • ${summary.vintage}`;
-                    detailsSubtitle.textContent = `${summary.bottleCount} bottle${summary.bottleCount === 1 ? '' : 's'} · ${summary.statusLabel}`;
-                    detailsControls.hidden = false;
-                    addForm.elements['wineVintageId'].value = summary.wineVintageId ?? '';
+                    detailsTitle.textContent = `${summary.wineName ?? ''} • ${summary.vintage ?? ''}`;
+                    detailsSubtitle.textContent = `${summary.bottleCount ?? 0} bottle${summary.bottleCount === 1 ? '' : 's'} · ${summary.statusLabel ?? ''}`;
+                    detailAddRow.hidden = false;
+                    detailAddWineCell.textContent = summary.wineName ?? '—';
+                    detailAddVintageCell.textContent = summary.vintage != null ? String(summary.vintage) : '—';
+                    detailAddPrice.value = '';
+                    detailAddIsDrunk.checked = false;
+                    if (detailAddLabel) {
+                        detailAddLabel.textContent = 'No';
+                    }
+                    detailAddDrunkAt.value = '';
+                    detailAddDrunkAt.setAttribute('disabled', 'disabled');
+                    populateLocationSelect(detailAddLocation, '');
+                    detailAddButton.disabled = loading;
                 } else {
                     detailsTitle.textContent = 'Bottle Details';
                     detailsSubtitle.textContent = 'No bottles remain for the selected group.';
-                    detailsControls.hidden = true;
-                    addForm.elements['wineVintageId'].value = '';
+                    detailAddRow.hidden = true;
                 }
 
-                detailsBody.innerHTML = '';
+                detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
 
                 if (details.length === 0) {
-                    detailsBody.innerHTML = '<tr class="empty-row"><td colspan="7">No bottles found for this selection.</td></tr>';
+                    emptyRow.hidden = false;
                 } else {
+                    emptyRow.hidden = true;
                     details.forEach(detail => {
                         const row = buildDetailRow(detail, summary);
                         detailsBody.appendChild(row);
@@ -737,7 +1351,7 @@
                 }
 
                 if (shouldUpdateRow) {
-                    updateSummaryRow(summary);
+                    updateSummaryRow(summary ?? null);
                 }
             }
 
@@ -747,65 +1361,53 @@
                 }
 
                 const row = inventoryTable.querySelector(`tr[data-group-id="${selectedGroupId}"]`);
-                if (!summary) {
-                    if (row) {
-                        row.remove();
-                    }
-                    selectedGroupId = null;
-                    selectedRow = null;
-                    return;
-                }
-
                 if (!row) {
                     return;
                 }
 
-                const bottleCountCell = row.querySelector('[data-field="bottle-count"]');
-                const statusSpan = row.querySelector('[data-field="status"]');
-                const scoreCell = row.querySelector('[data-field="score"]');
-
-                if (bottleCountCell) {
-                    bottleCountCell.textContent = summary.bottleCount.toString();
+                if (!summary) {
+                    row.remove();
+                    selectedRow = null;
+                    selectedGroupId = null;
+                    return;
                 }
 
-                if (statusSpan) {
-                    statusSpan.textContent = summary.statusLabel;
-                    statusSpan.className = `status-pill ${summary.statusCssClass}`;
-                }
-
-                if (scoreCell) {
-                    scoreCell.textContent = summary.averageScore != null
-                        ? Number(summary.averageScore).toFixed(1)
-                        : '—';
-                }
+                applySummaryToRow(row, summary);
             }
 
             function buildDetailRow(detail, summary) {
                 const row = document.createElement('tr');
-                row.dataset.bottleId = detail.bottleId;
+                row.className = 'detail-row';
+                row.dataset.bottleId = detail.bottleId ?? detail.BottleId ?? '';
 
-                const formattedDate = formatDateTime(detail.drunkAt);
-                const statusChecked = detail.isDrunk ? 'checked' : '';
+                const formattedDate = formatDateTime(detail.drunkAt ?? detail.DrunkAt);
+                const isDrunk = Boolean(detail.isDrunk ?? detail.IsDrunk);
 
                 row.innerHTML = `
-                    <td>${escapeHtml(shortId(detail.bottleId))}</td>
-                    <td>${escapeHtml(detail.location ?? '—')}</td>
-                    <td>${summary ? escapeHtml(String(summary.vintage ?? '')) : escapeHtml(detail.vintage != null ? String(detail.vintage) : '—')}</td>
-                    <td><input type="number" step="0.01" min="0" class="detail-price" value="${detail.price ?? ''}" placeholder="0.00" /></td>
+                    <td>${escapeHtml(detail.wineName ?? summary?.wineName ?? shortId(detail.bottleId ?? detail.BottleId))}</td>
+                    <td></td>
+                    <td>${escapeHtml(summary ? String(summary.vintage ?? '') : detail.vintage != null ? String(detail.vintage) : '—')}</td>
+                    <td><input type="number" step="0.01" min="0" class="detail-price" value="${detail.price ?? detail.Price ?? ''}" placeholder="0.00" /></td>
                     <td>
                         <label class="checkbox-row">
-                            <input type="checkbox" class="detail-is-drunk" ${statusChecked} />
-                            <span>${detail.isDrunk ? 'Yes' : 'No'}</span>
+                            <input type="checkbox" class="detail-is-drunk" ${isDrunk ? 'checked' : ''} />
+                            <span>${isDrunk ? 'Yes' : 'No'}</span>
                         </label>
                     </td>
-                    <td><input type="datetime-local" class="detail-drunk-at" value="${formattedDate}" ${detail.isDrunk ? '' : 'disabled'} /></td>
+                    <td><input type="datetime-local" class="detail-drunk-at" value="${formattedDate}" ${isDrunk ? '' : 'disabled'} /></td>
                     <td class="actions">
                         <button type="button" class="save">Save</button>
                         <button type="button" class="secondary delete">Remove</button>
                     </td>`;
 
+                const locationCell = row.children[1];
+                const locationSelect = document.createElement('select');
+                locationSelect.className = 'detail-location';
+                populateLocationSelect(locationSelect, detail.bottleLocationId ?? detail.BottleLocationId ?? '');
+                locationCell.appendChild(locationSelect);
+
                 const drunkCheckbox = row.querySelector('.detail-is-drunk');
-                const drunkLabel = drunkCheckbox?.nextElementSibling;
+                const drunkLabel = row.querySelector('.detail-is-drunk')?.nextElementSibling;
                 const drunkInput = row.querySelector('.detail-drunk-at');
                 const saveButton = row.querySelector('.save');
                 const deleteButton = row.querySelector('.delete');
@@ -817,9 +1419,9 @@
                             drunkLabel.textContent = 'Yes';
                         }
                     } else {
+                        drunkInput?.setAttribute('disabled', 'disabled');
                         if (drunkInput) {
                             drunkInput.value = '';
-                            drunkInput.setAttribute('disabled', 'disabled');
                         }
                         if (drunkLabel) {
                             drunkLabel.textContent = 'No';
@@ -836,16 +1438,17 @@
                         wineVintageId: selectedSummary.wineVintageId,
                         price: parsePrice(row.querySelector('.detail-price')?.value ?? ''),
                         isDrunk: drunkCheckbox?.checked ?? false,
-                        drunkAt: parseDateTime(drunkInput?.value ?? '')
+                        drunkAt: parseDateTime(drunkInput?.value ?? ''),
+                        bottleLocationId: locationSelect.value || null
                     };
 
                     try {
                         setRowLoading(row, true);
-                        const response = await sendJson(`/wine-manager/bottles/${detail.bottleId}`, {
+                        const response = await sendJson(`/wine-manager/bottles/${detail.bottleId ?? detail.BottleId}`, {
                             method: 'PUT',
                             body: JSON.stringify(payload)
                         });
-                        renderDetails(response, true);
+                        await renderDetails(response, true);
                         showMessage('Bottle updated.', 'success');
                     } catch (error) {
                         showMessage(error.message, 'error');
@@ -866,10 +1469,10 @@
 
                     try {
                         setRowLoading(row, true);
-                        const response = await sendJson(`/wine-manager/bottles/${detail.bottleId}`, {
+                        const response = await sendJson(`/wine-manager/bottles/${detail.bottleId ?? detail.BottleId}`, {
                             method: 'DELETE'
                         });
-                        renderDetails(response, true);
+                        await renderDetails(response, true);
                         showMessage('Bottle removed.', 'success');
                     } catch (error) {
                         showMessage(error.message, 'error');
@@ -881,9 +1484,64 @@
                 return row;
             }
 
+            async function handleAddBottle() {
+                if (!selectedSummary || loading) {
+                    return;
+                }
+
+                const payload = {
+                    wineVintageId: selectedSummary.wineVintageId,
+                    price: parsePrice(detailAddPrice.value),
+                    isDrunk: detailAddIsDrunk.checked,
+                    drunkAt: parseDateTime(detailAddDrunkAt.value),
+                    bottleLocationId: detailAddLocation.value || null
+                };
+
+                try {
+                    setLoading(true);
+                    const response = await sendJson('/wine-manager/bottles', {
+                        method: 'POST',
+                        body: JSON.stringify(payload)
+                    });
+
+                    detailAddPrice.value = '';
+                    detailAddIsDrunk.checked = false;
+                    if (detailAddLabel) {
+                        detailAddLabel.textContent = 'No';
+                    }
+                    detailAddDrunkAt.value = '';
+                    detailAddDrunkAt.setAttribute('disabled', 'disabled');
+                    detailAddLocation.value = '';
+
+                    await renderDetails(response, true);
+                    showMessage('Bottle added successfully.', 'success');
+                } catch (error) {
+                    showMessage(error.message, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            }
+
             function setLoading(state) {
                 loading = state;
-                addSubmit.disabled = state || detailsControls.hidden;
+                if (summaryAddButton) {
+                    summaryAddButton.disabled = state;
+                }
+                if (detailAddButton) {
+                    detailAddButton.disabled = state || detailAddRow.hidden;
+                }
+            }
+
+            function setSummaryRowLoading(row, state) {
+                if (state) {
+                    row.classList.add('loading');
+                } else {
+                    row.classList.remove('loading');
+                }
+
+                row.querySelectorAll('input, select, button').forEach(element => {
+                    element.disabled = state;
+                });
             }
 
             function setRowLoading(row, state) {
@@ -893,7 +1551,7 @@
                     row.classList.remove('loading');
                 }
 
-                row.querySelectorAll('input, button').forEach(element => {
+                row.querySelectorAll('input, button, select').forEach(element => {
                     element.disabled = state;
                 });
             }
@@ -939,7 +1597,8 @@
                     return '';
                 }
 
-                return id.length > 8 ? `${id.substring(0, 8)}…` : id;
+                const value = String(id);
+                return value.length > 8 ? `${value.substring(0, 8)}…` : value;
             }
 
             function showMessage(text, state) {
@@ -952,6 +1611,82 @@
                 messageBanner.dataset.state = state ?? 'info';
                 messageBanner.textContent = text;
                 messageBanner.style.display = 'block';
+            }
+
+            function buildAppellationDisplay(summary) {
+                const subApp = summary?.subAppellation ?? summary?.SubAppellation;
+                const appellation = summary?.appellation ?? summary?.Appellation;
+
+                if (subApp && appellation && !equalsIgnoreCase(subApp, appellation)) {
+                    return `${subApp} (${appellation})`;
+                }
+
+                if (subApp) {
+                    return subApp;
+                }
+
+                if (appellation) {
+                    return appellation;
+                }
+
+                return '—';
+            }
+
+            function equalsIgnoreCase(a, b) {
+                if (a == null || b == null) {
+                    return false;
+                }
+
+                return String(a).toLowerCase() === String(b).toLowerCase();
+            }
+
+            function pick(obj, keys) {
+                for (const key of keys) {
+                    if (obj && obj[key] !== undefined && obj[key] !== null) {
+                        return obj[key];
+                    }
+                }
+
+                return undefined;
+            }
+
+            function normalizeSummary(raw) {
+                if (!raw) {
+                    return null;
+                }
+
+                return {
+                    wineVintageId: pick(raw, ['wineVintageId', 'WineVintageId']),
+                    wineId: pick(raw, ['wineId', 'WineId']),
+                    wineName: pick(raw, ['wineName', 'WineName']) ?? '',
+                    subAppellation: pick(raw, ['subAppellation', 'SubAppellation']),
+                    appellation: pick(raw, ['appellation', 'Appellation']),
+                    subAppellationId: pick(raw, ['subAppellationId', 'SubAppellationId']),
+                    appellationId: pick(raw, ['appellationId', 'AppellationId']),
+                    vintage: pick(raw, ['vintage', 'Vintage']),
+                    bottleCount: Number(pick(raw, ['bottleCount', 'BottleCount']) ?? 0),
+                    statusLabel: pick(raw, ['statusLabel', 'StatusLabel']) ?? '',
+                    statusCssClass: pick(raw, ['statusCssClass', 'StatusCssClass']) ?? '',
+                    averageScore: pick(raw, ['averageScore', 'AverageScore']),
+                    color: pick(raw, ['color', 'Color']) ?? ''
+                };
+            }
+
+            function normalizeDetail(raw) {
+                if (!raw) {
+                    return null;
+                }
+
+                return {
+                    bottleId: pick(raw, ['bottleId', 'BottleId']),
+                    price: pick(raw, ['price', 'Price']),
+                    isDrunk: Boolean(pick(raw, ['isDrunk', 'IsDrunk'])),
+                    drunkAt: pick(raw, ['drunkAt', 'DrunkAt']),
+                    bottleLocationId: pick(raw, ['bottleLocationId', 'BottleLocationId']),
+                    bottleLocation: pick(raw, ['bottleLocation', 'BottleLocation']),
+                    vintage: pick(raw, ['vintage', 'Vintage']),
+                    wineName: pick(raw, ['wineName', 'WineName'])
+                };
             }
 
             async function sendJson(url, options) {
@@ -975,8 +1710,7 @@
                         } else if (problem?.message) {
                             message = problem.message;
                         }
-                    } catch
-                    {
+                    } catch {
                         const text = await response.text();
                         if (text) {
                             message = text;
@@ -1007,5 +1741,6 @@
             }
         })();
     </script>
+
 </body>
 </html>
