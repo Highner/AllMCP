@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Models;
 
@@ -25,6 +26,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<BottleLocation> BottleLocations { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<TastingNote> TastingNotes { get; set; }
+    public DbSet<Sisterhood> Sisterhoods { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -194,5 +196,36 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(tn => tn.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        modelBuilder.Entity<Sisterhood>(e =>
+        {
+            e.Property(s => s.Name)
+                .HasMaxLength(256)
+                .IsRequired();
+
+            e.HasIndex(s => s.Name)
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<User>()
+            .HasMany(u => u.Sisterhoods)
+            .WithMany(s => s.Members)
+            .UsingEntity<Dictionary<string, object>>(
+                "UserSisterhoods",
+                j => j
+                    .HasOne<Sisterhood>()
+                    .WithMany()
+                    .HasForeignKey("SisterhoodId")
+                    .OnDelete(DeleteBehavior.Cascade),
+                j => j
+                    .HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey("UserId")
+                    .OnDelete(DeleteBehavior.Cascade),
+                j =>
+                {
+                    j.HasKey("UserId", "SisterhoodId");
+                    j.HasIndex("SisterhoodId", "UserId").IsUnique();
+                });
     }
 }

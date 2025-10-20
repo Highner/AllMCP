@@ -26,8 +26,50 @@
             background: #050505;
             color: #f4f1ea;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body.requires-auth {
+            overflow: hidden;
+        }
+
+        .page-content {
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
+            transition: filter 0.25s ease;
+        }
+
+        body.requires-auth .page-content {
+            filter: blur(14px);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 20px;
+            background: rgba(5, 5, 5, 0.78);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+        }
+
+        body.requires-auth .login-overlay {
+            opacity: 1;
+            pointer-events: auto;
+            visibility: visible;
+        }
+
+        body.is-authenticated .login-overlay {
+            opacity: 0;
+            pointer-events: none;
         }
 
         .top-bar {
@@ -488,6 +530,8 @@
     <main>
         <h1>Wine Surfer</h1>
         <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
+<body class="requires-auth">
+    <div id="loginOverlay" class="login-overlay" role="dialog" aria-modal="true" aria-labelledby="loginHeading">
         <section class="login-card" aria-labelledby="loginHeading">
             <div>
                 <h2 id="loginHeading">Sign in to your cellar</h2>
@@ -510,8 +554,22 @@
                 </div>
             </form>
             <div id="loginStatus" class="login-status" role="status" aria-live="polite"></div>
-            <a id="loginContinue" class="login-continue" href="/wine-manager" hidden>Open wine manager</a>
         </section>
+    </div>
+    <div class="page-content">
+        <header class="top-bar">
+            <div class="brand">Wine Surfer</div>
+            <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
+                <span></span>
+            </button>
+            <nav id="menuPanel" class="menu-panel" aria-hidden="true">
+                <a href="/wine-manager">Wine Inventory</a>
+            </nav>
+        </header>
+        <main>
+        <h1>Wine Surfer</h1>
+        <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
+        <a id="loginContinue" class="login-continue" href="/wine-manager" hidden>Open wine manager</a>
         <section class="map-shell" aria-label="World map highlighting wine regions">
             <div id="map" class="world-map" role="img" aria-hidden="true"></div>
         </section>
@@ -568,6 +626,7 @@
             }
         </section>
     </main>
+    </div>
     <script>
         (function setupWineSurferLogin() {
             const loginForm = document.getElementById('loginForm');
@@ -581,8 +640,27 @@
             const nameInput = document.getElementById('loginName');
             const tasteInput = document.getElementById('loginTaste');
             const suggestions = document.getElementById('loginUserSuggestions');
+            const loginOverlay = document.getElementById('loginOverlay');
+            const bodyElement = document.body;
             const actionButtons = loginForm.querySelectorAll('[data-login-action]');
             const knownSuggestionKeys = new Set();
+
+            function setAuthenticationState(isAuthenticated) {
+                if (isAuthenticated) {
+                    bodyElement?.classList.add('is-authenticated');
+                    bodyElement?.classList.remove('requires-auth');
+                    loginOverlay?.setAttribute('aria-hidden', 'true');
+                    loginOverlay?.setAttribute('inert', '');
+                } else {
+                    bodyElement?.classList.remove('is-authenticated');
+                    bodyElement?.classList.add('requires-auth');
+                    loginOverlay?.setAttribute('aria-hidden', 'false');
+                    loginOverlay?.removeAttribute('inert');
+                    if (nameInput) {
+                        window.requestAnimationFrame(() => nameInput.focus());
+                    }
+                }
+            }
 
             function setStatus(message, tone) {
                 if (!loginStatus) {
@@ -598,9 +676,25 @@
                     return;
                 }
 
+                const displayName = user.name ?? user.Name;
+                if (!displayName) {
+                    return;
+                }
+
                 continueLink.hidden = false;
-                continueLink.textContent = `Open wine manager as ${user.name}`;
+                continueLink.textContent = `Open wine manager as ${displayName}`;
                 continueLink.setAttribute('href', '/wine-manager');
+            }
+
+            function handleAuthenticated(user, { statusMessage } = {}) {
+                if (statusMessage) {
+                    setStatus(statusMessage, 'success');
+                } else {
+                    setStatus('', null);
+                }
+
+                updateContinueLink(user);
+                setAuthenticationState(true);
             }
 
             function persistUser(user) {
@@ -672,19 +766,20 @@
                 try {
                     const raw = window.localStorage?.getItem('wineSurferUser');
                     if (!raw) {
-                        return;
+                        return false;
                     }
 
                     const stored = JSON.parse(raw);
                     if (!stored || !stored.name || !stored.userId) {
-                        return;
+                        return false;
                     }
 
-                    setStatus(`Signed in as ${stored.name}.`, 'success');
-                    updateContinueLink(stored);
+                    handleAuthenticated(stored, { statusMessage: `Signed in as ${stored.name}.` });
                     ensureSuggestion(stored.name);
+                    return true;
                 } catch (error) {
                     console.warn('Unable to restore stored login', error);
+                    return false;
                 }
             }
 
@@ -752,8 +847,7 @@
                     const result = await response.json();
                     persistUser(result);
                     ensureSuggestion(result?.name ?? result?.Name ?? nameValue);
-                    setStatus(`Signed in as ${result?.name ?? result?.Name ?? nameValue}.`, 'success');
-                    updateContinueLink(result);
+                    handleAuthenticated(result, { statusMessage: `Signed in as ${result?.name ?? result?.Name ?? nameValue}.` });
                     if (tasteInput && payload.createIfMissing) {
                         tasteInput.value = payload.tasteProfile ?? '';
                     }
@@ -763,8 +857,12 @@
                 }
             });
 
+            const wasRestored = restoreStoredUser();
+            if (!wasRestored) {
+                setAuthenticationState(false);
+            }
+
             loadUsers();
-            restoreStoredUser();
         })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js" crossorigin="anonymous"></script>
