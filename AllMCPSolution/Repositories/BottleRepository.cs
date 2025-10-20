@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Data;
@@ -8,6 +9,7 @@ namespace AllMCPSolution.Repositories;
 public interface IBottleRepository
 {
     Task<List<Bottle>> GetAllAsync(CancellationToken ct = default);
+    Task<List<Bottle>> GetByWineVintageIdAsync(Guid wineVintageId, CancellationToken ct = default);
     Task<Bottle?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task AddAsync(Bottle bottle, CancellationToken ct = default);
     Task UpdateAsync(Bottle bottle, CancellationToken ct = default);
@@ -25,7 +27,14 @@ public class BottleRepository : IBottleRepository
         return await BuildBottleQuery()
             .ToListAsync(ct);
     }
-    
+
+    public async Task<List<Bottle>> GetByWineVintageIdAsync(Guid wineVintageId, CancellationToken ct = default)
+    {
+        return await BuildBottleQuery()
+            .Where(b => b.WineVintageId == wineVintageId)
+            .ToListAsync(ct);
+    }
+
 
     private IQueryable<Bottle> BuildBottleQuery()
     {

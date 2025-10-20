@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AllMCPSolution.Controllers;
@@ -126,30 +128,8 @@ public class WineInventoryController : Controller
             .GroupBy(b => b.WineVintageId)
             .Select(group =>
             {
-                var firstBottle = group.First();
-                var totalCount = group.Count();
-                var drunkCount = group.Count(b => b.IsDrunk);
-
-                var (statusLabel, statusClass) = drunkCount switch
-                {
-                    var d when d == 0 => ("Cellared", "cellared"),
-                    var d when d == totalCount => ("Drunk", "drunk"),
-                    _ => ("Mixed", "mixed")
-                };
-
-                return new WineInventoryBottleViewModel
-                {
-                    WineVintageId = group.Key,
-                    WineName = firstBottle.WineVintage.Wine.Name,
-                    SubAppellation = firstBottle.WineVintage.Wine.SubAppellation?.Name,
-                    Appellation = firstBottle.WineVintage.Wine.SubAppellation?.Appellation?.Name,
-                    Vintage = firstBottle.WineVintage.Vintage,
-                    Color = firstBottle.WineVintage.Wine.Color.ToString(),
-                    BottleCount = totalCount,
-                    StatusLabel = statusLabel,
-                    StatusCssClass = statusClass,
-                    AverageScore = GetAverageScore(group.Key)
-                };
+                var bottlesInGroup = group.ToList();
+                return CreateBottleGroupViewModel(group.Key, bottlesInGroup, GetAverageScore(group.Key));
             })
             .ToList();
 
@@ -206,6 +186,216 @@ public class WineInventoryController : Controller
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", viewModel);
     }
+
+    [HttpGet("bottles/{wineVintageId:guid}")]
+    public async Task<IActionResult> GetBottleGroupDetails(Guid wineVintageId, CancellationToken cancellationToken)
+    {
+        var response = await BuildBottleGroupResponseAsync(wineVintageId, cancellationToken);
+        if (response is null)
+        {
+            return NotFound();
+        }
+
+        return Json(response);
+    }
+
+    [HttpPost("bottles")]
+    public async Task<IActionResult> CreateBottle([FromBody] BottleMutationRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var bottle = new Bottle
+        {
+            Id = Guid.NewGuid(),
+            WineVintageId = request.WineVintageId,
+            Price = request.Price,
+            IsDrunk = request.IsDrunk,
+            DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt)
+        };
+
+        await _bottleRepository.AddAsync(bottle, cancellationToken);
+
+        var response = await BuildBottleGroupResponseAsync(request.WineVintageId, cancellationToken);
+        if (response is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load bottle group after creation.");
+        }
+
+        return Json(response);
+    }
+
+    [HttpPut("bottles/{id:guid}")]
+    public async Task<IActionResult> UpdateBottle(Guid id, [FromBody] BottleMutationRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var bottle = await _bottleRepository.GetByIdAsync(id, cancellationToken);
+        if (bottle is null)
+        {
+            return NotFound();
+        }
+
+        bottle.Price = request.Price;
+        bottle.IsDrunk = request.IsDrunk;
+        bottle.DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt);
+
+        await _bottleRepository.UpdateAsync(bottle, cancellationToken);
+
+        var response = await BuildBottleGroupResponseAsync(bottle.WineVintageId, cancellationToken);
+        return Json(response ?? new BottleGroupDetailsResponse
+        {
+            Group = null,
+            Details = Array.Empty<WineInventoryBottleDetailViewModel>()
+        });
+    }
+
+    [HttpDelete("bottles/{id:guid}")]
+    public async Task<IActionResult> DeleteBottle(Guid id, CancellationToken cancellationToken)
+    {
+        var bottle = await _bottleRepository.GetByIdAsync(id, cancellationToken);
+        if (bottle is null)
+        {
+            return NotFound();
+        }
+
+        await _bottleRepository.DeleteAsync(id, cancellationToken);
+
+        var response = await BuildBottleGroupResponseAsync(bottle.WineVintageId, cancellationToken);
+        return Json(response ?? new BottleGroupDetailsResponse
+        {
+            Group = null,
+            Details = Array.Empty<WineInventoryBottleDetailViewModel>()
+        });
+    }
+
+    private async Task<BottleGroupDetailsResponse?> BuildBottleGroupResponseAsync(Guid wineVintageId, CancellationToken cancellationToken)
+    {
+        var bottles = await _bottleRepository.GetByWineVintageIdAsync(wineVintageId, cancellationToken);
+
+        if (!bottles.Any())
+        {
+            return new BottleGroupDetailsResponse
+            {
+                Group = null,
+                Details = Array.Empty<WineInventoryBottleDetailViewModel>()
+            };
+        }
+
+        var averageScore = CalculateAverageScore(bottles);
+        var summary = CreateBottleGroupViewModel(wineVintageId, bottles, averageScore);
+        var details = bottles
+            .OrderBy(b => b.IsDrunk)
+            .ThenBy(b => b.DrunkAt ?? DateTime.MaxValue)
+            .Select(b => new WineInventoryBottleDetailViewModel
+            {
+                BottleId = b.Id,
+                Price = b.Price,
+                IsDrunk = b.IsDrunk,
+                DrunkAt = b.DrunkAt,
+                Location = ResolveLocation(b),
+                Vintage = b.WineVintage.Vintage
+            })
+            .ToList();
+
+        return new BottleGroupDetailsResponse
+        {
+            Group = summary,
+            Details = details
+        };
+    }
+
+    private static WineInventoryBottleViewModel CreateBottleGroupViewModel(Guid groupId, IReadOnlyCollection<Bottle> bottles, decimal? averageScore)
+    {
+        var firstBottle = bottles.First();
+        var totalCount = bottles.Count;
+        var drunkCount = bottles.Count(b => b.IsDrunk);
+
+        var (statusLabel, statusClass) = drunkCount switch
+        {
+            var d when d == 0 => ("Cellared", "cellared"),
+            var d when d == totalCount => ("Drunk", "drunk"),
+            _ => ("Mixed", "mixed")
+        };
+
+        return new WineInventoryBottleViewModel
+        {
+            WineVintageId = groupId,
+            WineName = firstBottle.WineVintage.Wine.Name,
+            SubAppellation = firstBottle.WineVintage.Wine.SubAppellation?.Name,
+            Appellation = firstBottle.WineVintage.Wine.SubAppellation?.Appellation?.Name,
+            Vintage = firstBottle.WineVintage.Vintage,
+            Color = firstBottle.WineVintage.Wine.Color.ToString(),
+            BottleCount = totalCount,
+            StatusLabel = statusLabel,
+            StatusCssClass = statusClass,
+            AverageScore = averageScore
+        };
+    }
+
+    private static decimal? CalculateAverageScore(IEnumerable<Bottle> bottles)
+    {
+        var scores = bottles
+            .Where(bottle => bottle.IsDrunk)
+            .SelectMany(bottle => bottle.TastingNotes)
+            .Select(note => note.Score)
+            .Where(score => score.HasValue && score.Value > 0)
+            .Select(score => score!.Value)
+            .ToList();
+
+        if (scores.Count == 0)
+        {
+            return null;
+        }
+
+        return decimal.Round((decimal)scores.Average(), 1, MidpointRounding.AwayFromZero);
+    }
+
+    private static string ResolveLocation(Bottle bottle)
+    {
+        var subAppellation = bottle.WineVintage.Wine.SubAppellation?.Name;
+        var appellation = bottle.WineVintage.Wine.SubAppellation?.Appellation?.Name;
+
+        if (!string.IsNullOrWhiteSpace(subAppellation) && !string.Equals(subAppellation, appellation, StringComparison.OrdinalIgnoreCase))
+        {
+            return appellation is not null ? $"{subAppellation} ({appellation})" : subAppellation;
+        }
+
+        if (!string.IsNullOrWhiteSpace(subAppellation))
+        {
+            return subAppellation;
+        }
+
+        if (!string.IsNullOrWhiteSpace(appellation))
+        {
+            return appellation;
+        }
+
+        return "—";
+    }
+
+    private static DateTime? NormalizeDrunkAt(bool isDrunk, DateTime? drunkAt)
+    {
+        if (!isDrunk)
+        {
+            return null;
+        }
+
+        if (!drunkAt.HasValue)
+        {
+            return DateTime.UtcNow;
+        }
+
+        var value = drunkAt.Value;
+        return value.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            : value;
+    }
 }
 
 public class WineInventoryViewModel
@@ -232,6 +422,34 @@ public class WineInventoryBottleViewModel
     public string StatusLabel { get; set; } = string.Empty;
     public string StatusCssClass { get; set; } = string.Empty;
     public decimal? AverageScore { get; set; }
+}
+
+public class WineInventoryBottleDetailViewModel
+{
+    public Guid BottleId { get; set; }
+    public decimal? Price { get; set; }
+    public bool IsDrunk { get; set; }
+    public DateTime? DrunkAt { get; set; }
+    public string Location { get; set; } = string.Empty;
+    public int Vintage { get; set; }
+}
+
+public class BottleGroupDetailsResponse
+{
+    public WineInventoryBottleViewModel? Group { get; set; }
+    public IReadOnlyList<WineInventoryBottleDetailViewModel> Details { get; set; } = Array.Empty<WineInventoryBottleDetailViewModel>();
+}
+
+public class BottleMutationRequest
+{
+    [Required]
+    public Guid WineVintageId { get; set; }
+
+    public decimal? Price { get; set; }
+
+    public bool IsDrunk { get; set; }
+
+    public DateTime? DrunkAt { get; set; }
 }
 
 public record FilterOption(string Value, string Label);
