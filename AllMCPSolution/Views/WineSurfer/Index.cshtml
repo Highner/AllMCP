@@ -516,6 +516,20 @@
     </style>
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
 </head>
+<body>
+    <header class="top-bar">
+        <div class="brand">Wine Surfer</div>
+        <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
+            <span></span>
+        </button>
+        <nav id="menuPanel" class="menu-panel" aria-hidden="true">
+            <a href="/wine-manager">Wine Inventory</a>
+            <a href="/wine-surfer/sisterhoods">Sisterhoods</a>
+        </nav>
+    </header>
+    <main>
+        <h1>Wine Surfer</h1>
+        <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
 <body class="requires-auth">
     <div id="loginOverlay" class="login-overlay" role="dialog" aria-modal="true" aria-labelledby="loginHeading">
         <section class="login-card" aria-labelledby="loginHeading">

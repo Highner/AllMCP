@@ -1,0 +1,359 @@
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wine Surfer · Sisterhoods</title>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(circle at top, rgba(244, 241, 234, 0.08), transparent 60%), #050505;
+            color: #f4f1ea;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px 32px;
+            position: sticky;
+            top: 0;
+            background: rgba(5, 5, 5, 0.92);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid rgba(244, 241, 234, 0.08);
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            font-weight: 600;
+            font-size: 20px;
+        }
+
+        .burger {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            border: 1px solid rgba(244, 241, 234, 0.15);
+            background: rgba(244, 241, 234, 0.05);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .burger span {
+            position: relative;
+            width: 20px;
+            height: 2px;
+            background: #f4f1ea;
+            display: block;
+        }
+
+        .burger span::before,
+        .burger span::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #f4f1ea;
+            transition: transform 0.2s ease;
+        }
+
+        .burger span::before {
+            transform: translateY(-6px);
+        }
+
+        .burger span::after {
+            transform: translateY(6px);
+        }
+
+        .burger.active span {
+            background: transparent;
+        }
+
+        .burger.active span::before {
+            transform: rotate(45deg);
+        }
+
+        .burger.active span::after {
+            transform: rotate(-45deg);
+        }
+
+        .menu-panel {
+            position: absolute;
+            top: 76px;
+            right: 32px;
+            background: rgba(12, 12, 12, 0.95);
+            border: 1px solid rgba(244, 241, 234, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            min-width: 220px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+            display: none;
+        }
+
+        .menu-panel.open {
+            display: block;
+        }
+
+        .menu-panel a {
+            display: block;
+            padding: 12px 16px;
+            border-radius: 10px;
+            color: #f4f1ea;
+            text-decoration: none;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-size: 12px;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .menu-panel a:hover {
+            background: rgba(244, 241, 234, 0.12);
+            transform: translateX(4px);
+        }
+
+        main {
+            flex: 1;
+            padding: 80px 24px 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 48px;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: clamp(40px, 6vw, 88px);
+            margin: 0;
+            letter-spacing: 10px;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .lead {
+            max-width: 720px;
+            text-align: center;
+            font-size: 18px;
+            line-height: 1.6;
+            color: rgba(244, 241, 234, 0.78);
+        }
+
+        .sisterhood-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 28px;
+            width: min(1040px, 100%);
+        }
+
+        .sisterhood-card {
+            background: linear-gradient(160deg, rgba(244, 241, 234, 0.06), rgba(244, 241, 234, 0.02));
+            border: 1px solid rgba(244, 241, 234, 0.08);
+            border-radius: 18px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sisterhood-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(circle at top right, rgba(244, 241, 234, 0.12), transparent 55%);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .sisterhood-card:hover::after {
+            opacity: 1;
+        }
+
+        .sisterhood-name {
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .sisterhood-focus {
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .sisterhood-description {
+            margin: 0;
+            line-height: 1.6;
+            color: rgba(244, 241, 234, 0.78);
+        }
+
+        .cta-card {
+            width: min(880px, 100%);
+            border-radius: 22px;
+            padding: 40px;
+            background: linear-gradient(130deg, rgba(244, 241, 234, 0.12), rgba(63, 12, 12, 0.45));
+            border: 1px solid rgba(244, 241, 234, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            text-align: center;
+        }
+
+        .cta-card h2 {
+            margin: 0;
+            font-size: 28px;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+        }
+
+        .cta-card p {
+            margin: 0;
+            color: rgba(244, 241, 234, 0.78);
+            line-height: 1.6;
+        }
+
+        .cta-card a {
+            align-self: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 26px;
+            border-radius: 999px;
+            border: 1px solid rgba(244, 241, 234, 0.24);
+            color: #f4f1ea;
+            text-decoration: none;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-size: 13px;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .cta-card a:hover {
+            background: rgba(244, 241, 234, 0.15);
+            transform: translateY(-2px);
+        }
+
+        @@media (max-width: 768px) {
+            .top-bar {
+                padding: 18px 20px;
+            }
+
+            .brand {
+                font-size: 16px;
+                letter-spacing: 3px;
+            }
+
+            main {
+                padding-top: 60px;
+            }
+
+            h1 {
+                letter-spacing: 6px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+</head>
+<body>
+    <header class="top-bar">
+        <div class="brand">Wine Surfer</div>
+        <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
+            <span></span>
+        </button>
+        <nav id="menuPanel" class="menu-panel" aria-hidden="true">
+            <a href="/wine-surfer">Home</a>
+            <a href="/wine-manager">Wine Inventory</a>
+            <a href="/wine-surfer/sisterhoods" aria-current="page">Sisterhoods</a>
+        </nav>
+    </header>
+    <main>
+        <section>
+            <h1>Sisterhoods</h1>
+            <p class="lead">Across continents and cultures, our Sisterhoods gather to share knowledge, amplify underrepresented voices, and craft cellars that celebrate every story in the vineyard. Explore the communities shaping tomorrow&#39;s wine world.</p>
+        </section>
+        <section class="sisterhood-grid" aria-label="Wine Surfer sisterhood communities">
+            <article class="sisterhood-card">
+                <h2 class="sisterhood-name">The Coastal Guardians</h2>
+                <p class="sisterhood-focus">Sustainable seaside terroirs</p>
+                <p class="sisterhood-description">From Cornwall to the Cape, the Guardians champion cool-climate viticulture, pairing ocean stewardship with crisp, saline whites and sparkling wines that shimmer like morning tide.</p>
+            </article>
+            <article class="sisterhood-card">
+                <h2 class="sisterhood-name">Highland Alchemists</h2>
+                <p class="sisterhood-focus">Mountain-grown experimentation</p>
+                <p class="sisterhood-description">Perched on volcanic slopes and alpine terraces, these innovators blend heritage grapes with modern biodynamics, bottling altitude into precise, expressive reds.</p>
+            </article>
+            <article class="sisterhood-card">
+                <h2 class="sisterhood-name">Desert Bloom Circle</h2>
+                <p class="sisterhood-focus">Arid climate resilience</p>
+                <p class="sisterhood-description">Harnessing scarce water and abundant sun, the circle pioneers regenerative practices that coax lush aromatics from the world&#39;s driest soils.</p>
+            </article>
+            <article class="sisterhood-card">
+                <h2 class="sisterhood-name">Midnight Assemblage</h2>
+                <p class="sisterhood-focus">Night-harvested artistry</p>
+                <p class="sisterhood-description">By moonlight, the assemblage choreographs harvests that preserve delicate aromatics, crafting velvety blends for contemplative evenings.</p>
+            </article>
+        </section>
+        <section class="cta-card">
+            <h2>Join the Wave</h2>
+            <p>Bring your guild, tasting group, or collective into the Wine Surfer Sisterhoods network. Share events, co-create cellar maps, and leave no voice untasted.</p>
+            <a href="/wine-surfer">Return to Wine Surfer</a>
+        </section>
+    </main>
+    <script>
+        const toggle = document.getElementById('menuToggle');
+        const panel = document.getElementById('menuPanel');
+
+        const closeMenu = () => {
+            toggle.classList.remove('active');
+            toggle.setAttribute('aria-expanded', 'false');
+            panel.classList.remove('open');
+            panel.setAttribute('aria-hidden', 'true');
+        };
+
+        toggle?.addEventListener('click', () => {
+            const isOpen = toggle.classList.toggle('active');
+            toggle.setAttribute('aria-expanded', String(isOpen));
+            panel.classList.toggle('open', isOpen);
+            panel.setAttribute('aria-hidden', String(!isOpen));
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!panel.contains(event.target) && event.target !== toggle) {
+                closeMenu();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeMenu();
+            }
+        });
+    </script>
+</body>
+</html>
