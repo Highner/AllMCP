@@ -57,6 +57,7 @@ builder.Services.AddScoped<IBottleRepository, BottleRepository>();
 builder.Services.AddScoped<IBottleLocationRepository, BottleLocationRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITastingNoteRepository, TastingNoteRepository>();
+builder.Services.AddScoped<ISisterhoodRepository, SisterhoodRepository>();
 builder.Services.AddScoped<InventoryIntakeService>();
 
 // Register all tools (auto-discovered by ToolRegistry)
