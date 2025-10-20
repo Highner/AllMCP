@@ -131,7 +131,7 @@ public class WineSurferController : Controller
     public IActionResult Sisterhoods()
     {
         Response.ContentType = "text/html; charset=utf-8";
-        return View("Sisterhoods");
+        return View("~/Views/Sisterhoods/Index.cshtml");
     }
 
     [HttpGet("users")]
