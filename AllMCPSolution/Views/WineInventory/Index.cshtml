@@ -356,9 +356,26 @@
             gap: 10px;
         }
 
-        .details-table .actions button.secondary {
-            background: rgba(255, 99, 132, 0.25);
+        .details-table tbody .actions button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(244, 241, 234, 0.2);
+            background: transparent;
+            color: #f4f1ea;
+            cursor: pointer;
+        }
+
+        .details-table tbody .actions button:hover {
+            background: rgba(244, 241, 234, 0.12);
+        }
+
+        .details-table tbody .actions button.secondary {
+            border-color: rgba(255, 99, 132, 0.45);
             color: #ffb3c7;
+        }
+
+        .details-table tbody .actions button.secondary:hover {
+            background: rgba(255, 99, 132, 0.15);
         }
 
         .inventory-table .actions {
@@ -379,14 +396,27 @@
             background: rgba(244, 241, 234, 0.12);
         }
 
+        .inventory-table thead tr:first-child {
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .inventory-table thead tr.add-summary-row {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .inventory-table thead tr.add-summary-row td {
+            border-bottom: 1px solid rgba(244, 241, 234, 0.05);
+        }
+
         .summary-add-row input,
         .summary-add-row select {
             width: 100%;
             padding: 8px 10px;
             border-radius: 6px;
-            border: 1px solid rgba(244, 241, 234, 0.2);
-            background: rgba(10, 10, 10, 0.85);
+            border: 1px solid rgba(244, 241, 234, 0.25);
+            background: rgba(10, 10, 10, 0.9);
             color: #f4f1ea;
+            font: inherit;
         }
 
         .summary-add-row .actions button {
@@ -527,8 +557,6 @@
                             <span class="header-text">Actions</span>
                         </th>
                     </tr>
-                </thead>
-                <tbody>
                     <tr class="add-summary-row">
                         <td>
                             <input type="text" class="summary-add-name" placeholder="Wine name" aria-label="Wine name" />
@@ -559,6 +587,8 @@
                             </div>
                         </td>
                     </tr>
+                </thead>
+                <tbody>
                     @foreach (var bottle in Model.Bottles)
                     {
                         var subAppellation = string.IsNullOrWhiteSpace(bottle.SubAppellation) ? null : bottle.SubAppellation;
@@ -611,24 +641,18 @@
                 <table class="details-table" id="details-table">
                     <thead>
                         <tr>
-                            <th scope="col">Wine</th>
                             <th scope="col">Bottle Location</th>
-                            <th scope="col">Vintage</th>
                             <th scope="col">Price</th>
                             <th scope="col">Drunk</th>
                             <th scope="col">Drunk Date</th>
                             <th scope="col">Actions</th>
                         </tr>
-                    </thead>
-                    <tbody>
                         <tr class="add-row" id="detail-add-row" hidden>
-                            <td class="add-wine">—</td>
                             <td>
                                 <select class="detail-add-location" aria-label="Bottle location">
                                     <option value="">No location</option>
                                 </select>
                             </td>
-                            <td class="add-vintage">—</td>
                             <td>
                                 <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
                             </td>
@@ -645,8 +669,10 @@
                                 <button type="button" class="detail-add-submit">Add Bottle</button>
                             </td>
                         </tr>
+                    </thead>
+                    <tbody>
                         <tr class="empty-row">
-                            <td colspan="7">Select a wine group to see its bottles.</td>
+                            <td colspan="5">Select a wine group to see its bottles.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -658,7 +684,7 @@
             const inventoryTable = document.getElementById('inventory-table');
             const detailsTable = document.getElementById('details-table');
             const detailsBody = detailsTable?.querySelector('tbody');
-            const detailAddRow = detailsBody?.querySelector('#detail-add-row');
+            const detailAddRow = detailsTable?.querySelector('#detail-add-row');
             const emptyRow = detailsBody?.querySelector('.empty-row');
             const detailsTitle = document.getElementById('details-title');
             const detailsSubtitle = document.getElementById('details-subtitle');
@@ -682,8 +708,6 @@
             const detailAddLabel = detailAddRow.querySelector('.checkbox-row span');
             const detailAddDrunkAt = detailAddRow.querySelector('.detail-add-drunk-at');
             const detailAddButton = detailAddRow.querySelector('.detail-add-submit');
-            const detailAddWineCell = detailAddRow.querySelector('.add-wine');
-            const detailAddVintageCell = detailAddRow.querySelector('.add-vintage');
 
             let selectedGroupId = null;
             let selectedSummary = null;
@@ -1321,8 +1345,6 @@
                     detailsTitle.textContent = `${summary.wineName ?? ''} • ${summary.vintage ?? ''}`;
                     detailsSubtitle.textContent = `${summary.bottleCount ?? 0} bottle${summary.bottleCount === 1 ? '' : 's'} · ${summary.statusLabel ?? ''}`;
                     detailAddRow.hidden = false;
-                    detailAddWineCell.textContent = summary.wineName ?? '—';
-                    detailAddVintageCell.textContent = summary.vintage != null ? String(summary.vintage) : '—';
                     detailAddPrice.value = '';
                     detailAddIsDrunk.checked = false;
                     if (detailAddLabel) {
@@ -1384,9 +1406,7 @@
                 const isDrunk = Boolean(detail.isDrunk ?? detail.IsDrunk);
 
                 row.innerHTML = `
-                    <td>${escapeHtml(detail.wineName ?? summary?.wineName ?? shortId(detail.bottleId ?? detail.BottleId))}</td>
                     <td></td>
-                    <td>${escapeHtml(summary ? String(summary.vintage ?? '') : detail.vintage != null ? String(detail.vintage) : '—')}</td>
                     <td><input type="number" step="0.01" min="0" class="detail-price" value="${detail.price ?? detail.Price ?? ''}" placeholder="0.00" /></td>
                     <td>
                         <label class="checkbox-row">
@@ -1400,7 +1420,7 @@
                         <button type="button" class="secondary delete">Remove</button>
                     </td>`;
 
-                const locationCell = row.children[1];
+                const locationCell = row.children[0];
                 const locationSelect = document.createElement('select');
                 locationSelect.className = 'detail-location';
                 populateLocationSelect(locationSelect, detail.bottleLocationId ?? detail.BottleLocationId ?? '');
