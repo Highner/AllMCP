@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Models;
@@ -5,6 +6,7 @@ using AllMCPSolution.Models;
 namespace AllMCPSolution.Artists;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class ArtistsController : ControllerBase
 {

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Models;
@@ -7,6 +8,7 @@ using System.Collections.Concurrent;
 namespace AllMCPSolution.Artworks;
 
 [ApiController]
+[Authorize]
 [Route("api")] // Keep exact path compatibility: /api/upload
 public class UploadController : ControllerBase
 {
