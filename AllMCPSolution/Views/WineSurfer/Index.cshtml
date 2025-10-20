@@ -258,7 +258,7 @@
             backdrop-filter: blur(4px);
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 10px;
             transition: transform 0.2s ease, border-color 0.2s ease;
         }
 
@@ -288,6 +288,40 @@
             text-transform: uppercase;
             letter-spacing: 2px;
             color: rgba(244, 241, 234, 0.6);
+        }
+
+        .region-card .inventory-overview {
+            margin: 12px 0 0;
+            padding-top: 12px;
+            border-top: 1px solid rgba(244, 241, 234, 0.08);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 12px;
+        }
+
+        .inventory-overview {
+            margin: 0;
+        }
+
+        .inventory-overview .metric {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .inventory-overview dt {
+            font-size: 11px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+            margin: 0;
+        }
+
+        .inventory-overview dd {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 500;
+            letter-spacing: 1px;
         }
 
         @@media (max-width: 768px) {
@@ -338,7 +372,10 @@
                     point.Label,
                     point.Country,
                     point.Latitude,
-                    point.Longitude
+                    point.Longitude,
+                    point.BottlesCellared,
+                    point.BottlesConsumed,
+                    point.AverageScore
                 }), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
         </script>
         <section class="regions-panel" aria-label="Highlighted wine regions">
@@ -351,6 +388,24 @@
                     {
                         <span class="country">@point.Country</span>
                     }
+                    <dl class="inventory-overview" aria-label="Inventory overview for @point.Label">
+                        <div class="metric">
+                            <dt>Cellared</dt>
+                            <dd>@point.BottlesCellared</dd>
+                        </div>
+                        <div class="metric">
+                            <dt>Consumed</dt>
+                            <dd>@point.BottlesConsumed</dd>
+                        </div>
+                        <div class="metric">
+                            <dt>Avg. Score</dt>
+                            <dd>
+                                @(point.AverageScore.HasValue
+                                    ? point.AverageScore.Value.ToString("0.0", CultureInfo.InvariantCulture)
+                                    : "—")
+                            </dd>
+                        </div>
+                    </dl>
                 </article>
             }
             @if (!Model.HighlightPoints.Any())
