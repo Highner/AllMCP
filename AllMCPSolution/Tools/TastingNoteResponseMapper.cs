@@ -34,9 +34,12 @@ internal static class TastingNoteResponseMapper
                         {
                             id = wine.Id,
                             name = wine.Name,
-                            appellation = string.IsNullOrWhiteSpace(wine.Appellation?.Name)
+                            subAppellation = string.IsNullOrWhiteSpace(wine.SubAppellation?.Name)
                                 ? null
-                                : wine.Appellation!.Name,
+                                : wine.SubAppellation!.Name,
+                            appellation = string.IsNullOrWhiteSpace(wine.SubAppellation?.Appellation?.Name)
+                                ? null
+                                : wine.SubAppellation.Appellation!.Name,
                             color = wine.Color.ToString()
                         }
                 },

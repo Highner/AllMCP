@@ -29,9 +29,10 @@ public sealed class WineVintageRepository : IWineVintageRepository
         return await _db.WineVintages
             .AsNoTracking()
             .Include(wv => wv.Wine)
-                .ThenInclude(w => w.Appellation)
-                    .ThenInclude(a => a.Region)
-                        .ThenInclude(r => r.Country)
+                .ThenInclude(w => w.SubAppellation)
+                    .ThenInclude(sa => sa.Appellation)
+                        .ThenInclude(a => a.Region)
+                            .ThenInclude(r => r.Country)
             .FirstOrDefaultAsync(wv => wv.Id == id, ct);
     }
 
@@ -46,9 +47,10 @@ public sealed class WineVintageRepository : IWineVintageRepository
 
         return await _db.WineVintages
             .Include(wv => wv.Wine)
-                .ThenInclude(w => w.Appellation)
-                    .ThenInclude(a => a.Region)
-                        .ThenInclude(r => r.Country)
+                .ThenInclude(w => w.SubAppellation)
+                    .ThenInclude(sa => sa.Appellation)
+                        .ThenInclude(a => a.Region)
+                            .ThenInclude(r => r.Country)
             .FirstOrDefaultAsync(wv => wv.WineId == wineId && wv.Vintage == vintage, ct);
     }
 
@@ -61,9 +63,10 @@ public sealed class WineVintageRepository : IWineVintageRepository
         }
 
         var wine = await _db.Wines
-            .Include(w => w.Appellation)
-                .ThenInclude(a => a.Region)
-                    .ThenInclude(r => r.Country)
+            .Include(w => w.SubAppellation)
+                .ThenInclude(sa => sa.Appellation)
+                    .ThenInclude(a => a.Region)
+                        .ThenInclude(r => r.Country)
             .FirstOrDefaultAsync(w => w.Id == wineId, ct)
             ?? throw new InvalidOperationException($"Wine {wineId} could not be found when creating vintage {vintage}.");
 

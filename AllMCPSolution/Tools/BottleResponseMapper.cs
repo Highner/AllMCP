@@ -58,7 +58,8 @@ internal static class BottleResponseMapper
 
     private static object MapWine(Wine wine)
     {
-        var appellation = wine.Appellation;
+        var subAppellation = wine.SubAppellation;
+        var appellation = subAppellation?.Appellation;
         var region = appellation?.Region;
         var country = region?.Country;
 
@@ -67,6 +68,8 @@ internal static class BottleResponseMapper
             id = wine.Id,
             name = wine.Name,
             grapeVariety = wine.GrapeVariety,
+            subAppellationId = subAppellation?.Id,
+            subAppellation = string.IsNullOrWhiteSpace(subAppellation?.Name) ? null : subAppellation.Name,
             appellationId = appellation?.Id,
             appellation = string.IsNullOrWhiteSpace(appellation?.Name) ? null : appellation.Name,
             color = wine.Color.ToString(),

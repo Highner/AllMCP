@@ -7,4 +7,6 @@ public sealed record ActiveBottleLocation(
     string? RegionName,
     Guid? AppellationId,
     string? AppellationName,
+    Guid? SubAppellationId,
+    string? SubAppellationName,
     int? Vintage);

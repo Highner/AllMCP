@@ -183,6 +183,11 @@ public sealed class CreateBottleTool : BottleToolBase
                 ["type"] = "string",
                 ["description"] = "Appellation of the wine (such as Napa Valley, Pomerol or Chambolle-Musigny). Required when the wine must be created.",
             },
+            ["subAppellation"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Sub-appellation of the wine (such as Rutherford AVA or Côte Brune). Required when the wine must be created.",
+            },
             ["color"] = new JsonObject
             {
                 ["type"] = "string",
@@ -199,7 +204,7 @@ public sealed class CreateBottleTool : BottleToolBase
         {
             ["type"] = "object",
             ["properties"] = properties,
-            ["required"] = new JsonArray("name", "vintage", "country", "region", "appellation", "color")
+            ["required"] = new JsonArray("name", "vintage", "country", "region", "appellation", "subAppellation", "color")
         };
     }
 
