@@ -127,6 +127,13 @@ public class WineSurferController : Controller
         return View("Index", model);
     }
 
+    [HttpGet("sisterhoods")]
+    public IActionResult Sisterhoods()
+    {
+        Response.ContentType = "text/html; charset=utf-8";
+        return View("Sisterhoods");
+    }
+
     [HttpGet("users")]
     public async Task<IActionResult> GetUsers(CancellationToken cancellationToken)
     {
