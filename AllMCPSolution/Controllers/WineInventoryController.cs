@@ -531,7 +531,8 @@ public class WineInventoryController : Controller
                 BottleLocationId = b.BottleLocationId,
                 BottleLocation = b.BottleLocation?.Name ?? "—",
                 Vintage = b.WineVintage.Vintage,
-                WineName = b.WineVintage.Wine.Name
+                WineName = b.WineVintage.Wine.Name,
+                AverageScore = CalculateAverageScore(b)
             })
             .ToList();
 
@@ -613,6 +614,22 @@ public class WineInventoryController : Controller
         return decimal.Round((decimal)scores.Average(), 1, MidpointRounding.AwayFromZero);
     }
 
+    private static decimal? CalculateAverageScore(Bottle bottle)
+    {
+        var scores = bottle.TastingNotes
+            .Select(note => note.Score)
+            .Where(score => score.HasValue && score.Value > 0)
+            .Select(score => score!.Value)
+            .ToList();
+
+        if (scores.Count == 0)
+        {
+            return null;
+        }
+
+        return decimal.Round((decimal)scores.Average(), 1, MidpointRounding.AwayFromZero);
+    }
+
     private static DateTime? NormalizeDrunkAt(bool isDrunk, DateTime? drunkAt)
     {
         if (!isDrunk)
@@ -671,6 +688,7 @@ public class WineInventoryBottleDetailViewModel
     public string BottleLocation { get; set; } = string.Empty;
     public int Vintage { get; set; }
     public string WineName { get; set; } = string.Empty;
+    public decimal? AverageScore { get; set; }
 }
 
 public class BottleGroupDetailsResponse
