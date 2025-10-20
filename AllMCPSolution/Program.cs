@@ -42,6 +42,7 @@ builder.Services.AddScoped<IWineRepository, WineRepository>();
 builder.Services.AddScoped<IWineVintageRepository, WineVintageRepository>();
 builder.Services.AddScoped<IWineVintageEvolutionScoreRepository, WineVintageEvolutionScoreRepository>();
 builder.Services.AddScoped<IBottleRepository, BottleRepository>();
+builder.Services.AddScoped<IBottleLocationRepository, BottleLocationRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITastingNoteRepository, TastingNoteRepository>();
 builder.Services.AddScoped<InventoryIntakeService>();

@@ -22,6 +22,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<WineVintage> WineVintages { get; set; }
     public DbSet<WineVintageEvolutionScore> WineVintageEvolutionScores { get; set; }
     public DbSet<Bottle> Bottles { get; set; }
+    public DbSet<BottleLocation> BottleLocations { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<TastingNote> TastingNotes { get; set; }
 
@@ -151,6 +152,21 @@ public class ApplicationDbContext : DbContext
                 .WithMany(wv => wv.Bottles)
                 .HasForeignKey(b => b.WineVintageId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(b => b.BottleLocation)
+                .WithMany(bl => bl.Bottles)
+                .HasForeignKey(b => b.BottleLocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<BottleLocation>(e =>
+        {
+            e.Property(bl => bl.Name)
+                .HasMaxLength(128)
+                .IsRequired();
+
+            e.HasIndex(bl => bl.Name)
+                .IsUnique();
         });
 
         modelBuilder.Entity<TastingNote>(e =>
