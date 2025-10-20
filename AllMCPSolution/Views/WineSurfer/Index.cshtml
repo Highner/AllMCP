@@ -1159,9 +1159,6 @@
                         card.addEventListener('click', () => setSelectedIndex(index, { focus: true }));
                     });
 
-                    if (highlightData.length) {
-                        setSelectedIndex(highlightData[0].index, { focus: false });
-                    }
                 })
                 .catch(error => {
                     console.error('Failed to render world map', error);
