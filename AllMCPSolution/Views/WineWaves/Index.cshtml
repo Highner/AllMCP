@@ -182,12 +182,25 @@
             inset: 0;
             width: 100%;
             height: 100%;
+            pointer-events: none;
         }
 
-        .world-map path {
-            fill: rgba(244, 241, 234, 0.05);
-            stroke: rgba(244, 241, 234, 0.9);
-            stroke-width: 2;
+        .world-map svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .world-map .country {
+            fill: rgba(244, 241, 234, 0.02);
+            stroke: rgba(244, 241, 234, 0.25);
+            stroke-width: 1.2;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .world-map .boundary {
+            fill: none;
+            stroke: rgba(244, 241, 234, 0.7);
+            stroke-width: 1.4;
             vector-effect: non-scaling-stroke;
         }
 
@@ -303,14 +316,7 @@
         <h1>Wine Waves</h1>
         <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
         <section class="map-shell" aria-label="World map highlighting wine regions">
-            <svg viewBox="0 0 1000 500" class="world-map" role="img" aria-hidden="true">
-                <path d="M90 110 L140 70 L200 80 L250 90 L280 120 L260 150 L240 160 L210 150 L190 165 L150 180 L120 170 L90 140 Z" />
-                <path d="M250 200 L280 220 L270 260 L280 320 L260 360 L240 390 L230 430 L220 470 L200 450 L190 410 L200 360 L210 320 L220 260 Z" />
-                <path d="M320 150 L360 110 L420 100 L480 110 L540 130 L600 140 L660 160 L720 190 L780 190 L840 200 L880 220 L900 260 L880 290 L840 300 L780 280 L720 260 L660 240 L600 220 L540 200 L480 190 L420 190 L360 180 Z" />
-                <path d="M420 190 L460 170 L520 180 L560 220 L570 260 L560 320 L540 360 L520 400 L500 430 L460 420 L440 370 L430 320 Z" />
-                <path d="M720 330 L760 320 L800 330 L830 360 L820 390 L780 400 L740 380 L720 350 Z" />
-                <path d="M220 40 L250 20 L280 30 L300 60 L290 80 L260 70 L230 60 Z" />
-            </svg>
+            <div id="map" class="world-map" role="img" aria-hidden="true"></div>
             <div class="highlight-layer">
                 @foreach (var point in Model.HighlightPoints)
                 {
@@ -340,6 +346,52 @@
             }
         </section>
     </main>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js" crossorigin="anonymous"></script>
+    <script>
+        (function renderMap() {
+            const mapContainer = document.getElementById('map');
+            if (!mapContainer || typeof d3 === 'undefined' || typeof topojson === 'undefined') {
+                return;
+            }
+
+            const width = 1000;
+            const height = 500;
+
+            const svg = d3.select(mapContainer)
+                .append('svg')
+                .attr('class', 'map-svg')
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .attr('preserveAspectRatio', 'xMidYMid meet')
+                .attr('aria-hidden', 'true');
+
+            const projection = d3.geoEquirectangular();
+            const path = d3.geoPath(projection);
+
+            fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+                .then(response => response.json())
+                .then(worldData => {
+                    const countries = topojson.feature(worldData, worldData.objects.countries);
+                    projection.fitSize([width, height], countries);
+
+                    svg.append('g')
+                        .attr('class', 'country-layer')
+                        .selectAll('path')
+                        .data(countries.features)
+                        .join('path')
+                        .attr('class', 'country')
+                        .attr('d', path);
+
+                    svg.append('path')
+                        .datum(topojson.mesh(worldData, worldData.objects.countries, (a, b) => a !== b))
+                        .attr('class', 'boundary')
+                        .attr('d', path);
+                })
+                .catch(error => {
+                    console.error('Failed to render world map', error);
+                });
+        })();
+    </script>
     <script>
         const toggle = document.getElementById('menuToggle');
         const panel = document.getElementById('menuPanel');
