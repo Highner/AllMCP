@@ -543,16 +543,7 @@
         </section>
     </div>
     <div class="page-content">
-        <header class="top-bar">
-            <div class="brand">Wine Surfer</div>
-            <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
-                <span></span>
-            </button>
-            <nav id="menuPanel" class="menu-panel" aria-hidden="true">
-                <a href="/wine-manager">Wine Inventory</a>
-                <a href="/wine-surfer/sisterhoods">Sisterhoods</a>
-            </nav>
-        </header>
+        @await Html.PartialAsync("_WineSurferTopBar", Context.Request.Path.Value ?? string.Empty)
         <main>
             <h1>Wine Surfer</h1>
             <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>

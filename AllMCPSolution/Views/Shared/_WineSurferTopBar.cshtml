@@ -1,0 +1,37 @@
+@model string
+
+@{
+    var navItems = new (string Href, string Label)[]
+    {
+        ("/wine-surfer", "Home"),
+        ("/wine-surfer/sisterhoods", "Sisterhoods"),
+        ("/wine-manager", "Wine Inventory")
+    };
+
+    var currentPath = string.IsNullOrWhiteSpace(Model)
+        ? string.Empty
+        : Model.TrimEnd('/');
+
+    if (string.IsNullOrEmpty(currentPath) && !string.IsNullOrEmpty(Model))
+    {
+        currentPath = "/";
+    }
+}
+
+<header class="top-bar">
+    <div class="brand">Wine Surfer</div>
+    <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
+        <span></span>
+    </button>
+    <nav id="menuPanel" class="menu-panel" aria-hidden="true">
+        @foreach (var item in navItems)
+        {
+            if (string.Equals(item.Href, currentPath, System.StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            <a href="@item.Href">@item.Label</a>
+        }
+    </nav>
+</header>
