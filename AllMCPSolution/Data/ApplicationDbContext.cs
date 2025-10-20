@@ -165,7 +165,12 @@ public class ApplicationDbContext : DbContext
                 .HasMaxLength(128)
                 .IsRequired();
 
-            e.HasIndex(bl => bl.Name)
+            e.HasOne(bl => bl.User)
+                .WithMany(u => u.BottleLocations)
+                .HasForeignKey(bl => bl.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(bl => new { bl.UserId, bl.Name })
                 .IsUnique();
         });
 

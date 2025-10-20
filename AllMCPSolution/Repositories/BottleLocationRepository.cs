@@ -7,7 +7,7 @@ public interface IBottleLocationRepository
 {
     Task<List<BottleLocation>> GetAllAsync(CancellationToken ct = default);
     Task<BottleLocation?> GetByIdAsync(Guid id, CancellationToken ct = default);
-    Task<BottleLocation?> FindByNameAsync(string name, CancellationToken ct = default);
+    Task<BottleLocation?> FindByNameAsync(string name, Guid userId, CancellationToken ct = default);
     Task AddAsync(BottleLocation location, CancellationToken ct = default);
     Task UpdateAsync(BottleLocation location, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
@@ -26,6 +26,7 @@ public class BottleLocationRepository : IBottleLocationRepository
     {
         return await _db.BottleLocations
             .AsNoTracking()
+            .Include(l => l.User)
             .OrderBy(l => l.Name)
             .ToListAsync(ct);
     }
@@ -34,10 +35,11 @@ public class BottleLocationRepository : IBottleLocationRepository
     {
         return await _db.BottleLocations
             .AsNoTracking()
+            .Include(l => l.User)
             .FirstOrDefaultAsync(l => l.Id == id, ct);
     }
 
-    public async Task<BottleLocation?> FindByNameAsync(string name, CancellationToken ct = default)
+    public async Task<BottleLocation?> FindByNameAsync(string name, Guid userId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -47,7 +49,8 @@ public class BottleLocationRepository : IBottleLocationRepository
         var normalized = name.Trim();
         return await _db.BottleLocations
             .AsNoTracking()
-            .FirstOrDefaultAsync(l => l.Name == normalized, ct);
+            .Include(l => l.User)
+            .FirstOrDefaultAsync(l => l.Name == normalized && l.UserId == userId, ct);
     }
 
     public async Task AddAsync(BottleLocation location, CancellationToken ct = default)
