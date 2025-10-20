@@ -114,8 +114,8 @@ public class WineSurferController : Controller
             .Select(group =>
             {
                 var region = group.First().Region;
-                var (cellared, consumed, averageScore) = CalculateRegionInventoryMetrics(group.Select(entry => entry.Wine));
-                return CreateHighlightPoint(region, cellared, consumed, averageScore);
+                var metrics = CalculateRegionInventoryMetrics(group.Select(entry => entry.Wine));
+                return CreateHighlightPoint(region, metrics);
             })
             .Where(point => point is not null)
             .Cast<MapHighlightPoint>()
@@ -190,7 +190,7 @@ public class WineSurferController : Controller
         return Ok(response);
     }
 
-    private static (int Cellared, int Consumed, decimal? AverageScore) CalculateRegionInventoryMetrics(IEnumerable<Wine> wines)
+    private static RegionInventoryMetrics CalculateRegionInventoryMetrics(IEnumerable<Wine> wines)
     {
         var bottleList = wines
             .SelectMany(wine => wine.WineVintages ?? Enumerable.Empty<WineVintage>())
@@ -200,9 +200,12 @@ public class WineSurferController : Controller
         var cellared = bottleList.Count(bottle => !bottle.IsDrunk);
         var consumed = bottleList.Count(bottle => bottle.IsDrunk);
 
-        var scoreValues = bottleList
+        var tastingNotes = bottleList
             .SelectMany(bottle => bottle.TastingNotes ?? Enumerable.Empty<TastingNote>())
             .Where(note => note.Score.HasValue)
+            .ToList();
+
+        var scoreValues = tastingNotes
             .Select(note => note.Score!.Value)
             .ToList();
 
@@ -210,14 +213,20 @@ public class WineSurferController : Controller
             ? Math.Round(scoreValues.Average(), 1, MidpointRounding.AwayFromZero)
             : null;
 
-        return (cellared, consumed, averageScore);
+        var userAverageScores = tastingNotes
+            .GroupBy(note => note.UserId)
+            .Select(group => new RegionUserAverageScore(
+                group.Key,
+                Math.Round(group.Average(note => note.Score!.Value), 1, MidpointRounding.AwayFromZero)))
+            .OrderBy(entry => entry.UserId)
+            .ToList();
+
+        return new RegionInventoryMetrics(cellared, consumed, averageScore, userAverageScores);
     }
 
     private static MapHighlightPoint? CreateHighlightPoint(
         Region region,
-        int bottlesCellared,
-        int bottlesConsumed,
-        decimal? averageScore)
+        RegionInventoryMetrics metrics)
     {
         var countryName = region.Country?.Name;
         if (!string.IsNullOrWhiteSpace(region.Name) && RegionCoordinates.TryGetValue(region.Name, out var regionCoord))
@@ -227,9 +236,10 @@ public class WineSurferController : Controller
                 countryName ?? string.Empty,
                 regionCoord.Latitude,
                 regionCoord.Longitude,
-                bottlesCellared,
-                bottlesConsumed,
-                averageScore);
+                metrics.BottlesCellared,
+                metrics.BottlesConsumed,
+                metrics.AverageScore,
+                metrics.UserAverageScores);
         }
 
         if (!string.IsNullOrWhiteSpace(countryName) && CountryCoordinates.TryGetValue(countryName, out var countryCoord))
@@ -242,9 +252,10 @@ public class WineSurferController : Controller
                 countryName,
                 countryCoord.Latitude,
                 countryCoord.Longitude,
-                bottlesCellared,
-                bottlesConsumed,
-                averageScore);
+                metrics.BottlesCellared,
+                metrics.BottlesConsumed,
+                metrics.AverageScore,
+                metrics.UserAverageScores);
         }
 
         return null;
@@ -260,7 +271,16 @@ public record MapHighlightPoint(
     double Longitude,
     int BottlesCellared,
     int BottlesConsumed,
-    decimal? AverageScore);
+    decimal? AverageScore,
+    IReadOnlyList<RegionUserAverageScore> UserAverageScores);
+
+public record RegionInventoryMetrics(
+    int BottlesCellared,
+    int BottlesConsumed,
+    decimal? AverageScore,
+    IReadOnlyList<RegionUserAverageScore> UserAverageScores);
+
+public record RegionUserAverageScore(Guid UserId, decimal AverageScore);
 
 public record WineSurferUserSummary(Guid Id, string Name, string TasteProfile);
 
