@@ -505,7 +505,8 @@ textarea:focus {
 .filters button,
 .details-controls button,
 .details-table button,
-.notes-table button {
+.notes-table button,
+.crud-table__action-button {
     align-self: flex-end;
     padding: 12px 24px;
     border-radius: 8px;
@@ -528,14 +529,16 @@ textarea:focus {
 .filters button:hover,
 .details-controls button:hover,
 .details-table button:hover,
-.notes-table button:hover {
+.notes-table button:hover,
+.crud-table__action-button:hover {
     transform: translateY(-1px);
     box-shadow: 0 10px 20px hsla(var(--background) / 0.65);
 }
 
 .details-controls button:disabled,
 .details-table button:disabled,
-.notes-table button:disabled {
+.notes-table button:disabled,
+.crud-table__action-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
@@ -554,6 +557,79 @@ textarea:focus {
     letter-spacing: 1.2px;
 }
 
+.crud-table {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-top: 24px;
+    padding: 24px;
+    border-radius: calc(var(--radius) + 0.25rem);
+    background: hsla(var(--card) / 0.55);
+    box-shadow: 0 25px 60px hsla(var(--background) / 0.35);
+    border: 1px solid hsla(var(--border) / 0.2);
+}
+
+.crud-table__header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.crud-table__title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.crud-table__description {
+    margin: 0;
+    color: hsla(var(--muted-foreground) / 0.85);
+    font-size: 0.95rem;
+}
+
+.crud-table__body {
+    border-radius: calc(var(--radius) - 0.15rem);
+    background: hsla(var(--card) / 0.65);
+    overflow: hidden;
+    border: 1px solid hsla(var(--border) / 0.18);
+}
+
+.crud-table__table {
+    width: 100%;
+    border-collapse: collapse;
+    background: transparent;
+}
+
+.crud-table__add-row {
+    background: hsla(var(--accent) / 0.2);
+}
+
+.crud-table__add-row td {
+    border-bottom: 1px solid hsla(var(--border) / 0.25);
+}
+
+.crud-table__header-row {
+    background: hsla(var(--accent) / 0.28);
+}
+
+.crud-table__add-row input,
+.crud-table__add-row select,
+.crud-table__add-row textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid hsla(var(--input) / 0.55);
+    background: hsla(var(--accent) / 0.18);
+    color: hsl(var(--foreground));
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.crud-table__add-row .actions {
+    display: flex;
+}
+
 table,
 .details-table,
 .notes-table {
@@ -562,6 +638,11 @@ table,
     background: hsla(var(--card) / 0.65);
     border-radius: calc(var(--radius) - 0.25rem);
     overflow: hidden;
+}
+
+.crud-table__body .crud-table__table {
+    border-radius: 0;
+    background: transparent;
 }
 
 .inventory-table {
