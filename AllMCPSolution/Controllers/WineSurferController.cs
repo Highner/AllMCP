@@ -102,13 +102,20 @@ public class WineSurferController : Controller
 
         var highlightPoints = wines
             .Where(w => w.SubAppellation?.Appellation?.Region is not null)
-            .Select(w => w.SubAppellation!.Appellation!.Region)
-            .Where(region => region is not null)
-            .Select(region => CreateHighlightPoint(region))
+            .Select(w => new
+            {
+                Wine = w,
+                Region = w.SubAppellation!.Appellation!.Region!
+            })
+            .GroupBy(entry => entry.Region.Id)
+            .Select(group =>
+            {
+                var region = group.First().Region;
+                var (cellared, consumed, averageScore) = CalculateRegionInventoryMetrics(group.Select(entry => entry.Wine));
+                return CreateHighlightPoint(region, cellared, consumed, averageScore);
+            })
             .Where(point => point is not null)
             .Cast<MapHighlightPoint>()
-            .GroupBy(point => new { point.Label, point.Latitude, point.Longitude })
-            .Select(group => group.First())
             .OrderBy(point => point.Label)
             .ToList();
 
@@ -117,12 +124,46 @@ public class WineSurferController : Controller
         return View("Index", model);
     }
 
-    private static MapHighlightPoint? CreateHighlightPoint(Region region)
+    private static (int Cellared, int Consumed, decimal? AverageScore) CalculateRegionInventoryMetrics(IEnumerable<Wine> wines)
+    {
+        var bottleList = wines
+            .SelectMany(wine => wine.WineVintages ?? Enumerable.Empty<WineVintage>())
+            .SelectMany(vintage => vintage.Bottles ?? Enumerable.Empty<Bottle>())
+            .ToList();
+
+        var cellared = bottleList.Count(bottle => !bottle.IsDrunk);
+        var consumed = bottleList.Count(bottle => bottle.IsDrunk);
+
+        var scoreValues = bottleList
+            .SelectMany(bottle => bottle.TastingNotes ?? Enumerable.Empty<TastingNote>())
+            .Where(note => note.Score.HasValue)
+            .Select(note => note.Score!.Value)
+            .ToList();
+
+        decimal? averageScore = scoreValues.Count > 0
+            ? Math.Round(scoreValues.Average(), 1, MidpointRounding.AwayFromZero)
+            : null;
+
+        return (cellared, consumed, averageScore);
+    }
+
+    private static MapHighlightPoint? CreateHighlightPoint(
+        Region region,
+        int bottlesCellared,
+        int bottlesConsumed,
+        decimal? averageScore)
     {
         var countryName = region.Country?.Name;
         if (!string.IsNullOrWhiteSpace(region.Name) && RegionCoordinates.TryGetValue(region.Name, out var regionCoord))
         {
-            return new MapHighlightPoint(region.Name, countryName ?? string.Empty, regionCoord.Latitude, regionCoord.Longitude);
+            return new MapHighlightPoint(
+                region.Name,
+                countryName ?? string.Empty,
+                regionCoord.Latitude,
+                regionCoord.Longitude,
+                bottlesCellared,
+                bottlesConsumed,
+                averageScore);
         }
 
         if (!string.IsNullOrWhiteSpace(countryName) && CountryCoordinates.TryGetValue(countryName, out var countryCoord))
@@ -130,7 +171,14 @@ public class WineSurferController : Controller
             var label = string.IsNullOrWhiteSpace(region.Name)
                 ? countryName
                 : $"{region.Name}, {countryName}";
-            return new MapHighlightPoint(label, countryName, countryCoord.Latitude, countryCoord.Longitude);
+            return new MapHighlightPoint(
+                label,
+                countryName,
+                countryCoord.Latitude,
+                countryCoord.Longitude,
+                bottlesCellared,
+                bottlesConsumed,
+                averageScore);
         }
 
         return null;
@@ -139,4 +187,11 @@ public class WineSurferController : Controller
 
 public record WineSurferLandingViewModel(IReadOnlyList<MapHighlightPoint> HighlightPoints);
 
-public record MapHighlightPoint(string Label, string? Country, double Latitude, double Longitude);
+public record MapHighlightPoint(
+    string Label,
+    string? Country,
+    double Latitude,
+    double Longitude,
+    int BottlesCellared,
+    int BottlesConsumed,
+    decimal? AverageScore);
