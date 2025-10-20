@@ -982,48 +982,43 @@ tbody tr:hover {
     background: hsla(var(--accent) / 0.28);
 }
 
-.details-header {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
-    flex-wrap: wrap;
-}
-
-.details-heading {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
 .details-layout {
     display: flex;
-    flex-direction: column;
     gap: 24px;
-    align-items: stretch;
+    align-items: flex-start;
+    transition: gap 0.3s ease;
 }
 
 .details-main {
-    flex: 1 1 auto;
+    flex: 1 1 100%;
     min-width: 0;
+    transition: flex-basis 0.3s ease, max-width 0.3s ease;
 }
 
-.details-main[hidden] {
-    display: none;
+.details-panel.notes-visible .details-main {
+    flex-basis: 60%;
+    max-width: 60%;
 }
 
 .notes-panel {
     background: hsla(var(--card) / 0.8);
     border-radius: calc(var(--radius) - 0.2rem);
     padding: 20px;
-    display: none;
+    flex: 0 0 0;
+    max-width: 0;
+    min-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    display: flex;
     flex-direction: column;
     gap: 16px;
-    width: 100%;
-    box-sizing: border-box;
+    transition: flex-basis 0.3s ease, max-width 0.3s ease, opacity 0.3s ease;
 }
 
-.notes-panel:not([hidden]) {
-    display: flex;
+.details-panel.notes-visible .notes-panel {
+    flex: 0 0 40%;
+    max-width: 40%;
+    opacity: 1;
 }
 
 .notes-header {
@@ -1045,7 +1040,7 @@ tbody tr:hover {
     color: hsla(var(--muted-foreground) / 0.85);
 }
 
-.table-return {
+.notes-close {
     padding: 8px 14px;
     border-radius: 8px;
     border: 1px solid hsla(var(--border) / 0.35);
@@ -1057,14 +1052,9 @@ tbody tr:hover {
     transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
-.table-return:hover {
+.notes-close:hover {
     background: hsla(var(--accent) / 0.22);
     box-shadow: 0 6px 16px hsla(var(--background) / 0.55);
-}
-
-.table-return:focus-visible {
-    outline: 2px solid hsl(var(--ring));
-    outline-offset: 2px;
 }
 
 .notes-message {
@@ -1121,8 +1111,14 @@ tbody tr:hover {
         flex-direction: column;
     }
 
-    .details-header {
-        gap: 12px;
+    .details-panel.notes-visible .details-main,
+    .details-panel.notes-visible .notes-panel {
+        flex-basis: 100%;
+        max-width: 100%;
+    }
+
+    .notes-panel {
+        opacity: 1;
     }
 }
 
