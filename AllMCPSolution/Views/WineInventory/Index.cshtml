@@ -48,6 +48,18 @@
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
 </head>
 <body>
+    <header class="top-bar">
+        <div class="brand">Wine Surfer</div>
+        <div class="top-bar-actions">
+            <a class="home-button" href="/wine-surfer" aria-label="Return to the Wine Surfer landing page">Home</a>
+            <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
+                <span></span>
+            </button>
+        </div>
+        <nav id="menuPanel" class="menu-panel" aria-hidden="true">
+            <a href="/wine-manager">Wine Inventory</a>
+        </nav>
+    </header>
     <main class="inventory-shell">
         <h1>Wine Surfer</h1>
         <form method="get" class="filters">
@@ -2001,6 +2013,47 @@
                     .replace(/"/g, '&quot;')
                     .replace(/'/g, '&#39;');
             }
+        })();
+    </script>
+
+    <script>
+        (function setupTopBarNavigation() {
+            const toggle = document.getElementById('menuToggle');
+            const panel = document.getElementById('menuPanel');
+
+            if (!toggle || !panel) {
+                return;
+            }
+
+            const closeMenu = () => {
+                toggle.classList.remove('active');
+                toggle.setAttribute('aria-expanded', 'false');
+                panel.classList.remove('open');
+                panel.setAttribute('aria-hidden', 'true');
+            };
+
+            toggle.addEventListener('click', () => {
+                const isOpen = toggle.classList.toggle('active');
+                toggle.setAttribute('aria-expanded', String(isOpen));
+                panel.classList.toggle('open', isOpen);
+                panel.setAttribute('aria-hidden', String(!isOpen));
+            });
+
+            panel.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => closeMenu());
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!panel.contains(event.target) && !toggle.contains(event.target)) {
+                    closeMenu();
+                }
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeMenu();
+                }
+            });
         })();
     </script>
 

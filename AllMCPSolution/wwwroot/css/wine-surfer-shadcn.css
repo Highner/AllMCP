@@ -107,6 +107,37 @@ h1 {
     font-size: 20px;
 }
 
+.top-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.home-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 22px;
+    border-radius: 999px;
+    border: 1px solid hsla(var(--border) / 0.45);
+    background: hsla(var(--accent) / 0.45);
+    color: hsl(var(--foreground));
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.home-button:hover,
+.home-button:focus-visible {
+    background: hsla(var(--accent) / 0.6);
+    border-color: hsla(var(--border) / 0.65);
+    text-decoration: none;
+    transform: translateY(-1px);
+    outline: none;
+}
+
 .burger {
     width: 48px;
     height: 48px;
@@ -954,6 +985,16 @@ tbody tr:hover {
     .brand {
         font-size: 16px;
         letter-spacing: 3px;
+    }
+
+    .top-bar-actions {
+        gap: 12px;
+    }
+
+    .home-button {
+        padding: 10px 16px;
+        font-size: 11px;
+        letter-spacing: 1.4px;
     }
 
     main {
