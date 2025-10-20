@@ -1,342 +1,5 @@
-@model AllMCPSolution.Controllers.WineInventoryViewModel
-@using Microsoft.AspNetCore.WebUtilities
-@using System.Collections.Generic
-@using System.Linq
-@{
-    Layout = null;
-    string BuildSortUrl(string field)
-    {
-        var nextDir = string.Equals(Model.SortField, field, StringComparison.OrdinalIgnoreCase) &&
-                      !string.Equals(Model.SortDirection, "desc", StringComparison.OrdinalIgnoreCase)
-            ? "desc"
-            : "asc";
-
-        var parameters = new Dictionary<string, string?>
-        {
-            ["status"] = string.Equals(Model.Status, "all", StringComparison.OrdinalIgnoreCase) ? null : Model.Status,
-            ["color"] = string.IsNullOrWhiteSpace(Model.Color) ? null : Model.Color,
-            ["search"] = string.IsNullOrWhiteSpace(Model.Search) ? null : Model.Search,
-            ["sortField"] = field,
-            ["sortDir"] = nextDir
-        };
-
-        var filtered = parameters
-            .Where(kvp => !string.IsNullOrWhiteSpace(kvp.Value))
-            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value!);
-
-        return QueryHelpers.AddQueryString("/wine-manager", filtered);
-    }
-
-    bool IsSorted(string field) => string.Equals(Model.SortField, field, StringComparison.OrdinalIgnoreCase);
-
-    string SortStateClass(string field)
-    {
-        if (!IsSorted(field))
-        {
-            return string.Empty;
-        }
-
-        return string.Equals(Model.SortDirection, "desc", StringComparison.OrdinalIgnoreCase) ? "sorted-desc" : "sorted-asc";
-    }
-}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Wine Surfer</title>
-    <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
-</head>
-<body>
-    @await Html.PartialAsync("_WineSurferTopBar", Context.Request.Path.Value ?? string.Empty)
-    <main class="inventory-shell">
-        <h1>Wine Surfer</h1>
-        <form method="get" class="filters">
-            <label>
-                Status
-                <select name="status">
-                    @foreach (var option in Model.StatusOptions)
-                    {
-                        var isSelected = string.Equals(option.Value, Model.Status, StringComparison.OrdinalIgnoreCase) ||
-                                         (string.IsNullOrEmpty(option.Value) && string.Equals(Model.Status, "all", StringComparison.OrdinalIgnoreCase));
-                        <option value="@option.Value" selected="@(isSelected ? "selected" : null)">@option.Label</option>
-                    }
-                </select>
-            </label>
-            <label>
-                Color
-                <select name="color">
-                    @foreach (var option in Model.ColorOptions)
-                    {
-                        var currentColor = Model.Color ?? string.Empty;
-                        var isSelected = string.Equals(option.Value, currentColor, StringComparison.OrdinalIgnoreCase);
-                        <option value="@option.Value" selected="@(isSelected ? "selected" : null)">@option.Label</option>
-                    }
-                </select>
-            </label>
-            <label>
-                Search
-                <input type="text" name="search" value="@Model.Search" placeholder="Wine, appellation, vintage" />
-            </label>
-            <input type="hidden" name="sortField" value="@Model.SortField" />
-            <input type="hidden" name="sortDir" value="@Model.SortDirection" />
-            <button type="submit">Apply</button>
-        </form>
-
-        @if (!Model.Bottles.Any())
-        {
-            <div class="no-results">No bottles match the current filters.</div>
-        }
-        else
-        {
-            <section class="crud-table" data-crud-table="summary">
-                <header class="crud-table__header">
-                    <h2 class="crud-table__title">Inventory Summary</h2>
-                    <p class="crud-table__description">Manage wine groups and quick actions.</p>
-                </header>
-                <div class="crud-table__body">
-                    <table id="inventory-table" class="inventory-table crud-table__table">
-                        <thead>
-                            <tr class="crud-table__add-row add-summary-row">
-                                <td>
-                                    <input type="text" class="summary-add-name" placeholder="Wine name" aria-label="Wine name" />
-                                </td>
-                                <td>
-                                    <select class="summary-add-sub-app" aria-label="Sub-appellation">
-                                        <option value="">Select sub-appellation</option>
-                                    </select>
-                                </td>
-                                <td>
-                                    <input type="number" class="summary-add-vintage" min="1900" max="2100" placeholder="Vintage" aria-label="Vintage" />
-                                </td>
-                                <td>
-                                    <input type="number" class="summary-add-count" min="1" value="1" aria-label="Initial bottle count" />
-                                </td>
-                                <td>
-                                    <select class="summary-add-color" aria-label="Color">
-                                        <option value="Red">Red</option>
-                                        <option value="White">White</option>
-                                        <option value="Rose">Rosé</option>
-                                    </select>
-                                </td>
-                                <td class="summary-add-status">—</td>
-                                <td class="summary-add-score">—</td>
-                                <td>
-                                    <div class="actions">
-                                        <button type="button" class="summary-add-submit crud-table__action-button">Add Wine</button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr class="header-row crud-table__header-row">
-                                <th>
-                                    <a class="sort-header @SortStateClass("wine")" href="@BuildSortUrl("wine")">
-                                        <span class="header-text">Wine</span>
-                                        <span class="sort-icon" aria-hidden="true"></span>
-                                    </a>
-                                </th>
-                                <th>
-                                    <a class="sort-header @SortStateClass("appellation")" href="@BuildSortUrl("appellation")">
-                                        <span class="header-text">Appellation</span>
-                                        <span class="sort-icon" aria-hidden="true"></span>
-                                    </a>
-                                </th>
-                                <th>
-                                    <a class="sort-header @SortStateClass("vintage")" href="@BuildSortUrl("vintage")">
-                                        <span class="header-text">Vintage</span>
-                                        <span class="sort-icon" aria-hidden="true"></span>
-                                    </a>
-                                </th>
-                                <th>
-                                    <span class="header-text">Bottles</span>
-                                </th>
-                                <th>
-                                    <a class="sort-header @SortStateClass("color")" href="@BuildSortUrl("color")">
-                                        <span class="header-text">Color</span>
-                                        <span class="sort-icon" aria-hidden="true"></span>
-                                    </a>
-                                </th>
-                                <th>
-                                    <a class="sort-header @SortStateClass("status")" href="@BuildSortUrl("status")">
-                                        <span class="header-text">Status</span>
-                                        <span class="sort-icon" aria-hidden="true"></span>
-                                    </a>
-                                </th>
-                                <th>
-                                    <a class="sort-header @SortStateClass("score")" href="@BuildSortUrl("score")">
-                                        <span class="header-text">Score</span>
-                                        <span class="sort-icon" aria-hidden="true"></span>
-                                    </a>
-                                </th>
-                                <th>
-                                    <span class="header-text">Actions</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var bottle in Model.Bottles)
-                            {
-                                var subAppellation = string.IsNullOrWhiteSpace(bottle.SubAppellation) ? null : bottle.SubAppellation;
-                                var appellation = string.IsNullOrWhiteSpace(bottle.Appellation) ? null : bottle.Appellation;
-                                var display = "—";
-                                if (!string.IsNullOrEmpty(subAppellation) && !string.IsNullOrEmpty(appellation) && !string.Equals(subAppellation, appellation, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    display = $"{subAppellation} ({appellation})";
-                                }
-                                else if (!string.IsNullOrEmpty(subAppellation))
-                                {
-                                    display = subAppellation;
-                                }
-                                else if (!string.IsNullOrEmpty(appellation))
-                                {
-                                    display = appellation;
-                                }
-                                <tr class="group-row"
-                                    data-group-id="@bottle.WineVintageId"
-                                    data-wine-id="@bottle.WineId"
-                                    data-sub-appellation-id="@(bottle.SubAppellationId?.ToString() ?? string.Empty)"
-                                    data-appellation-id="@(bottle.AppellationId?.ToString() ?? string.Empty)"
-                                    tabindex="0"
-                                    role="button"
-                                    aria-controls="details-table">
-                                    <td class="summary-wine">@bottle.WineName</td>
-                                    <td class="summary-appellation">@display</td>
-                                    <td class="summary-vintage">@bottle.Vintage</td>
-                                    <td class="summary-bottles" data-field="bottle-count">@bottle.BottleCount</td>
-                                    <td class="summary-color">@bottle.Color</td>
-                                    <td class="summary-status"><span class="status-pill @bottle.StatusCssClass" data-field="status">@bottle.StatusLabel</span></td>
-                                    <td class="summary-score" data-field="score">@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
-                                      <td class="summary-actions">
-                                          <div class="actions">
-                                              <button type="button" class="crud-table__action-button secondary edit-group">Edit</button>
-                                              <button type="button" class="crud-table__action-button secondary delete-group">Delete</button>
-                                          </div>
-                                      </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section class="details-panel" aria-live="polite">
-                <header>
-                    <h2 id="details-title">Bottle Details</h2>
-                    <p id="details-subtitle">Select a wine group to view individual bottles.</p>
-                </header>
-                <div id="details-message" class="details-message" role="status"></div>
-                <div class="details-layout">
-                    <div class="details-main">
-                        <section class="crud-table" data-crud-table="details">
-                            <header class="crud-table__header">
-                                <h3 class="crud-table__title">Bottle Inventory</h3>
-                                <p class="crud-table__description">Manage individual bottles for the selected wine group.</p>
-                            </header>
-                            <div class="crud-table__body">
-                                <table class="details-table crud-table__table" id="details-table">
-                                    <thead>
-                                        <tr class="crud-table__add-row add-row" id="detail-add-row" hidden>
-                                            <td>
-                                                <select class="detail-add-location" aria-label="Bottle location">
-                                                    <option value="">No location</option>
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <select class="detail-add-user" aria-label="Bottle owner">
-                                                    <option value="">No user</option>
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
-                                            </td>
-                                            <td class="detail-add-average" aria-label="Average score">—</td>
-                                            <td>
-                                                <label class="checkbox-row">
-                                                    <input type="checkbox" class="detail-add-is-drunk" />
-                                                    <span>No</span>
-                                                </label>
-                                            </td>
-                                            <td>
-                                                <input type="datetime-local" class="detail-add-drunk-at" aria-label="Drunk date" disabled />
-                                            </td>
-                                            <td class="actions">
-                                                <button type="button" class="detail-add-submit crud-table__action-button">Add Bottle</button>
-                                            </td>
-                                        </tr>
-                                        <tr class="header-row crud-table__header-row">
-                                            <th scope="col">Bottle Location</th>
-                                            <th scope="col">User</th>
-                                            <th scope="col">Price</th>
-                                            <th scope="col">Avg Score</th>
-                                            <th scope="col">Drunk</th>
-                                            <th scope="col">Drunk Date</th>
-                                            <th scope="col">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr class="empty-row">
-                                            <td colspan="6">Select a wine group to see its bottles.</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-                    </div>
-                    <aside class="notes-panel" id="notes-panel" aria-hidden="true">
-                        <header class="notes-header">
-                            <div class="notes-heading">
-                                <h3 id="notes-title">Consumption Notes</h3>
-                                <p id="notes-subtitle">Select a bottle to view consumption notes.</p>
-                            </div>
-                            <button type="button" id="notes-close" class="notes-close">Close</button>
-                        </header>
-                        <div id="notes-message" class="notes-message" role="status"></div>
-                        <section class="crud-table" data-crud-table="notes">
-                            <header class="crud-table__header">
-                                <h4 class="crud-table__title">Tasting Notes</h4>
-                                <p class="crud-table__description">Track scores and notes for the selected bottle.</p>
-                            </header>
-                            <div class="crud-table__body">
-                                <table class="notes-table crud-table__table" id="notes-table">
-                                    <thead>
-                                        <tr class="crud-table__add-row add-row" id="note-add-row">
-                                            <td>
-                                                <select class="note-add-user" aria-label="Note author">
-                                                    <option value="">Select user</option>
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <input type="number" class="note-add-score" step="0.1" min="0" max="10" placeholder="0-10" aria-label="Score" />
-                                            </td>
-                                            <td>
-                                                <textarea class="note-add-text" rows="3" placeholder="Tasting note" aria-label="Tasting note"></textarea>
-                                            </td>
-                                            <td class="actions">
-                                                <button type="button" class="note-add-submit crud-table__action-button">Add Note</button>
-                                            </td>
-                                        </tr>
-                                        <tr class="header-row crud-table__header-row">
-                                            <th scope="col">User</th>
-                                            <th scope="col">Score</th>
-                                            <th scope="col">Note</th>
-                                            <th scope="col">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr class="empty-row">
-                                            <td colspan="4">Select a bottle to view consumption notes.</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-                    </aside>
-                </div>
-            </section>
-        }
-    </main>
-    <script src="/js/wine-inventory-tables.js"></script>
-    <script>
-        (function () {
+window.WineInventoryTables = window.WineInventoryTables || {};
+window.WineInventoryTables.initialize = function () {
             const inventoryTable = document.getElementById('inventory-table');
             const detailsTable = document.getElementById('details-table');
             const detailsBody = detailsTable?.querySelector('tbody');
@@ -749,8 +412,8 @@
                     <td class="summary-score" data-field="score"></td>
                     <td class="summary-actions">
                         <div class="actions">
-                            <button type="button" class="secondary edit-group">Edit</button>
-                            <button type="button" class="secondary delete-group">Delete</button>
+                            <button type="button" class="crud-table__action-button secondary edit-group">Edit</button>
+                            <button type="button" class="crud-table__action-button secondary delete-group">Delete</button>
                         </div>
                     </td>`;
             }
@@ -808,8 +471,8 @@
 
                 if (actionsCell) {
                     actionsCell.innerHTML = `
-                        <button type="button" class="secondary edit-group">Edit</button>
-                        <button type="button" class="secondary delete-group">Delete</button>`;
+                        <button type="button" class="crud-table__action-button secondary edit-group">Edit</button>
+                        <button type="button" class="crud-table__action-button secondary delete-group">Delete</button>`;
                 }
 
                 if (isNewRow) {
@@ -864,8 +527,8 @@
 
                 if (actionsCell) {
                     actionsCell.innerHTML = `
-                        <button type="button" class="save-group">Save</button>
-                        <button type="button" class="secondary cancel-group">Cancel</button>`;
+                        <button type="button" class="crud-table__action-button save-group">Save</button>
+                        <button type="button" class="crud-table__action-button secondary cancel-group">Cancel</button>`;
                 }
             }
 
@@ -1180,8 +843,8 @@
                     </td>
                     <td><input type="datetime-local" class="detail-drunk-at" value="${formattedDate}" ${isDrunk ? '' : 'disabled'} /></td>
                     <td class="actions">
-                        <button type="button" class="save">Save</button>
-                        <button type="button" class="secondary delete">Remove</button>
+                        <button type="button" class="crud-table__action-button save">Save</button>
+                        <button type="button" class="crud-table__action-button secondary delete">Remove</button>
                     </td>`;
 
                 const locationCell = row.children[0];
@@ -1613,8 +1276,8 @@
                     <td><input type="number" class="note-score" min="0" max="10" step="0.1" value="${scoreValue}" placeholder="0-10" /></td>
                     <td><textarea class="note-text" rows="3">${escapeHtml(noteText)}</textarea></td>
                     <td class="actions">
-                        <button type="button" class="save-note">Save</button>
-                        <button type="button" class="secondary delete-note">Delete</button>
+                        <button type="button" class="crud-table__action-button save-note">Save</button>
+                        <button type="button" class="crud-table__action-button secondary delete-note">Delete</button>
                     </td>`;
 
                 const userCell = row.children[0];
@@ -2027,8 +1690,9 @@
                     .replace(/"/g, '&quot;')
                     .replace(/'/g, '&#39;');
             }
-        })();
-    </script>
+        
+};
 
-</body>
-</html>
+window.addEventListener('DOMContentLoaded', () => {
+    window.WineInventoryTables.initialize();
+});
