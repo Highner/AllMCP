@@ -13,6 +13,7 @@ public interface ISubAppellationRepository
     Task<SubAppellation?> FindByNameAndAppellationAsync(string name, Guid appellationId, CancellationToken ct = default);
     Task<IReadOnlyList<SubAppellation>> SearchByApproximateNameAsync(string name, Guid appellationId, int maxResults = 5, CancellationToken ct = default);
     Task<SubAppellation> GetOrCreateAsync(string name, Guid appellationId, CancellationToken ct = default);
+    Task<SubAppellation> GetOrCreateBlankAsync(Guid appellationId, CancellationToken ct = default);
 }
 
 public sealed class SubAppellationRepository : ISubAppellationRepository
@@ -38,7 +39,7 @@ public sealed class SubAppellationRepository : ISubAppellationRepository
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            return null;
+            return await FindBlankAsync(appellationId, ct);
         }
 
         var trimmed = name.Trim();
@@ -76,7 +77,7 @@ public sealed class SubAppellationRepository : ISubAppellationRepository
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            throw new ArgumentException("Sub-appellation name cannot be empty.", nameof(name));
+            return await GetOrCreateBlankAsync(appellationId, ct);
         }
 
         var trimmed = name.Trim();
@@ -104,5 +105,51 @@ public sealed class SubAppellationRepository : ISubAppellationRepository
         await _db.SaveChangesAsync(ct);
 
         return entity;
+    }
+
+    public async Task<SubAppellation> GetOrCreateBlankAsync(Guid appellationId, CancellationToken ct = default)
+    {
+        var existing = await FindBlankAsync(appellationId, ct);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var appellation = await _db.Appellations
+            .Include(a => a.Region)
+                .ThenInclude(r => r.Country)
+            .FirstOrDefaultAsync(a => a.Id == appellationId, ct)
+            ?? throw new InvalidOperationException($"Appellation {appellationId} could not be found when creating a blank sub-appellation.");
+
+        var entity = new SubAppellation
+        {
+            Id = Guid.NewGuid(),
+            Name = null,
+            AppellationId = appellationId,
+            Appellation = appellation
+        };
+
+        _db.SubAppellations.Add(entity);
+        await _db.SaveChangesAsync(ct);
+
+        return entity;
+    }
+
+    private async Task<SubAppellation?> FindBlankAsync(Guid appellationId, CancellationToken ct)
+    {
+        var localMatch = _db.SubAppellations.Local.FirstOrDefault(
+            sa => sa.AppellationId == appellationId && string.IsNullOrWhiteSpace(sa.Name));
+        if (localMatch is not null)
+        {
+            return localMatch;
+        }
+
+        return await _db.SubAppellations
+            .Include(sa => sa.Appellation)
+                .ThenInclude(a => a.Region)
+                    .ThenInclude(r => r.Country)
+            .FirstOrDefaultAsync(
+                sa => sa.AppellationId == appellationId && (sa.Name == null || sa.Name == string.Empty),
+                ct);
     }
 }

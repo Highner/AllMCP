@@ -641,7 +641,7 @@ public sealed class RecordInventoryActionTool : CrudToolBase
             ["subAppellation"] = new JsonObject
             {
                 ["type"] = "string",
-                ["description"] = "Sub-appellation of the wine (such as Rutherford AVA or Côte Brune)."
+                ["description"] = "Optional sub-appellation of the wine (such as Rutherford AVA or Côte Brune)."
             },
             ["color"] = new JsonObject
             {

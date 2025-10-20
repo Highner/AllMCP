@@ -217,20 +217,10 @@ public sealed class InventoryIntakeService
                         });
                 }
 
-                if (string.IsNullOrWhiteSpace(normalizedSubAppellation))
-                {
-                    return InventoryBottleResult.CreateFailure(
-                        $"Wine '{name}' does not exist. Provide a sub-appellation so it can be created automatically.",
-                        new[] { "Sub-appellation is required to create a new wine." },
-                        new
-                        {
-                            type = "wine_creation_missing_sub_appellation",
-                            query = name
-                        });
-                }
-
                 var appellation = await _appellationRepository.GetOrCreateAsync(normalizedAppellation!, region.Id, ct);
-                var subAppellation = await _subAppellationRepository.GetOrCreateAsync(normalizedSubAppellation!, appellation.Id, ct);
+                var subAppellation = string.IsNullOrWhiteSpace(normalizedSubAppellation)
+                    ? await _subAppellationRepository.GetOrCreateBlankAsync(appellation.Id, ct)
+                    : await _subAppellationRepository.GetOrCreateAsync(normalizedSubAppellation!, appellation.Id, ct);
 
                 var newWine = new Wine
                 {
