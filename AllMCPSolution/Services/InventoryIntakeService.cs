@@ -15,6 +15,7 @@ public sealed class InventoryIntakeService
     private readonly ICountryRepository _countryRepository;
     private readonly IRegionRepository _regionRepository;
     private readonly IAppellationRepository _appellationRepository;
+    private readonly ISubAppellationRepository _subAppellationRepository;
     private readonly IWineVintageRepository _wineVintageRepository;
     private readonly IUserRepository _userRepository;
     private readonly ITastingNoteRepository _tastingNoteRepository;
@@ -26,6 +27,7 @@ public sealed class InventoryIntakeService
         ICountryRepository countryRepository,
         IRegionRepository regionRepository,
         IAppellationRepository appellationRepository,
+        ISubAppellationRepository subAppellationRepository,
         IWineVintageRepository wineVintageRepository,
         IUserRepository userRepository,
         ITastingNoteRepository tastingNoteRepository)
@@ -35,6 +37,7 @@ public sealed class InventoryIntakeService
         _countryRepository = countryRepository;
         _regionRepository = regionRepository;
         _appellationRepository = appellationRepository;
+        _subAppellationRepository = subAppellationRepository;
         _wineVintageRepository = wineVintageRepository;
         _userRepository = userRepository;
         _tastingNoteRepository = tastingNoteRepository;
@@ -105,12 +108,16 @@ public sealed class InventoryIntakeService
             var countryName = ParameterHelpers.GetStringParameter(normalized, "country", "country");
             var regionName = ParameterHelpers.GetStringParameter(normalized, "region", "region");
             var appellationName = ParameterHelpers.GetStringParameter(normalized, "appellation", "appellation");
+            var subAppellationName = ParameterHelpers.GetStringParameter(normalized, "subAppellation", "sub_appellation");
 
             var trimmedCountryName = string.IsNullOrWhiteSpace(countryName) ? null : countryName.Trim();
             var trimmedRegionName = string.IsNullOrWhiteSpace(regionName) ? null : regionName.Trim();
             var normalizedAppellation = string.IsNullOrWhiteSpace(appellationName)
                 ? null
                 : appellationName.Trim();
+            var normalizedSubAppellation = string.IsNullOrWhiteSpace(subAppellationName)
+                ? null
+                : subAppellationName.Trim();
 
             if (errors.Count > 0)
             {
@@ -168,7 +175,7 @@ public sealed class InventoryIntakeService
                 country ??= region.Country;
             }
 
-            var wine = await _wineRepository.FindByNameAsync(name!, normalizedAppellation, ct);
+            var wine = await _wineRepository.FindByNameAsync(name!, normalizedSubAppellation, normalizedAppellation, ct);
             if (wine is null)
             {
                 if (!color.HasValue)
@@ -210,7 +217,20 @@ public sealed class InventoryIntakeService
                         });
                 }
 
+                if (string.IsNullOrWhiteSpace(normalizedSubAppellation))
+                {
+                    return InventoryBottleResult.CreateFailure(
+                        $"Wine '{name}' does not exist. Provide a sub-appellation so it can be created automatically.",
+                        new[] { "Sub-appellation is required to create a new wine." },
+                        new
+                        {
+                            type = "wine_creation_missing_sub_appellation",
+                            query = name
+                        });
+                }
+
                 var appellation = await _appellationRepository.GetOrCreateAsync(normalizedAppellation!, region.Id, ct);
+                var subAppellation = await _subAppellationRepository.GetOrCreateAsync(normalizedSubAppellation!, appellation.Id, ct);
 
                 var newWine = new Wine
                 {
@@ -218,17 +238,33 @@ public sealed class InventoryIntakeService
                     Name = name!.Trim(),
                     GrapeVariety = string.Empty,
                     Color = color.Value,
-                    AppellationId = appellation.Id,
-                    Appellation = appellation
+                    SubAppellationId = subAppellation.Id,
+                    SubAppellation = subAppellation
                 };
 
                 await _wineRepository.AddAsync(newWine, ct);
                 wine = await _wineRepository.GetByIdAsync(newWine.Id, ct) ?? newWine;
             }
 
-            var wineAppellation = wine.Appellation;
+            var wineSubAppellation = wine.SubAppellation;
+            var wineAppellation = wineSubAppellation?.Appellation;
             var wineRegion = wineAppellation?.Region;
             var wineCountry = wineRegion?.Country;
+
+            if (!string.IsNullOrWhiteSpace(normalizedSubAppellation)
+                && !string.Equals(wineSubAppellation?.Name, normalizedSubAppellation, StringComparison.OrdinalIgnoreCase))
+            {
+                var recordedSubAppellation = string.IsNullOrWhiteSpace(wineSubAppellation?.Name) ? "unknown" : wineSubAppellation!.Name;
+                return InventoryBottleResult.CreateFailure(
+                    $"Wine '{wine.Name}' is recorded for sub-appellation '{recordedSubAppellation}'.",
+                    new[] { $"Wine '{wine.Name}' is recorded for sub-appellation '{recordedSubAppellation}'." },
+                    new
+                    {
+                        type = "wine_sub_appellation_mismatch",
+                        requested = normalizedSubAppellation,
+                        actual = string.IsNullOrWhiteSpace(wineSubAppellation?.Name) ? null : wineSubAppellation.Name
+                    });
+            }
 
             if (!string.IsNullOrWhiteSpace(normalizedAppellation)
                 && !string.Equals(wineAppellation?.Name, normalizedAppellation, StringComparison.OrdinalIgnoreCase))

@@ -17,6 +17,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Country> Countries { get; set; }
     public DbSet<Region> Regions { get; set; }
     public DbSet<Appellation> Appellations { get; set; }
+    public DbSet<SubAppellation> SubAppellations { get; set; }
     public DbSet<Wine> Wines { get; set; }
     public DbSet<WineVintage> WineVintages { get; set; }
     public DbSet<WineVintageEvolutionScore> WineVintageEvolutionScores { get; set; }
@@ -61,12 +62,12 @@ public class ApplicationDbContext : DbContext
             e.Property(w => w.Name).HasMaxLength(256);
             e.Property(w => w.GrapeVariety).HasMaxLength(256);
 
-            e.HasOne(w => w.Appellation)
-                .WithMany(a => a.Wines)
-                .HasForeignKey(w => w.AppellationId)
+            e.HasOne(w => w.SubAppellation)
+                .WithMany(sa => sa.Wines)
+                .HasForeignKey(w => w.SubAppellationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            e.HasIndex(w => new { w.Name, w.AppellationId })
+            e.HasIndex(w => new { w.Name, w.SubAppellationId })
                 .IsUnique();
         });
 
@@ -107,6 +108,19 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
 
             e.HasIndex(a => new { a.Name, a.RegionId })
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<SubAppellation>(e =>
+        {
+            e.Property(sa => sa.Name).HasMaxLength(256);
+
+            e.HasOne(sa => sa.Appellation)
+                .WithMany(a => a.SubAppellations)
+                .HasForeignKey(sa => sa.AppellationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(sa => new { sa.Name, sa.AppellationId })
                 .IsUnique();
         });
 

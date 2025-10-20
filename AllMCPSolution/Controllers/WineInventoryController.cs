@@ -87,7 +87,8 @@ public class WineInventoryController : Controller
         {
             query = query.Where(b =>
                 (!string.IsNullOrEmpty(b.WineVintage.Wine.Name) && b.WineVintage.Wine.Name.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase)) ||
-                (b.WineVintage.Wine.Appellation?.Name?.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (b.WineVintage.Wine.SubAppellation?.Name?.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (b.WineVintage.Wine.SubAppellation?.Appellation?.Name?.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 b.WineVintage.Vintage.ToString(CultureInfo.InvariantCulture).Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -95,8 +96,10 @@ public class WineInventoryController : Controller
         IOrderedEnumerable<Bottle> ordered = normalizedSortField switch
         {
             "appellation" => descending
-                ? query.OrderByDescending(b => b.WineVintage.Wine.Appellation?.Name)
-                : query.OrderBy(b => b.WineVintage.Wine.Appellation?.Name),
+                ? query.OrderByDescending(b => b.WineVintage.Wine.SubAppellation?.Appellation?.Name)
+                    .ThenByDescending(b => b.WineVintage.Wine.SubAppellation?.Name)
+                : query.OrderBy(b => b.WineVintage.Wine.SubAppellation?.Appellation?.Name)
+                    .ThenBy(b => b.WineVintage.Wine.SubAppellation?.Name),
             "vintage" => descending
                 ? query.OrderByDescending(b => b.WineVintage.Vintage)
                 : query.OrderBy(b => b.WineVintage.Vintage),
@@ -138,7 +141,8 @@ public class WineInventoryController : Controller
                 {
                     WineVintageId = group.Key,
                     WineName = firstBottle.WineVintage.Wine.Name,
-                    Appellation = firstBottle.WineVintage.Wine.Appellation?.Name,
+                    SubAppellation = firstBottle.WineVintage.Wine.SubAppellation?.Name,
+                    Appellation = firstBottle.WineVintage.Wine.SubAppellation?.Appellation?.Name,
                     Vintage = firstBottle.WineVintage.Vintage,
                     Color = firstBottle.WineVintage.Wine.Color.ToString(),
                     BottleCount = totalCount,
@@ -152,8 +156,8 @@ public class WineInventoryController : Controller
         IOrderedEnumerable<WineInventoryBottleViewModel> orderedGroups = normalizedSortField switch
         {
             "appellation" => descending
-                ? groupedBottles.OrderByDescending(b => b.Appellation)
-                : groupedBottles.OrderBy(b => b.Appellation),
+                ? groupedBottles.OrderByDescending(b => b.Appellation).ThenByDescending(b => b.SubAppellation)
+                : groupedBottles.OrderBy(b => b.Appellation).ThenBy(b => b.SubAppellation),
             "vintage" => descending
                 ? groupedBottles.OrderByDescending(b => b.Vintage)
                 : groupedBottles.OrderBy(b => b.Vintage),
@@ -220,6 +224,7 @@ public class WineInventoryBottleViewModel
 {
     public Guid WineVintageId { get; set; }
     public string WineName { get; set; } = string.Empty;
+    public string? SubAppellation { get; set; }
     public string? Appellation { get; set; }
     public int Vintage { get; set; }
     public string Color { get; set; } = string.Empty;
