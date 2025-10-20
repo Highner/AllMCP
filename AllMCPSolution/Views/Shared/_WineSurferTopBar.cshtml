@@ -21,13 +21,35 @@
     var visibleNavItems = navItems
         .Where(item => !string.Equals(item.Href, currentPath, System.StringComparison.OrdinalIgnoreCase))
         .ToList();
+
+    var userDisplayName = User?.Identity?.IsAuthenticated == true
+        ? User.Identity?.Name ?? string.Empty
+        : string.Empty;
+
+    var avatarLetter = "?";
+
+    if (!string.IsNullOrWhiteSpace(userDisplayName))
+    {
+        var trimmedUserName = userDisplayName.Trim();
+        if (!string.IsNullOrEmpty(trimmedUserName))
+        {
+            avatarLetter = trimmedUserName.Substring(0, 1).ToUpperInvariant();
+        }
+    }
+
+    var avatarLabel = string.IsNullOrWhiteSpace(userDisplayName)
+        ? "Guest avatar"
+        : $"User avatar for {userDisplayName}";
 }
 
 <header class="top-bar">
     <a class="brand" href="/wine-surfer">Wine Surfer</a>
-    <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
-        <span></span>
-    </button>
+    <div class="top-bar-actions">
+        <span class="top-bar-avatar" role="img" aria-label="@avatarLabel">@avatarLetter</span>
+        <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
+            <span></span>
+        </button>
+    </div>
     <nav id="menuPanel" class="menu-panel" aria-hidden="true">
         @if (visibleNavItems.Count > 0)
         {
