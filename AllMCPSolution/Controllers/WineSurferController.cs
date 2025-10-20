@@ -99,7 +99,6 @@ public class WineSurferController : Controller
     }
 
     [HttpGet("")]
-    [HttpGet("/")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         var wines = await _wineRepository.GetAllAsync(cancellationToken);
