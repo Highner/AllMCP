@@ -12,80 +12,80 @@ namespace AllMCPSolution.Controllers;
 [Route("wine-waves")]
 public class WineWavesController : Controller
 {
-    private static readonly IReadOnlyDictionary<string, (double X, double Y)> RegionCoordinates =
-        new Dictionary<string, (double X, double Y)>(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, (double Longitude, double Latitude)> RegionCoordinates =
+        new Dictionary<string, (double Longitude, double Latitude)>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Bordeaux"] = (0.415, 0.348),
-            ["Burgundy"] = (0.43, 0.34),
-            ["Champagne"] = (0.42, 0.33),
-            ["Rhône"] = (0.435, 0.37),
-            ["Rhone"] = (0.435, 0.37),
-            ["Loire"] = (0.405, 0.34),
-            ["Provence"] = (0.445, 0.39),
-            ["Tuscany"] = (0.455, 0.37),
-            ["Piedmont"] = (0.455, 0.35),
-            ["Veneto"] = (0.47, 0.35),
-            ["Ribera del Duero"] = (0.39, 0.37),
-            ["Ribera Del Duero"] = (0.39, 0.37),
-            ["Rioja"] = (0.385, 0.36),
-            ["Douro"] = (0.37, 0.38),
-            ["Douro Valley"] = (0.37, 0.38),
-            ["Mosel"] = (0.44, 0.32),
-            ["Rheingau"] = (0.445, 0.32),
-            ["Nahe"] = (0.44, 0.33),
-            ["Finger Lakes"] = (0.28, 0.33),
-            ["Napa Valley"] = (0.22, 0.34),
-            ["Sonoma"] = (0.21, 0.34),
-            ["Willamette Valley"] = (0.19, 0.32),
-            ["Columbia Valley"] = (0.18, 0.31),
-            ["Marlborough"] = (0.83, 0.63),
-            ["Central Otago"] = (0.84, 0.7),
-            ["Barossa"] = (0.78, 0.6),
-            ["McLaren Vale"] = (0.78, 0.63),
-            ["Mc Laren Vale"] = (0.78, 0.63),
-            ["Yarra Valley"] = (0.82, 0.62),
-            ["Coonawarra"] = (0.79, 0.64),
-            ["Maipo"] = (0.26, 0.54),
-            ["Maipo Valley"] = (0.26, 0.54),
-            ["Mendoza"] = (0.27, 0.6),
-            ["Mendoza Valley"] = (0.27, 0.6),
-            ["Stellenbosch"] = (0.5, 0.67)
+            ["Bordeaux"] = (-0.58, 44.84),
+            ["Burgundy"] = (4.75, 47.0),
+            ["Champagne"] = (4.05, 49.05),
+            ["Rhône"] = (4.8, 45.0),
+            ["Rhone"] = (4.8, 45.0),
+            ["Loire"] = (-0.5, 47.5),
+            ["Provence"] = (6.2, 43.5),
+            ["Tuscany"] = (11.0, 43.4),
+            ["Piedmont"] = (8.0, 44.7),
+            ["Veneto"] = (11.5, 45.5),
+            ["Ribera del Duero"] = (-3.75, 41.7),
+            ["Ribera Del Duero"] = (-3.75, 41.7),
+            ["Rioja"] = (-2.43, 42.4),
+            ["Douro"] = (-7.8, 41.1),
+            ["Douro Valley"] = (-7.8, 41.1),
+            ["Mosel"] = (6.7, 49.8),
+            ["Rheingau"] = (8.0, 50.0),
+            ["Nahe"] = (7.75, 49.8),
+            ["Finger Lakes"] = (-76.9, 42.7),
+            ["Napa Valley"] = (-122.3, 38.5),
+            ["Sonoma"] = (-122.5, 38.3),
+            ["Willamette Valley"] = (-123.0, 45.2),
+            ["Columbia Valley"] = (-119.5, 46.2),
+            ["Marlborough"] = (173.9, -41.5),
+            ["Central Otago"] = (169.2, -45.0),
+            ["Barossa"] = (138.95, -34.5),
+            ["McLaren Vale"] = (138.5, -35.2),
+            ["Mc Laren Vale"] = (138.5, -35.2),
+            ["Yarra Valley"] = (145.5, -37.7),
+            ["Coonawarra"] = (140.8, -37.3),
+            ["Maipo"] = (-70.55, -33.6),
+            ["Maipo Valley"] = (-70.55, -33.6),
+            ["Mendoza"] = (-68.85, -32.9),
+            ["Mendoza Valley"] = (-68.85, -32.9),
+            ["Stellenbosch"] = (18.86, -33.9)
         };
 
-    private static readonly IReadOnlyDictionary<string, (double X, double Y)> CountryCoordinates =
-        new Dictionary<string, (double X, double Y)>(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, (double Longitude, double Latitude)> CountryCoordinates =
+        new Dictionary<string, (double Longitude, double Latitude)>(StringComparer.OrdinalIgnoreCase)
         {
-            ["France"] = (0.415, 0.35),
-            ["Italy"] = (0.455, 0.36),
-            ["Spain"] = (0.39, 0.38),
-            ["Portugal"] = (0.365, 0.39),
-            ["Germany"] = (0.44, 0.33),
-            ["Austria"] = (0.455, 0.33),
-            ["Switzerland"] = (0.44, 0.345),
-            ["United States"] = (0.24, 0.34),
-            ["United States of America"] = (0.24, 0.34),
-            ["USA"] = (0.24, 0.34),
-            ["U.S.A."] = (0.24, 0.34),
-            ["US"] = (0.24, 0.34),
-            ["Canada"] = (0.23, 0.27),
-            ["Chile"] = (0.26, 0.56),
-            ["Argentina"] = (0.27, 0.62),
-            ["Australia"] = (0.79, 0.6),
-            ["New Zealand"] = (0.84, 0.66),
-            ["South Africa"] = (0.5, 0.64),
-            ["England"] = (0.41, 0.31),
-            ["United Kingdom"] = (0.41, 0.31),
-            ["UK"] = (0.41, 0.31),
-            ["Scotland"] = (0.41, 0.28),
-            ["Ireland"] = (0.39, 0.32),
-            ["Japan"] = (0.74, 0.36),
-            ["China"] = (0.68, 0.36),
-            ["Georgia"] = (0.51, 0.35),
-            ["Greece"] = (0.49, 0.39),
-            ["Hungary"] = (0.47, 0.34),
-            ["Slovenia"] = (0.47, 0.35),
-            ["Croatia"] = (0.475, 0.36),
-            ["Uruguay"] = (0.3, 0.66)
+            ["France"] = (2.21, 46.23),
+            ["Italy"] = (12.57, 41.87),
+            ["Spain"] = (-3.75, 40.46),
+            ["Portugal"] = (-8.0, 39.69),
+            ["Germany"] = (10.45, 51.17),
+            ["Austria"] = (14.55, 47.52),
+            ["Switzerland"] = (8.23, 46.82),
+            ["United States"] = (-98.58, 39.83),
+            ["United States of America"] = (-98.58, 39.83),
+            ["USA"] = (-98.58, 39.83),
+            ["U.S.A."] = (-98.58, 39.83),
+            ["US"] = (-98.58, 39.83),
+            ["Canada"] = (-106.35, 56.13),
+            ["Chile"] = (-70.67, -33.45),
+            ["Argentina"] = (-63.62, -38.42),
+            ["Australia"] = (133.78, -25.27),
+            ["New Zealand"] = (174.78, -41.28),
+            ["South Africa"] = (22.94, -30.56),
+            ["England"] = (-1.17, 52.36),
+            ["United Kingdom"] = (-3.44, 55.38),
+            ["UK"] = (-3.44, 55.38),
+            ["Scotland"] = (-4.2, 56.82),
+            ["Ireland"] = (-8.0, 53.41),
+            ["Japan"] = (138.25, 36.2),
+            ["China"] = (104.2, 35.86),
+            ["Georgia"] = (43.36, 42.32),
+            ["Greece"] = (22.0, 39.07),
+            ["Hungary"] = (19.5, 47.16),
+            ["Slovenia"] = (14.82, 46.15),
+            ["Croatia"] = (15.2, 45.1),
+            ["Uruguay"] = (-55.77, -32.52)
         };
 
     private readonly IWineRepository _wineRepository;
@@ -107,7 +107,7 @@ public class WineWavesController : Controller
             .Select(region => CreateHighlightPoint(region))
             .Where(point => point is not null)
             .Cast<MapHighlightPoint>()
-            .GroupBy(point => new { point.Label, point.X, point.Y })
+            .GroupBy(point => new { point.Label, point.Latitude, point.Longitude })
             .Select(group => group.First())
             .OrderBy(point => point.Label)
             .ToList();
@@ -122,7 +122,7 @@ public class WineWavesController : Controller
         var countryName = region.Country?.Name;
         if (!string.IsNullOrWhiteSpace(region.Name) && RegionCoordinates.TryGetValue(region.Name, out var regionCoord))
         {
-            return new MapHighlightPoint(region.Name, countryName ?? string.Empty, regionCoord.X, regionCoord.Y);
+            return new MapHighlightPoint(region.Name, countryName ?? string.Empty, regionCoord.Latitude, regionCoord.Longitude);
         }
 
         if (!string.IsNullOrWhiteSpace(countryName) && CountryCoordinates.TryGetValue(countryName, out var countryCoord))
@@ -130,7 +130,7 @@ public class WineWavesController : Controller
             var label = string.IsNullOrWhiteSpace(region.Name)
                 ? countryName
                 : $"{region.Name}, {countryName}";
-            return new MapHighlightPoint(label, countryName, countryCoord.X, countryCoord.Y);
+            return new MapHighlightPoint(label, countryName, countryCoord.Latitude, countryCoord.Longitude);
         }
 
         return null;
@@ -139,4 +139,4 @@ public class WineWavesController : Controller
 
 public record WineWavesLandingViewModel(IReadOnlyList<MapHighlightPoint> HighlightPoints);
 
-public record MapHighlightPoint(string Label, string? Country, double X, double Y);
+public record MapHighlightPoint(string Label, string? Country, double Latitude, double Longitude);
