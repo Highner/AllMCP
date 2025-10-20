@@ -48,18 +48,7 @@
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
 </head>
 <body>
-    <header class="top-bar">
-        <div class="brand">Wine Surfer</div>
-        <div class="top-bar-actions">
-            <a class="home-button" href="/wine-surfer" aria-label="Return to the Wine Surfer landing page">Home</a>
-            <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
-                <span></span>
-            </button>
-        </div>
-        <nav id="menuPanel" class="menu-panel" aria-hidden="true">
-            <a href="/wine-manager">Wine Inventory</a>
-        </nav>
-    </header>
+    @await Html.PartialAsync("_WineSurferTopBar", Context.Request.Path.Value ?? string.Empty)
     <main class="inventory-shell">
         <h1>Wine Surfer</h1>
         <form method="get" class="filters">
