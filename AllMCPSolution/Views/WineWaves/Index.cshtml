@@ -1,0 +1,374 @@
+@model AllMCPSolution.Controllers.WineWavesLandingViewModel
+@using System.Linq
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wine Waves</title>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #050505;
+            color: #f4f1ea;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px 32px;
+            position: sticky;
+            top: 0;
+            background: rgba(5, 5, 5, 0.92);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid rgba(244, 241, 234, 0.08);
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            font-weight: 600;
+            font-size: 20px;
+        }
+
+        .burger {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            border: 1px solid rgba(244, 241, 234, 0.15);
+            background: rgba(244, 241, 234, 0.05);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .burger span {
+            position: relative;
+            width: 20px;
+            height: 2px;
+            background: #f4f1ea;
+            display: block;
+        }
+
+        .burger span::before,
+        .burger span::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #f4f1ea;
+            transition: transform 0.2s ease;
+        }
+
+        .burger span::before {
+            transform: translateY(-6px);
+        }
+
+        .burger span::after {
+            transform: translateY(6px);
+        }
+
+        .burger.active span {
+            background: transparent;
+        }
+
+        .burger.active span::before {
+            transform: rotate(45deg);
+        }
+
+        .burger.active span::after {
+            transform: rotate(-45deg);
+        }
+
+        .menu-panel {
+            position: absolute;
+            top: 76px;
+            right: 32px;
+            background: rgba(12, 12, 12, 0.95);
+            border: 1px solid rgba(244, 241, 234, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            min-width: 220px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+            display: none;
+        }
+
+        .menu-panel.open {
+            display: block;
+        }
+
+        .menu-panel a {
+            display: block;
+            padding: 12px 16px;
+            border-radius: 10px;
+            color: #f4f1ea;
+            text-decoration: none;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-size: 12px;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .menu-panel a:hover {
+            background: rgba(244, 241, 234, 0.12);
+            transform: translateX(4px);
+        }
+
+        main {
+            flex: 1;
+            padding: 80px 24px 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 48px;
+        }
+
+        h1 {
+            font-size: clamp(48px, 6vw, 96px);
+            margin: 0;
+            letter-spacing: 12px;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .tagline {
+            font-size: 18px;
+            max-width: 680px;
+            text-align: center;
+            line-height: 1.7;
+            color: rgba(244, 241, 234, 0.75);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .map-shell {
+            position: relative;
+            width: min(100%, 960px);
+            aspect-ratio: 2 / 1;
+            border-radius: 24px;
+            background: radial-gradient(circle at 30% 30%, rgba(244, 241, 234, 0.08), transparent 55%),
+                        radial-gradient(circle at 70% 70%, rgba(244, 241, 234, 0.06), transparent 60%),
+                        rgba(12, 12, 12, 0.85);
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            overflow: hidden;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+        }
+
+        .world-map {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .world-map path {
+            fill: rgba(244, 241, 234, 0.05);
+            stroke: rgba(244, 241, 234, 0.9);
+            stroke-width: 2;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .highlight-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .highlight {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            margin-left: -9px;
+            margin-top: -9px;
+            border-radius: 999px;
+            background: rgba(244, 241, 234, 0.95);
+            box-shadow: 0 0 25px 12px rgba(244, 241, 234, 0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .highlight::after {
+            content: attr(data-label);
+            position: absolute;
+            top: 22px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            background: rgba(5, 5, 5, 0.9);
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.85);
+        }
+
+        .regions-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+            width: min(100%, 960px);
+        }
+
+        .region-card {
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            border-radius: 18px;
+            padding: 18px 22px;
+            background: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .region-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(244, 241, 234, 0.35);
+        }
+
+        .region-card .label {
+            letter-spacing: 2px;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+
+        .region-card .country {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        @media (max-width: 768px) {
+            .top-bar {
+                padding: 18px 20px;
+            }
+
+            .brand {
+                font-size: 16px;
+                letter-spacing: 3px;
+            }
+
+            main {
+                padding-top: 60px;
+            }
+
+            h1 {
+                letter-spacing: 8px;
+            }
+
+            .highlight::after {
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="top-bar">
+        <div class="brand">Wine Waves</div>
+        <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
+            <span></span>
+        </button>
+        <nav id="menuPanel" class="menu-panel" aria-hidden="true">
+            <a href="/wine-manager">Wine Inventory</a>
+        </nav>
+    </header>
+    <main>
+        <h1>Wine Waves</h1>
+        <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
+        <section class="map-shell" aria-label="World map highlighting wine regions">
+            <svg viewBox="0 0 1000 500" class="world-map" role="img" aria-hidden="true">
+                <path d="M90 110 L140 70 L200 80 L250 90 L280 120 L260 150 L240 160 L210 150 L190 165 L150 180 L120 170 L90 140 Z" />
+                <path d="M250 200 L280 220 L270 260 L280 320 L260 360 L240 390 L230 430 L220 470 L200 450 L190 410 L200 360 L210 320 L220 260 Z" />
+                <path d="M320 150 L360 110 L420 100 L480 110 L540 130 L600 140 L660 160 L720 190 L780 190 L840 200 L880 220 L900 260 L880 290 L840 300 L780 280 L720 260 L660 240 L600 220 L540 200 L480 190 L420 190 L360 180 Z" />
+                <path d="M420 190 L460 170 L520 180 L560 220 L570 260 L560 320 L540 360 L520 400 L500 430 L460 420 L440 370 L430 320 Z" />
+                <path d="M720 330 L760 320 L800 330 L830 360 L820 390 L780 400 L740 380 L720 350 Z" />
+                <path d="M220 40 L250 20 L280 30 L300 60 L290 80 L260 70 L230 60 Z" />
+            </svg>
+            <div class="highlight-layer">
+                @foreach (var point in Model.HighlightPoints)
+                {
+                    var left = point.X * 100;
+                    var top = point.Y * 100;
+                    <div class="highlight" style="left: @left%; top: @top%;" data-label="@point.Label"></div>
+                }
+            </div>
+        </section>
+        <section class="regions-panel" aria-label="Highlighted wine regions">
+            @foreach (var point in Model.HighlightPoints)
+            {
+                <article class="region-card">
+                    <span class="label">@point.Label</span>
+                    @if (!string.IsNullOrWhiteSpace(point.Country))
+                    {
+                        <span class="country">@point.Country</span>
+                    }
+                </article>
+            }
+            @if (!Model.HighlightPoints.Any())
+            {
+                <article class="region-card">
+                    <span class="label">No wine regions available yet</span>
+                    <span class="country">Add bottles to your inventory to light up the map.</span>
+                </article>
+            }
+        </section>
+    </main>
+    <script>
+        const toggle = document.getElementById('menuToggle');
+        const panel = document.getElementById('menuPanel');
+
+        const closeMenu = () => {
+            toggle.classList.remove('active');
+            toggle.setAttribute('aria-expanded', 'false');
+            panel.classList.remove('open');
+            panel.setAttribute('aria-hidden', 'true');
+        };
+
+        toggle?.addEventListener('click', () => {
+            const isOpen = toggle.classList.toggle('active');
+            toggle.setAttribute('aria-expanded', String(isOpen));
+            panel.classList.toggle('open', isOpen);
+            panel.setAttribute('aria-hidden', String(!isOpen));
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!panel.contains(event.target) && event.target !== toggle) {
+                closeMenu();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeMenu();
+            }
+        });
+    </script>
+</body>
+</html>
