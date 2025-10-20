@@ -342,6 +342,11 @@ public sealed class UpdateBottleTool : BottleToolBase
             bottle.DrunkAt = DateTime.UtcNow;
         }
 
+        if (userId.HasValue)
+        {
+            bottle.UserId = userId.Value;
+        }
+
         await BottleRepository.UpdateAsync(bottle, ct);
 
         if (userId.HasValue && (score.HasValue || tastingNote is not null))

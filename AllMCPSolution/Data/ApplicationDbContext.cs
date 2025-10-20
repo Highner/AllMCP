@@ -157,6 +157,11 @@ public class ApplicationDbContext : DbContext
                 .WithMany(bl => bl.Bottles)
                 .HasForeignKey(b => b.BottleLocationId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasOne(b => b.User)
+                .WithMany(u => u.Bottles)
+                .HasForeignKey(b => b.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<BottleLocation>(e =>

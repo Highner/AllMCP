@@ -20,6 +20,15 @@ internal static class BottleResponseMapper
         {
             id = bottle.Id,
             price = bottle.Price,
+            userId = bottle.UserId,
+            user = bottle.User is null
+                ? null
+                : new
+                {
+                    id = bottle.User.Id,
+                    name = bottle.User.Name,
+                    tasteProfile = bottle.User.TasteProfile
+                },
             score = latestNote?.Score,
             tastingNote = latestNote?.Note,
             tastingNotes = tastingNotes is null || tastingNotes.Count == 0
