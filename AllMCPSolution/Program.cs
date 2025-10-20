@@ -1,19 +1,12 @@
 using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using AllMCPSolution.Artists;
 using AllMCPSolution.Artworks;
-using AllMCPSolution.Data;
-using AllMCPSolution.Repositories;
-using AllMCPSolution.Services;
 using AllMCPSolution.Tools;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Microsoft.Identity.Web;
@@ -70,12 +63,6 @@ builder.Services.AddAuthentication(options =>
         options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
     })
-    // .AddCookie(o =>
-    // {
-    //     o.LoginPath  = "/Account/Login";
-    //     o.LogoutPath = "/Account/Logout";
-    //     o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    // })
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
     .EnableTokenAcquisitionToCallDownstreamApi()
     .AddInMemoryTokenCaches();
@@ -167,13 +154,6 @@ var app = builder.Build();
 // Initialize ServiceLocator for tools to resolve scoped services
 AllMCPSolution.Services.ServiceLocator.Provider = app.Services;
 
-// Ensure database is migrated to latest on startup
-//using (var scope = app.Services.CreateScope())
-//{
- //   var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
- //   db.Database.Migrate();
-//}
-
  app.UseForwardedHeaders(new ForwardedHeadersOptions {
      ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
  });
@@ -190,25 +170,6 @@ app.MapControllers();
 var mcpServer = app.Services.GetRequiredService<AllMCPSolution.Services.McpServer>();
 var manifestGenerator = app.Services.GetRequiredService<ManifestGenerator>();
 var toolRegistry = app.Services.GetRequiredService<ToolRegistry>();
-
-
-
-
-
-
-
-// MCP endpoint
-//app.MapPost("/mcp", async (HttpContext context) =>
-//{
- //   var request = await context.Request.ReadFromJsonAsync<Dictionary<string, object>>();
- //   var response = await mcpServer.HandleRequestAsync(request);
- //   return Results.Json(response);
-//});
-
-// Explicit OPTIONS handler for CORS preflight on /mcp (some environments require it)
-//app.MapMethods("/mcp", new[] { "OPTIONS" }, () => Results.Ok());
-
-
 
 app.MapGet("/", async (HttpContext context) =>
 {
@@ -245,14 +206,6 @@ app.MapGet("/.well-known/anthropic-manifest", (ManifestGenerator manifestGenerat
     using var scope = serviceProvider.CreateScope();
     return Results.Ok(manifestGenerator.GenerateAnthropicManifest(scope.ServiceProvider));
 });
-
-// OpenAI Agent Builder MCP discovery endpoint
-//app.MapGet("/.well-known/mcp", (IServiceProvider serviceProvider) =>
-//{
-//    using var scope = serviceProvider.CreateScope();
- //   var manifestGenerator = scope.ServiceProvider.GetRequiredService<ManifestGenerator>();
- //   return Results.Json(manifestGenerator.GenerateOpenAIMcpDiscovery(scope.ServiceProvider));
-//});
 
 // Tools discovery endpoint
 app.MapGet("/tools", (IServiceProvider serviceProvider) =>
