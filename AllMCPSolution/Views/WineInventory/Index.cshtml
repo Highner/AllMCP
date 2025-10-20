@@ -651,6 +651,7 @@
                             <td>
                                 <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
                             </td>
+                            <td class="detail-add-average" aria-label="Average score">—</td>
                             <td>
                                 <label class="checkbox-row">
                                     <input type="checkbox" class="detail-add-is-drunk" />
@@ -667,6 +668,7 @@
                         <tr class="header-row">
                             <th scope="col">Bottle Location</th>
                             <th scope="col">Price</th>
+                            <th scope="col">Avg Score</th>
                             <th scope="col">Drunk</th>
                             <th scope="col">Drunk Date</th>
                             <th scope="col">Actions</th>
@@ -674,7 +676,7 @@
                     </thead>
                     <tbody>
                         <tr class="empty-row">
-                            <td colspan="5">Select a wine group to see its bottles.</td>
+                            <td colspan="6">Select a wine group to see its bottles.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -1410,6 +1412,7 @@
                 row.innerHTML = `
                     <td></td>
                     <td><input type="number" step="0.01" min="0" class="detail-price" value="${detail.price ?? detail.Price ?? ''}" placeholder="0.00" /></td>
+                    <td class="detail-average">${formatScore(detail.averageScore ?? detail.AverageScore)}</td>
                     <td>
                         <label class="checkbox-row">
                             <input type="checkbox" class="detail-is-drunk" ${isDrunk ? 'checked' : ''} />
@@ -1596,6 +1599,15 @@
                 return Number.isNaN(date.getTime()) ? null : date.toISOString();
             }
 
+            function formatScore(value) {
+                if (value == null || value === '') {
+                    return '—';
+                }
+
+                const parsed = Number(value);
+                return Number.isFinite(parsed) ? parsed.toFixed(1) : '—';
+            }
+
             function formatDateTime(value) {
                 if (!value) {
                     return '';
@@ -1707,7 +1719,8 @@
                     bottleLocationId: pick(raw, ['bottleLocationId', 'BottleLocationId']),
                     bottleLocation: pick(raw, ['bottleLocation', 'BottleLocation']),
                     vintage: pick(raw, ['vintage', 'Vintage']),
-                    wineName: pick(raw, ['wineName', 'WineName'])
+                    wineName: pick(raw, ['wineName', 'WineName']),
+                    averageScore: pick(raw, ['averageScore', 'AverageScore'])
                 };
             }
 
