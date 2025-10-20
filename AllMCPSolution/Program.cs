@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using AllMCPSolution.Artists;
 using AllMCPSolution.Artworks;
 using AllMCPSolution.Data;
@@ -24,8 +25,19 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
             sqlOptions.EnableRetryOnFailure();
         }));
 
-builder.Services.AddControllers();
-builder.Services.AddControllersWithViews();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+
+builder.Services
+    .AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
