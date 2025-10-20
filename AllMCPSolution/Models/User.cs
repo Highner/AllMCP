@@ -7,4 +7,5 @@ public class User
     public string TasteProfile { get; set; }
 
     public ICollection<TastingNote> TastingNotes { get; set; } = [];
+    public ICollection<BottleLocation> BottleLocations { get; set; } = [];
 }

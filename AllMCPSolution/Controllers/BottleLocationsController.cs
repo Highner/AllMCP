@@ -7,10 +7,12 @@ namespace AllMCPSolution.Controllers;
 public class BottleLocationsController : ControllerBase
 {
     private readonly IBottleLocationRepository _locations;
+    private readonly IUserRepository _users;
 
-    public BottleLocationsController(IBottleLocationRepository locations)
+    public BottleLocationsController(IBottleLocationRepository locations, IUserRepository users)
     {
         _locations = locations;
+        _users = users;
     }
 
     [HttpGet]
@@ -18,7 +20,13 @@ public class BottleLocationsController : ControllerBase
     {
         var locations = await _locations.GetAllAsync(ct);
         var projected = locations
-            .Select(l => new { l.Id, l.Name })
+            .Select(l => new
+            {
+                l.Id,
+                l.Name,
+                l.UserId,
+                UserName = l.User?.Name
+            })
             .ToList();
 
         return Ok(projected);
@@ -33,12 +41,19 @@ public class BottleLocationsController : ControllerBase
             return NotFound();
         }
 
-        return Ok(new { location.Id, location.Name });
+        return Ok(new
+        {
+            location.Id,
+            location.Name,
+            location.UserId,
+            UserName = location.User?.Name
+        });
     }
 
     public sealed class CreateBottleLocationRequest
     {
         public string? Name { get; set; }
+        public Guid? UserId { get; set; }
     }
 
     [HttpPost]
@@ -49,8 +64,19 @@ public class BottleLocationsController : ControllerBase
             return BadRequest(new { message = "Location name is required." });
         }
 
+        if (!request.UserId.HasValue || request.UserId.Value == Guid.Empty)
+        {
+            return BadRequest(new { message = "A valid user identifier is required." });
+        }
+
         var trimmedName = request.Name.Trim();
-        var existing = await _locations.FindByNameAsync(trimmedName, ct);
+        var user = await _users.GetByIdAsync(request.UserId.Value, ct);
+        if (user is null)
+        {
+            return BadRequest(new { message = "User was not found." });
+        }
+
+        var existing = await _locations.FindByNameAsync(trimmedName, request.UserId.Value, ct);
         if (existing is not null)
         {
             return Conflict(new
@@ -63,17 +89,25 @@ public class BottleLocationsController : ControllerBase
         var location = new BottleLocation
         {
             Id = Guid.NewGuid(),
-            Name = trimmedName
+            Name = trimmedName,
+            UserId = user.Id
         };
 
         await _locations.AddAsync(location, ct);
 
-        return CreatedAtAction(nameof(GetById), new { id = location.Id }, new { location.Id, location.Name });
+        return CreatedAtAction(nameof(GetById), new { id = location.Id }, new
+        {
+            location.Id,
+            location.Name,
+            location.UserId,
+            UserName = user.Name
+        });
     }
 
     public sealed class UpdateBottleLocationRequest
     {
         public string? Name { get; set; }
+        public Guid? UserId { get; set; }
     }
 
     [HttpPut("{id:guid}")]
@@ -84,14 +118,25 @@ public class BottleLocationsController : ControllerBase
             return BadRequest(new { message = "Location name is required." });
         }
 
+        if (!request.UserId.HasValue || request.UserId.Value == Guid.Empty)
+        {
+            return BadRequest(new { message = "A valid user identifier is required." });
+        }
+
         var existing = await _locations.GetByIdAsync(id, ct);
         if (existing is null)
         {
             return NotFound();
         }
 
+        var user = await _users.GetByIdAsync(request.UserId.Value, ct);
+        if (user is null)
+        {
+            return BadRequest(new { message = "User was not found." });
+        }
+
         var trimmedName = request.Name.Trim();
-        var duplicate = await _locations.FindByNameAsync(trimmedName, ct);
+        var duplicate = await _locations.FindByNameAsync(trimmedName, request.UserId.Value, ct);
         if (duplicate is not null && duplicate.Id != id)
         {
             return Conflict(new
@@ -102,9 +147,16 @@ public class BottleLocationsController : ControllerBase
         }
 
         existing.Name = trimmedName;
+        existing.UserId = user.Id;
         await _locations.UpdateAsync(existing, ct);
 
-        return Ok(new { existing.Id, existing.Name });
+        return Ok(new
+        {
+            existing.Id,
+            existing.Name,
+            existing.UserId,
+            UserName = user.Name
+        });
     }
 
     [HttpDelete("{id:guid}")]
