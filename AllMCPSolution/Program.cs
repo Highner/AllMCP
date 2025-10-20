@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,49 +64,36 @@ builder.Services.AddScoped<ITastingNoteRepository, TastingNoteRepository>();
 builder.Services.AddScoped<ISisterhoodRepository, SisterhoodRepository>();
 builder.Services.AddScoped<InventoryIntakeService>();
 
+
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = "Microsoft"; // oder "Google", oder per Policy wählen
+        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
     })
-    .AddCookie(o =>
-    {
-        o.LoginPath  = "/Account/Login";
-        o.LogoutPath = "/Account/Logout";
-        o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        // o.Cookie.SameSite = SameSiteMode.Lax; // bei Bedarf
-    })
-    // .AddOpenIdConnect("Google", options =>
+    // .AddCookie(o =>
     // {
-    //     options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    //     builder.Configuration.Bind("Authentication:Google", options);
-    //     options.ResponseType = "code";
-    //     options.CallbackPath = "/signin-oidc-google"; // explizit, entspricht Standard
-    //     options.SaveTokens   = true;
+    //     o.LoginPath  = "/Account/Login";
+    //     o.LogoutPath = "/Account/Logout";
+    //     o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     // })
-    .AddOpenIdConnect("Microsoft", options =>
+    .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
+    .EnableTokenAcquisitionToCallDownstreamApi()
+    .AddInMemoryTokenCaches();
+
+builder.Services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+{
+    options.SaveTokens = true;
+    options.Events = new OpenIdConnectEvents
     {
-        options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        builder.Configuration.Bind("Authentication:Microsoft", options);
-        options.ResponseType = "code";
-        options.CallbackPath = "/signin-oidc-microsoft"; // <-- unique
-        options.SaveTokens   = true;
-        // Optional: Scopes
-        options.Scope.Add("openid");
-        options.Scope.Add("profile");
-        options.Scope.Add("email");
-        
-        options.Events = new OpenIdConnectEvents
+        OnRemoteFailure = ctx =>
         {
-            OnRemoteFailure = ctx =>
-            {
-                ctx.HandleResponse();
-                var msg = Uri.EscapeDataString(ctx.Failure?.Message ?? "remote failure");
-                ctx.Response.Redirect($"/Account/Login?error={msg}");
-                return Task.CompletedTask;
-            }
-        };
-    });
+            ctx.HandleResponse();
+            var msg = Uri.EscapeDataString(ctx.Failure?.Message ?? "remote failure");
+            ctx.Response.Redirect($"/Account/Login?error={msg}");
+            return Task.CompletedTask;
+        }
+    };
+});
 
 
 // Register all tools (auto-discovered by ToolRegistry)
