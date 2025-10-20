@@ -21,6 +21,7 @@ public class WineInventoryController : Controller
     private readonly IWineVintageRepository _wineVintageRepository;
     private readonly ISubAppellationRepository _subAppellationRepository;
     private readonly IUserRepository _userRepository;
+    private readonly ITastingNoteRepository _tastingNoteRepository;
 
     public WineInventoryController(
         IBottleRepository bottleRepository,
@@ -28,7 +29,8 @@ public class WineInventoryController : Controller
         IWineRepository wineRepository,
         IWineVintageRepository wineVintageRepository,
         ISubAppellationRepository subAppellationRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        ITastingNoteRepository tastingNoteRepository)
     {
         _bottleRepository = bottleRepository;
         _bottleLocationRepository = bottleLocationRepository;
@@ -36,6 +38,7 @@ public class WineInventoryController : Controller
         _wineVintageRepository = wineVintageRepository;
         _subAppellationRepository = subAppellationRepository;
         _userRepository = userRepository;
+        _tastingNoteRepository = tastingNoteRepository;
     }
 
     [HttpGet("")]
@@ -245,6 +248,18 @@ public class WineInventoryController : Controller
                 })
                 .ToList()
         };
+
+        return Json(response);
+    }
+
+    [HttpGet("bottles/{bottleId:guid}/notes")]
+    public async Task<IActionResult> GetBottleNotes(Guid bottleId, CancellationToken cancellationToken)
+    {
+        var response = await BuildBottleNotesResponseAsync(bottleId, cancellationToken);
+        if (response is null)
+        {
+            return NotFound();
+        }
 
         return Json(response);
     }
@@ -524,6 +539,122 @@ public class WineInventoryController : Controller
         });
     }
 
+    [HttpPost("notes")]
+    public async Task<IActionResult> CreateNote([FromBody] TastingNoteCreateRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var trimmedNote = request.Note?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedNote))
+        {
+            ModelState.AddModelError(nameof(request.Note), "Note text is required.");
+            return ValidationProblem(ModelState);
+        }
+
+        var bottle = await _bottleRepository.GetByIdAsync(request.BottleId, cancellationToken);
+        if (bottle is null)
+        {
+            ModelState.AddModelError(nameof(request.BottleId), "Bottle was not found.");
+            return ValidationProblem(ModelState);
+        }
+
+        var user = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
+        if (user is null)
+        {
+            ModelState.AddModelError(nameof(request.UserId), "User was not found.");
+            return ValidationProblem(ModelState);
+        }
+
+        var entity = new TastingNote
+        {
+            Id = Guid.NewGuid(),
+            BottleId = bottle.Id,
+            Note = trimmedNote!,
+            Score = request.Score,
+            UserId = user.Id
+        };
+
+        await _tastingNoteRepository.AddAsync(entity, cancellationToken);
+
+        var response = await BuildBottleNotesResponseAsync(bottle.Id, cancellationToken);
+        if (response is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load tasting notes after creation.");
+        }
+
+        return Json(response);
+    }
+
+    [HttpPut("notes/{noteId:guid}")]
+    public async Task<IActionResult> UpdateNote(Guid noteId, [FromBody] TastingNoteUpdateRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var trimmedNote = request.Note?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedNote))
+        {
+            ModelState.AddModelError(nameof(request.Note), "Note text is required.");
+            return ValidationProblem(ModelState);
+        }
+
+        var existing = await _tastingNoteRepository.GetByIdAsync(noteId, cancellationToken);
+        if (existing is null)
+        {
+            return NotFound();
+        }
+
+        var user = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
+        if (user is null)
+        {
+            ModelState.AddModelError(nameof(request.UserId), "User was not found.");
+            return ValidationProblem(ModelState);
+        }
+
+        existing.Note = trimmedNote!;
+        existing.Score = request.Score;
+        existing.UserId = user.Id;
+
+        await _tastingNoteRepository.UpdateAsync(existing, cancellationToken);
+
+        var response = await BuildBottleNotesResponseAsync(existing.BottleId, cancellationToken);
+        if (response is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load tasting notes after update.");
+        }
+
+        return Json(response);
+    }
+
+    [HttpDelete("notes/{noteId:guid}")]
+    public async Task<IActionResult> DeleteNote(Guid noteId, CancellationToken cancellationToken)
+    {
+        var existing = await _tastingNoteRepository.GetByIdAsync(noteId, cancellationToken);
+        if (existing is null)
+        {
+            return NotFound();
+        }
+
+        await _tastingNoteRepository.DeleteAsync(noteId, cancellationToken);
+
+        var response = await BuildBottleNotesResponseAsync(existing.BottleId, cancellationToken);
+        if (response is null)
+        {
+            return Json(new BottleNotesResponse
+            {
+                Bottle = null,
+                Notes = Array.Empty<TastingNoteViewModel>()
+            });
+        }
+
+        return Json(response);
+    }
+
     [HttpDelete("bottles/{id:guid}")]
     public async Task<IActionResult> DeleteBottle(Guid id, CancellationToken cancellationToken)
     {
@@ -581,6 +712,47 @@ public class WineInventoryController : Controller
         {
             Group = summary,
             Details = details
+        };
+    }
+
+    private async Task<BottleNotesResponse?> BuildBottleNotesResponseAsync(Guid bottleId, CancellationToken cancellationToken)
+    {
+        var bottle = await _bottleRepository.GetByIdAsync(bottleId, cancellationToken);
+        if (bottle is null)
+        {
+            return null;
+        }
+
+        var notes = await _tastingNoteRepository.GetByBottleIdAsync(bottleId, cancellationToken);
+
+        var noteViewModels = notes
+            .Select(note => new TastingNoteViewModel
+            {
+                Id = note.Id,
+                Note = note.Note,
+                Score = note.Score,
+                UserId = note.UserId,
+                UserName = note.User?.Name ?? string.Empty
+            })
+            .ToList();
+
+        var bottleSummary = new BottleNotesBottleSummary
+        {
+            BottleId = bottle.Id,
+            WineVintageId = bottle.WineVintageId,
+            WineName = bottle.WineVintage.Wine.Name,
+            Vintage = bottle.WineVintage.Vintage,
+            BottleLocation = bottle.BottleLocation?.Name,
+            UserId = bottle.UserId,
+            UserName = bottle.User?.Name ?? string.Empty,
+            IsDrunk = bottle.IsDrunk,
+            DrunkAt = bottle.DrunkAt
+        };
+
+        return new BottleNotesResponse
+        {
+            Bottle = bottleSummary,
+            Notes = noteViewModels
         };
     }
 
@@ -787,6 +959,53 @@ public class InventoryReferenceDataResponse
     public IReadOnlyList<SubAppellationOption> SubAppellations { get; set; } = Array.Empty<SubAppellationOption>();
     public IReadOnlyList<BottleLocationOption> BottleLocations { get; set; } = Array.Empty<BottleLocationOption>();
     public IReadOnlyList<UserOption> Users { get; set; } = Array.Empty<UserOption>();
+}
+
+public class BottleNotesResponse
+{
+    public BottleNotesBottleSummary? Bottle { get; set; }
+    public IReadOnlyList<TastingNoteViewModel> Notes { get; set; } = Array.Empty<TastingNoteViewModel>();
+}
+
+public class BottleNotesBottleSummary
+{
+    public Guid BottleId { get; set; }
+    public Guid WineVintageId { get; set; }
+    public string WineName { get; set; } = string.Empty;
+    public int Vintage { get; set; }
+    public string? BottleLocation { get; set; }
+    public Guid? UserId { get; set; }
+    public string UserName { get; set; } = string.Empty;
+    public bool IsDrunk { get; set; }
+    public DateTime? DrunkAt { get; set; }
+}
+
+public class TastingNoteViewModel
+{
+    public Guid Id { get; set; }
+    public string Note { get; set; } = string.Empty;
+    public decimal? Score { get; set; }
+    public Guid UserId { get; set; }
+    public string UserName { get; set; } = string.Empty;
+}
+
+public class TastingNoteUpdateRequest
+{
+    [Required]
+    [StringLength(2048, MinimumLength = 1)]
+    public string Note { get; set; } = string.Empty;
+
+    [Range(0, 10)]
+    public decimal? Score { get; set; }
+
+    [Required]
+    public Guid UserId { get; set; }
+}
+
+public class TastingNoteCreateRequest : TastingNoteUpdateRequest
+{
+    [Required]
+    public Guid BottleId { get; set; }
 }
 
 public class SubAppellationOption
