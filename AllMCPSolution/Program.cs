@@ -94,6 +94,17 @@ builder.Services.AddAuthentication(options =>
         options.Scope.Add("openid");
         options.Scope.Add("profile");
         options.Scope.Add("email");
+        
+        options.Events = new OpenIdConnectEvents
+        {
+            OnRemoteFailure = ctx =>
+            {
+                ctx.HandleResponse();
+                var msg = Uri.EscapeDataString(ctx.Failure?.Message ?? "remote failure");
+                ctx.Response.Redirect($"/Account/Login?error={msg}");
+                return Task.CompletedTask;
+            }
+        };
     });
 
 
