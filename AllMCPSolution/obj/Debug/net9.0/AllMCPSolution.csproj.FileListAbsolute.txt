@@ -177,3 +177,4 @@
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/Data/Seed/artists.json
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/avox4dx1ns-qf0tuwvbqh.gz
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/ha6umacg54-p6684v0jc7.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/gx6okbfyc1-eo28o1hbdx.gz
