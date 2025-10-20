@@ -409,57 +409,23 @@
     let selectedFiles = [];
     let currentBatchId = null;
 
-    const AUTH_ERROR_MESSAGE = 'You must be signed in to manage artwork sales.';
-
-    async function fetchWithAuth(url, options) {
-        const response = await fetch(url, options);
-        if (response.status === 401 || response.status === 403) {
-            const error = new Error('Unauthorized');
-            error.isUnauthorized = true;
-            throw error;
-        }
-
-        return response;
-    }
-
-    async function fetchJsonWithAuth(url, options) {
-        const response = await fetchWithAuth(url, options);
-        if (!response.ok) {
-            const body = await response.text();
-            const error = new Error(body || `HTTP ${response.status}`);
-            error.status = response.status;
-            throw error;
-        }
-
-        return response.json();
-    }
-
-    function handleUnauthorized() {
-        showMessage(AUTH_ERROR_MESSAGE, 'error');
-        uploadBtn.disabled = true;
-        addArtistBtn.disabled = true;
-        if (saveBtn) {
-            saveBtn.disabled = true;
-        }
-    }
-
     // Load artists on page load
     async function loadArtists() {
         try {
-            const artists = await fetchJsonWithAuth('/api/artists');
-            artistSelect.innerHTML = '<option value="">-- Select an artist --</option>';
-            artists.forEach(artist => {
-                const option = document.createElement('option');
-                option.value = artist.id;
-                option.textContent = `${artist.firstName} ${artist.lastName}`;
-                artistSelect.appendChild(option);
-            });
-        } catch (error) {
-            if (error.isUnauthorized) {
-                handleUnauthorized();
-                return;
+            const response = await fetch('/api/artists');
+            if (response.ok) {
+                const artists = await response.json();
+                artistSelect.innerHTML = '<option value="">-- Select an artist --</option>';
+                artists.forEach(artist => {
+                    const option = document.createElement('option');
+                    option.value = artist.id;
+                    option.textContent = `${artist.firstName} ${artist.lastName}`;
+                    artistSelect.appendChild(option);
+                });
+            } else {
+                showMessage('Failed to load artists', 'error');
             }
-
+        } catch (error) {
             showMessage('Error loading artists: ' + error.message, 'error');
         }
     }
@@ -478,7 +444,7 @@
         message.classList.remove('visible');
 
         try {
-            const response = await fetchWithAuth('/api/artists', {
+            const response = await fetch('/api/artists', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -506,11 +472,7 @@
                 showMessage(result.message || 'Failed to add artist', 'error');
             }
         } catch (error) {
-            if (error.isUnauthorized) {
-                handleUnauthorized();
-            } else {
-                showMessage('Error adding artist: ' + error.message, 'error');
-            }
+            showMessage('Error adding artist: ' + error.message, 'error');
         } finally {
             addArtistBtn.disabled = false;
         }
@@ -654,8 +616,6 @@
                     selectedFiles = [];
                     fileInput.value = '';
                     updateUploadButtonState();
-                } else if (xhr.status === 401 || xhr.status === 403) {
-                    handleUnauthorized();
                 } else {
                     showMessage('Upload failed: ' + xhr.statusText, 'error');
                     uploadBtn.disabled = false;
@@ -694,7 +654,7 @@
         }
         saveBtn.disabled = true;
         try {
-            const res = await fetchWithAuth('/api/upload/save', {
+            const res = await fetch('/api/upload/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ batchId: currentBatchId })
@@ -708,12 +668,8 @@
                 saveBtn.disabled = false;
             }
         } catch (e) {
-            if (e.isUnauthorized) {
-                handleUnauthorized();
-            } else {
-                showMessage('Error saving: ' + e.message, 'error');
-                saveBtn.disabled = false;
-            }
+            showMessage('Error saving: ' + e.message, 'error');
+            saveBtn.disabled = false;
         }
     });
 

@@ -1,11 +1,9 @@
 using AllMCPSolution.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AllMCPSolution.Controllers;
 
 [ApiController]
-[Authorize]
 [Route("api/hammer-per-area")] // GET /api/hammer-per-area
 public class HammerPerAreaController : ControllerBase
 {
