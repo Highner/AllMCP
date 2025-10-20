@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,40 +10,27 @@ namespace AllMCPSolution.Controllers;
 public class AccountController : Controller
 {
     [AllowAnonymous]
-    [HttpGet("signin/google")]
-    public IActionResult SignInWithGoogle([FromQuery] string? returnUrl = null)
-    {
-        var redirectUrl = ResolveReturnUrl(returnUrl);
-        var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
-        return Challenge(properties, "Google");
-    }
-
-    [AllowAnonymous]
     [HttpGet("signin/microsoft")]
     public IActionResult SignInWithMicrosoft([FromQuery] string? returnUrl = null)
     {
         var redirectUrl = ResolveReturnUrl(returnUrl);
-        var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
-        return Challenge(properties, "Microsoft");
+        var props = new AuthenticationProperties { RedirectUri = redirectUrl };
+        return Challenge(props, OpenIdConnectDefaults.AuthenticationScheme); // <-- key change
     }
 
     [Authorize]
     [HttpPost("signout")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SignOutCurrentUser([FromForm] string? returnUrl = null)
+    public IActionResult SignOutCurrentUser([FromForm] string? returnUrl = null)
     {
-        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         var redirectUrl = ResolveReturnUrl(returnUrl);
-        return LocalRedirect(redirectUrl);
+        return SignOut(new AuthenticationProperties { RedirectUri = redirectUrl },
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            OpenIdConnectDefaults.AuthenticationScheme); // sign out cookie + OIDC
     }
 
-    private string ResolveReturnUrl(string? returnUrl)
-    {
-        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
-        {
-            return returnUrl;
-        }
-
-        return Url.Content("~/wine-surfer");
-    }
+    private string ResolveReturnUrl(string? returnUrl) =>
+        !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? returnUrl
+            : Url.Content("~/wine-surfer");
 }
