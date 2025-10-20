@@ -75,14 +75,14 @@ builder.Services.AddAuthentication(options =>
         o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         // o.Cookie.SameSite = SameSiteMode.Lax; // bei Bedarf
     })
-    .AddOpenIdConnect("Google", options =>
-    {
-        options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        builder.Configuration.Bind("Authentication:Google", options);
-        options.ResponseType = "code";
-        options.CallbackPath = "/signin-oidc-google"; // explizit, entspricht Standard
-        options.SaveTokens   = true;
-    })
+    // .AddOpenIdConnect("Google", options =>
+    // {
+    //     options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    //     builder.Configuration.Bind("Authentication:Google", options);
+    //     options.ResponseType = "code";
+    //     options.CallbackPath = "/signin-oidc-google"; // explizit, entspricht Standard
+    //     options.SaveTokens   = true;
+    // })
     .AddOpenIdConnect("Microsoft", options =>
     {
         options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
