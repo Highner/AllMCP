@@ -7,11 +7,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AllMCPSolution.Controllers;
 
+[Authorize]
 [Route("wine-manager")]
 public class WineInventoryController : Controller
 {

@@ -5,11 +5,13 @@ using System.Threading.Tasks;
 using AllMCPSolution.Data;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace AllMCPSolution.Controllers;
 
+[Authorize]
 public class ArtworkSalesController : Controller
 {
     private readonly IArtworkSaleRepository _repo;

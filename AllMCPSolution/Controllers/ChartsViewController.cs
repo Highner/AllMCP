@@ -2,11 +2,13 @@ using System.Text;
 using System.Text.Json;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AllMCPSolution.Controllers;
 
 [Route("charts")] // Base route for chart views
+[Authorize]
 public class ChartsController : Controller  // Changed from ChartsViewController to ChartsController
 {
     private readonly IArtworkSaleRepository _sales;

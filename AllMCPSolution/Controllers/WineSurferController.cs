@@ -5,11 +5,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace AllMCPSolution.Controllers;
 
+[Authorize]
 [Route("wine-surfer")]
 public class WineSurferController : Controller
 {
@@ -151,6 +153,7 @@ public class WineSurferController : Controller
     }
 
     [HttpGet("sisterhoods")]
+    [AllowAnonymous] // Static informational page intentionally remains public.
     public IActionResult Sisterhoods()
     {
         Response.ContentType = "text/html; charset=utf-8";
