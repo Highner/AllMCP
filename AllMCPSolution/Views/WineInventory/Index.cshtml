@@ -312,9 +312,7 @@
             background: #f4f1ea;
             color: #050505;
             font-weight: 600;
-            letter-spacing: 1px;
             cursor: pointer;
-            text-transform: uppercase;
         }
 
         .details-controls button:disabled,
@@ -353,7 +351,7 @@
 
         .details-table .actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
 
         .details-table tbody .actions button {
@@ -417,6 +415,8 @@
             background: rgba(10, 10, 10, 0.9);
             color: #f4f1ea;
             font: inherit;
+            min-width: 0;
+            box-sizing: border-box;
         }
 
         .summary-add-row .actions button {
@@ -442,6 +442,8 @@
             border: 1px solid rgba(244, 241, 234, 0.2);
             background: rgba(10, 10, 10, 0.85);
             color: #f4f1ea;
+            min-width: 0;
+            box-sizing: border-box;
         }
 
         .details-table .add-row .actions button {
