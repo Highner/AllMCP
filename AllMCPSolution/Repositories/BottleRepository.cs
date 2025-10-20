@@ -115,6 +115,10 @@ public class BottleRepository : IBottleRepository
                 b.WineVintage.Wine.SubAppellation != null
                     ? b.WineVintage.Wine.SubAppellation.Name
                     : null,
+                b.WineVintage.Wine.SubAppellation?.AppellationId,
+                b.WineVintage.Wine.SubAppellation?.Appellation?.Name,
+                b.WineVintage.Wine.SubAppellation?.Id,
+                b.WineVintage.Wine.SubAppellation?.Name,
                 (int?)b.WineVintage.Vintage))
             .ToListAsync(ct);
     }
