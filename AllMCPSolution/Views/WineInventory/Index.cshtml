@@ -749,8 +749,8 @@
                     <td class="summary-score" data-field="score"></td>
                     <td class="summary-actions">
                         <div class="actions">
-                            <button type="button" class="secondary edit-group">Edit</button>
-                            <button type="button" class="secondary delete-group">Delete</button>
+                            <button type="button" class="crud-table__action-button secondary edit-group">Edit</button>
+                            <button type="button" class="crud-table__action-button secondary delete-group">Delete</button>
                         </div>
                     </td>`;
             }
@@ -808,8 +808,8 @@
 
                 if (actionsCell) {
                     actionsCell.innerHTML = `
-                        <button type="button" class="secondary edit-group">Edit</button>
-                        <button type="button" class="secondary delete-group">Delete</button>`;
+                        <button type="button" class="crud-table__action-button secondary edit-group">Edit</button>
+                        <button type="button" class="crud-table__action-button secondary delete-group">Delete</button>`;
                 }
 
                 if (isNewRow) {
@@ -864,8 +864,8 @@
 
                 if (actionsCell) {
                     actionsCell.innerHTML = `
-                        <button type="button" class="save-group">Save</button>
-                        <button type="button" class="secondary cancel-group">Cancel</button>`;
+                        <button type="button" class="crud-table__action-button save-group">Save</button>
+                        <button type="button" class="crud-table__action-button secondary cancel-group">Cancel</button>`;
                 }
             }
 
@@ -1180,8 +1180,8 @@
                     </td>
                     <td><input type="datetime-local" class="detail-drunk-at" value="${formattedDate}" ${isDrunk ? '' : 'disabled'} /></td>
                     <td class="actions">
-                        <button type="button" class="save">Save</button>
-                        <button type="button" class="secondary delete">Remove</button>
+                        <button type="button" class="crud-table__action-button save">Save</button>
+                        <button type="button" class="crud-table__action-button secondary delete">Delete</button>
                     </td>`;
 
                 const locationCell = row.children[0];
@@ -1263,7 +1263,7 @@
                         return;
                     }
 
-                    const confirmed = window.confirm('Remove this bottle from the inventory?');
+                    const confirmed = window.confirm('Delete this bottle from the inventory?');
                     if (!confirmed) {
                         return;
                     }
@@ -1274,7 +1274,7 @@
                             method: 'DELETE'
                         });
                         await renderDetails(response, true);
-                        showMessage('Bottle removed.', 'success');
+                        showMessage('Bottle deleted.', 'success');
                     } catch (error) {
                         showMessage(error.message, 'error');
                     } finally {
@@ -1613,8 +1613,8 @@
                     <td><input type="number" class="note-score" min="0" max="10" step="0.1" value="${scoreValue}" placeholder="0-10" /></td>
                     <td><textarea class="note-text" rows="3">${escapeHtml(noteText)}</textarea></td>
                     <td class="actions">
-                        <button type="button" class="save-note">Save</button>
-                        <button type="button" class="secondary delete-note">Delete</button>
+                        <button type="button" class="crud-table__action-button save-note">Save</button>
+                        <button type="button" class="crud-table__action-button secondary delete-note">Delete</button>
                     </td>`;
 
                 const userCell = row.children[0];
