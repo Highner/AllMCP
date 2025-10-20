@@ -4,6 +4,7 @@ using AllMCPSolution.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AllMCPSolution.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251020104943_subappellation")]
+    partial class subappellation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -160,9 +163,6 @@ namespace AllMCPSolution.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("BottleLocationId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<DateTime?>("DrunkAt")
                         .HasColumnType("datetime2");
 
@@ -177,30 +177,9 @@ namespace AllMCPSolution.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BottleLocationId");
-
                     b.HasIndex("WineVintageId");
 
                     b.ToTable("Bottles");
-                });
-
-            modelBuilder.Entity("AllMCPSolution.Models.BottleLocation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("BottleLocations");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Country", b =>
@@ -281,6 +260,7 @@ namespace AllMCPSolution.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Name")
+                        .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
@@ -289,8 +269,7 @@ namespace AllMCPSolution.Migrations
                     b.HasIndex("AppellationId");
 
                     b.HasIndex("Name", "AppellationId")
-                        .IsUnique()
-                        .HasFilter("[Name] IS NOT NULL");
+                        .IsUnique();
 
                     b.ToTable("SubAppellations");
                 });
@@ -453,18 +432,11 @@ namespace AllMCPSolution.Migrations
 
             modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
                 {
-                    b.HasOne("AllMCPSolution.Models.BottleLocation", "BottleLocation")
-                        .WithMany("Bottles")
-                        .HasForeignKey("BottleLocationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("AllMCPSolution.Models.WineVintage", "WineVintage")
                         .WithMany("Bottles")
                         .HasForeignKey("WineVintageId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("BottleLocation");
 
                     b.Navigation("WineVintage");
                 });
@@ -556,11 +528,6 @@ namespace AllMCPSolution.Migrations
             modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
                 {
                     b.Navigation("TastingNotes");
-                });
-
-            modelBuilder.Entity("AllMCPSolution.Models.BottleLocation", b =>
-                {
-                    b.Navigation("Bottles");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Country", b =>
