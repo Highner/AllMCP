@@ -16,11 +16,23 @@ namespace AllMCPSolution.Controllers;
 public class WineInventoryController : Controller
 {
     private readonly IBottleRepository _bottleRepository;
+    private readonly IBottleLocationRepository _bottleLocationRepository;
+    private readonly IWineRepository _wineRepository;
+    private readonly IWineVintageRepository _wineVintageRepository;
+    private readonly ISubAppellationRepository _subAppellationRepository;
 
     public WineInventoryController(
-        IBottleRepository bottleRepository)
+        IBottleRepository bottleRepository,
+        IBottleLocationRepository bottleLocationRepository,
+        IWineRepository wineRepository,
+        IWineVintageRepository wineVintageRepository,
+        ISubAppellationRepository subAppellationRepository)
     {
         _bottleRepository = bottleRepository;
+        _bottleLocationRepository = bottleLocationRepository;
+        _wineRepository = wineRepository;
+        _wineVintageRepository = wineVintageRepository;
+        _subAppellationRepository = subAppellationRepository;
     }
 
     [HttpGet("")]
@@ -199,6 +211,200 @@ public class WineInventoryController : Controller
         return Json(response);
     }
 
+    [HttpGet("options")]
+    public async Task<IActionResult> GetReferenceData(CancellationToken cancellationToken)
+    {
+        var subAppellations = await _subAppellationRepository.GetAllAsync(cancellationToken);
+        var bottleLocations = await _bottleLocationRepository.GetAllAsync(cancellationToken);
+
+        var response = new InventoryReferenceDataResponse
+        {
+            SubAppellations = subAppellations
+                .Select(sa => new SubAppellationOption
+                {
+                    Id = sa.Id,
+                    Label = BuildSubAppellationLabel(sa)
+                })
+                .ToList(),
+            BottleLocations = bottleLocations
+                .Select(bl => new BottleLocationOption
+                {
+                    Id = bl.Id,
+                    Name = bl.Name
+                })
+                .ToList()
+        };
+
+        return Json(response);
+    }
+
+    [HttpPost("groups")]
+    public async Task<IActionResult> CreateGroup([FromBody] WineGroupCreateRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var trimmedName = request.WineName?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedName))
+        {
+            ModelState.AddModelError(nameof(request.WineName), "Wine name is required.");
+            return ValidationProblem(ModelState);
+        }
+
+        var subAppellation = await _subAppellationRepository.GetByIdAsync(request.SubAppellationId, cancellationToken);
+        if (subAppellation is null)
+        {
+            ModelState.AddModelError(nameof(request.SubAppellationId), "Sub-appellation was not found.");
+            return ValidationProblem(ModelState);
+        }
+
+        var duplicate = await _wineRepository.FindByNameAsync(trimmedName, subAppellation.Name, subAppellation.Appellation?.Name, cancellationToken);
+        if (duplicate is not null)
+        {
+            ModelState.AddModelError(nameof(request.WineName), "A wine with the same name already exists for the selected sub-appellation.");
+            return ValidationProblem(ModelState);
+        }
+
+        BottleLocation? bottleLocation = null;
+        if (request.BottleLocationId.HasValue)
+        {
+            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            if (bottleLocation is null)
+            {
+                ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
+                return ValidationProblem(ModelState);
+            }
+        }
+
+        var wine = new Wine
+        {
+            Id = Guid.NewGuid(),
+            Name = trimmedName,
+            Color = request.Color,
+            SubAppellationId = subAppellation.Id
+        };
+
+        await _wineRepository.AddAsync(wine, cancellationToken);
+
+        var wineVintage = await _wineVintageRepository.GetOrCreateAsync(wine.Id, request.Vintage, cancellationToken);
+
+        for (var i = 0; i < request.InitialBottleCount; i++)
+        {
+            var bottle = new Bottle
+            {
+                Id = Guid.NewGuid(),
+                WineVintageId = wineVintage.Id,
+                IsDrunk = false,
+                DrunkAt = null,
+                Price = null,
+                BottleLocationId = bottleLocation?.Id
+            };
+
+            await _bottleRepository.AddAsync(bottle, cancellationToken);
+        }
+
+        var response = await BuildBottleGroupResponseAsync(wineVintage.Id, cancellationToken);
+        if (response is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load wine group after creation.");
+        }
+
+        return Json(response);
+    }
+
+    [HttpPut("groups/{wineVintageId:guid}")]
+    public async Task<IActionResult> UpdateGroup(Guid wineVintageId, [FromBody] WineGroupUpdateRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var existingVintage = await _wineVintageRepository.GetByIdAsync(wineVintageId, cancellationToken);
+        if (existingVintage is null)
+        {
+            return NotFound();
+        }
+
+        var trimmedName = request.WineName?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedName))
+        {
+            ModelState.AddModelError(nameof(request.WineName), "Wine name is required.");
+            return ValidationProblem(ModelState);
+        }
+
+        var subAppellation = await _subAppellationRepository.GetByIdAsync(request.SubAppellationId, cancellationToken);
+        if (subAppellation is null)
+        {
+            ModelState.AddModelError(nameof(request.SubAppellationId), "Sub-appellation was not found.");
+            return ValidationProblem(ModelState);
+        }
+
+        var duplicate = await _wineRepository.FindByNameAsync(trimmedName, subAppellation.Name, subAppellation.Appellation?.Name, cancellationToken);
+        if (duplicate is not null && duplicate.Id != existingVintage.WineId)
+        {
+            ModelState.AddModelError(nameof(request.WineName), "A wine with the same name already exists for the selected sub-appellation.");
+            return ValidationProblem(ModelState);
+        }
+
+        var wine = await _wineRepository.GetByIdAsync(existingVintage.WineId, cancellationToken);
+        if (wine is null)
+        {
+            return NotFound();
+        }
+
+        wine.Name = trimmedName;
+        wine.Color = request.Color;
+        wine.SubAppellationId = subAppellation.Id;
+
+        await _wineRepository.UpdateAsync(wine, cancellationToken);
+
+        var updatedVintage = new WineVintage
+        {
+            Id = existingVintage.Id,
+            WineId = wine.Id,
+            Vintage = request.Vintage
+        };
+
+        await _wineVintageRepository.UpdateAsync(updatedVintage, cancellationToken);
+
+        var response = await BuildBottleGroupResponseAsync(updatedVintage.Id, cancellationToken);
+        if (response is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load wine group after update.");
+        }
+
+        return Json(response);
+    }
+
+    [HttpDelete("groups/{wineVintageId:guid}")]
+    public async Task<IActionResult> DeleteGroup(Guid wineVintageId, CancellationToken cancellationToken)
+    {
+        var existingVintage = await _wineVintageRepository.GetByIdAsync(wineVintageId, cancellationToken);
+        if (existingVintage is null)
+        {
+            return NotFound();
+        }
+
+        var bottles = await _bottleRepository.GetByWineVintageIdAsync(wineVintageId, cancellationToken);
+        foreach (var bottle in bottles)
+        {
+            await _bottleRepository.DeleteAsync(bottle.Id, cancellationToken);
+        }
+
+        await _wineVintageRepository.DeleteAsync(wineVintageId, cancellationToken);
+
+        var wine = await _wineRepository.GetByIdAsync(existingVintage.WineId, cancellationToken);
+        if (wine is not null && (wine.WineVintages == null || wine.WineVintages.Count == 0))
+        {
+            await _wineRepository.DeleteAsync(wine.Id, cancellationToken);
+        }
+
+        return NoContent();
+    }
+
     [HttpPost("bottles")]
     public async Task<IActionResult> CreateBottle([FromBody] BottleMutationRequest request, CancellationToken cancellationToken)
     {
@@ -207,13 +413,25 @@ public class WineInventoryController : Controller
             return ValidationProblem(ModelState);
         }
 
+        BottleLocation? bottleLocation = null;
+        if (request.BottleLocationId.HasValue)
+        {
+            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            if (bottleLocation is null)
+            {
+                ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
+                return ValidationProblem(ModelState);
+            }
+        }
+
         var bottle = new Bottle
         {
             Id = Guid.NewGuid(),
             WineVintageId = request.WineVintageId,
             Price = request.Price,
             IsDrunk = request.IsDrunk,
-            DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt)
+            DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt),
+            BottleLocationId = bottleLocation?.Id
         };
 
         await _bottleRepository.AddAsync(bottle, cancellationToken);
@@ -241,9 +459,21 @@ public class WineInventoryController : Controller
             return NotFound();
         }
 
+        BottleLocation? bottleLocation = null;
+        if (request.BottleLocationId.HasValue)
+        {
+            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            if (bottleLocation is null)
+            {
+                ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
+                return ValidationProblem(ModelState);
+            }
+        }
+
         bottle.Price = request.Price;
         bottle.IsDrunk = request.IsDrunk;
         bottle.DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt);
+        bottle.BottleLocationId = bottleLocation?.Id;
 
         await _bottleRepository.UpdateAsync(bottle, cancellationToken);
 
@@ -298,8 +528,10 @@ public class WineInventoryController : Controller
                 Price = b.Price,
                 IsDrunk = b.IsDrunk,
                 DrunkAt = b.DrunkAt,
-                Location = ResolveLocation(b),
-                Vintage = b.WineVintage.Vintage
+                BottleLocationId = b.BottleLocationId,
+                BottleLocation = b.BottleLocation?.Name ?? "—",
+                Vintage = b.WineVintage.Vintage,
+                WineName = b.WineVintage.Wine.Name
             })
             .ToList();
 
@@ -326,9 +558,12 @@ public class WineInventoryController : Controller
         return new WineInventoryBottleViewModel
         {
             WineVintageId = groupId,
+            WineId = firstBottle.WineVintage.Wine.Id,
             WineName = firstBottle.WineVintage.Wine.Name,
             SubAppellation = firstBottle.WineVintage.Wine.SubAppellation?.Name,
             Appellation = firstBottle.WineVintage.Wine.SubAppellation?.Appellation?.Name,
+            SubAppellationId = firstBottle.WineVintage.Wine.SubAppellation?.Id,
+            AppellationId = firstBottle.WineVintage.Wine.SubAppellation?.Appellation?.Id,
             Vintage = firstBottle.WineVintage.Vintage,
             Color = firstBottle.WineVintage.Wine.Color.ToString(),
             BottleCount = totalCount,
@@ -336,6 +571,28 @@ public class WineInventoryController : Controller
             StatusCssClass = statusClass,
             AverageScore = averageScore
         };
+    }
+
+    private static string BuildSubAppellationLabel(SubAppellation subAppellation)
+    {
+        var segments = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(subAppellation.Name))
+        {
+            segments.Add(subAppellation.Name);
+        }
+
+        if (!string.IsNullOrWhiteSpace(subAppellation.Appellation?.Name))
+        {
+            segments.Add(subAppellation.Appellation!.Name);
+        }
+
+        if (!string.IsNullOrWhiteSpace(subAppellation.Appellation?.Region?.Name))
+        {
+            segments.Add(subAppellation.Appellation!.Region!.Name);
+        }
+
+        return segments.Count > 0 ? string.Join(" • ", segments) : "Unspecified";
     }
 
     private static decimal? CalculateAverageScore(IEnumerable<Bottle> bottles)
@@ -354,29 +611,6 @@ public class WineInventoryController : Controller
         }
 
         return decimal.Round((decimal)scores.Average(), 1, MidpointRounding.AwayFromZero);
-    }
-
-    private static string ResolveLocation(Bottle bottle)
-    {
-        var subAppellation = bottle.WineVintage.Wine.SubAppellation?.Name;
-        var appellation = bottle.WineVintage.Wine.SubAppellation?.Appellation?.Name;
-
-        if (!string.IsNullOrWhiteSpace(subAppellation) && !string.Equals(subAppellation, appellation, StringComparison.OrdinalIgnoreCase))
-        {
-            return appellation is not null ? $"{subAppellation} ({appellation})" : subAppellation;
-        }
-
-        if (!string.IsNullOrWhiteSpace(subAppellation))
-        {
-            return subAppellation;
-        }
-
-        if (!string.IsNullOrWhiteSpace(appellation))
-        {
-            return appellation;
-        }
-
-        return "—";
     }
 
     private static DateTime? NormalizeDrunkAt(bool isDrunk, DateTime? drunkAt)
@@ -413,9 +647,12 @@ public class WineInventoryViewModel
 public class WineInventoryBottleViewModel
 {
     public Guid WineVintageId { get; set; }
+    public Guid WineId { get; set; }
     public string WineName { get; set; } = string.Empty;
     public string? SubAppellation { get; set; }
     public string? Appellation { get; set; }
+    public Guid? SubAppellationId { get; set; }
+    public Guid? AppellationId { get; set; }
     public int Vintage { get; set; }
     public string Color { get; set; } = string.Empty;
     public int BottleCount { get; set; }
@@ -430,8 +667,10 @@ public class WineInventoryBottleDetailViewModel
     public decimal? Price { get; set; }
     public bool IsDrunk { get; set; }
     public DateTime? DrunkAt { get; set; }
-    public string Location { get; set; } = string.Empty;
+    public Guid? BottleLocationId { get; set; }
+    public string BottleLocation { get; set; } = string.Empty;
     public int Vintage { get; set; }
+    public string WineName { get; set; } = string.Empty;
 }
 
 public class BottleGroupDetailsResponse
@@ -450,6 +689,50 @@ public class BottleMutationRequest
     public bool IsDrunk { get; set; }
 
     public DateTime? DrunkAt { get; set; }
+
+    public Guid? BottleLocationId { get; set; }
 }
 
 public record FilterOption(string Value, string Label);
+
+public class WineGroupUpdateRequest
+{
+    [Required]
+    [StringLength(256, MinimumLength = 1)]
+    public string WineName { get; set; } = string.Empty;
+
+    [Range(1900, 2100)]
+    public int Vintage { get; set; }
+
+    [Required]
+    public WineColor Color { get; set; }
+
+    [Required]
+    public Guid SubAppellationId { get; set; }
+}
+
+public class WineGroupCreateRequest : WineGroupUpdateRequest
+{
+    [Range(1, 5000)]
+    public int InitialBottleCount { get; set; } = 1;
+
+    public Guid? BottleLocationId { get; set; }
+}
+
+public class InventoryReferenceDataResponse
+{
+    public IReadOnlyList<SubAppellationOption> SubAppellations { get; set; } = Array.Empty<SubAppellationOption>();
+    public IReadOnlyList<BottleLocationOption> BottleLocations { get; set; } = Array.Empty<BottleLocationOption>();
+}
+
+public class SubAppellationOption
+{
+    public Guid Id { get; set; }
+    public string Label { get; set; } = string.Empty;
+}
+
+public class BottleLocationOption
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
