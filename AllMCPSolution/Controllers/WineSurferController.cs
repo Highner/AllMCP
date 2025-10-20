@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -89,10 +90,12 @@ public class WineSurferController : Controller
         };
 
     private readonly IWineRepository _wineRepository;
+    private readonly IUserRepository _userRepository;
 
-    public WineSurferController(IWineRepository wineRepository)
+    public WineSurferController(IWineRepository wineRepository, IUserRepository userRepository)
     {
         _wineRepository = wineRepository;
+        _userRepository = userRepository;
     }
 
     [HttpGet("")]
@@ -122,6 +125,62 @@ public class WineSurferController : Controller
         var model = new WineSurferLandingViewModel(highlightPoints);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
+    }
+
+    [HttpGet("users")]
+    public async Task<IActionResult> GetUsers(CancellationToken cancellationToken)
+    {
+        var users = await _userRepository.GetAllAsync(cancellationToken);
+
+        var response = users
+            .Where(u => !string.IsNullOrWhiteSpace(u.Name))
+            .OrderBy(u => u.Name)
+            .Select(u => new WineSurferUserSummary(u.Id, u.Name, u.TasteProfile ?? string.Empty))
+            .ToList();
+
+        return Json(response);
+    }
+
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] WineSurferLoginRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var trimmedName = request.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedName))
+        {
+            ModelState.AddModelError(nameof(request.Name), "Name is required.");
+            return ValidationProblem(ModelState);
+        }
+
+        var trimmedTasteProfile = request.TasteProfile?.Trim() ?? string.Empty;
+
+        User? user;
+        if (request.CreateIfMissing)
+        {
+            user = await _userRepository.GetOrCreateAsync(trimmedName, trimmedTasteProfile, cancellationToken);
+        }
+        else
+        {
+            user = await _userRepository.FindByNameAsync(trimmedName, cancellationToken);
+            if (user is null)
+            {
+                ModelState.AddModelError(nameof(request.Name), "We couldn't find a matching profile.");
+                return ValidationProblem(ModelState);
+            }
+
+            if (!string.IsNullOrWhiteSpace(trimmedTasteProfile) && !string.Equals(user.TasteProfile, trimmedTasteProfile, StringComparison.Ordinal))
+            {
+                user.TasteProfile = trimmedTasteProfile;
+                await _userRepository.UpdateAsync(user, cancellationToken);
+            }
+        }
+
+        var response = new WineSurferLoginResponse(user.Id, user.Name, user.TasteProfile ?? string.Empty);
+        return Ok(response);
     }
 
     private static (int Cellared, int Consumed, decimal? AverageScore) CalculateRegionInventoryMetrics(IEnumerable<Wine> wines)
@@ -195,3 +254,19 @@ public record MapHighlightPoint(
     int BottlesCellared,
     int BottlesConsumed,
     decimal? AverageScore);
+
+public record WineSurferUserSummary(Guid Id, string Name, string TasteProfile);
+
+public class WineSurferLoginRequest
+{
+    [Required]
+    [StringLength(256, MinimumLength = 1)]
+    public string Name { get; set; } = string.Empty;
+
+    [StringLength(512)]
+    public string? TasteProfile { get; set; }
+
+    public bool CreateIfMissing { get; set; }
+}
+
+public record WineSurferLoginResponse(Guid UserId, string Name, string TasteProfile);

@@ -166,6 +166,131 @@
             text-transform: uppercase;
         }
 
+        .login-card {
+            width: min(100%, 520px);
+            padding: 28px 32px;
+            border-radius: 20px;
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            background: rgba(12, 12, 12, 0.85);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .login-card h2 {
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .login-card p {
+            margin: 0;
+            font-size: 14px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .login-card form {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .login-field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .login-field label {
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .login-field input {
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(244, 241, 234, 0.18);
+            background: rgba(20, 20, 20, 0.9);
+            color: #f4f1ea;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+        }
+
+        .login-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .login-actions button {
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: none;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .login-actions button.primary {
+            background: #f4f1ea;
+            color: #050505;
+        }
+
+        .login-actions button.secondary {
+            background: rgba(244, 241, 234, 0.08);
+            color: #f4f1ea;
+            border: 1px solid rgba(244, 241, 234, 0.2);
+        }
+
+        .login-actions button:hover {
+            transform: translateY(-2px);
+        }
+
+        .login-status {
+            min-height: 20px;
+            font-size: 13px;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .login-status.success {
+            color: #7bd88f;
+        }
+
+        .login-status.error {
+            color: #ff9d9d;
+        }
+
+        .login-continue {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 1px solid rgba(244, 241, 234, 0.25);
+            background: rgba(244, 241, 234, 0.08);
+            color: #f4f1ea;
+            text-decoration: none;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+
+        .login-continue:hover {
+            border-color: rgba(244, 241, 234, 0.4);
+        }
+
         .map-shell {
             position: relative;
             width: min(100%, 960px);
@@ -361,6 +486,30 @@
     <main>
         <h1>Wine Surfer</h1>
         <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
+        <section class="login-card" aria-labelledby="loginHeading">
+            <div>
+                <h2 id="loginHeading">Sign in to your cellar</h2>
+                <p>Log in to continue tracking bottles and tasting notes.</p>
+            </div>
+            <form id="loginForm" novalidate>
+                <div class="login-field">
+                    <label for="loginName">Name</label>
+                    <input id="loginName" name="name" type="text" list="loginUserSuggestions" placeholder="Ada Lovelace" autocomplete="name" required />
+                    <datalist id="loginUserSuggestions"></datalist>
+                </div>
+                <div class="login-field">
+                    <label for="loginTaste">Taste profile <span aria-hidden="true">(optional)</span></label>
+                    <input id="loginTaste" name="tasteProfile" type="text" placeholder="Bold reds, coastal whites" autocomplete="off" />
+                </div>
+                <input type="hidden" id="loginAction" name="action" value="login" />
+                <div class="login-actions">
+                    <button type="submit" class="primary" data-login-action="login">Sign in</button>
+                    <button type="submit" class="secondary" data-login-action="create">Create profile</button>
+                </div>
+            </form>
+            <div id="loginStatus" class="login-status" role="status" aria-live="polite"></div>
+            <a id="loginContinue" class="login-continue" href="/wine-manager" hidden>Open wine manager</a>
+        </section>
         <section class="map-shell" aria-label="World map highlighting wine regions">
             <div id="map" class="world-map" role="img" aria-hidden="true"></div>
         </section>
@@ -417,6 +566,205 @@
             }
         </section>
     </main>
+    <script>
+        (function setupWineSurferLogin() {
+            const loginForm = document.getElementById('loginForm');
+            if (!loginForm) {
+                return;
+            }
+
+            const loginAction = document.getElementById('loginAction');
+            const loginStatus = document.getElementById('loginStatus');
+            const continueLink = document.getElementById('loginContinue');
+            const nameInput = document.getElementById('loginName');
+            const tasteInput = document.getElementById('loginTaste');
+            const suggestions = document.getElementById('loginUserSuggestions');
+            const actionButtons = loginForm.querySelectorAll('[data-login-action]');
+            const knownSuggestionKeys = new Set();
+
+            function setStatus(message, tone) {
+                if (!loginStatus) {
+                    return;
+                }
+
+                loginStatus.textContent = message ?? '';
+                loginStatus.className = `login-status ${tone ?? ''}`.trim();
+            }
+
+            function updateContinueLink(user) {
+                if (!continueLink || !user) {
+                    return;
+                }
+
+                continueLink.hidden = false;
+                continueLink.textContent = `Open wine manager as ${user.name}`;
+                continueLink.setAttribute('href', '/wine-manager');
+            }
+
+            function persistUser(user) {
+                try {
+                    const payload = {
+                        userId: user.userId ?? user.UserId ?? '',
+                        name: user.name ?? user.Name ?? '',
+                        tasteProfile: user.tasteProfile ?? user.TasteProfile ?? ''
+                    };
+                    if (!payload.userId || !payload.name) {
+                        return;
+                    }
+
+                    window.localStorage?.setItem('wineSurferUser', JSON.stringify(payload));
+                } catch (error) {
+                    console.warn('Unable to persist login information', error);
+                }
+            }
+
+            function ensureSuggestion(name) {
+                if (!suggestions || !name) {
+                    return;
+                }
+
+                const key = name.trim().toLowerCase();
+                if (!key || knownSuggestionKeys.has(key)) {
+                    return;
+                }
+
+                const option = document.createElement('option');
+                option.value = name;
+                suggestions.appendChild(option);
+                knownSuggestionKeys.add(key);
+            }
+
+            async function loadUsers() {
+                if (!suggestions) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/wine-surfer/users', { headers: { Accept: 'application/json' } });
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const items = await response.json();
+                    if (!Array.isArray(items)) {
+                        return;
+                    }
+
+                    suggestions.innerHTML = '';
+                    knownSuggestionKeys.clear();
+
+                    items.forEach(item => {
+                        const name = item?.name ?? item?.Name;
+                        if (!name) {
+                            return;
+                        }
+
+                        ensureSuggestion(name);
+                    });
+                } catch (error) {
+                    console.warn('Unable to load user suggestions', error);
+                }
+            }
+
+            function restoreStoredUser() {
+                try {
+                    const raw = window.localStorage?.getItem('wineSurferUser');
+                    if (!raw) {
+                        return;
+                    }
+
+                    const stored = JSON.parse(raw);
+                    if (!stored || !stored.name || !stored.userId) {
+                        return;
+                    }
+
+                    setStatus(`Signed in as ${stored.name}.`, 'success');
+                    updateContinueLink(stored);
+                    ensureSuggestion(stored.name);
+                } catch (error) {
+                    console.warn('Unable to restore stored login', error);
+                }
+            }
+
+            actionButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    if (loginAction) {
+                        loginAction.value = button.dataset.loginAction ?? 'login';
+                    }
+                });
+            });
+
+            loginForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                if (!nameInput) {
+                    return;
+                }
+
+                const nameValue = nameInput.value?.trim();
+                if (!nameValue) {
+                    setStatus('Please enter your name to continue.', 'error');
+                    nameInput.focus();
+                    return;
+                }
+
+                const payload = {
+                    name: nameValue,
+                    tasteProfile: tasteInput?.value?.trim() || null,
+                    createIfMissing: (loginAction?.value ?? 'login') === 'create'
+                };
+
+                try {
+                    setStatus('Signing in…', null);
+                    const response = await fetch('/wine-surfer/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        let message = 'Unable to sign in right now.';
+                        try {
+                            const problem = await response.json();
+                            if (problem?.errors) {
+                                const allErrors = Object.values(problem.errors)
+                                    .flat()
+                                    .filter(Boolean);
+                                if (allErrors.length) {
+                                    message = allErrors.join(' ');
+                                }
+                            } else if (problem?.title) {
+                                message = problem.title;
+                            }
+                        } catch (error) {
+                            console.warn('Unable to parse login error response', error);
+                        }
+
+                        setStatus(message, 'error');
+                        return;
+                    }
+
+                    const result = await response.json();
+                    persistUser(result);
+                    ensureSuggestion(result?.name ?? result?.Name ?? nameValue);
+                    setStatus(`Signed in as ${result?.name ?? result?.Name ?? nameValue}.`, 'success');
+                    updateContinueLink(result);
+                    if (tasteInput && payload.createIfMissing) {
+                        tasteInput.value = payload.tasteProfile ?? '';
+                    }
+                } catch (error) {
+                    console.error('Login request failed', error);
+                    setStatus('Login failed — please try again.', 'error');
+                }
+            });
+
+            loadUsers();
+            restoreStoredUser();
+        })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js" crossorigin="anonymous"></script>
     <script>
