@@ -1165,35 +1165,5 @@
                 });
         })();
     </script>
-    <script>
-        const toggle = document.getElementById('menuToggle');
-        const panel = document.getElementById('menuPanel');
-
-        const closeMenu = () => {
-            toggle.classList.remove('active');
-            toggle.setAttribute('aria-expanded', 'false');
-            panel.classList.remove('open');
-            panel.setAttribute('aria-hidden', 'true');
-        };
-
-        toggle?.addEventListener('click', () => {
-            const isOpen = toggle.classList.toggle('active');
-            toggle.setAttribute('aria-expanded', String(isOpen));
-            panel.classList.toggle('open', isOpen);
-            panel.setAttribute('aria-hidden', String(!isOpen));
-        });
-
-        document.addEventListener('click', (event) => {
-            if (!panel.contains(event.target) && event.target !== toggle) {
-                closeMenu();
-            }
-        });
-
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') {
-                closeMenu();
-            }
-        });
-    </script>
 </body>
 </html>

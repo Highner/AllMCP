@@ -1,3 +1,4 @@
+@using System.Linq
 @model string
 
 @{
@@ -16,6 +17,10 @@
     {
         currentPath = "/";
     }
+
+    var visibleNavItems = navItems
+        .Where(item => !string.Equals(item.Href, currentPath, System.StringComparison.OrdinalIgnoreCase))
+        .ToList();
 }
 
 <header class="top-bar">
@@ -24,14 +29,58 @@
         <span></span>
     </button>
     <nav id="menuPanel" class="menu-panel" aria-hidden="true">
-        @foreach (var item in navItems)
+        @if (visibleNavItems.Count > 0)
         {
-            if (string.Equals(item.Href, currentPath, System.StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            <a href="@item.Href">@item.Label</a>
+            <div class="menu-links">
+                @foreach (var item in visibleNavItems)
+                {
+                    <a href="@item.Href">@item.Label</a>
+                }
+            </div>
+            <div class="menu-divider" aria-hidden="true"></div>
         }
+        <button id="authToggle" class="auth-toggle" type="button" data-auth-state="login">Log in</button>
     </nav>
 </header>
+<script>
+    (() => {
+        const toggle = document.getElementById('menuToggle');
+        const panel = document.getElementById('menuPanel');
+
+        if (!toggle || !panel) {
+            return;
+        }
+
+        const closeMenu = () => {
+            toggle.classList.remove('active');
+            toggle.setAttribute('aria-expanded', 'false');
+            panel.classList.remove('open');
+            panel.setAttribute('aria-hidden', 'true');
+        };
+
+        toggle.addEventListener('click', () => {
+            const isOpen = toggle.classList.toggle('active');
+            toggle.setAttribute('aria-expanded', String(isOpen));
+            panel.classList.toggle('open', isOpen);
+            panel.setAttribute('aria-hidden', String(!isOpen));
+        });
+
+        panel.querySelectorAll('a, button').forEach(element => {
+            element.addEventListener('click', () => {
+                closeMenu();
+            });
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!panel.contains(event.target) && event.target !== toggle) {
+                closeMenu();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeMenu();
+            }
+        });
+    })();
+</script>
