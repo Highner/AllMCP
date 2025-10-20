@@ -92,11 +92,28 @@ public class BottleRepository : IBottleRepository
             .AsNoTracking()
             .Where(b => !b.IsDrunk)
             .Select(b => new ActiveBottleLocation(
-                b.WineVintage.Wine.SubAppellation != null && b.WineVintage.Wine.SubAppellation.Appellation != null
-                    ? b.WineVintage.Wine.SubAppellation.Appellation.Region?.Id
-                    : (Guid?)null,
-                b.WineVintage.Wine.SubAppellation != null && b.WineVintage.Wine.SubAppellation.Appellation != null
-                    ? b.WineVintage.Wine.SubAppellation.Appellation.Region?.Name
+                b.WineVintage.Wine.SubAppellation != null
+                    && b.WineVintage.Wine.SubAppellation.Appellation != null
+                    && b.WineVintage.Wine.SubAppellation.Appellation.Region != null
+                    ? (Guid?)b.WineVintage.Wine.SubAppellation.Appellation.Region.Id
+                    : null,
+                b.WineVintage.Wine.SubAppellation != null
+                    && b.WineVintage.Wine.SubAppellation.Appellation != null
+                    && b.WineVintage.Wine.SubAppellation.Appellation.Region != null
+                    ? b.WineVintage.Wine.SubAppellation.Appellation.Region.Name
+                    : null,
+                b.WineVintage.Wine.SubAppellation != null
+                    ? (Guid?)b.WineVintage.Wine.SubAppellation.AppellationId
+                    : null,
+                b.WineVintage.Wine.SubAppellation != null
+                    && b.WineVintage.Wine.SubAppellation.Appellation != null
+                    ? b.WineVintage.Wine.SubAppellation.Appellation.Name
+                    : null,
+                b.WineVintage.Wine.SubAppellation != null
+                    ? (Guid?)b.WineVintage.Wine.SubAppellation.Id
+                    : null,
+                b.WineVintage.Wine.SubAppellation != null
+                    ? b.WineVintage.Wine.SubAppellation.Name
                     : null,
                 b.WineVintage.Wine.SubAppellation?.AppellationId,
                 b.WineVintage.Wine.SubAppellation?.Appellation?.Name,
