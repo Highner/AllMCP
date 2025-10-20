@@ -638,6 +638,11 @@ public sealed class RecordInventoryActionTool : CrudToolBase
                 ["type"] = "string",
                 ["description"] = "Appellation of the wine (such as Napa Valley or Pomerol)."
             },
+            ["subAppellation"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Sub-appellation of the wine (such as Rutherford AVA or Côte Brune)."
+            },
             ["color"] = new JsonObject
             {
                 ["type"] = "string",

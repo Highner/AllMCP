@@ -59,6 +59,7 @@ public sealed class UpdateBottleTool : BottleToolBase
         var countryName = ParameterHelpers.GetStringParameter(parameters, "country", "country");
         var regionName = ParameterHelpers.GetStringParameter(parameters, "region", "region");
         var appellationName = ParameterHelpers.GetStringParameter(parameters, "appellation", "appellation");
+        var subAppellationName = ParameterHelpers.GetStringParameter(parameters, "subAppellation", "sub_appellation");
         var isDrunk = ParameterHelpers.GetBoolParameter(parameters, "isDrunk", "is_drunk");
         var drunkAt = ParameterHelpers.GetDateTimeParameter(parameters, "drunkAt", "drunk_at");
 
@@ -151,6 +152,9 @@ public sealed class UpdateBottleTool : BottleToolBase
         var normalizedAppellation = string.IsNullOrWhiteSpace(appellationName)
             ? null
             : appellationName.Trim();
+        var normalizedSubAppellation = string.IsNullOrWhiteSpace(subAppellationName)
+            ? null
+            : subAppellationName.Trim();
 
         var currentWineVintage = bottle.WineVintage ?? await WineVintageRepository.GetByIdAsync(bottle.WineVintageId, ct)
             ?? throw new InvalidOperationException($"Wine vintage {bottle.WineVintageId} referenced by bottle {bottle.Id} could not be resolved.");
@@ -158,28 +162,53 @@ public sealed class UpdateBottleTool : BottleToolBase
         Wine targetWine;
         if (!string.IsNullOrWhiteSpace(name))
         {
-            var found = await WineRepository.FindByNameAsync(name!, normalizedAppellation, ct);
+            var found = await WineRepository.FindByNameAsync(name!, normalizedSubAppellation, normalizedAppellation, ct);
             if (found is null)
             {
-                if (!string.IsNullOrWhiteSpace(normalizedAppellation))
+                if (!string.IsNullOrWhiteSpace(normalizedSubAppellation)
+                    || !string.IsNullOrWhiteSpace(normalizedAppellation))
                 {
-                    var existingByName = await WineRepository.FindByNameAsync(name!, null, ct);
+                    var existingByName = await WineRepository.FindByNameAsync(name!, null, null, ct);
                     if (existingByName is not null)
                     {
-                        var existingAppellation = string.IsNullOrWhiteSpace(existingByName.Appellation?.Name)
-                            ? "unknown"
-                            : existingByName.Appellation!.Name;
-                        return Failure("update",
-                            $"Wine '{name}' is recorded for appellation '{existingAppellation}'.",
-                            new[] { $"Wine '{name}' is recorded for appellation '{existingAppellation}'." },
-                            new
-                            {
-                                type = "wine_appellation_mismatch",
-                                requested = normalizedAppellation,
-                                actual = string.IsNullOrWhiteSpace(existingByName.Appellation?.Name)
-                                    ? null
-                                    : existingByName.Appellation.Name
-                            });
+                        var existingSubAppellation = existingByName.SubAppellation;
+                        if (!string.IsNullOrWhiteSpace(normalizedSubAppellation)
+                            && !string.Equals(existingSubAppellation?.Name, normalizedSubAppellation, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var recordedSubAppellation = string.IsNullOrWhiteSpace(existingSubAppellation?.Name)
+                                ? "unknown"
+                                : existingSubAppellation!.Name;
+                            return Failure("update",
+                                $"Wine '{name}' is recorded for sub-appellation '{recordedSubAppellation}'.",
+                                new[] { $"Wine '{name}' is recorded for sub-appellation '{recordedSubAppellation}'." },
+                                new
+                                {
+                                    type = "wine_sub_appellation_mismatch",
+                                    requested = normalizedSubAppellation,
+                                    actual = string.IsNullOrWhiteSpace(existingSubAppellation?.Name)
+                                        ? null
+                                        : existingSubAppellation.Name
+                                });
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(normalizedAppellation)
+                            && !string.Equals(existingSubAppellation?.Appellation?.Name, normalizedAppellation, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var recordedAppellation = string.IsNullOrWhiteSpace(existingSubAppellation?.Appellation?.Name)
+                                ? "unknown"
+                                : existingSubAppellation!.Appellation!.Name;
+                            return Failure("update",
+                                $"Wine '{name}' is recorded for appellation '{recordedAppellation}'.",
+                                new[] { $"Wine '{name}' is recorded for appellation '{recordedAppellation}'." },
+                                new
+                                {
+                                    type = "wine_appellation_mismatch",
+                                    requested = normalizedAppellation,
+                                    actual = string.IsNullOrWhiteSpace(existingSubAppellation?.Appellation?.Name)
+                                        ? null
+                                        : existingSubAppellation.Appellation.Name
+                                });
+                        }
                     }
                 }
 
@@ -202,7 +231,9 @@ public sealed class UpdateBottleTool : BottleToolBase
                 ?? throw new InvalidOperationException($"Wine {currentWineVintage.WineId} referenced by bottle {bottle.Id} could not be resolved.");
         }
 
-        var wineCountry = targetWine.Appellation?.Region?.Country;
+        var targetSubAppellation = targetWine.SubAppellation;
+        var targetAppellation = targetSubAppellation?.Appellation;
+        var wineCountry = targetAppellation?.Region?.Country;
 
         if (color.HasValue && targetWine.Color != color)
         {
@@ -228,10 +259,25 @@ public sealed class UpdateBottleTool : BottleToolBase
                 });
         }
 
-        if (!string.IsNullOrWhiteSpace(normalizedAppellation)
-            && !string.Equals(targetWine.Appellation?.Name, normalizedAppellation, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(normalizedSubAppellation)
+            && !string.Equals(targetSubAppellation?.Name, normalizedSubAppellation, StringComparison.OrdinalIgnoreCase))
         {
-            var recordedAppellation = string.IsNullOrWhiteSpace(targetWine.Appellation?.Name) ? "unknown" : targetWine.Appellation!.Name;
+            var recordedSubAppellation = string.IsNullOrWhiteSpace(targetSubAppellation?.Name) ? "unknown" : targetSubAppellation!.Name;
+            return Failure("update",
+                $"Wine '{targetWine.Name}' is recorded for sub-appellation '{recordedSubAppellation}'.",
+                new[] { $"Wine '{targetWine.Name}' is recorded for sub-appellation '{recordedSubAppellation}'." },
+                new
+                {
+                    type = "wine_sub_appellation_mismatch",
+                    requested = normalizedSubAppellation,
+                    actual = string.IsNullOrWhiteSpace(targetSubAppellation?.Name) ? null : targetSubAppellation.Name
+                });
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedAppellation)
+            && !string.Equals(targetAppellation?.Name, normalizedAppellation, StringComparison.OrdinalIgnoreCase))
+        {
+            var recordedAppellation = string.IsNullOrWhiteSpace(targetAppellation?.Name) ? "unknown" : targetAppellation!.Name;
             return Failure("update",
                 $"Wine '{targetWine.Name}' is recorded for appellation '{recordedAppellation}'.",
                 new[] { $"Wine '{targetWine.Name}' is recorded for appellation '{recordedAppellation}'." },
@@ -239,20 +285,20 @@ public sealed class UpdateBottleTool : BottleToolBase
                 {
                     type = "wine_appellation_mismatch",
                     requested = normalizedAppellation,
-                    actual = string.IsNullOrWhiteSpace(targetWine.Appellation?.Name) ? null : targetWine.Appellation.Name
+                    actual = string.IsNullOrWhiteSpace(targetAppellation?.Name) ? null : targetAppellation.Name
                 });
         }
 
-        if (region is not null && targetWine.Appellation?.Region?.Id != region.Id)
+        if (region is not null && targetAppellation?.Region?.Id != region.Id)
         {
-            var recordedRegion = targetWine.Appellation?.Region?.Name ?? "unknown";
+            var recordedRegion = targetAppellation?.Region?.Name ?? "unknown";
             return Failure("update", $"Wine '{targetWine.Name}' is recorded for region '{recordedRegion}'.",
                 new[] { $"Wine '{targetWine.Name}' is recorded for region '{recordedRegion}'." },
                 new
                 {
                     type = "wine_region_mismatch",
                     requested = new { name = region.Name, id = region.Id },
-                    actual = targetWine.Appellation?.Region is null ? null : new { name = targetWine.Appellation.Region.Name, id = targetWine.Appellation.Region.Id }
+                    actual = targetAppellation?.Region is null ? null : new { name = targetAppellation.Region.Name, id = targetAppellation.Region.Id }
                 });
         }
 

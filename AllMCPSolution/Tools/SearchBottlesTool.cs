@@ -76,8 +76,8 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
 
         var normalizedQuery = string.Join(" ", tokens.Select(t => t.Normalized));
         var bottles = await _bottles.GetAllAsync(CancellationToken.None);
-        var (knownRegionNames, knownRegionExamples) = BuildKnownNameCatalog(bottles.Select(b => b.WineVintage?.Wine?.Appellation?.Region?.Name));
-        var (knownAppellationNames, knownAppellationExamples) = BuildKnownNameCatalog(bottles.Select(b => b.WineVintage?.Wine?.Appellation?.Name));
+        var (knownRegionNames, knownRegionExamples) = BuildKnownNameCatalog(bottles.Select(b => b.WineVintage?.Wine?.SubAppellation?.Appellation?.Region?.Name));
+        var (knownAppellationNames, knownAppellationExamples) = BuildKnownNameCatalog(bottles.Select(b => b.WineVintage?.Wine?.SubAppellation?.Appellation?.Name));
 
         ValidateRegionAppellationFilters(
             regionFilters,
@@ -254,9 +254,10 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
         var wine = wineVintage?.Wine;
         EvaluateField("wine", wine?.Name);
         EvaluateField("grapeVariety", wine?.GrapeVariety);
-        EvaluateField("appellation", wine?.Appellation?.Name);
-        EvaluateField("region", wine?.Appellation?.Region?.Name);
-        EvaluateField("country", wine?.Appellation?.Region?.Country?.Name);
+        EvaluateField("subAppellation", wine?.SubAppellation?.Name);
+        EvaluateField("appellation", wine?.SubAppellation?.Appellation?.Name);
+        EvaluateField("region", wine?.SubAppellation?.Appellation?.Region?.Name);
+        EvaluateField("country", wine?.SubAppellation?.Appellation?.Region?.Country?.Name);
         EvaluateField("vintage", wineVintage?.Vintage.ToString());
         if (bottle.TastingNotes is not null)
         {
@@ -308,7 +309,7 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
 
         if (filters.Countries.Count > 0)
         {
-            var candidate = NormalizeFieldValue(wine?.Appellation?.Region?.Country?.Name);
+            var candidate = NormalizeFieldValue(wine?.SubAppellation?.Appellation?.Region?.Country?.Name);
             if (candidate is null || !filters.Countries.Contains(candidate))
             {
                 return false;
@@ -317,7 +318,7 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
 
         if (filters.Regions.Count > 0)
         {
-            var candidate = NormalizeFieldValue(wine?.Appellation?.Region?.Name);
+            var candidate = NormalizeFieldValue(wine?.SubAppellation?.Appellation?.Region?.Name);
             if (candidate is null || !filters.Regions.Contains(candidate))
             {
                 return false;
@@ -326,7 +327,7 @@ public sealed class SearchBottlesTool : IToolBase, IMcpTool
 
         if (filters.Appellations.Count > 0)
         {
-            var candidate = NormalizeFieldValue(wine?.Appellation?.Name);
+            var candidate = NormalizeFieldValue(wine?.SubAppellation?.Appellation?.Name);
             if (candidate is null || !filters.Appellations.Contains(candidate))
             {
                 return false;

@@ -41,8 +41,9 @@ public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
         var wineId = ParameterHelpers.GetGuidParameter(parameters, "wineId", "wine_id");
         var wineName = ParameterHelpers.GetStringParameter(parameters, "wineName", "wine_name")?.Trim();
         var appellation = ParameterHelpers.GetStringParameter(parameters, "appellation", "appellation")?.Trim();
+        var subAppellation = ParameterHelpers.GetStringParameter(parameters, "subAppellation", "sub_appellation")?.Trim();
 
-        var wineResolution = await ResolveWineAsync(wineId, wineName, appellation, ct);
+        var wineResolution = await ResolveWineAsync(wineId, wineName, subAppellation, appellation, ct);
         if (!wineResolution.Success)
         {
             return wineResolution.Result!;
@@ -143,7 +144,7 @@ public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
         return Success("create_or_replace", message, BuildResponse(wine, refreshed));
     }
 
-    private async Task<(bool Success, Wine? Wine, CrudOperationResult? Result)> ResolveWineAsync(Guid? wineId, string? wineName, string? appellation, CancellationToken ct)
+    private async Task<(bool Success, Wine? Wine, CrudOperationResult? Result)> ResolveWineAsync(Guid? wineId, string? wineName, string? subAppellation, string? appellation, CancellationToken ct)
     {
         Wine? wine = null;
         if (wineId.HasValue)
@@ -156,7 +157,7 @@ public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
         }
         else if (!string.IsNullOrWhiteSpace(wineName))
         {
-            wine = await _wineRepository.FindByNameAsync(wineName, appellation, ct);
+            wine = await _wineRepository.FindByNameAsync(wineName, subAppellation, appellation, ct);
             if (wine is null)
             {
                 var suggestions = await _wineRepository.FindClosestMatchesAsync(wineName, 5, ct);
@@ -561,6 +562,11 @@ public sealed class ManageWineVintageEvolutionScoresTool : CrudToolBase
                 {
                     ["type"] = "string",
                     ["description"] = "Optional appellation name used to disambiguate wines when wineName is provided."
+                },
+                ["subAppellation"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = "Optional sub-appellation name used to disambiguate wines when wineName is provided."
                 },
                 ["vintage"] = new JsonObject
                 {
