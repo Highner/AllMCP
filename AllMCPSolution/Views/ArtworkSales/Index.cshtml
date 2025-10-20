@@ -153,14 +153,60 @@
     </div>
 </div>
 <script>
+    const formMsg = document.getElementById('formMsg');
+    const saveBtnEl = document.getElementById('saveBtn');
+    const clearBtnEl = document.getElementById('clearBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const AUTH_ERROR_MESSAGE = 'You must be signed in to manage artwork sales.';
+
+    async function fetchWithAuth(url, options){
+        const response = await fetch(url, options);
+        if(response.status === 401 || response.status === 403){
+            const error = new Error('Unauthorized');
+            error.isUnauthorized = true;
+            throw error;
+        }
+        return response;
+    }
+
+    async function fetchJsonWithAuth(url, options){
+        const response = await fetchWithAuth(url, options);
+        if(!response.ok){
+            const body = await response.text();
+            const error = new Error(body || `HTTP ${response.status}`);
+            error.status = response.status;
+            throw error;
+        }
+        return response.json();
+    }
+
+    function handleUnauthorized(){
+        if(formMsg){
+            formMsg.textContent = AUTH_ERROR_MESSAGE;
+        }
+        if(saveBtnEl){
+            saveBtnEl.disabled = true;
+        }
+        if(clearBtnEl){
+            clearBtnEl.disabled = true;
+        }
+        if(refreshBtn){
+            refreshBtn.disabled = true;
+        }
+        const searchInput = document.getElementById('search');
+        if(searchInput){
+            searchInput.disabled = true;
+        }
+    }
+
     const api = {
-        list: (p={}) => fetch(`/api/artworksales?${new URLSearchParams(p)}`).then(r=>r.json()),
-        get: id => fetch(`/api/artworksales/${id}`).then(r=>r.json()),
-        create: data => fetch('/api/artworksales', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)}),
-        update: (id, data) => fetch(`/api/artworksales/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)}),
-        remove: id => fetch(`/api/artworksales/${id}`, {method:'DELETE'}),
-        listArtists: () => fetch('/api/artists').then(r=>r.json()),
-        listCategories: () => fetch('/api/artworksales/categories').then(r=>r.json())
+        list: (p={}) => fetchJsonWithAuth(`/api/artworksales?${new URLSearchParams(p)}`),
+        get: id => fetchJsonWithAuth(`/api/artworksales/${id}`),
+        create: data => fetchWithAuth('/api/artworksales', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)}),
+        update: (id, data) => fetchWithAuth(`/api/artworksales/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)}),
+        remove: id => fetchWithAuth(`/api/artworksales/${id}`, {method:'DELETE'}),
+        listArtists: () => fetchJsonWithAuth('/api/artists'),
+        listCategories: () => fetchJsonWithAuth('/api/artworksales/categories')
     };
 
     let sortBy = 'saledate';
@@ -194,6 +240,10 @@
                 sel.appendChild(opt);
             }
         }catch(e){
+            if(e.isUnauthorized){
+                handleUnauthorized();
+                return;
+            }
             console.error('Failed to load artists', e);
         }
     }
@@ -209,7 +259,13 @@
                 opt.value = c; opt.textContent = c;
                 sel.appendChild(opt);
             }
-        }catch(e){ console.error('Failed to load categories', e); }
+        }catch(e){
+            if(e.isUnauthorized){
+                handleUnauthorized();
+                return;
+            }
+            console.error('Failed to load categories', e);
+        }
     }
 
     document.getElementById('addCategoryBtn').addEventListener('click', ()=>{
@@ -225,14 +281,15 @@
     });
 
     async function load(){
-        const search = document.getElementById('search').value;
-        const rows = await api.list({ search, sortBy, sortDir });
-        const tbody = document.getElementById('salesBody');
-        tbody.innerHTML = '';
-        document.getElementById('count').textContent = `${rows.length} trades`;
-        for(const r of rows){
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
+        try{
+            const search = document.getElementById('search').value;
+            const rows = await api.list({ search, sortBy, sortDir });
+            const tbody = document.getElementById('salesBody');
+            tbody.innerHTML = '';
+            document.getElementById('count').textContent = `${rows.length} trades`;
+            for(const r of rows){
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
                 <td>${r.artistName || ''}</td>
                 <td class="name-col">${r.name || ''}</td>
                 <td>${r.category || ''}</td>
@@ -250,15 +307,25 @@
                     <button class="btn secondary" data-act="edit">Edit</button>
                     <button class="btn" data-act="del">Delete</button>
                 </td>`;
-            tr.addEventListener('click', (e)=>{
-                if(e.target instanceof HTMLElement){
-                    const act = e.target.getAttribute('data-act');
-                    if(act === 'edit'){ fillForm(r); e.stopPropagation(); return; }
-                    if(act === 'del'){ if(confirm('Delete this trade?')) del(r.id); e.stopPropagation(); return; }
-                }
-                fillForm(r);
-            });
-            tbody.appendChild(tr);
+                tr.addEventListener('click', (e)=>{
+                    if(e.target instanceof HTMLElement){
+                        const act = e.target.getAttribute('data-act');
+                        if(act === 'edit'){ fillForm(r); e.stopPropagation(); return; }
+                        if(act === 'del'){ if(confirm('Delete this trade?')) del(r.id); e.stopPropagation(); return; }
+                    }
+                    fillForm(r);
+                });
+                tbody.appendChild(tr);
+            }
+        }catch(e){
+            if(e.isUnauthorized){
+                handleUnauthorized();
+                return;
+            }
+            console.error('Failed to load artwork sales', e);
+            if(formMsg){
+                formMsg.textContent = 'Error loading trades: ' + e.message;
+            }
         }
     }
 
@@ -346,13 +413,29 @@
             clearForm();
             await load();
         }catch(err){
+            if(err.isUnauthorized){
+                handleUnauthorized();
+                return;
+            }
             formMsg.textContent = 'Error: ' + err.message;
         }
     }
 
     async function del(id){
-        await api.remove(id);
-        await load();
+        try{
+            const res = await api.remove(id);
+            if(!res.ok){
+                const text = await res.text();
+                throw new Error(text || 'Failed to delete record');
+            }
+            await load();
+        }catch(err){
+            if(err.isUnauthorized){
+                handleUnauthorized();
+                return;
+            }
+            alert('Error deleting trade: ' + err.message);
+        }
     }
 
     function clearForm(){
@@ -384,7 +467,14 @@
     });
 
     // initial load
-    (async () => { await loadArtists(); await loadCategories(); clearForm(); await load(); })();
+    (async () => {
+        await loadArtists();
+        if(saveBtnEl?.disabled) return;
+        await loadCategories();
+        if(saveBtnEl?.disabled) return;
+        clearForm();
+        await load();
+    })();
 </script>
 </body>
 </html>

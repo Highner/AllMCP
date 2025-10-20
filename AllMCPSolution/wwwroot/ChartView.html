@@ -344,6 +344,26 @@
     let lastPerformanceSeries = null;
     let lastHammerPerAreaSeries = null;
 
+    const AUTH_ERROR_MESSAGE = 'You must be signed in to access chart analytics.';
+
+    async function fetchJsonWithAuth(url, options) {
+        const response = await fetch(url, options);
+        if (response.status === 401 || response.status === 403) {
+            const error = new Error('Unauthorized');
+            error.isUnauthorized = true;
+            throw error;
+        }
+
+        if (!response.ok) {
+            const body = await response.text();
+            const error = new Error(body || `HTTP ${response.status}`);
+            error.status = response.status;
+            throw error;
+        }
+
+        return response.json();
+    }
+
     // Parse URL parameters
     function getUrlParams() {
         const params = new URLSearchParams(window.location.search);
@@ -446,31 +466,32 @@
     // Load artists on page load
     async function loadArtists() {
         try {
-            const response = await fetch('/api/artists');
-            if (response.ok) {
-                const artists = await response.json();
-                artistSelect.innerHTML = '<option value="">-- Select an artist --</option>';
-                artists.forEach(artist => {
-                    const option = document.createElement('option');
-                    option.value = artist.id;
-                    option.textContent = `${artist.firstName} ${artist.lastName}`;
-                    artistSelect.appendChild(option);
-                });
+            const artists = await fetchJsonWithAuth('/api/artists');
+            artistSelect.innerHTML = '<option value="">-- Select an artist --</option>';
+            artists.forEach(artist => {
+                const option = document.createElement('option');
+                option.value = artist.id;
+                option.textContent = `${artist.firstName} ${artist.lastName}`;
+                artistSelect.appendChild(option);
+            });
 
-                // Apply URL params after artists are loaded
-                const urlParams = getUrlParams();
-                applyUrlParams(urlParams);
+            // Apply URL params after artists are loaded
+            const urlParams = getUrlParams();
+            applyUrlParams(urlParams);
 
-                // Auto-generate chart if artist is specified in URL
-                if (urlParams.artistId) {
-                    await generateChart();
-                    // Apply hidden series after chart is rendered
-                    applyHiddenSeries(urlParams.hiddenSeries);
-                }
-            } else {
-                showMessage('Failed to load artists', 'error');
+            // Auto-generate chart if artist is specified in URL
+            if (urlParams.artistId) {
+                await generateChart();
+                // Apply hidden series after chart is rendered
+                applyHiddenSeries(urlParams.hiddenSeries);
             }
         } catch (error) {
+            if (error.isUnauthorized) {
+                showMessage(AUTH_ERROR_MESSAGE, 'error');
+                generateChartBtn.disabled = true;
+                return;
+            }
+
             showMessage('Error loading artists: ' + error.message, 'error');
         }
     }
@@ -478,30 +499,30 @@
     // Load categories on page load
     async function loadCategories() {
         try {
-            const response = await fetch('/api/categories');
-            if (response.ok) {
-                const categories = await response.json();
-                categorySelect.innerHTML = '';
-                categories.forEach(category => {
-                    const option = document.createElement('option');
-                    option.value = category;
-                    option.textContent = category;
-                    categorySelect.appendChild(option);
-                });
+            const categories = await fetchJsonWithAuth('/api/categories');
+            categorySelect.innerHTML = '';
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                categorySelect.appendChild(option);
+            });
 
-                // Reapply category selections from URL after categories are loaded
-                const urlParams = getUrlParams();
-                if (urlParams.categories && urlParams.categories.length > 0) {
-                    Array.from(categorySelect.options).forEach(option => {
-                        if (urlParams.categories.includes(option.value)) {
-                            option.selected = true;
-                        }
-                    });
-                }
-            } else {
-                showMessage('Failed to load categories', 'error');
+            // Reapply category selections from URL after categories are loaded
+            const urlParams = getUrlParams();
+            if (urlParams.categories && urlParams.categories.length > 0) {
+                Array.from(categorySelect.options).forEach(option => {
+                    if (urlParams.categories.includes(option.value)) {
+                        option.selected = true;
+                    }
+                });
             }
         } catch (error) {
+            if (error.isUnauthorized) {
+                showMessage(AUTH_ERROR_MESSAGE, 'error');
+                return;
+            }
+
             showMessage('Error loading categories: ' + error.message, 'error');
         }
     }
@@ -634,18 +655,11 @@
                 dateTo.value || ''
             );
 
-            const [salesResponse, performanceResponse, hammerPerAreaSeries] = await Promise.all([
-                fetch(`/api/chart-data?${params}`),
-                fetch(`/api/performance-data?${params}`),
+            const [salesData, performanceData, hammerPerAreaSeries] = await Promise.all([
+                fetchJsonWithAuth(`/api/chart-data?${params}`),
+                fetchJsonWithAuth(`/api/performance-data?${params}`),
                 hammerPerAreaPromise
             ]);
-
-            if (!salesResponse.ok || !performanceResponse.ok) {
-                throw new Error(`HTTP error! status: ${salesResponse.status}`);
-            }
-
-            const salesData = await salesResponse.json();
-            const performanceData = await performanceResponse.json();
 
             // Cache datasets for re-rendering on rolling window toggles
             lastSalesData = salesData.sales;
@@ -670,7 +684,11 @@
             if (rollingTogglePerArea) rollingTogglePerArea.style.display = 'flex';
             message.classList.remove('visible');
         } catch (error) {
-            showMessage('Error loading chart data: ' + error.message, 'error');
+            if (error.isUnauthorized) {
+                showMessage(AUTH_ERROR_MESSAGE, 'error');
+            } else {
+                showMessage('Error loading chart data: ' + error.message, 'error');
+            }
         } finally {
             generateChartBtn.disabled = false;
         }
@@ -1398,9 +1416,7 @@
                 if (category) params.set('category', category);
                 params.set('page', String(page));
 
-                const res = await fetch(`/api/hammer-per-area?${params.toString()}`);
-                if (!res.ok) throw new Error(`HammerPerArea HTTP ${res.status}`);
-                const json = await res.json();
+                const json = await fetchJsonWithAuth(`/api/hammer-per-area?${params.toString()}`);
 
                 if (json && Array.isArray(json.timeSeries)) {
                     merged.push(...json.timeSeries);
