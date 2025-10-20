@@ -79,7 +79,7 @@ builder.Services.AddAuthentication(options =>
         options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
         builder.Configuration.Bind("Authentication:Google", options);
         options.ResponseType = "code";
-        options.CallbackPath = "/signin-oidc"; // explizit, entspricht Standard
+        options.CallbackPath = "/signin-oidc-google"; // explizit, entspricht Standard
         options.SaveTokens   = true;
     })
     .AddOpenIdConnect("Microsoft", options =>
@@ -87,7 +87,7 @@ builder.Services.AddAuthentication(options =>
         options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
         builder.Configuration.Bind("Authentication:Microsoft", options);
         options.ResponseType = "code";
-        options.CallbackPath = "/signin-oidc"; // explizit, entspricht Standard
+        options.CallbackPath = "/signin-oidc-microsoft"; // <-- unique
         options.SaveTokens   = true;
         // Optional: Scopes
         options.Scope.Add("openid");
