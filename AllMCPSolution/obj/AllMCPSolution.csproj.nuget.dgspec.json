@@ -64,6 +64,10 @@
               "target": "Package",
               "version": "[9.0.9, )"
             },
+            "Microsoft.Identity.Web": {
+              "target": "Package",
+              "version": "[3.5.0, )"
+            },
             "ModelContextProtocol": {
               "target": "Package",
               "version": "[0.4.0-preview.2, )"
