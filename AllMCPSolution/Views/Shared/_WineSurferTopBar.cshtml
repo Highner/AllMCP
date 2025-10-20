@@ -20,9 +20,12 @@
 
 <header class="top-bar">
     <div class="brand">Wine Surfer</div>
-    <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
-        <span></span>
-    </button>
+    <div class="top-controls">
+        <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
+            <span></span>
+        </button>
+        <button id="authToggle" class="auth-toggle" type="button">Log in</button>
+    </div>
     <nav id="menuPanel" class="menu-panel" aria-hidden="true">
         @foreach (var item in navItems)
         {
