@@ -9,8 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AllMCPSolution.Controllers;
 
-[Route("wine-waves")]
-public class WineWavesController : Controller
+[Route("wine-surfer")]
+public class WineSurferController : Controller
 {
     private static readonly IReadOnlyDictionary<string, (double Longitude, double Latitude)> RegionCoordinates =
         new Dictionary<string, (double Longitude, double Latitude)>(StringComparer.OrdinalIgnoreCase)
@@ -90,7 +90,7 @@ public class WineWavesController : Controller
 
     private readonly IWineRepository _wineRepository;
 
-    public WineWavesController(IWineRepository wineRepository)
+    public WineSurferController(IWineRepository wineRepository)
     {
         _wineRepository = wineRepository;
     }
@@ -112,7 +112,7 @@ public class WineWavesController : Controller
             .OrderBy(point => point.Label)
             .ToList();
 
-        var model = new WineWavesLandingViewModel(highlightPoints);
+        var model = new WineSurferLandingViewModel(highlightPoints);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
     }
@@ -137,6 +137,6 @@ public class WineWavesController : Controller
     }
 }
 
-public record WineWavesLandingViewModel(IReadOnlyList<MapHighlightPoint> HighlightPoints);
+public record WineSurferLandingViewModel(IReadOnlyList<MapHighlightPoint> HighlightPoints);
 
 public record MapHighlightPoint(string Label, string? Country, double Latitude, double Longitude);
