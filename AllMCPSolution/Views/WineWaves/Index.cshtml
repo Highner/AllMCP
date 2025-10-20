@@ -167,7 +167,7 @@
         .map-shell {
             position: relative;
             width: min(100%, 960px);
-            aspect-ratio: 2 / 1;
+            aspect-ratio: 16 / 9;
             border-radius: 24px;
             background: radial-gradient(circle at 30% 30%, rgba(244, 241, 234, 0.08), transparent 55%),
                         radial-gradient(circle at 70% 70%, rgba(244, 241, 234, 0.06), transparent 60%),
@@ -191,17 +191,8 @@
         }
 
         .world-map .country {
-            fill: rgba(244, 241, 234, 0.02);
-            stroke: rgba(244, 241, 234, 0.25);
-            stroke-width: 1.2;
-            vector-effect: non-scaling-stroke;
-        }
-
-        .world-map .boundary {
-            fill: none;
-            stroke: rgba(244, 241, 234, 0.7);
-            stroke-width: 1.4;
-            vector-effect: non-scaling-stroke;
+            fill: rgba(244, 241, 234, 0.05);
+            stroke: none;
         }
 
         .highlight-layer {
@@ -355,8 +346,8 @@
                 return;
             }
 
-            const width = 1000;
-            const height = 500;
+            const width = 960;
+            const height = 540;
 
             const svg = d3.select(mapContainer)
                 .append('svg')
@@ -380,11 +371,6 @@
                         .data(countries.features)
                         .join('path')
                         .attr('class', 'country')
-                        .attr('d', path);
-
-                    svg.append('path')
-                        .datum(topojson.mesh(worldData, worldData.objects.countries, (a, b) => a !== b))
-                        .attr('class', 'boundary')
                         .attr('d', path);
                 })
                 .catch(error => {
