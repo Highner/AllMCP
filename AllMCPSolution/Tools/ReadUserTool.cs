@@ -31,7 +31,7 @@ public sealed class ReadUserTool : UserToolBase
                 new[] { "Either 'id' or 'name' must be provided." });
         }
 
-        User? user = null;
+        ApplicationUser? user = null;
         if (id is not null)
         {
             user = await UserRepository.GetByIdAsync(id.Value, ct);

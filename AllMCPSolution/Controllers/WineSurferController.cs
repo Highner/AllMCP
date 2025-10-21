@@ -126,7 +126,7 @@ public class WineSurferController : Controller
         if (User?.Identity?.IsAuthenticated == true)
         {
             var displayName = User.Identity?.Name;
-            User? domainUser = null;
+            ApplicationUser? domainUser = null;
 
             if (!string.IsNullOrWhiteSpace(displayName))
             {

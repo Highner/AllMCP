@@ -6,5 +6,5 @@ public class Sisterhood
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
 
-    public ICollection<User> Members { get; set; } = [];
+    public ICollection<ApplicationUser> Members { get; set; } = [];
 }

@@ -5,7 +5,7 @@ using AllMCPSolution.Models;
 
 namespace AllMCPSolution.Data;
 
-public class ApplicationDbContext : IdentityDbContext<ApplicationIdentityUser, IdentityRole<Guid>, Guid>
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
@@ -28,11 +28,18 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationIdentityUser, I
     public DbSet<TastingNote> TastingNotes { get; set; }
     public DbSet<Sisterhood> Sisterhoods { get; set; }
 
-    public DbSet<User> DomainUsers => Set<User>();
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<ApplicationUser>(entity =>
+        {
+            entity.Property(u => u.Name)
+                .HasMaxLength(256);
+
+            entity.Property(u => u.TasteProfile)
+                .HasMaxLength(2048);
+        });
 
         foreach (var property in modelBuilder.Model
                      .GetEntityTypes()
@@ -209,7 +216,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationIdentityUser, I
                 .IsUnique();
         });
 
-        modelBuilder.Entity<User>()
+        modelBuilder.Entity<ApplicationUser>()
             .HasMany(u => u.Sisterhoods)
             .WithMany(s => s.Members)
             .UsingEntity<Dictionary<string, object>>(
@@ -220,7 +227,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationIdentityUser, I
                     .HasForeignKey("SisterhoodId")
                     .OnDelete(DeleteBehavior.Cascade),
                 j => j
-                    .HasOne<User>()
+                    .HasOne<ApplicationUser>()
                     .WithMany()
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade),

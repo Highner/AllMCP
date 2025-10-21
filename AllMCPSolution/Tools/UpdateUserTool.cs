@@ -42,7 +42,7 @@ public sealed class UpdateUserTool : UserToolBase
             return Failure("update", "Validation failed.", errors);
         }
 
-        User? user = null;
+        ApplicationUser? user = null;
         if (id is not null)
         {
             user = await UserRepository.GetByIdAsync(id.Value, ct);
