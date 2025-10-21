@@ -999,16 +999,45 @@
 
         .sip-session-bottle-list {
             margin: 0;
-            padding-left: 18px;
+            padding: 0;
+            list-style: none;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
             color: rgba(244, 241, 234, 0.85);
         }
 
         .sip-session-bottle-list li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             font-size: 13px;
             line-height: 1.5;
+        }
+
+        .sip-session-bottle-list li::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(244, 241, 234, 0.55);
+            flex: 0 0 6px;
+        }
+
+        .sip-session-bottle-label {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sip-session-bottle-remove-form {
+            display: inline-flex;
+            margin: 0;
+        }
+
+        .sip-session-bottle-remove-button {
+            padding: 4px 10px;
+            font-size: 10px;
+            letter-spacing: 1.4px;
         }
 
         .sip-session-actions {
@@ -1832,7 +1861,25 @@
                                                     <ul class="sip-session-bottle-list">
                                                         @foreach (var bottle in bottleSummaries)
                                                         {
-                                                            <li>@bottle.Label</li>
+                                                            <li>
+                                                                <span class="sip-session-bottle-label">@bottle.Label</span>
+                                                                @if (bottle.IsOwnedByCurrentUser)
+                                                                {
+                                                                    <form method="post"
+                                                                          action="@Url.Action("RemoveSipSessionBottle", "WineSurfer")"
+                                                                          class="sip-session-bottle-remove-form">
+                                                                        @Html.AntiForgeryToken()
+                                                                        <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                                                        <input type="hidden" name="SipSessionId" value="@session.Id" />
+                                                                        <input type="hidden" name="BottleId" value="@bottle.Id" />
+                                                                        <button type="submit"
+                                                                                class="ghost-button sip-session-bottle-remove-button"
+                                                                                aria-label="Remove @bottle.Label">
+                                                                            Remove
+                                                                        </button>
+                                                                    </form>
+                                                                }
+                                                            </li>
                                                         }
                                                     </ul>
                                                 </div>

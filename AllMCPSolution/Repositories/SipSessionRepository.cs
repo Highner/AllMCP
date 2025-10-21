@@ -14,6 +14,7 @@ public interface ISipSessionRepository
     Task UpdateAsync(SipSession sipSession, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task<int> AddBottlesToSessionAsync(Guid sessionId, Guid ownerUserId, IReadOnlyCollection<Guid> bottleIds, CancellationToken ct = default);
+    Task<bool> RemoveBottleFromSessionAsync(Guid sessionId, Guid ownerUserId, Guid bottleId, CancellationToken ct = default);
 }
 
 public class SipSessionRepository : ISipSessionRepository
@@ -236,5 +237,39 @@ public class SipSessionRepository : ISipSessionRepository
         await _db.SaveChangesAsync(ct);
 
         return addedCount;
+    }
+
+    public async Task<bool> RemoveBottleFromSessionAsync(Guid sessionId, Guid ownerUserId, Guid bottleId, CancellationToken ct = default)
+    {
+        if (sessionId == Guid.Empty || ownerUserId == Guid.Empty || bottleId == Guid.Empty)
+        {
+            return false;
+        }
+
+        var session = await _db.SipSessions
+            .Include(s => s.Bottles)
+            .FirstOrDefaultAsync(s => s.Id == sessionId, ct);
+
+        if (session is null)
+        {
+            return false;
+        }
+
+        if (session.Bottles is null || session.Bottles.Count == 0)
+        {
+            return false;
+        }
+
+        var bottle = session.Bottles.FirstOrDefault(b => b.Id == bottleId && b.UserId == ownerUserId);
+        if (bottle is null)
+        {
+            return false;
+        }
+
+        session.Bottles.Remove(bottle);
+        session.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        return true;
     }
 }

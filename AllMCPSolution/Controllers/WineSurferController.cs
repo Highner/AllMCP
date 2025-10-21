@@ -321,7 +321,7 @@ public class WineSurferController : Controller
             {
                 var membership = await _sisterhoodRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
                 var availableBottleEntities = await _bottleRepository.GetAvailableForUserAsync(currentUserId.Value, cancellationToken);
-                availableBottles = CreateBottleSummaries(availableBottleEntities);
+                availableBottles = CreateBottleSummaries(availableBottleEntities, currentUserId);
                 var acceptedInvitations = await _sisterhoodInvitationRepository.GetAcceptedForAdminAsync(
                     currentUserId.Value,
                     now - SentInvitationNotificationWindow,
@@ -400,7 +400,7 @@ public class WineSurferController : Controller
                                     session.Location,
                                     session.CreatedAt,
                                     session.UpdatedAt,
-                                    CreateBottleSummaries(session.Bottles))
+                                    CreateBottleSummaries(session.Bottles, currentUserId))
                             })
                             .OrderBy(entry => entry.SortKey)
                             .ThenBy(entry => entry.Session.Name, StringComparer.OrdinalIgnoreCase)
@@ -1361,6 +1361,61 @@ public class WineSurferController : Controller
     }
 
     [Authorize]
+    [HttpPost("sisterhoods/sessions/remove-bottle")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveSipSessionBottle(RemoveSipSessionBottleRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid ||
+            request is null ||
+            request.SisterhoodId == Guid.Empty ||
+            request.SipSessionId == Guid.Empty ||
+            request.BottleId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't remove that bottle.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var membership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (membership is null)
+        {
+            TempData["SisterhoodError"] = "You must be part of this sisterhood to manage bottles.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var session = await _sipSessionRepository.GetByIdAsync(request.SipSessionId, cancellationToken);
+        if (session is null || session.SisterhoodId != request.SisterhoodId)
+        {
+            TempData["SisterhoodError"] = "That sip session could not be found.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        try
+        {
+            var removed = await _sipSessionRepository.RemoveBottleFromSessionAsync(request.SipSessionId, currentUserId.Value, request.BottleId, cancellationToken);
+            if (removed)
+            {
+                TempData["SisterhoodStatus"] = $"Removed a bottle from '{session.Name}'.";
+            }
+            else
+            {
+                TempData["SisterhoodError"] = "We couldn't remove that bottle from the sip session.";
+            }
+        }
+        catch (Exception)
+        {
+            TempData["SisterhoodError"] = "We couldn't remove that bottle right now. Please try again.";
+        }
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
     [HttpPost("sisterhoods/sessions/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteSipSession(DeleteSipSessionRequest request, CancellationToken cancellationToken)
@@ -1665,6 +1720,18 @@ public class WineSurferController : Controller
         public List<Guid> BottleIds { get; set; } = new();
     }
 
+    public class RemoveSipSessionBottleRequest
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
+
+        [Required]
+        public Guid SipSessionId { get; set; }
+
+        [Required]
+        public Guid BottleId { get; set; }
+    }
+
     private static string? NormalizeEmailCandidate(string? email)
     {
         if (string.IsNullOrWhiteSpace(email))
@@ -1722,7 +1789,9 @@ public class WineSurferController : Controller
             .ToList();
     }
 
-    private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(IEnumerable<Bottle>? bottles)
+    private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(
+        IEnumerable<Bottle>? bottles,
+        Guid? currentUserId = null)
     {
         if (bottles is null)
         {
@@ -1751,7 +1820,9 @@ public class WineSurferController : Controller
                     labelBase = $"{labelBase} {vintage.Value}";
                 }
 
-                return new WineSurferSipSessionBottle(bottle.Id, labelBase);
+                var isOwnedByCurrentUser = currentUserId.HasValue && bottle.UserId.HasValue && bottle.UserId.Value == currentUserId.Value;
+
+                return new WineSurferSipSessionBottle(bottle.Id, labelBase, isOwnedByCurrentUser);
             })
             .OrderBy(summary => summary.Label, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -1853,7 +1924,7 @@ public record WineSurferSipSessionSummary(
     DateTime UpdatedAtUtc,
     IReadOnlyList<WineSurferSipSessionBottle> Bottles);
 
-public record WineSurferSipSessionBottle(Guid Id, string Label);
+public record WineSurferSipSessionBottle(Guid Id, string Label, bool IsOwnedByCurrentUser);
 
 public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter);
 
