@@ -99,7 +99,7 @@
         <section class="crud-table wine-surface wine-surface-border wine-card-hover" data-crud-table="summary">
             <header class="crud-table__header">
                 <div class="crud-table__header-content">
-                    <h2 class="crud-table__title">your cellar</h2>
+                    <h2 class="crud-table__title">Your Cellar</h2>
                 </div>
                 <button type="button" class="crud-table__action-button inventory-add-trigger">Add Wine</button>
             </header>
@@ -257,23 +257,24 @@
             <div class="details-layout">
                 <div class="details-main">
                     <section class="crud-table wine-surface wine-surface-border wine-card-hover" data-crud-table="details">
-                        <header class="crud-table__header">
-                            <h3 class="crud-table__title">Bottle Inventory</h3>
-                            <p class="crud-table__description">Manage individual bottles for the selected wine group.</p>
-                        </header>
                         <div class="crud-table__body wine-surface wine-surface-border">
                             <table class="details-table crud-table__table" id="details-table">
                                 <thead>
                                     <tr class="crud-table__add-row add-row" id="detail-add-row" hidden>
                                         <td>
-                                            <select class="detail-add-location" aria-label="Bottle location">
-                                                <option value="">No location</option>
-                                            </select>
+                                            <label class="detail-add-input-label">
+                                                <span>Location</span>
+                                                <select class="detail-add-location" aria-label="Bottle location">
+                                                    <option value="">No location</option>
+                                                </select>
+                                            </label>
                                         </td>
                                         <td>
-                                            <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
+                                            <label class="detail-add-input-label">
+                                                <span>Price</span>
+                                                <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
+                                            </label>
                                         </td>
-                                        <td class="detail-add-average" aria-label="Average score">—</td>
                                         <td class="detail-add-quantity" colspan="2">
                                             <label class="detail-add-quantity-label">
                                                 <span>Quantity</span>
@@ -293,14 +294,13 @@
                                         <th scope="col">Bottle Location</th>
                                         <th scope="col">Price</th>
                                         <th scope="col">Avg Score</th>
-                                        <th scope="col">Drunk</th>
-                                        <th scope="col">Drunk Date</th>
+                                        <th scope="col">Enjoyed</th>
                                         <th scope="col">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr class="empty-row">
-                                        <td colspan="6">Select a wine group to see its bottles.</td>
+                                        <td colspan="5">Select a wine group to see its bottles.</td>
                                     </tr>
                                 </tbody>
                             </table>
