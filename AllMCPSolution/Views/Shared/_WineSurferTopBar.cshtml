@@ -1,5 +1,6 @@
 @using System.Collections.Generic
 @using System.Linq
+@using System.Security.Claims
 @using Microsoft.AspNetCore.Mvc.Rendering
 @using AllMCPSolution.Controllers
 @using AllMCPSolution.Models
@@ -90,6 +91,9 @@
 
     var avatarButtonLabel = $"{avatarAccountLabel}. {string.Join(". ", statusParts)}.";
 
+    var userIdClaim = User?.FindFirstValue(ClaimTypes.NameIdentifier);
+    var notificationStorageUserKey = string.IsNullOrWhiteSpace(userIdClaim) ? "guest" : userIdClaim!;
+
     var returnUrl = string.IsNullOrWhiteSpace(rawPath) ? "/wine-surfer" : rawPath!;
     if (!string.IsNullOrEmpty(returnUrl) && !returnUrl.StartsWith('/'))
     {
@@ -112,7 +116,9 @@
                 aria-haspopup="true"
                 aria-expanded="false"
                 aria-controls="notificationPanel"
-                aria-label="@avatarButtonLabel">
+                aria-label="@avatarButtonLabel"
+                data-account-label="@avatarAccountLabel"
+                data-user-id="@notificationStorageUserKey">
                 <span aria-hidden="true">@avatarLetter</span>
             </button>
             @if (totalNotificationCount > 0)
@@ -143,6 +149,7 @@
                                         : $" ({notification.InviteeEmail})";
                                     var acceptedLocal = notification.UpdatedAtUtc.ToLocalTime();
                                     var acceptedLabel = acceptedLocal.ToString("g");
+                                    var notificationStamp = $"{notification.InvitationId:D}|{notification.UpdatedAtUtc:O}";
                                     <li class="notification-item">
                                         <a class="notification-link" href="@sisterhoodUrl">
                                             <span class="notification-title">@inviteeName</span>
@@ -150,6 +157,14 @@
                                                 Accepted your invitation to <strong>@notification.SisterhoodName</strong>@inviteeEmailSuffix · @acceptedLabel
                                             </span>
                                         </a>
+                                        <button
+                                            type="button"
+                                            class="notification-dismiss"
+                                            data-notification-stamp="@notificationStamp"
+                                            data-notification-category="accepted"
+                                            aria-label="Dismiss notification for @inviteeName">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
                                     </li>
                                 }
                             </ul>
@@ -168,6 +183,7 @@
                                         : invitation.MatchesEmail
                                             ? "Matches your email"
                                             : null;
+                                    var notificationStamp = $"{invitation.Id:D}|{invitation.UpdatedAtUtc:O}";
 
                                     <li class="notification-item">
                                         <a class="notification-link" href="@sisterhoodUrl">
@@ -178,16 +194,21 @@
                                                 <span class="notification-tag">@tagLabel</span>
                                             }
                                         </a>
+                                        <button
+                                            type="button"
+                                            class="notification-dismiss"
+                                            data-notification-stamp="@notificationStamp"
+                                            data-notification-category="pending"
+                                            aria-label="Dismiss invitation for @invitation.SisterhoodName">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
                                     </li>
                                 }
                             </ul>
                         </div>
                     }
                 }
-                else
-                {
-                    <p class="notification-empty">You're all caught up. No sisterhood notifications.</p>
-                }
+                <p class="notification-empty"@(hasAnyNotifications ? " hidden" : string.Empty)>You're all caught up. No sisterhood notifications.</p>
                 <div class="notification-footer">
                     <a href="@sisterhoodUrl">View Sisterhoods</a>
                 </div>
@@ -249,6 +270,7 @@
         const panel = document.getElementById('menuPanel');
         const notificationToggle = document.getElementById('notificationToggle');
         const notificationPanel = document.getElementById('notificationPanel');
+        const notificationBadge = document.querySelector('.notification-badge');
 
         const closeMenu = () => {
             if (!toggle || !panel) {
@@ -270,6 +292,146 @@
             notificationToggle.setAttribute('aria-expanded', 'false');
             notificationPanel.classList.remove('open');
             notificationPanel.setAttribute('aria-hidden', 'true');
+        };
+
+        const storageKeyBase = notificationToggle?.dataset.userId ?? 'guest';
+        const dismissedStorageKey = `wineSurfer.notifications.dismissed.${storageKeyBase}`;
+
+        const loadDismissedStamps = () => {
+            if (typeof window === 'undefined' || !window.localStorage) {
+                return [];
+            }
+
+            try {
+                const raw = window.localStorage.getItem(dismissedStorageKey);
+                if (!raw) {
+                    return [];
+                }
+
+                const parsed = JSON.parse(raw);
+                if (!Array.isArray(parsed)) {
+                    return [];
+                }
+
+                return parsed.filter(item => typeof item === 'string');
+            } catch {
+                return [];
+            }
+        };
+
+        const dismissedStamps = new Set(loadDismissedStamps());
+
+        const persistDismissedStamps = () => {
+            if (typeof window === 'undefined' || !window.localStorage) {
+                return;
+            }
+
+            try {
+                window.localStorage.setItem(dismissedStorageKey, JSON.stringify(Array.from(dismissedStamps)));
+            } catch {
+                // Ignore write errors (e.g., storage full or disabled)
+            }
+        };
+
+        const formatStatusParts = (openCount, acceptedCount) => {
+            const parts = [];
+
+            if (openCount === 0) {
+                parts.push('No open invitations');
+            } else if (openCount === 1) {
+                parts.push('1 open invitation');
+            } else {
+                parts.push(`${openCount} open invitations`);
+            }
+
+            if (acceptedCount === 1) {
+                parts.push('1 sent invitation was accepted');
+            } else if (acceptedCount > 1) {
+                parts.push(`${acceptedCount} sent invitations were accepted`);
+            }
+
+            return parts.join('. ');
+        };
+
+        const updateAvatarLabel = (openCount, acceptedCount) => {
+            if (!notificationToggle) {
+                return;
+            }
+
+            const accountLabel = notificationToggle.dataset.accountLabel ?? '';
+            const status = formatStatusParts(openCount, acceptedCount);
+            const finalLabel = status ? `${accountLabel}. ${status}.` : `${accountLabel}.`;
+            notificationToggle.setAttribute('aria-label', finalLabel);
+        };
+
+        const applyDismissedNotifications = () => {
+            if (!notificationPanel) {
+                return;
+            }
+
+            const items = Array.from(notificationPanel.querySelectorAll('.notification-item'));
+            let openCount = 0;
+            let acceptedCount = 0;
+
+            items.forEach(item => {
+                const stamp = item.querySelector('.notification-dismiss')?.dataset.notificationStamp;
+                const category = item.querySelector('.notification-dismiss')?.dataset.notificationCategory;
+
+                if (!stamp) {
+                    item.hidden = false;
+                    return;
+                }
+
+                const isDismissed = dismissedStamps.has(stamp);
+                item.hidden = isDismissed;
+                item.setAttribute('aria-hidden', String(isDismissed));
+
+                if (!isDismissed) {
+                    if (category === 'pending') {
+                        openCount += 1;
+                    } else if (category === 'accepted') {
+                        acceptedCount += 1;
+                    }
+                }
+            });
+
+            const sections = Array.from(notificationPanel.querySelectorAll('.notification-section'));
+            sections.forEach(section => {
+                const hasVisibleItem = section.querySelector('.notification-item:not([hidden])') !== null;
+                section.toggleAttribute('hidden', !hasVisibleItem);
+                section.setAttribute('aria-hidden', String(!hasVisibleItem));
+            });
+
+            const notificationEmpty = notificationPanel.querySelector('.notification-empty');
+            const hasVisibleNotifications = openCount + acceptedCount > 0;
+            if (notificationEmpty) {
+                notificationEmpty.toggleAttribute('hidden', hasVisibleNotifications);
+            }
+
+            if (notificationBadge) {
+                if (hasVisibleNotifications) {
+                    notificationBadge.textContent = String(openCount + acceptedCount);
+                    notificationBadge.removeAttribute('hidden');
+                    notificationBadge.setAttribute('aria-hidden', 'false');
+                } else {
+                    notificationBadge.textContent = '0';
+                    notificationBadge.setAttribute('hidden', '');
+                    notificationBadge.setAttribute('aria-hidden', 'true');
+                }
+            }
+
+            updateAvatarLabel(openCount, acceptedCount);
+        };
+
+        const dismissNotification = (button) => {
+            const stamp = button.dataset.notificationStamp;
+            if (!stamp) {
+                return;
+            }
+
+            dismissedStamps.add(stamp);
+            persistDismissedStamps();
+            applyDismissedNotifications();
         };
 
         if (toggle && panel) {
@@ -303,11 +465,20 @@
                 }
             });
 
-            notificationPanel.querySelectorAll('a, button').forEach(element => {
+            notificationPanel.querySelectorAll('a, button:not(.notification-dismiss)').forEach(element => {
                 element.addEventListener('click', () => {
                     closeNotifications();
                 });
             });
+
+            notificationPanel.querySelectorAll('.notification-dismiss').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    dismissNotification(button);
+                });
+            });
+
+            applyDismissedNotifications();
         }
 
         document.addEventListener('click', (event) => {

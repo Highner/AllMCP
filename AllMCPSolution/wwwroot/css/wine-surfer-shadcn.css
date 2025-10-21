@@ -221,6 +221,7 @@ h1 {
 }
 
 .notification-item {
+    position: relative;
     margin: 0;
 }
 
@@ -228,12 +229,42 @@ h1 {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 12px 14px;
+    padding: 12px 38px 12px 14px;
     border-radius: calc(var(--radius) * 1.6);
     background: hsla(var(--accent) / 0.12);
     color: hsl(var(--foreground));
     text-decoration: none;
     transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.notification-dismiss {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: hsla(var(--muted-foreground) / 0.75);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.notification-dismiss:hover,
+.notification-dismiss:focus-visible {
+    background: hsla(var(--accent) / 0.18);
+    color: hsl(var(--foreground));
+    outline: none;
+}
+
+.notification-dismiss:focus-visible {
+    box-shadow: 0 0 0 2px hsla(var(--accent) / 0.35);
 }
 
 .notification-link:hover,

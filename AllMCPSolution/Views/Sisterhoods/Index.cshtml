@@ -214,6 +214,7 @@
         }
 
         .notification-item {
+            position: relative;
             margin: 0;
         }
 
@@ -221,12 +222,42 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            padding: 12px 14px;
+            padding: 12px 38px 12px 14px;
             border-radius: 12px;
             background: rgba(244, 241, 234, 0.05);
             color: #f4f1ea;
             text-decoration: none;
             transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .notification-dismiss {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 26px;
+            height: 26px;
+            border: none;
+            border-radius: 999px;
+            background: transparent;
+            color: rgba(244, 241, 234, 0.65);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            line-height: 1;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .notification-dismiss:hover,
+        .notification-dismiss:focus-visible {
+            background: rgba(244, 241, 234, 0.12);
+            color: rgba(244, 241, 234, 0.95);
+            outline: none;
+        }
+
+        .notification-dismiss:focus-visible {
+            box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.35);
         }
 
         .notification-link:hover,
