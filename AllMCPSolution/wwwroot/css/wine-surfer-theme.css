@@ -54,3 +54,125 @@ body.wine-app {
 .wine-card-hover--prominent::after {
     background: var(--wine-surface-highlight-strong);
 }
+
+.wine-card {
+    border-radius: 18px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    color: inherit;
+    text-decoration: none;
+}
+
+a.wine-card {
+    color: inherit;
+}
+
+a.wine-card:hover,
+a.wine-card:focus {
+    text-decoration: none;
+}
+
+.wine-card__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.wine-card__title {
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 6px;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.wine-card__subtitle {
+    margin: 0;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(244, 241, 234, 0.6);
+}
+
+.wine-card__description {
+    margin: 0;
+    line-height: 1.6;
+    color: rgba(244, 241, 234, 0.78);
+}
+
+.wine-card__meta {
+    margin: 0;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: rgba(244, 241, 234, 0.55);
+}
+
+.wine-card__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid rgba(244, 241, 234, 0.25);
+    color: rgba(244, 241, 234, 0.8);
+}
+
+.wine-card__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.wine-card__tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: rgba(244, 241, 234, 0.08);
+    color: rgba(244, 241, 234, 0.82);
+    font-size: 11px;
+}
+
+.wine-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.wine-card__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.wine-card__stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.wine-card__stat dt {
+    margin: 0;
+    font-size: 11px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: rgba(244, 241, 234, 0.6);
+}
+
+.wine-card__stat dd {
+    margin: 0;
+    font-size: 16px;
+    letter-spacing: 1.1px;
+}

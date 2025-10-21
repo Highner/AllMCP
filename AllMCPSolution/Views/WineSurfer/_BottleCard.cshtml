@@ -7,20 +7,20 @@
     }
 }
 
-<article class="bottle-card wine-surface wine-surface-border wine-card-hover">
-    <header class="bottle-card-header">
-        <h3 class="bottle-name">@Model.WineName</h3>
+<article class="bottle-card wine-card wine-surface wine-surface-border wine-card-hover">
+    <header class="bottle-card-header wine-card__header">
+        <h3 class="bottle-name wine-card__title">@Model.WineName</h3>
         @if (Model.Vintage.HasValue && Model.Vintage.Value > 0)
         {
-            <span class="bottle-vintage">@Model.Vintage.Value</span>
+            <span class="bottle-vintage wine-card__subtitle">@Model.Vintage.Value</span>
         }
     </header>
-    <dl class="bottle-meta" aria-label="Bottle tasting stats">
-        <div class="bottle-meta-item">
+    <dl class="bottle-meta wine-card__stats" aria-label="Bottle tasting stats">
+        <div class="bottle-meta-item wine-card__stat">
             <dt>Average score</dt>
             <dd>@FormatScore(Model.AverageScore)</dd>
         </div>
-        <div class="bottle-meta-item">
+        <div class="bottle-meta-item wine-card__stat">
             <dt>Your score</dt>
             <dd>@FormatScore(Model.CurrentUserScore)</dd>
         </div>
