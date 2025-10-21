@@ -56,7 +56,7 @@ public class SipSessionRepository : ISipSessionRepository
 
         var utcDate = utcNow.Date;
 
-        var query = _db.SipSessions
+        IQueryable<SipSession> query = _db.SipSessions
             .AsNoTracking()
             .Include(session => session.Sisterhood)
             .Include(session => session.Bottles)
