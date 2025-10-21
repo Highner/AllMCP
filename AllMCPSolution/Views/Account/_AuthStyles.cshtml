@@ -560,6 +560,11 @@
     }
 
     .auth-validation {
+        display: none;
+    }
+
+    .auth-validation.validation-summary-errors {
+        display: block;
         font-size: 12px;
         letter-spacing: 1.2px;
         color: #ff9e9e;
@@ -567,6 +572,11 @@
         border: 1px solid rgba(255, 82, 82, 0.3);
         padding: 12px 16px;
         border-radius: 10px;
+    }
+
+    .auth-validation ul {
+        margin: 0;
+        padding-left: 18px;
     }
 
     .validation-message {
