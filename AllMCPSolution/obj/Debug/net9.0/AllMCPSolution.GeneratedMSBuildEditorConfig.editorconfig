@@ -80,6 +80,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU2lzdGVyaG9vZHMvSW5kZXguY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
+[/Users/johann/RiderProjects/AllMCP/AllMCPSolution/Views/WineInventory/Import.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvV2luZUludmVudG9yeS9JbXBvcnQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
 [/Users/johann/RiderProjects/AllMCP/AllMCPSolution/Views/WineInventory/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3MvV2luZUludmVudG9yeS9JbmRleC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
