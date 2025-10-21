@@ -117,7 +117,7 @@ h1 {
     display: none;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 14px;
     letter-spacing: 4px;
     text-transform: uppercase;
     color: hsla(var(--muted-foreground) / 0.85);
@@ -1559,7 +1559,7 @@ tbody tr:hover {
 
 @media (max-width: 768px) {
     .top-bar-page-title {
-        font-size: 11px;
+        font-size: 12px;
         letter-spacing: 3px;
     }
 
