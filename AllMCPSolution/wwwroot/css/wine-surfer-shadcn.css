@@ -865,7 +865,7 @@ body.account-edit-open {
     display: flex;
     flex-wrap: wrap;
     gap: 15px;
-    margin-bottom: 30px;
+    margin-bottom: 15px;
     background: hsla(var(--accent) / 0.18);
     padding: 20px;
     border-radius: calc(var(--radius) - 0.25rem);
