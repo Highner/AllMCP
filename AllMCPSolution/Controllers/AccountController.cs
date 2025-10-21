@@ -280,22 +280,18 @@ public class AccountController : Controller
     }
 
     [AllowAnonymous]
-    [HttpGet("signin/microsoft")]
-    public Task<IActionResult> SignInWithMicrosoft([FromQuery] string? returnUrl = null) =>
-        ExternalLogin(OpenIdConnectDefaults.AuthenticationScheme, returnUrl);
-
-    [AllowAnonymous]
-    [HttpGet("signin/google")]
-    public Task<IActionResult> SignInWithGoogle([FromQuery] string? returnUrl = null) =>
-        ExternalLogin("Google", returnUrl);
-
-    [AllowAnonymous]
     [HttpGet("signin/external")]
     public async Task<IActionResult> ExternalLogin([FromQuery] string scheme, [FromQuery] string? returnUrl = null)
     {
         if (string.IsNullOrWhiteSpace(scheme))
         {
             return BadRequest();
+        }
+
+        if (string.Equals(scheme, "Google", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(scheme, OpenIdConnectDefaults.AuthenticationScheme, StringComparison.OrdinalIgnoreCase))
+        {
+            return NotFound();
         }
 
         var externalOptions = await _signInManager.GetExternalAuthenticationSchemesAsync();
@@ -333,6 +329,8 @@ public class AccountController : Controller
         var schemes = await _signInManager.GetExternalAuthenticationSchemesAsync();
         return schemes
             .Where(s => !string.IsNullOrWhiteSpace(s.Name))
+            .Where(s => !string.Equals(s.Name, "Google", StringComparison.OrdinalIgnoreCase))
+            .Where(s => !string.Equals(s.Name, OpenIdConnectDefaults.AuthenticationScheme, StringComparison.OrdinalIgnoreCase))
             .Select(s => new ExternalLoginOption
             {
                 AuthenticationScheme = s.Name,
