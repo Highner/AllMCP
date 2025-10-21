@@ -2146,6 +2146,9 @@
                                                         @foreach (var bottle in bottleSummaries)
                                                         {
                                                             var enjoyedLabel = bottle.IsDrunk ? FormatDrunkAt(bottle.DrunkAtUtc) : null;
+                                                            var existingNoteId = bottle.CurrentUserNoteId.HasValue
+                                                                ? bottle.CurrentUserNoteId.Value.ToString()
+                                                                : string.Empty;
                                                             var existingNote = bottle.CurrentUserNote ?? string.Empty;
                                                             var existingScore = bottle.CurrentUserScore.HasValue
                                                                 ? bottle.CurrentUserScore.Value.ToString("0.##", CultureInfo.InvariantCulture)
@@ -2156,7 +2159,9 @@
                                                             var averageScoreLabel = bottle.AverageScore.HasValue
                                                                 ? bottle.AverageScore.Value.ToString("0.##", CultureInfo.InvariantCulture)
                                                                 : "—";
-                                                            var hasExistingNote = !string.IsNullOrWhiteSpace(existingNote) || !string.IsNullOrWhiteSpace(existingScore);
+                                                            var hasExistingNote = !string.IsNullOrWhiteSpace(existingNoteId)
+                                                                || !string.IsNullOrWhiteSpace(existingNote)
+                                                                || !string.IsNullOrWhiteSpace(existingScore);
                                                             <li class="sip-session-bottle-item" data-sip-session-bottle>
                                                                 <div class="sip-session-bottle-info">
                                                                     <span class="sip-session-bottle-label">@bottle.Label</span>
@@ -2207,6 +2212,7 @@
                                                                                 data-sip-session-id="@session.Id"
                                                                                 data-bottle-id="@bottle.Id"
                                                                                 data-bottle-label="@bottle.Label"
+                                                                                data-rate-note-id="@existingNoteId"
                                                                                 data-rate-existing-note="@existingNote"
                                                                                 data-rate-existing-score="@existingScore">
                                                                             @(hasExistingNote ? "Edit note" : "Rate")
@@ -2466,6 +2472,7 @@
                 <input type="hidden" name="SisterhoodId" data-rate-sisterhood />
                 <input type="hidden" name="SipSessionId" data-rate-session />
                 <input type="hidden" name="BottleId" data-rate-bottle />
+                <input type="hidden" name="NoteId" data-rate-note-id />
                 <p class="sip-session-rate-modal__hint" data-rate-bottle-label>Share your tasting note for this bottle.</p>
                 <label for="sip-session-rate-note">Tasting note</label>
                 <textarea id="sip-session-rate-note"
@@ -2486,6 +2493,16 @@
                 <p class="sip-session-rate-modal__footnote">Score is optional—leave it blank to skip.</p>
                 <div class="sip-session-rate-modal__actions">
                     <button type="submit" class="secondary-button" data-rate-submit>Save note</button>
+                    <button type="submit"
+                            class="ghost-danger-button"
+                            data-rate-delete
+                            formaction="@Url.Action("DeleteSipSessionBottleNote", "WineSurfer")"
+                            formmethod="post"
+                            formnovalidate
+                            hidden
+                            disabled>
+                        Delete tasting note
+                    </button>
                     <button type="button" class="ghost-button" data-sip-session-rate-close>Cancel</button>
                 </div>
             </form>
@@ -2682,9 +2699,11 @@
             const bottleField = form?.querySelector('[data-rate-bottle]');
             const noteField = form?.querySelector('[data-rate-note]');
             const scoreField = form?.querySelector('[data-rate-score]');
+            const noteIdField = form?.querySelector('[data-rate-note-id]');
             const labelElement = rateModal.querySelector('[data-rate-bottle-label]');
             const submitButton = form?.querySelector('[data-rate-submit]');
             const titleElement = rateModal.querySelector('[data-sip-session-rate-title]');
+            const deleteButton = form?.querySelector('[data-rate-delete]');
             let lastTrigger = null;
 
             const openRateModal = (context) => {
@@ -2697,6 +2716,10 @@
                 sessionField.value = context.sessionId ?? '';
                 bottleField.value = context.bottleId ?? '';
                 noteField.value = context.note ?? '';
+
+                if (noteIdField) {
+                    noteIdField.value = context.noteId ?? '';
+                }
 
                 if (scoreField) {
                     scoreField.value = context.score ?? '';
@@ -2724,6 +2747,16 @@
                     submitButton.textContent = context.hasExisting ? 'Update note' : 'Save note';
                 }
 
+                if (deleteButton) {
+                    if (context.noteId) {
+                        deleteButton.hidden = false;
+                        deleteButton.removeAttribute('disabled');
+                    } else {
+                        deleteButton.hidden = true;
+                        deleteButton.setAttribute('disabled', '');
+                    }
+                }
+
                 rateModal.removeAttribute('hidden');
                 rateModal.setAttribute('aria-hidden', 'false');
                 document.body.classList.add('no-scroll');
@@ -2740,6 +2773,11 @@
                 rateModal.setAttribute('aria-hidden', 'true');
                 document.body.classList.remove('no-scroll');
                 form.reset();
+
+                if (deleteButton) {
+                    deleteButton.hidden = true;
+                    deleteButton.setAttribute('disabled', '');
+                }
 
                 if (lastTrigger) {
                     const trigger = lastTrigger;
@@ -2770,22 +2808,38 @@
                     const sessionId = button.getAttribute('data-sip-session-id') ?? '';
                     const bottleId = button.getAttribute('data-bottle-id') ?? '';
                     const label = button.getAttribute('data-bottle-label') ?? '';
+                    const noteId = button.getAttribute('data-rate-note-id') ?? '';
                     const note = button.getAttribute('data-rate-existing-note') ?? '';
                     const score = button.getAttribute('data-rate-existing-score') ?? '';
+                    const normalizedNoteId = noteId.trim();
                     const normalizedScore = score.trim();
-                    const hasExisting = note.trim().length > 0 || normalizedScore.length > 0;
+                    const hasExisting = normalizedNoteId.length > 0 || note.trim().length > 0 || normalizedScore.length > 0;
 
                     openRateModal({
                         sisterhoodId,
                         sessionId,
                         bottleId,
                         label,
+                        noteId: normalizedNoteId,
                         note,
                         score: normalizedScore,
                         hasExisting
                     });
                 });
             });
+
+            if (deleteButton) {
+                deleteButton.addEventListener('click', event => {
+                    if (deleteButton.disabled) {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    if (!window.confirm('Delete this tasting note?')) {
+                        event.preventDefault();
+                    }
+                });
+            }
         }
 
         const toggleButton = document.querySelector('[data-sisterhood-create-toggle]');
