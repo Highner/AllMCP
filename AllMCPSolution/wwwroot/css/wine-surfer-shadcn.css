@@ -1070,41 +1070,36 @@ tbody tr:hover {
 
 .details-layout {
     display: flex;
+    flex-direction: column;
     gap: 24px;
-    align-items: flex-start;
-    transition: gap 0.3s ease;
+    align-items: stretch;
 }
 
 .details-main {
-    flex: 1 1 100%;
+    flex: none;
+    width: 100%;
     min-width: 0;
-    transition: flex-basis 0.3s ease, max-width 0.3s ease;
 }
 
 .details-panel.notes-visible .details-main {
-    flex-basis: 60%;
-    max-width: 60%;
+    flex: none;
+    max-width: 100%;
 }
 
 .notes-panel {
     background: hsla(var(--card) / 0.8);
     border-radius: calc(var(--radius) - 0.2rem);
     padding: 20px;
-    flex: 0 0 0;
-    max-width: 0;
+    width: 100%;
     min-width: 0;
-    opacity: 0;
-    overflow: hidden;
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 16px;
-    transition: flex-basis 0.3s ease, max-width 0.3s ease, opacity 0.3s ease;
+    box-sizing: border-box;
 }
 
 .details-panel.notes-visible .notes-panel {
-    flex: 0 0 40%;
-    max-width: 40%;
-    opacity: 1;
+    display: flex;
 }
 
 .notes-header {
@@ -1194,17 +1189,7 @@ tbody tr:hover {
 
 @media (max-width: 900px) {
     .details-layout {
-        flex-direction: column;
-    }
-
-    .details-panel.notes-visible .details-main,
-    .details-panel.notes-visible .notes-panel {
-        flex-basis: 100%;
-        max-width: 100%;
-    }
-
-    .notes-panel {
-        opacity: 1;
+        gap: 20px;
     }
 }
 
