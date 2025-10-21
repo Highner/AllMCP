@@ -1,0 +1,85 @@
+@model AllMCPSolution.Models.LoginViewModel
+@{
+    Layout = null;
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+    var registerUrl = Url.Action("Register", "Account", new { returnUrl = Model.ReturnUrl });
+    var forgotPasswordUrl = Url.Action("ForgotPassword", "Account");
+    var errorMessage = ViewData["ErrorMessage"] as string;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign in • Wine Surfer</title>
+    @await Html.PartialAsync("_AuthStyles")
+</head>
+<body>
+    <div class="page-content">
+        @await Html.PartialAsync("_WineSurferTopBar", currentPath)
+        <main class="auth-main">
+            <section class="auth-card" aria-labelledby="loginTitle">
+                <header>
+                    <h1 id="loginTitle" class="auth-title">Sign in</h1>
+                    <p class="auth-subtitle">Access personalized cellar tracking and Wine Surfer experiences.</p>
+                </header>
+
+                @if (!string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    <div class="auth-alert error" role="alert">@errorMessage</div>
+                }
+
+                @using (Html.BeginForm("Login", "Account", FormMethod.Post, new { @class = "auth-form", autocomplete = "off" }))
+                {
+                    @Html.AntiForgeryToken()
+                    @Html.HiddenFor(model => model.ReturnUrl)
+
+                    @Html.ValidationSummary(false, "", new { @class = "auth-validation", role = "alert" })
+
+                    <div class="auth-field">
+                        @Html.LabelFor(model => model.Email)
+                        @Html.TextBoxFor(model => model.Email, new { @class = "auth-input", type = "email", autocomplete = "email" })
+                        @Html.ValidationMessageFor(model => model.Email, null, new { @class = "validation-message" })
+                    </div>
+
+                    <div class="auth-field">
+                        @Html.LabelFor(model => model.Password)
+                        @Html.PasswordFor(model => model.Password, new { @class = "auth-input", autocomplete = "current-password" })
+                        @Html.ValidationMessageFor(model => model.Password, null, new { @class = "validation-message" })
+                    </div>
+
+                    <div class="auth-checkbox">
+                        @Html.CheckBoxFor(model => model.RememberMe)
+                        @Html.LabelFor(model => model.RememberMe)
+                    </div>
+
+                    <div class="auth-actions">
+                        <button type="submit" class="auth-toggle">Sign in</button>
+                        <div class="auth-links">
+                            <a href="@forgotPasswordUrl">Forgot your password?</a>
+                            <a href="@registerUrl">Need an account? Register now.</a>
+                        </div>
+                    </div>
+                }
+
+                @if (Model.ExternalLogins.Count > 0)
+                {
+                    <div class="auth-divider" aria-hidden="true">
+                        <span>Or continue with</span>
+                    </div>
+                    <div class="auth-external-list" role="group" aria-label="External sign-in options">
+                        @foreach (var option in Model.ExternalLogins)
+                        {
+                            var externalUrl = Url.Action("ExternalLogin", "Account", new { scheme = option.AuthenticationScheme, returnUrl = Model.ReturnUrl });
+                            if (!string.IsNullOrWhiteSpace(externalUrl))
+                            {
+                                <a class="auth-external-button" href="@externalUrl">@option.DisplayName</a>
+                            }
+                        }
+                    </div>
+                }
+            </section>
+        </main>
+    </div>
+</body>
+</html>
