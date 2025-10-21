@@ -225,6 +225,7 @@
             flex-direction: column;
             gap: 12px;
             color: rgba(244, 241, 234, 0.78);
+            margin: 0 auto;
         }
 
         .empty-state h2 {
@@ -239,53 +240,6 @@
             margin: 0;
             line-height: 1.6;
         }
-
-        .cta-card {
-            width: min(880px, 100%);
-            border-radius: 22px;
-            padding: 40px;
-            background: linear-gradient(130deg, rgba(244, 241, 234, 0.12), rgba(63, 12, 12, 0.45));
-            border: 1px solid rgba(244, 241, 234, 0.1);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            text-align: center;
-        }
-
-        .cta-card h2 {
-            margin: 0;
-            font-size: 28px;
-            letter-spacing: 6px;
-            text-transform: uppercase;
-        }
-
-        .cta-card p {
-            margin: 0;
-            color: rgba(244, 241, 234, 0.78);
-            line-height: 1.6;
-        }
-
-        .cta-card a {
-            align-self: center;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 14px 26px;
-            border-radius: 999px;
-            border: 1px solid rgba(244, 241, 234, 0.24);
-            color: #f4f1ea;
-            text-decoration: none;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            font-size: 13px;
-            transition: background 0.2s ease, transform 0.2s ease;
-        }
-
-        .cta-card a:hover {
-            background: rgba(244, 241, 234, 0.15);
-            transform: translateY(-2px);
-        }
-
         .action-bar {
             margin-top: 24px;
             display: flex;
@@ -608,17 +562,17 @@
                 string leadMessage;
                 if (Model.IsAuthenticated && hasMembership)
                 {
-                    var prefix = sanitizedDisplayName is null ? "You&#39;re" : $"{sanitizedDisplayName}, you&#39;re";
-                    leadMessage = $"{prefix} currently connected with these sisterhoods. Stay close to your fellow members and explore what&#39;s next together.";
+                    var prefix = sanitizedDisplayName is null ? "You're" : $"{sanitizedDisplayName}, you're";
+                    leadMessage = $"{prefix} currently connected with these sisterhoods. Stay close to your fellow members and explore what's next together.";
                 }
                 else if (Model.IsAuthenticated)
                 {
                     var subject = sanitizedDisplayName ?? "You";
-                    leadMessage = $"{subject} haven&#39;t joined any sisterhoods yet. Discover the communities shaping tomorrow&#39;s wine world and find your next circle.";
+                    leadMessage = $"{subject} haven't joined any sisterhoods yet. Discover the communities shaping tomorrow's wine world and find your next circle.";
                 }
                 else
                 {
-                    leadMessage = "Across continents and cultures, our Sisterhoods gather to share knowledge, amplify underrepresented voices, and craft cellars that celebrate every story in the vineyard. Explore the communities shaping tomorrow&#39;s wine world.";
+                    leadMessage = "Across continents and cultures, our Sisterhoods gather to share knowledge, amplify underrepresented voices, and craft cellars that celebrate every story in the vineyard. Explore the communities shaping tomorrow's wine world.";
                 }
             }
             <p class="lead">@leadMessage</p>
@@ -778,11 +732,6 @@
             }
         </section>
         <datalist id="sisterhood-user-options"></datalist>
-        <section class="cta-card">
-            <h2>Join the Wave</h2>
-            <p>Bring your guild, tasting group, or collective into the Wine Surfer Sisterhoods network. Share events, co-create cellar maps, and leave no voice untasted.</p>
-            <a href="/wine-surfer">Return to Wine Surfer</a>
-        </section>
     </main>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
