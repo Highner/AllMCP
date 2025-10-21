@@ -5,10 +5,7 @@
     var currentPath = Context.Request.Path.Value ?? string.Empty;
     var loginUrl = Url.Action("Login", "Account", new { returnUrl = Model.ReturnUrl });
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
-        ?? new WineSurferTopBarModel(
-            currentPath,
-            Array.Empty<WineSurferIncomingSisterhoodInvitation>(),
-            Array.Empty<WineSurferSentInvitationNotification>());
+        ?? WineSurferTopBarModel.Empty(currentPath);
 }
 <!DOCTYPE html>
 <html lang="en">

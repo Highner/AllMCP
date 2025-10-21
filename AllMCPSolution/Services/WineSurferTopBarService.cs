@@ -22,23 +22,23 @@ public class WineSurferTopBarService : IWineSurferTopBarService
 
     private readonly IUserRepository _userRepository;
     private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
+    private readonly IWineSurferNotificationDismissalRepository _notificationDismissalRepository;
 
     public WineSurferTopBarService(
         IUserRepository userRepository,
-        ISisterhoodInvitationRepository sisterhoodInvitationRepository)
+        ISisterhoodInvitationRepository sisterhoodInvitationRepository,
+        IWineSurferNotificationDismissalRepository notificationDismissalRepository)
     {
         _userRepository = userRepository;
         _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
+        _notificationDismissalRepository = notificationDismissalRepository;
     }
 
     public async Task<WineSurferTopBarModel> BuildAsync(ClaimsPrincipal? user, string currentPath, CancellationToken cancellationToken)
     {
         if (user?.Identity?.IsAuthenticated != true)
         {
-            return new WineSurferTopBarModel(
-                currentPath,
-                Array.Empty<WineSurferIncomingSisterhoodInvitation>(),
-                Array.Empty<WineSurferSentInvitationNotification>());
+            return WineSurferTopBarModel.Empty(currentPath);
         }
 
         var displayName = user.Identity?.Name;
@@ -123,7 +123,36 @@ public class WineSurferTopBarService : IWineSurferTopBarService
             sentInvitationNotifications = CreateSentInvitationNotifications(acceptedInvitations);
         }
 
-        return new WineSurferTopBarModel(currentPath, incomingInvitations, sentInvitationNotifications);
+        var sections = WineSurferTopBarModel.BuildSections(
+            incomingInvitations,
+            sentInvitationNotifications,
+            WineSurferTopBarModel.SisterhoodNotificationsUrl);
+
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> dismissedStamps =
+            WineSurferTopBarModel.EmptyDismissedNotificationSet;
+
+        if (currentUserId.HasValue)
+        {
+            var categories = sections
+                .Select(section => section.Key)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (categories.Length > 0)
+            {
+                dismissedStamps = await _notificationDismissalRepository.GetDismissedStampsAsync(
+                    currentUserId.Value,
+                    categories,
+                    cancellationToken);
+            }
+        }
+
+        return WineSurferTopBarModel.CreateFromSisterhoodData(
+            currentPath,
+            incomingInvitations,
+            sentInvitationNotifications,
+            dismissedStamps,
+            sections);
     }
 
     private static Guid? GetCurrentUserId(ClaimsPrincipal user)

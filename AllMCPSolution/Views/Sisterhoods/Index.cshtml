@@ -8,7 +8,10 @@
     var pendingInvitations = Model.IncomingInvitations
         .Where(invitation => invitation.Status == AllMCPSolution.Models.SisterhoodInvitationStatus.Pending)
         .ToList();
-    var topBarModel = new WineSurferTopBarModel(currentPath, pendingInvitations, Model.SentInvitationNotifications);
+    var topBarModel = WineSurferTopBarModel.CreateFromSisterhoodData(
+        currentPath,
+        Model.IncomingInvitations,
+        Model.SentInvitationNotifications);
 }
 
 @functions {
