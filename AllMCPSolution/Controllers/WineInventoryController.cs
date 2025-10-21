@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
+using AllMCPSolution.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +26,7 @@ public class WineInventoryController : Controller
     private readonly ISubAppellationRepository _subAppellationRepository;
     private readonly IUserRepository _userRepository;
     private readonly ITastingNoteRepository _tastingNoteRepository;
+    private readonly IWineSurferTopBarService _topBarService;
 
     public WineInventoryController(
         IBottleRepository bottleRepository,
@@ -33,7 +35,8 @@ public class WineInventoryController : Controller
         IWineVintageRepository wineVintageRepository,
         ISubAppellationRepository subAppellationRepository,
         IUserRepository userRepository,
-        ITastingNoteRepository tastingNoteRepository)
+        ITastingNoteRepository tastingNoteRepository,
+        IWineSurferTopBarService topBarService)
     {
         _bottleRepository = bottleRepository;
         _bottleLocationRepository = bottleLocationRepository;
@@ -42,6 +45,7 @@ public class WineInventoryController : Controller
         _subAppellationRepository = subAppellationRepository;
         _userRepository = userRepository;
         _tastingNoteRepository = tastingNoteRepository;
+        _topBarService = topBarService;
     }
 
     [HttpGet("")]
@@ -57,6 +61,9 @@ public class WineInventoryController : Controller
         {
             return Challenge();
         }
+
+        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
+        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
 
         var allBottles = await _bottleRepository.GetAllAsync(cancellationToken);
 
