@@ -767,6 +767,11 @@ public class WineInventoryController : Controller
             return NotFound();
         }
 
+        if (existing.UserId != currentUserId)
+        {
+            return NotFound();
+        }
+
         existing.Note = trimmedNote!;
         existing.Score = request.Score;
 
@@ -796,6 +801,11 @@ public class WineInventoryController : Controller
         }
 
         if (existing.Bottle?.UserId != currentUserId)
+        {
+            return NotFound();
+        }
+
+        if (existing.UserId != currentUserId)
         {
             return NotFound();
         }
