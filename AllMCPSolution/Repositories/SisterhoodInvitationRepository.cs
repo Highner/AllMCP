@@ -15,6 +15,9 @@ public interface ISisterhoodInvitationRepository
     Task<IReadOnlyList<SisterhoodInvitation>> GetPendingForSisterhoodAsync(Guid sisterhoodId, CancellationToken ct = default);
     Task<SisterhoodInvitation> CreateOrUpdatePendingAsync(Guid sisterhoodId, string email, Guid? inviteeUserId, CancellationToken ct = default);
     Task<SisterhoodInvitation?> UpdateStatusAsync(Guid sisterhoodId, string email, SisterhoodInvitationStatus status, Guid? inviteeUserId = null, CancellationToken ct = default);
+    Task<IReadOnlyList<SisterhoodInvitation>> GetForInviteeAsync(Guid? inviteeUserId, string? inviteeEmail, CancellationToken ct = default);
+    Task<SisterhoodInvitation?> GetByIdAsync(Guid invitationId, CancellationToken ct = default);
+    Task<bool> DeleteAsync(Guid invitationId, CancellationToken ct = default);
 }
 
 public class SisterhoodInvitationRepository : ISisterhoodInvitationRepository
@@ -128,6 +131,76 @@ public class SisterhoodInvitationRepository : ISisterhoodInvitationRepository
         await _db.SaveChangesAsync(ct);
 
         return invitation;
+    }
+
+    public async Task<IReadOnlyList<SisterhoodInvitation>> GetForInviteeAsync(Guid? inviteeUserId, string? inviteeEmail, CancellationToken ct = default)
+    {
+        var hasUserId = inviteeUserId.HasValue && inviteeUserId.Value != Guid.Empty;
+        var normalizedEmail = string.IsNullOrWhiteSpace(inviteeEmail) ? null : NormalizeEmail(inviteeEmail);
+
+        if (!hasUserId && string.IsNullOrEmpty(normalizedEmail))
+        {
+            return Array.Empty<SisterhoodInvitation>();
+        }
+
+        var query = _db.SisterhoodInvitations
+            .AsNoTracking()
+            .Include(invite => invite.Sisterhood)
+            .Include(invite => invite.InviteeUser)
+            .Where(invite => invite.Status != SisterhoodInvitationStatus.Revoked);
+
+        if (hasUserId && !string.IsNullOrEmpty(normalizedEmail))
+        {
+            query = query.Where(invite => invite.InviteeUserId == inviteeUserId || invite.InviteeEmail == normalizedEmail);
+        }
+        else if (hasUserId)
+        {
+            query = query.Where(invite => invite.InviteeUserId == inviteeUserId);
+        }
+        else if (!string.IsNullOrEmpty(normalizedEmail))
+        {
+            query = query.Where(invite => invite.InviteeEmail == normalizedEmail);
+        }
+
+        return await query
+            .OrderBy(invite => invite.Status)
+            .ThenBy(invite => invite.CreatedAt)
+            .ToListAsync(ct);
+    }
+
+    public async Task<SisterhoodInvitation?> GetByIdAsync(Guid invitationId, CancellationToken ct = default)
+    {
+        if (invitationId == Guid.Empty)
+        {
+            return null;
+        }
+
+        return await _db.SisterhoodInvitations
+            .AsNoTracking()
+            .Include(invite => invite.Sisterhood)
+            .Include(invite => invite.InviteeUser)
+            .FirstOrDefaultAsync(invite => invite.Id == invitationId, ct);
+    }
+
+    public async Task<bool> DeleteAsync(Guid invitationId, CancellationToken ct = default)
+    {
+        if (invitationId == Guid.Empty)
+        {
+            return false;
+        }
+
+        var invitation = await _db.SisterhoodInvitations
+            .FirstOrDefaultAsync(invite => invite.Id == invitationId, ct);
+
+        if (invitation is null)
+        {
+            return false;
+        }
+
+        _db.SisterhoodInvitations.Remove(invitation);
+        await _db.SaveChangesAsync(ct);
+
+        return true;
     }
 
     private static string NormalizeEmail(string email)
