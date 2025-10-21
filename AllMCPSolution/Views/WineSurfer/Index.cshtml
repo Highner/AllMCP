@@ -3,8 +3,37 @@
 @using System.Linq
 @using System.Text.Json
 @using System.Text.Json.Serialization
-@{
+@{ 
     Layout = null;
+}
+
+@functions {
+    private static DateTime NormalizeDateTime(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value.ToLocalTime(),
+            DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Local),
+            _ => value
+        };
+    }
+
+    private static DateTime? NormalizeDateTime(DateTime? value)
+    {
+        return value.HasValue ? NormalizeDateTime(value.Value) : (DateTime?)null;
+    }
+
+    private static string FormatSipSessionSchedule(WineSurferSipSessionSummary session)
+    {
+        var localDateTime = NormalizeDateTime(session.ScheduledAtUtc);
+        if (localDateTime.HasValue)
+        {
+            return localDateTime.Value.ToString("f");
+        }
+
+        var localDate = NormalizeDateTime(session.Date);
+        return localDate?.ToString("D") ?? "Schedule TBD";
+    }
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -595,6 +624,104 @@
             letter-spacing: 1px;
         }
 
+        .section-title {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+        }
+
+        .upcoming-sessions {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            width: min(100%, 960px);
+        }
+
+        .sip-session-card {
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            border-radius: 18px;
+            padding: 22px 26px;
+            background: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            width: 100%;
+        }
+
+        .sip-session-card:hover,
+        .sip-session-card:focus-within {
+            transform: translateY(-4px);
+            border-color: rgba(244, 241, 234, 0.35);
+            box-shadow: 0 0 24px rgba(244, 241, 234, 0.12);
+            outline: none;
+        }
+
+        .sip-session-header {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .sip-session-name {
+            margin: 0;
+            font-size: 26px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .sip-session-host {
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .sip-session-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 24px;
+            font-size: 13px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.75);
+        }
+
+        .sip-session-meta span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sip-session-description {
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.7;
+            color: rgba(244, 241, 234, 0.78);
+        }
+
+        .sip-session-sisterhood-note {
+            margin: 0;
+            font-size: 13px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.55);
+        }
+
+        .sip-session-empty {
+            margin: 0;
+            padding: 18px 22px;
+            border-radius: 18px;
+            border: 1px dashed rgba(244, 241, 234, 0.25);
+            background: rgba(12, 12, 12, 0.6);
+            font-size: 13px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.68);
+        }
+
         @@media (max-width: 768px) {
             .top-bar {
                 padding: 18px 20px;
@@ -611,6 +738,29 @@
 
             h1 {
                 letter-spacing: 8px;
+            }
+
+            .section-title {
+                font-size: 18px;
+                letter-spacing: 4px;
+            }
+
+            .sip-session-card {
+                padding: 18px 20px;
+            }
+
+            .sip-session-name {
+                font-size: 22px;
+            }
+
+            .sip-session-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .sip-session-description {
+                font-size: 14px;
             }
 
             .highlight-label {
@@ -696,6 +846,50 @@
                         <span class="label">No wine regions available yet</span>
                         <span class="country">Add bottles to your inventory to light up the map.</span>
                     </article>
+                }
+            </section>
+            <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
+                <h2 class="section-title">Upcoming sip sessions</h2>
+                @if (Model.UpcomingSipSessions.Count > 0)
+                {
+                    foreach (var session in Model.UpcomingSipSessions)
+                    {
+                        var scheduleLabel = FormatSipSessionSchedule(session.Session);
+                        var locationLabel = string.IsNullOrWhiteSpace(session.Session.Location)
+                            ? "Location TBD"
+                            : session.Session.Location;
+                        var hostLabel = string.IsNullOrWhiteSpace(session.SisterhoodName)
+                            ? null
+                            : session.SisterhoodName;
+                        var sisterhoodNote = string.IsNullOrWhiteSpace(session.SisterhoodDescription)
+                            ? null
+                            : session.SisterhoodDescription;
+                        <article class="sip-session-card" aria-label="Upcoming sip session: @session.Session.Name">
+                            <div class="sip-session-header">
+                                <h3 class="sip-session-name">@session.Session.Name</h3>
+                                @if (!string.IsNullOrWhiteSpace(hostLabel))
+                                {
+                                    <span class="sip-session-host">Hosted by @hostLabel</span>
+                                }
+                            </div>
+                            <div class="sip-session-meta">
+                                <span>📅 @scheduleLabel</span>
+                                <span>📍 @locationLabel</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(session.Session.Description))
+                            {
+                                <p class="sip-session-description">@session.Session.Description</p>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(sisterhoodNote))
+                            {
+                                <p class="sip-session-sisterhood-note">@sisterhoodNote</p>
+                            }
+                        </article>
+                    }
+                }
+                else
+                {
+                    <p class="sip-session-empty" role="status">No upcoming sip sessions on the calendar yet. Check back soon or gather your sisterhood to plan the next tasting.</p>
                 }
             </section>
         </main>

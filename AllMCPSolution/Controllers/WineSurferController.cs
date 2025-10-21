@@ -138,6 +138,23 @@ public class WineSurferController : Controller
             .OrderBy(point => point.Label)
             .ToList();
 
+        const int upcomingSipSessionLimit = 4;
+        var upcomingSipSessions = (await _sipSessionRepository.GetUpcomingAsync(DateTime.UtcNow, upcomingSipSessionLimit, cancellationToken))
+            .Select(session => new WineSurferUpcomingSipSession(
+                session.SisterhoodId,
+                session.Sisterhood?.Name ?? "Sisterhood",
+                session.Sisterhood?.Description,
+                new WineSurferSipSessionSummary(
+                    session.Id,
+                    session.Name,
+                    session.Description,
+                    session.ScheduledAt,
+                    session.Date,
+                    session.Location ?? string.Empty,
+                    session.CreatedAt,
+                    session.UpdatedAt)))
+            .ToList();
+
         WineSurferCurrentUser? currentUser = null;
         IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
 
@@ -215,7 +232,7 @@ public class WineSurferController : Controller
             }
         }
 
-        var model = new WineSurferLandingViewModel(highlightPoints, currentUser, incomingInvitations);
+        var model = new WineSurferLandingViewModel(highlightPoints, currentUser, incomingInvitations, upcomingSipSessions);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
     }
@@ -1608,7 +1625,14 @@ public class WineSurferController : Controller
 public record WineSurferLandingViewModel(
     IReadOnlyList<MapHighlightPoint> HighlightPoints,
     WineSurferCurrentUser? CurrentUser,
-    IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations);
+    IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
+    IReadOnlyList<WineSurferUpcomingSipSession> UpcomingSipSessions);
+
+public record WineSurferUpcomingSipSession(
+    Guid SisterhoodId,
+    string SisterhoodName,
+    string? SisterhoodDescription,
+    WineSurferSipSessionSummary Session);
 
 public record WineSurferTopBarModel(
     string CurrentPath,
