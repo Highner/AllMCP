@@ -783,6 +783,10 @@
             color: rgba(244, 241, 234, 0.6);
         }
 
+        .sip-session-edit-region {
+            margin-top: 16px;
+        }
+
         .sip-session-form {
             display: flex;
             flex-direction: column;
@@ -1393,6 +1397,7 @@
                                     @foreach (var session in sisterhood.SipSessions)
                                     {
                                         var editFormId = $"sip-session-edit-{session.Id}";
+                                        var editContainerId = $"sip-session-edit-container-{session.Id}";
                                         var scheduleLabel = FormatSipSessionSchedule(session);
                                         var locationLabel = string.IsNullOrWhiteSpace(session.Location) ? "Location TBD" : session.Location;
                                         var scheduledValue = FormatSipSessionInputValue(session);
@@ -1413,7 +1418,8 @@
                                                         <button type="button"
                                                                 class="secondary-button"
                                                                 data-sip-session-edit-toggle
-                                                                data-target="@editFormId">Edit</button>
+                                                                aria-expanded="false"
+                                                                aria-controls="@editContainerId">Edit</button>
                                                         <form method="post"
                                                               action="@Url.Action("DeleteSipSession", "WineSurfer")"
                                                               class="inline-form"
@@ -1432,45 +1438,50 @@
                                             }
                                             @if (sisterhood.CanManage)
                                             {
-                                                <form id="@editFormId"
-                                                      method="post"
-                                                      action="@Url.Action("UpdateSipSession", "WineSurfer")"
-                                                      class="sip-session-form"
-                                                      data-sip-session-edit-form
-                                                      hidden>
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
-                                                    <input type="hidden" name="SipSessionId" value="@session.Id" />
-                                                    <label for="sip-session-name-@session.Id">Session name</label>
-                                                    <input id="sip-session-name-@session.Id"
-                                                           name="Name"
-                                                           type="text"
-                                                           value="@session.Name"
-                                                           maxlength="256"
-                                                           required />
-                                                    <label for="sip-session-schedule-@session.Id">Scheduled for</label>
-                                                    <input id="sip-session-schedule-@session.Id"
-                                                           name="ScheduledAt"
-                                                           type="datetime-local"
-                                                           value="@scheduledValue" />
-                                                    <label for="sip-session-location-@session.Id">Location</label>
-                                                    <input id="sip-session-location-@session.Id"
-                                                           name="Location"
-                                                           type="text"
-                                                           value="@(session.Location ?? string.Empty)"
-                                                           maxlength="256" />
-                                                    <label for="sip-session-description-@session.Id">Description</label>
-                                                    <textarea id="sip-session-description-@session.Id"
-                                                              name="Description"
-                                                              maxlength="2048">@session.Description</textarea>
-                                                    <div class="sip-session-form-actions">
-                                                        <button type="submit" class="secondary-button">Save changes</button>
-                                                        <button type="button"
-                                                                class="ghost-button"
-                                                                data-sip-session-edit-cancel
-                                                                data-target="@editFormId">Cancel</button>
-                                                    </div>
-                                                </form>
+                                                <div id="@editContainerId"
+                                                     class="sip-session-edit-region"
+                                                     data-sip-session-edit-region
+                                                     hidden>
+                                                    <template data-sip-session-edit-template>
+                                                        <form id="@editFormId"
+                                                              method="post"
+                                                              action="@Url.Action("UpdateSipSession", "WineSurfer")"
+                                                              class="sip-session-form"
+                                                              data-sip-session-edit-form>
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                                            <input type="hidden" name="SipSessionId" value="@session.Id" />
+                                                            <label for="sip-session-name-@session.Id">Session name</label>
+                                                            <input id="sip-session-name-@session.Id"
+                                                                   name="Name"
+                                                                   type="text"
+                                                                   value="@session.Name"
+                                                                   maxlength="256"
+                                                                   required />
+                                                            <label for="sip-session-schedule-@session.Id">Scheduled for</label>
+                                                            <input id="sip-session-schedule-@session.Id"
+                                                                   name="ScheduledAt"
+                                                                   type="datetime-local"
+                                                                   value="@scheduledValue" />
+                                                            <label for="sip-session-location-@session.Id">Location</label>
+                                                            <input id="sip-session-location-@session.Id"
+                                                                   name="Location"
+                                                                   type="text"
+                                                                   value="@(session.Location ?? string.Empty)"
+                                                                   maxlength="256" />
+                                                            <label for="sip-session-description-@session.Id">Description</label>
+                                                            <textarea id="sip-session-description-@session.Id"
+                                                                      name="Description"
+                                                                      maxlength="2048">@session.Description</textarea>
+                                                            <div class="sip-session-form-actions">
+                                                                <button type="submit" class="secondary-button">Save changes</button>
+                                                                <button type="button"
+                                                                        class="ghost-button"
+                                                                        data-sip-session-edit-cancel>Cancel</button>
+                                                            </div>
+                                                        </form>
+                                                    </template>
+                                                </div>
                                             }
                                         </li>
                                     }
@@ -2060,57 +2071,82 @@
 
         const editSessionButtons = document.querySelectorAll('[data-sip-session-edit-toggle]');
 
+        const initializeSipSessionEditRegion = (region, toggleButton) => {
+            if (!region) {
+                return null;
+            }
+
+            if (region.dataset.initialized === 'true') {
+                return region.querySelector('[data-sip-session-edit-form]');
+            }
+
+            const template = region.querySelector('template[data-sip-session-edit-template]');
+            if (!template) {
+                region.dataset.initialized = 'false';
+                return null;
+            }
+
+            const fragment = template.content.cloneNode(true);
+            region.appendChild(fragment);
+
+            const form = region.querySelector('[data-sip-session-edit-form]');
+            if (!form) {
+                region.dataset.initialized = 'false';
+                return null;
+            }
+
+            const cancelButton = form.querySelector('[data-sip-session-edit-cancel]');
+            if (cancelButton) {
+                cancelButton.addEventListener('click', () => {
+                    form.reset();
+                    region.setAttribute('hidden', '');
+                    toggleButton.setAttribute('aria-expanded', 'false');
+                    const original = toggleButton.dataset.originalLabel ?? 'Edit';
+                    toggleButton.textContent = original || 'Edit';
+                });
+            }
+
+            region.dataset.initialized = 'true';
+            return form;
+        };
+
         editSessionButtons.forEach(button => {
             button.addEventListener('click', () => {
-                const targetId = button.dataset.target;
-                if (!targetId) {
+                const item = button.closest('[data-sip-session-item]');
+                if (!item) {
                     return;
                 }
 
-                const form = document.getElementById(targetId);
+                const region = item.querySelector('[data-sip-session-edit-region]');
+                if (!region) {
+                    return;
+                }
+
+                let form = region.querySelector('[data-sip-session-edit-form]');
                 if (!form) {
-                    return;
+                    form = initializeSipSessionEditRegion(region, button);
+                    if (!form) {
+                        return;
+                    }
                 }
 
-                const isHidden = form.hasAttribute('hidden');
+                const isHidden = region.hasAttribute('hidden');
                 if (!button.dataset.originalLabel) {
                     button.dataset.originalLabel = button.textContent?.trim() ?? '';
                 }
 
                 if (isHidden) {
-                    form.removeAttribute('hidden');
+                    region.removeAttribute('hidden');
+                    button.setAttribute('aria-expanded', 'true');
                     button.textContent = 'Close edit';
                     const nameField = form.querySelector('input[name="Name"]');
                     nameField?.focus();
                 } else {
-                    form.setAttribute('hidden', '');
+                    region.setAttribute('hidden', '');
+                    button.setAttribute('aria-expanded', 'false');
                     form.reset();
                     const original = button.dataset.originalLabel ?? 'Edit';
                     button.textContent = original || 'Edit';
-                }
-            });
-        });
-
-        document.querySelectorAll('[data-sip-session-edit-cancel]').forEach(button => {
-            button.addEventListener('click', () => {
-                const targetId = button.dataset.target;
-                if (!targetId) {
-                    return;
-                }
-
-                const form = document.getElementById(targetId);
-                if (!form) {
-                    return;
-                }
-
-                form.setAttribute('hidden', '');
-                form.reset();
-
-                const container = form.closest('[data-sip-session-item]');
-                const toggle = container?.querySelector('[data-sip-session-edit-toggle]');
-                if (toggle) {
-                    const original = toggle.dataset.originalLabel ?? 'Edit';
-                    toggle.textContent = original || 'Edit';
                 }
             });
         });
