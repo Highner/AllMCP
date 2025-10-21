@@ -28,6 +28,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<TastingNote> TastingNotes { get; set; }
     public DbSet<Sisterhood> Sisterhoods { get; set; }
     public DbSet<SisterhoodMembership> SisterhoodMemberships { get; set; }
+    public DbSet<SisterhoodInvitation> SisterhoodInvitations { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -241,6 +242,37 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .WithMany(user => user.SisterhoodMemberships)
                 .HasForeignKey(membership => membership.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SisterhoodInvitation>(entity =>
+        {
+            entity.Property(invite => invite.InviteeEmail)
+                .HasMaxLength(256)
+                .IsRequired();
+
+            entity.Property(invite => invite.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+
+            entity.Property(invite => invite.CreatedAt)
+                .HasColumnType("datetime2");
+
+            entity.Property(invite => invite.UpdatedAt)
+                .HasColumnType("datetime2");
+
+            entity.HasIndex(invite => new { invite.SisterhoodId, invite.InviteeEmail })
+                .IsUnique();
+
+            entity.HasOne(invite => invite.Sisterhood)
+                .WithMany(sisterhood => sisterhood.Invitations)
+                .HasForeignKey(invite => invite.SisterhoodId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(invite => invite.InviteeUser)
+                .WithMany(user => user.SisterhoodInvitations)
+                .HasForeignKey(invite => invite.InviteeUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

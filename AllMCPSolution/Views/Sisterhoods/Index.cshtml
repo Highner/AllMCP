@@ -214,6 +214,13 @@
             color: rgba(244, 241, 234, 0.6);
         }
 
+        .pending-invite-count {
+            margin-left: 6px;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            color: rgba(244, 241, 234, 0.55);
+        }
+
         .empty-state {
             width: min(880px, 100%);
             border-radius: 18px;
@@ -448,6 +455,81 @@
             gap: 8px;
         }
 
+        .pending-invitations {
+            margin-top: 18px;
+            padding: 16px;
+            border-radius: 14px;
+            background: rgba(244, 241, 234, 0.04);
+            border: 1px solid rgba(244, 241, 234, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .pending-invitations-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .pending-invitations-title {
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .pending-invitations-count {
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.5);
+        }
+
+        .pending-invitations-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .pending-invitations-item {
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(244, 241, 234, 0.03);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .pending-invite-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .pending-invite-email {
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .pending-invite-status {
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .pending-invite-updated {
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            color: rgba(244, 241, 234, 0.55);
+        }
+
         .sisterhood-favorite-region {
             margin: 14px 0;
             padding: 12px 14px;
@@ -621,6 +703,10 @@
                                 <h2 class="sisterhood-name">@sisterhood.Name</h2>
                                 <p class="sisterhood-members">
                                     @sisterhood.MemberCount @((sisterhood.MemberCount == 1) ? "member" : "members")
+                                    @if (sisterhood.PendingInvitations.Count > 0)
+                                    {
+                                        <span class="pending-invite-count">· @sisterhood.PendingInvitations.Count pending invite@((sisterhood.PendingInvitations.Count == 1) ? string.Empty : "s")</span>
+                                    }
                                     @if (sisterhood.CanManage)
                                     {
                                         <span class="badge admin" title="You manage this sisterhood">Admin</span>
@@ -701,6 +787,31 @@
                                     </li>
                                 }
                             </ul>
+                        }
+
+                        @if (sisterhood.CanManage && sisterhood.PendingInvitations.Count > 0)
+                        {
+                            <div class="pending-invitations" role="group" aria-label="Pending invitations">
+                                <div class="pending-invitations-header">
+                                    <span class="pending-invitations-title">Pending invitations</span>
+                                    <span class="pending-invitations-count">@sisterhood.PendingInvitations.Count @((sisterhood.PendingInvitations.Count == 1) ? "invite" : "invites")</span>
+                                </div>
+                                <ul class="pending-invitations-list">
+                                    @foreach (var invitation in sisterhood.PendingInvitations)
+                                    {
+                                        var invitationLabel = string.IsNullOrWhiteSpace(invitation.InviteeName)
+                                            ? invitation.Email
+                                            : $"{invitation.InviteeName} · {invitation.Email}";
+                                        <li class="pending-invitations-item">
+                                            <div class="pending-invite-row">
+                                                <span class="pending-invite-email">@invitationLabel</span>
+                                                <span class="pending-invite-status">@invitation.Status</span>
+                                            </div>
+                                            <span class="pending-invite-updated">Updated @invitation.UpdatedAtUtc.ToLocalTime().ToString("g")</span>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
                         }
 
                         @if (sisterhood.CanManage)
