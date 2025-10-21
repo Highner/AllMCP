@@ -45,6 +45,17 @@ window.WineInventoryTables.initialize = function () {
             const addWineSubmit = addWinePopover?.querySelector('.inventory-add-submit');
             const addWineCancel = addWinePopover?.querySelector('.inventory-add-cancel');
 
+            const drinkOverlay = document.getElementById('drink-bottle-overlay');
+            const drinkPopover = document.getElementById('drink-bottle-popover');
+            const drinkForm = drinkPopover?.querySelector('.drink-bottle-form');
+            const drinkDateInput = drinkPopover?.querySelector('.drink-bottle-date');
+            const drinkScoreInput = drinkPopover?.querySelector('.drink-bottle-score');
+            const drinkNoteInput = drinkPopover?.querySelector('.drink-bottle-note');
+            const drinkError = drinkPopover?.querySelector('.drink-bottle-error');
+            const drinkCancelButton = drinkPopover?.querySelector('.drink-bottle-cancel');
+            const drinkSubmitButton = drinkPopover?.querySelector('.drink-bottle-submit');
+            const drinkTitle = drinkPopover?.querySelector('.drink-bottle-title');
+
             const detailAddLocation = detailAddRow.querySelector('.detail-add-location');
             const detailAddPrice = detailAddRow.querySelector('.detail-add-price');
             const detailAddQuantity = detailAddRow.querySelector('.detail-add-quantity-select');
@@ -58,6 +69,8 @@ window.WineInventoryTables.initialize = function () {
             let loading = false;
             let notesLoading = false;
             let modalLoading = false;
+            let drinkModalLoading = false;
+            let drinkTarget = null;
 
             const referenceData = {
                 subAppellations: [],
@@ -71,6 +84,7 @@ window.WineInventoryTables.initialize = function () {
             initializeSummaryRows();
             bindAddWinePopover();
             bindDetailAddRow();
+            bindDrinkBottleModal();
             bindNotesPanel();
 
             function initializeSummaryRows() {
@@ -437,10 +451,263 @@ window.WineInventoryTables.initialize = function () {
                 detailAddButton?.addEventListener('click', handleAddBottle);
             }
 
+            function bindDrinkBottleModal() {
+                if (!drinkOverlay || !drinkPopover || !drinkForm) {
+                    return;
+                }
+
+                closeDrinkBottleModal();
+
+                drinkForm.addEventListener('submit', handleDrinkBottleSubmit);
+                drinkCancelButton?.addEventListener('click', () => {
+                    closeDrinkBottleModal();
+                });
+
+                drinkOverlay.addEventListener('click', (event) => {
+                    if (event.target === drinkOverlay) {
+                        closeDrinkBottleModal();
+                    }
+                });
+
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape' && drinkOverlay && !drinkOverlay.hidden) {
+                        closeDrinkBottleModal();
+                    }
+                });
+            }
+
             function bindNotesPanel() {
                 initializeNotesPanel();
                 notesCloseButton.addEventListener('click', closeNotesPanel);
                 notesAddButton.addEventListener('click', handleAddNote);
+            }
+
+            function openDrinkBottleModal(detail, summary) {
+                if (!drinkOverlay || !drinkPopover) {
+                    return;
+                }
+
+                const bottleId = detail?.bottleId ?? detail?.BottleId ?? '';
+                if (!bottleId) {
+                    showMessage('Unable to determine the selected bottle.', 'error');
+                    return;
+                }
+
+                const wineName = summary?.wineName ?? summary?.WineName ?? selectedSummary?.wineName ?? '';
+                const vintage = summary?.vintage ?? summary?.Vintage ?? selectedSummary?.vintage ?? '';
+                const rawDrunkAt = detail?.drunkAt ?? detail?.DrunkAt ?? null;
+                const normalizedDrunkAt = normalizeIsoDate(rawDrunkAt);
+
+                drinkTarget = {
+                    bottleId: String(bottleId),
+                    userId: detail?.userId ? String(detail.userId) : detail?.UserId ? String(detail.UserId) : null,
+                    drunkAt: normalizedDrunkAt || null,
+                    isDrunk: Boolean(detail?.isDrunk ?? detail?.IsDrunk)
+                };
+
+                if (drinkTitle) {
+                    if (wineName) {
+                        drinkTitle.textContent = vintage ? `Drink ${wineName} • ${vintage}` : `Drink ${wineName}`;
+                    } else {
+                        drinkTitle.textContent = 'Drink Bottle';
+                    }
+                }
+
+                const defaultDate = normalizedDrunkAt
+                    ? formatDateInputValue(normalizedDrunkAt)
+                    : formatDateInputValue(new Date());
+
+                if (drinkDateInput) {
+                    drinkDateInput.value = defaultDate;
+                }
+                if (drinkScoreInput) {
+                    drinkScoreInput.value = '';
+                }
+                if (drinkNoteInput) {
+                    drinkNoteInput.value = '';
+                }
+
+                showDrinkError('');
+                setDrinkModalLoading(false);
+
+                drinkOverlay.hidden = false;
+                drinkOverlay.classList.add('is-open');
+                document.body.style.overflow = 'hidden';
+
+                (drinkDateInput ?? drinkNoteInput)?.focus();
+            }
+
+            function closeDrinkBottleModal() {
+                if (!drinkOverlay) {
+                    return;
+                }
+
+                drinkTarget = null;
+                setDrinkModalLoading(false);
+                drinkOverlay.classList.remove('is-open');
+                drinkOverlay.hidden = true;
+                document.body.style.overflow = '';
+
+                showDrinkError('');
+
+                if (drinkDateInput) {
+                    drinkDateInput.value = '';
+                }
+                if (drinkScoreInput) {
+                    drinkScoreInput.value = '';
+                }
+                if (drinkNoteInput) {
+                    drinkNoteInput.value = '';
+                }
+                if (drinkCancelButton) {
+                    drinkCancelButton.disabled = false;
+                }
+            }
+
+            async function handleDrinkBottleSubmit(event) {
+                event.preventDefault();
+
+                if (loading || drinkModalLoading) {
+                    return;
+                }
+
+                if (!drinkTarget) {
+                    showDrinkError('Select a bottle to drink.');
+                    return;
+                }
+
+                if (!selectedSummary) {
+                    showDrinkError('Select a wine group to drink from.');
+                    return;
+                }
+
+                const bottleId = drinkTarget.bottleId;
+                if (!bottleId) {
+                    showDrinkError('Unable to determine the selected bottle.');
+                    return;
+                }
+
+                const dateValue = drinkDateInput?.value ?? '';
+                if (!dateValue) {
+                    showDrinkError('Choose when you drank this bottle.');
+                    drinkDateInput?.focus();
+                    return;
+                }
+
+                const noteValue = drinkNoteInput?.value?.trim() ?? '';
+                if (!noteValue) {
+                    showDrinkError('Enter a tasting note.');
+                    drinkNoteInput?.focus();
+                    return;
+                }
+
+                const parsedScore = parseScore(drinkScoreInput?.value ?? '');
+                if (parsedScore === undefined) {
+                    showDrinkError('Score must be between 0 and 10.');
+                    drinkScoreInput?.focus();
+                    return;
+                }
+
+                const drunkAt = parseDateOnly(dateValue);
+                if (!drunkAt) {
+                    showDrinkError('Choose a valid drinking date.');
+                    drinkDateInput?.focus();
+                    return;
+                }
+
+                const row = detailsBody.querySelector(`.detail-row[data-bottle-id="${bottleId}"]`);
+                const priceValue = row?.querySelector('.detail-price')?.value ?? '';
+                const locationValue = row?.querySelector('.detail-location')?.value ?? '';
+                const rowUserId = row?.dataset?.userId ? row.dataset.userId : '';
+                const payloadUserId = rowUserId
+                    || (drinkTarget.userId ? String(drinkTarget.userId) : null);
+
+                const payload = {
+                    wineVintageId: selectedSummary.wineVintageId,
+                    price: parsePrice(priceValue),
+                    isDrunk: true,
+                    drunkAt,
+                    bottleLocationId: locationValue || null,
+                    userId: payloadUserId
+                };
+
+                try {
+                    setDrinkModalLoading(true);
+                    setLoading(true);
+
+                    const response = await sendJson(`/wine-manager/bottles/${bottleId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(payload)
+                    });
+
+                    await renderDetails(response, true);
+                    showMessage('Bottle marked as drunk.', 'success');
+
+                    const notePayload = {
+                        bottleId,
+                        note: noteValue,
+                        score: parsedScore
+                    };
+
+                    try {
+                        const notesResponse = await sendJson('/wine-manager/notes', {
+                            method: 'POST',
+                            body: JSON.stringify(notePayload)
+                        });
+
+                        const currentBottleId = notesSelectedBottleId ?? '';
+                        if (currentBottleId && currentBottleId === bottleId) {
+                            renderNotes(notesResponse);
+                            showNotesMessage('Note added.', 'success');
+                        } else {
+                            const summary = normalizeBottleNoteSummary(notesResponse?.bottle ?? notesResponse?.Bottle);
+                            if (summary) {
+                                updateScoresFromNotesSummary(summary);
+                            }
+                        }
+
+                        showMessage('Bottle marked as drunk and tasting note saved.', 'success');
+                    } catch (noteError) {
+                        showDrinkError(noteError?.message ?? String(noteError));
+                        return;
+                    }
+
+                    closeDrinkBottleModal();
+                } catch (error) {
+                    showDrinkError(error?.message ?? String(error));
+                } finally {
+                    setDrinkModalLoading(false);
+                    setLoading(false);
+                }
+            }
+
+            function showDrinkError(message) {
+                if (!drinkError) {
+                    return;
+                }
+
+                const text = message ?? '';
+                drinkError.textContent = text;
+                drinkError.setAttribute('aria-hidden', text ? 'false' : 'true');
+            }
+
+            function setDrinkModalLoading(state) {
+                drinkModalLoading = state;
+                if (drinkSubmitButton) {
+                    drinkSubmitButton.disabled = state;
+                }
+                if (drinkDateInput) {
+                    drinkDateInput.disabled = state;
+                }
+                if (drinkScoreInput) {
+                    drinkScoreInput.disabled = state;
+                }
+                if (drinkNoteInput) {
+                    drinkNoteInput.disabled = state;
+                }
+                if (drinkCancelButton) {
+                    drinkCancelButton.disabled = state;
+                }
             }
 
             function initializeNotesPanel() {
@@ -962,14 +1229,25 @@ window.WineInventoryTables.initialize = function () {
                 row.className = 'detail-row';
                 row.dataset.bottleId = detail.bottleId ?? detail.BottleId ?? '';
 
-                const formattedDate = formatDateTime(detail.drunkAt ?? detail.DrunkAt);
+                const rawDrunkAt = detail.drunkAt ?? detail.DrunkAt ?? null;
+                const normalizedDrunkAt = normalizeIsoDate(rawDrunkAt);
+                const isDrunk = Boolean(detail.isDrunk ?? detail.IsDrunk);
+                const drunkDisplay = isDrunk ? 'Yes' : 'No';
+                const drunkDateDisplay = normalizedDrunkAt ? formatDateDisplay(normalizedDrunkAt) : '—';
+                const drinkButtonLabel = isDrunk ? 'Update Drink Details' : 'Drink Bottle';
+
+                row.dataset.drunkAt = normalizedDrunkAt;
+                row.dataset.isDrunk = isDrunk ? 'true' : 'false';
+                row.dataset.userId = detail.userId ? String(detail.userId) : detail.UserId ? String(detail.UserId) : '';
 
                 row.innerHTML = `
                     <td></td>
                     <td><input type="number" step="0.01" min="0" class="detail-price" value="${detail.price ?? detail.Price ?? ''}" placeholder="0.00" /></td>
                     <td class="detail-average">${formatScore(detail.averageScore ?? detail.AverageScore)}</td>
-                    <td><input type="datetime-local" class="detail-drunk-at" value="${formattedDate}" /></td>
+                    <td class="detail-drunk-display">${escapeHtml(drunkDisplay)}</td>
+                    <td class="detail-drunk-date">${escapeHtml(drunkDateDisplay)}</td>
                     <td class="actions">
+                        <button type="button" class="crud-table__action-button drink-bottle-trigger">${escapeHtml(drinkButtonLabel)}</button>
                         <button type="button" class="crud-table__action-button save">Save</button>
                         <button type="button" class="crud-table__action-button secondary delete">Remove</button>
                     </td>`;
@@ -980,25 +1258,38 @@ window.WineInventoryTables.initialize = function () {
                 populateLocationSelect(locationSelect, detail.bottleLocationId ?? detail.BottleLocationId ?? '');
                 locationCell.appendChild(locationSelect);
 
-                const drunkInput = row.querySelector('.detail-drunk-at');
+                const drinkButton = row.querySelector('.drink-bottle-trigger');
                 const saveButton = row.querySelector('.save');
                 const deleteButton = row.querySelector('.delete');
+
+                drinkButton?.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    try {
+                        openDrinkBottleModal(detail, summary);
+                    } catch (error) {
+                        showMessage(error?.message ?? String(error), 'error');
+                    }
+                });
 
                 saveButton?.addEventListener('click', async () => {
                     if (!selectedSummary || loading) {
                         return;
                     }
 
-                    const enjoyedValue = drunkInput?.value ?? '';
-                    const hasEnjoyedDate = enjoyedValue.trim().length > 0;
+                    const rowUserId = row.dataset.userId ? row.dataset.userId : '';
+                    const normalizedUserId = rowUserId
+                        || (detail.userId ? String(detail.userId) : detail.UserId ? String(detail.UserId) : '');
+                    const payloadUserId = normalizedUserId ? normalizedUserId : null;
 
                     const payload = {
                         wineVintageId: selectedSummary.wineVintageId,
                         price: parsePrice(row.querySelector('.detail-price')?.value ?? ''),
-                        isDrunk: hasEnjoyedDate,
-                        drunkAt: parseDateTime(enjoyedValue),
+                        isDrunk: row.dataset.isDrunk === 'true',
+                        drunkAt: row.dataset.drunkAt || null,
                         bottleLocationId: locationSelect.value || null,
-                        userId: detail.userId ?? detail.UserId ?? null
+                        userId: payloadUserId
                     };
 
                     try {
@@ -1652,6 +1943,15 @@ window.WineInventoryTables.initialize = function () {
                 return Number.isFinite(parsed) ? parsed : null;
             }
 
+            function parseDateOnly(value) {
+                if (!value) {
+                    return null;
+                }
+
+                const date = new Date(`${value}T00:00:00`);
+                return Number.isNaN(date.getTime()) ? null : date.toISOString();
+            }
+
             function parseDateTime(value) {
                 if (!value) {
                     return null;
@@ -1670,6 +1970,23 @@ window.WineInventoryTables.initialize = function () {
                 return Number.isFinite(parsed) ? parsed.toFixed(1) : '—';
             }
 
+            function formatDateDisplay(value) {
+                if (!value) {
+                    return '—';
+                }
+
+                const date = new Date(value);
+                if (Number.isNaN(date.getTime())) {
+                    return '—';
+                }
+
+                return date.toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }
+
             function formatDateTime(value) {
                 if (!value) {
                     return '';
@@ -1686,6 +2003,31 @@ window.WineInventoryTables.initialize = function () {
                 const hours = String(date.getHours()).padStart(2, '0');
                 const minutes = String(date.getMinutes()).padStart(2, '0');
                 return `${year}-${month}-${day}T${hours}:${minutes}`;
+            }
+
+            function formatDateInputValue(value) {
+                if (!value) {
+                    return '';
+                }
+
+                const date = value instanceof Date ? value : new Date(value);
+                if (Number.isNaN(date.getTime())) {
+                    return '';
+                }
+
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            function normalizeIsoDate(value) {
+                if (!value) {
+                    return '';
+                }
+
+                const date = value instanceof Date ? value : new Date(value);
+                return Number.isNaN(date.getTime()) ? '' : date.toISOString();
             }
 
             function shortId(id) {
