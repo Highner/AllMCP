@@ -1,5 +1,11 @@
 window.WineInventoryTables = window.WineInventoryTables || {};
 window.WineInventoryTables.initialize = function () {
+            if (window.WineInventoryTables.__initialized) {
+                return;
+            }
+
+            window.WineInventoryTables.__initialized = true;
+
             const inventoryTable = document.getElementById('inventory-table');
             const detailsTable = document.getElementById('details-table');
             const detailsBody = detailsTable?.querySelector('tbody');
@@ -133,6 +139,8 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
+                closeAddWinePopover();
+
                 addWineButton.addEventListener('click', () => {
                     openAddWinePopover().catch(error => showMessage(error?.message ?? String(error), 'error'));
                 });
@@ -196,6 +204,7 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
+                setModalLoading(false);
                 addWineOverlay.classList.remove('is-open');
                 addWineOverlay.hidden = true;
                 document.body.style.overflow = '';
