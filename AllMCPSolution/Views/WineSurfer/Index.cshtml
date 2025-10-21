@@ -699,10 +699,13 @@
             gap: 16px;
             transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
             width: 100%;
+            color: #f4f1ea;
+            text-decoration: none;
         }
 
         .sip-session-card:hover,
-        .sip-session-card:focus-within {
+        .sip-session-card:focus-within,
+        .sip-session-card:focus-visible {
             transform: translateY(-4px);
             border-color: rgba(244, 241, 234, 0.35);
             box-shadow: 0 0 24px rgba(244, 241, 234, 0.12);
@@ -946,7 +949,11 @@
                         var sisterhoodNote = string.IsNullOrWhiteSpace(session.SisterhoodDescription)
                             ? null
                             : session.SisterhoodDescription;
-                        <article class="sip-session-card" aria-label="Upcoming sip session: @session.Session.Name">
+                        @{
+                            var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Session.Id })
+                                ?? $"/wine-surfer/sessions/{session.Session.Id:D}";
+                        }
+                        <a class="sip-session-card" href="@sessionUrl" aria-label="Upcoming sip session: @session.Session.Name">
                             <div class="sip-session-header">
                                 <h3 class="sip-session-name">@session.Session.Name</h3>
                                 @if (!string.IsNullOrWhiteSpace(hostLabel))
@@ -979,7 +986,7 @@
                                     </ul>
                                 </div>
                             }
-                        </article>
+                        </a>
                     }
                 }
                 else
