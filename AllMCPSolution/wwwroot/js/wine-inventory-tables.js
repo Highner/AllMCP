@@ -1426,7 +1426,9 @@ window.WineInventoryTables.initialize = function () {
                 row.className = 'note-row';
                 row.dataset.noteId = note.id ?? note.Id ?? '';
 
-                const scoreValue = note.score ?? note.Score ?? '';
+                const rawScore = note.score ?? note.Score ?? null;
+                const scoreValue = rawScore == null ? '' : String(rawScore);
+                const scoreDisplayValue = formatScore(rawScore);
                 const noteText = note.note ?? note.Note ?? '';
                 const userId = note.userId ?? note.UserId ?? '';
                 const userName = note.userName ?? note.UserName ?? '';
@@ -1442,81 +1444,108 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 row.dataset.userId = normalizedUserId;
+                const canEdit = Boolean(normalizedUserId) && Boolean(currentUserId)
+                    ? normalizedUserId === currentUserId
+                    : false;
+
+                if (!canEdit) {
+                    row.classList.add('note-row--readonly');
+                }
+
+                const noteDisplayValue = noteText
+                    ? escapeHtml(noteText).replace(/\r?\n/g, '<br />')
+                    : '—';
+
+                const scoreCellContent = canEdit
+                    ? `<input type="number" class="note-score" min="0" max="10" step="0.1" value="${escapeHtml(scoreValue)}" placeholder="0-10" />`
+                    : `<span class="note-score-display">${escapeHtml(scoreDisplayValue)}</span>`;
+
+                const noteCellContent = canEdit
+                    ? `<textarea class="note-text" rows="3">${escapeHtml(noteText)}</textarea>`
+                    : `<div class="note-text-display">${noteDisplayValue}</div>`;
+
+                const actionsCellContent = canEdit
+                    ? `<button type="button" class="crud-table__action-button save-note">Save</button>
+                        <button type="button" class="crud-table__action-button secondary delete-note">Delete</button>`
+                    : `<span class="note-actions-readonly" aria-hidden="true">—</span>`;
+
+                row.dataset.editable = canEdit ? 'true' : 'false';
 
                 row.innerHTML = `
                     <td class="note-user"><span class="note-user-name">${escapeHtml(userLabel)}</span></td>
-                    <td><input type="number" class="note-score" min="0" max="10" step="0.1" value="${scoreValue}" placeholder="0-10" /></td>
-                    <td><textarea class="note-text" rows="3">${escapeHtml(noteText)}</textarea></td>
+                    <td>${scoreCellContent}</td>
+                    <td>${noteCellContent}</td>
                     <td class="actions">
-                        <button type="button" class="crud-table__action-button save-note">Save</button>
-                        <button type="button" class="crud-table__action-button secondary delete-note">Delete</button>
+                        ${actionsCellContent}
                     </td>`;
 
-                const scoreInput = row.querySelector('.note-score');
-                const noteTextarea = row.querySelector('.note-text');
-                const saveButton = row.querySelector('.save-note');
-                const deleteButton = row.querySelector('.delete-note');
+                if (canEdit) {
+                    const scoreInput = row.querySelector('.note-score');
+                    const noteTextarea = row.querySelector('.note-text');
+                    const saveButton = row.querySelector('.save-note');
+                    const deleteButton = row.querySelector('.delete-note');
 
-                saveButton?.addEventListener('click', async () => {
-                    if (!notesSelectedBottleId || notesLoading) {
-                        return;
-                    }
+                    saveButton?.addEventListener('click', async () => {
+                        if (!notesSelectedBottleId || notesLoading) {
+                            return;
+                        }
 
-                    const noteValue = noteTextarea?.value?.trim() ?? '';
-                    if (!noteValue) {
-                        showNotesMessage('Note text is required.', 'error');
-                        return;
-                    }
+                        const noteValue = noteTextarea?.value?.trim() ?? '';
+                        if (!noteValue) {
+                            showNotesMessage('Note text is required.', 'error');
+                            return;
+                        }
 
-                    const parsedScore = parseScore(scoreInput?.value ?? '');
-                    if (parsedScore === undefined) {
-                        showNotesMessage('Score must be between 0 and 10.', 'error');
-                        return;
-                    }
+                        const parsedScore = parseScore(scoreInput?.value ?? '');
+                        if (parsedScore === undefined) {
+                            showNotesMessage('Score must be between 0 and 10.', 'error');
+                            return;
+                        }
 
-                    const payload = {
-                        note: noteValue,
-                        score: parsedScore
-                    };
+                        const payload = {
+                            note: noteValue,
+                            score: parsedScore
+                        };
 
-                    try {
-                        setNoteRowLoading(row, true);
-                        const response = await sendJson(`/wine-manager/notes/${note.id ?? note.Id}`, {
-                            method: 'PUT',
-                            body: JSON.stringify(payload)
-                        });
-                        renderNotes(response);
-                        showNotesMessage('Note updated.', 'success');
-                    } catch (error) {
-                        showNotesMessage(error.message, 'error');
-                    } finally {
-                        setNoteRowLoading(row, false);
-                    }
-                });
+                        try {
+                            setNoteRowLoading(row, true);
+                            const response = await sendJson(`/wine-manager/notes/${note.id ?? note.Id}`, {
+                                method: 'PUT',
+                                body: JSON.stringify(payload)
+                            });
+                            renderNotes(response);
+                            showNotesMessage('Note updated.', 'success');
+                        } catch (error) {
+                            showNotesMessage(error.message, 'error');
+                        } finally {
+                            setNoteRowLoading(row, false);
+                        }
+                    });
 
-                deleteButton?.addEventListener('click', async () => {
-                    if (!notesSelectedBottleId || notesLoading) {
-                        return;
-                    }
+                    deleteButton?.addEventListener('click', async () => {
+                        if (!notesSelectedBottleId || notesLoading) {
+                            return;
+                        }
 
-                    const confirmed = window.confirm('Delete this consumption note?');
-                    if (!confirmed) {
-                        return;
-                    }
+                        const confirmed = window.confirm('Delete this consumption note?');
+                        if (!confirmed) {
+                            return;
+                        }
 
-                    try {
-                        setNoteRowLoading(row, true);
-                        const response = await sendJson(`/wine-manager/notes/${note.id ?? note.Id}`, {
-                            method: 'DELETE'
-                        });
-                        renderNotes(response);
-                        showNotesMessage('Note deleted.', 'success');
-                    } catch (error) {
-                        showNotesMessage(error.message, 'error');
-                    } finally {
-                        setNoteRowLoading(row, false);
-                    }
-                });
+                        try {
+                            setNoteRowLoading(row, true);
+                            const response = await sendJson(`/wine-manager/notes/${note.id ?? note.Id}`, {
+                                method: 'DELETE'
+                            });
+                            renderNotes(response);
+                            showNotesMessage('Note deleted.', 'success');
+                        } catch (error) {
+                            showNotesMessage(error.message, 'error');
+                        } finally {
+                            setNoteRowLoading(row, false);
+                        }
+                    });
+                }
 
                 return row;
             }

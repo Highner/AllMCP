@@ -1236,6 +1236,37 @@ tbody tr:hover {
     background: hsla(var(--destructive) / 0.18);
 }
 
+.notes-table .note-score-display {
+    display: inline-block;
+    min-width: 2ch;
+    font-variant-numeric: tabular-nums;
+}
+
+.notes-table .note-text-display {
+    display: block;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 4px 0;
+    color: hsl(var(--foreground));
+}
+
+.notes-table .note-row--readonly .note-text-display,
+.notes-table .note-row--readonly .note-score-display,
+.notes-table .note-row--readonly .note-user-name {
+    color: hsla(var(--muted-foreground) / 0.85);
+}
+
+.notes-table .note-row--readonly .actions {
+    align-items: center;
+    color: hsla(var(--muted-foreground) / 0.85);
+}
+
+.notes-table .note-actions-readonly {
+    display: inline-block;
+    min-width: 1.5rem;
+    text-align: center;
+}
+
 
 .details-table .add-row input,
 .details-table .add-row select,
