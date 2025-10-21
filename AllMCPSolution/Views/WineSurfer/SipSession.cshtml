@@ -44,6 +44,7 @@
     <style>
         :root {
             color-scheme: dark;
+            --wine-surfer-card-max-width: 960px;
         }
 
         body {
@@ -54,6 +55,11 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
+        .wine-surfer-card {
+            width: min(100%, var(--wine-surfer-card-max-width));
+            max-width: var(--wine-surfer-card-max-width);
+        }
+
         .page-content {
             min-height: 100vh;
             display: flex;
@@ -61,13 +67,13 @@
         }
 
         .session-main {
-            width: min(960px, 100%);
+            width: min(var(--wine-surfer-card-max-width), 100%);
             margin: 0 auto;
             padding: 120px 32px 96px;
             display: flex;
             flex-direction: column;
             gap: 48px;
-            --session-content-max-width: min(720px, 100%);
+            --session-content-max-width: min(var(--wine-surfer-card-max-width), 100%);
         }
 
         .session-header,
