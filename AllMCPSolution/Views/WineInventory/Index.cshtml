@@ -42,7 +42,10 @@
     }
 
     var hasBottles = Model.Bottles.Any();
-    var topBarModel = new WineSurferTopBarModel(currentPath, Array.Empty<WineSurferIncomingSisterhoodInvitation>());
+    var topBarModel = new WineSurferTopBarModel(
+        currentPath,
+        Array.Empty<WineSurferIncomingSisterhoodInvitation>(),
+        Array.Empty<WineSurferSentInvitationNotification>());
 }
 <!DOCTYPE html>
 <html lang="en">

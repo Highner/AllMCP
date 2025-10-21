@@ -1,3 +1,4 @@
+@using System.Collections.Generic
 @using System.Linq
 @using Microsoft.AspNetCore.Mvc.Rendering
 @using AllMCPSolution.Controllers
@@ -44,7 +45,14 @@
         .ThenBy(invitation => invitation.CreatedAtUtc)
         .ToList();
 
+    var sentInvitationNotifications = Model?.SentInvitationNotifications ?? Array.Empty<WineSurferSentInvitationNotification>();
+    var acceptedInvitations = sentInvitationNotifications
+        .Where(notification => notification is not null)
+        .ToList();
+
     var openInvitationCount = openInvitations.Count;
+    var acceptedInvitationCount = acceptedInvitations.Count;
+    var totalNotificationCount = openInvitationCount + acceptedInvitationCount;
     var sisterhoodUrl = Url.Action("Sisterhoods", "WineSurfer") ?? "/wine-surfer/sisterhoods";
     var notificationHeadingId = "notificationPanelHeading";
 
@@ -63,14 +71,24 @@
         ? "Guest account"
         : $"{userDisplayName}'s account";
 
-    var invitationStatusLabel = openInvitationCount switch
+    var statusParts = new List<string>
     {
-        0 => "No open invitations",
-        1 => "1 open invitation",
-        _ => $"{openInvitationCount} open invitations"
+        openInvitationCount switch
+        {
+            0 => "No open invitations",
+            1 => "1 open invitation",
+            _ => $"{openInvitationCount} open invitations"
+        }
     };
 
-    var avatarButtonLabel = $"{avatarAccountLabel}. {invitationStatusLabel}.";
+    if (acceptedInvitationCount > 0)
+    {
+        statusParts.Add(acceptedInvitationCount == 1
+            ? "1 sent invitation was accepted"
+            : $"{acceptedInvitationCount} sent invitations were accepted");
+    }
+
+    var avatarButtonLabel = $"{avatarAccountLabel}. {string.Join(". ", statusParts)}.";
 
     var returnUrl = string.IsNullOrWhiteSpace(rawPath) ? "/wine-surfer" : rawPath!;
     if (!string.IsNullOrEmpty(returnUrl) && !returnUrl.StartsWith('/'))
@@ -97,40 +115,78 @@
                 aria-label="@avatarButtonLabel">
                 <span aria-hidden="true">@avatarLetter</span>
             </button>
-            @if (openInvitationCount > 0)
+            @if (totalNotificationCount > 0)
             {
-                <span class="notification-badge" aria-hidden="true">@openInvitationCount</span>
+                <span class="notification-badge" aria-hidden="true">@totalNotificationCount</span>
             }
             <div id="notificationPanel" class="notification-panel" role="region" aria-hidden="true" aria-labelledby="@notificationHeadingId">
-                <p id="@notificationHeadingId" class="notification-heading">Sisterhood invitations</p>
-                @if (openInvitationCount > 0)
+                <p id="@notificationHeadingId" class="notification-heading">Sisterhood notifications</p>
+                @{
+                    var hasOpenInvitations = openInvitationCount > 0;
+                    var hasAcceptedInvitations = acceptedInvitationCount > 0;
+                    var hasAnyNotifications = hasOpenInvitations || hasAcceptedInvitations;
+                }
+                @if (hasAnyNotifications)
                 {
-                    <ul class="notification-list">
-                        @foreach (var invitation in openInvitations)
-                        {
-                            var tagLabel = invitation.MatchesUserId
-                                ? "Linked to your account"
-                                : invitation.MatchesEmail
-                                    ? "Matches your email"
-                                    : null;
+                    if (hasAcceptedInvitations)
+                    {
+                        <div class="notification-section" aria-label="Accepted invitations you sent">
+                            <p class="notification-subheading">Accepted invitations</p>
+                            <ul class="notification-list">
+                                @foreach (var notification in acceptedInvitations)
+                                {
+                                    var inviteeName = string.IsNullOrWhiteSpace(notification.InviteeName)
+                                        ? notification.InviteeEmail
+                                        : notification.InviteeName!;
+                                    var inviteeEmailSuffix = string.IsNullOrWhiteSpace(notification.InviteeName)
+                                        ? string.Empty
+                                        : $" ({notification.InviteeEmail})";
+                                    var acceptedLocal = notification.UpdatedAtUtc.ToLocalTime();
+                                    var acceptedLabel = acceptedLocal.ToString("g");
+                                    <li class="notification-item">
+                                        <a class="notification-link" href="@sisterhoodUrl">
+                                            <span class="notification-title">@inviteeName</span>
+                                            <span class="notification-meta">
+                                                Accepted your invitation to <strong>@notification.SisterhoodName</strong>@inviteeEmailSuffix · @acceptedLabel
+                                            </span>
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
 
-                            <li class="notification-item">
-                                <a class="notification-link" href="@sisterhoodUrl">
-                                    <span class="notification-title">@invitation.SisterhoodName</span>
-                                    <span class="notification-meta">Invited as <strong>@invitation.InviteeEmail</strong></span>
-                                    @if (!string.IsNullOrWhiteSpace(tagLabel))
-                                    {
-                                        <span class="notification-tag">@tagLabel</span>
-                                    }
-                                </a>
-                            </li>
-                        }
+                    if (hasOpenInvitations)
+                    {
+                        <div class="notification-section" aria-label="Pending invitations for you">
+                            <p class="notification-subheading">Pending invitations</p>
+                            <ul class="notification-list">
+                                @foreach (var invitation in openInvitations)
+                                {
+                                    var tagLabel = invitation.MatchesUserId
+                                        ? "Linked to your account"
+                                        : invitation.MatchesEmail
+                                            ? "Matches your email"
+                                            : null;
 
-                    </ul>
+                                    <li class="notification-item">
+                                        <a class="notification-link" href="@sisterhoodUrl">
+                                            <span class="notification-title">@invitation.SisterhoodName</span>
+                                            <span class="notification-meta">Invited as <strong>@invitation.InviteeEmail</strong></span>
+                                            @if (!string.IsNullOrWhiteSpace(tagLabel))
+                                            {
+                                                <span class="notification-tag">@tagLabel</span>
+                                            }
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
                 }
                 else
                 {
-                    <p class="notification-empty">You're all caught up. No open invitations.</p>
+                    <p class="notification-empty">You're all caught up. No sisterhood notifications.</p>
                 }
                 <div class="notification-footer">
                     <a href="@sisterhoodUrl">View Sisterhoods</a>
