@@ -100,7 +100,7 @@ builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.Authentic
         {
             await existingRemoteFailure(context);
 
-            if (context.Handled || context.SkipToNextMiddleware)
+            if (context.Result != null && (context.Result.Handled || context.Result.Skipped))
             {
                 return;
             }
