@@ -41,7 +41,7 @@ public class WineSurferTopBarService : IWineSurferTopBarService
             return WineSurferTopBarModel.Empty(currentPath);
         }
 
-        var displayName = user.Identity?.Name;
+        var identityName = user.Identity?.Name;
         var email = user.FindFirstValue(ClaimTypes.Email) ?? user.FindFirstValue("email");
         var normalizedEmail = NormalizeEmailCandidate(email);
         var currentUserId = GetCurrentUserId(user);
@@ -52,25 +52,17 @@ public class WineSurferTopBarService : IWineSurferTopBarService
             domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
         }
 
-        if (domainUser is null && !string.IsNullOrWhiteSpace(displayName))
+        if (domainUser is null && !string.IsNullOrWhiteSpace(identityName))
         {
-            domainUser = await _userRepository.FindByNameAsync(displayName, cancellationToken);
+            domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
         }
+
+        var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
 
         if (domainUser is not null)
         {
             currentUserId = domainUser.Id;
-            if (string.IsNullOrWhiteSpace(displayName))
-            {
-                displayName = domainUser.Name;
-            }
-
             normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
-        }
-
-        if (string.IsNullOrWhiteSpace(displayName))
-        {
-            displayName = email;
         }
 
         if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
@@ -152,13 +144,34 @@ public class WineSurferTopBarService : IWineSurferTopBarService
             incomingInvitations,
             sentInvitationNotifications,
             dismissedStamps,
-            sections);
+            sections,
+            displayName);
     }
 
     private static Guid? GetCurrentUserId(ClaimsPrincipal user)
     {
         var idClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
         return Guid.TryParse(idClaim, out var parsedId) ? parsedId : null;
+    }
+
+    private static string? ResolveDisplayName(string? domainName, string? identityName, string? email)
+    {
+        if (!string.IsNullOrWhiteSpace(domainName))
+        {
+            return domainName.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(identityName))
+        {
+            return identityName.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            return email.Trim();
+        }
+
+        return null;
     }
 
     private static string? NormalizeEmailCandidate(string? email)

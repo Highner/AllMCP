@@ -266,7 +266,8 @@
     var topBarModel = WineSurferTopBarModel.CreateFromSisterhoodData(
         currentLocation,
         Model.IncomingInvitations,
-        Model.SentInvitationNotifications);
+        Model.SentInvitationNotifications,
+        displayName: Model.CurrentUser?.DisplayName);
     var sisterhoodName = string.IsNullOrWhiteSpace(Model.SisterhoodName) ? "Sisterhood" : Model.SisterhoodName;
     var scheduleLabel = FormatSipSessionSchedule(Model.Session);
     var locationLabel = string.IsNullOrWhiteSpace(Model.Session.Location) ? "Location TBD" : Model.Session.Location;
