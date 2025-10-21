@@ -709,11 +709,10 @@ public class WineInventoryController : Controller
             return NotFound();
         }
 
-        var user = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
-        if (user is null)
+        var currentUser = await _userRepository.GetByIdAsync(currentUserId, cancellationToken);
+        if (currentUser is null)
         {
-            ModelState.AddModelError(nameof(request.UserId), "User was not found.");
-            return ValidationProblem(ModelState);
+            return Unauthorized("You must be signed in to add tasting notes.");
         }
 
         var entity = new TastingNote
@@ -722,7 +721,7 @@ public class WineInventoryController : Controller
             BottleId = bottle.Id,
             Note = trimmedNote!,
             Score = request.Score,
-            UserId = user.Id
+            UserId = currentUser.Id
         };
 
         await _tastingNoteRepository.AddAsync(entity, cancellationToken);
@@ -767,16 +766,8 @@ public class WineInventoryController : Controller
             return NotFound();
         }
 
-        var user = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
-        if (user is null)
-        {
-            ModelState.AddModelError(nameof(request.UserId), "User was not found.");
-            return ValidationProblem(ModelState);
-        }
-
         existing.Note = trimmedNote!;
         existing.Score = request.Score;
-        existing.UserId = user.Id;
 
         await _tastingNoteRepository.UpdateAsync(existing, cancellationToken);
 
@@ -1210,9 +1201,6 @@ public class TastingNoteUpdateRequest
 
     [Range(0, 10)]
     public decimal? Score { get; set; }
-
-    [Required]
-    public Guid UserId { get; set; }
 }
 
 public class TastingNoteCreateRequest : TastingNoteUpdateRequest

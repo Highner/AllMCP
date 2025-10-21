@@ -20,7 +20,7 @@ window.WineInventoryTables.initialize = function () {
             const notesBody = notesTable?.querySelector('tbody');
             const notesAddRow = notesTable?.querySelector('#note-add-row');
             const notesEmptyRow = notesBody?.querySelector('.empty-row');
-            const notesAddUser = notesAddRow?.querySelector('.note-add-user');
+            const notesAddUserDisplay = notesAddRow?.querySelector('.note-add-user-name');
             const notesAddScore = notesAddRow?.querySelector('.note-add-score');
             const notesAddText = notesAddRow?.querySelector('.note-add-text');
             const notesAddButton = notesAddRow?.querySelector('.note-add-submit');
@@ -29,7 +29,7 @@ window.WineInventoryTables.initialize = function () {
             const notesSubtitle = document.getElementById('notes-subtitle');
             const notesCloseButton = document.getElementById('notes-close');
 
-            if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner || !detailsPanel || !notesPanel || !notesTable || !notesBody || !notesAddRow || !notesEmptyRow || !notesAddUser || !notesAddScore || !notesAddText || !notesAddButton || !notesMessage || !notesTitle || !notesSubtitle || !notesCloseButton) {
+            if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner || !detailsPanel || !notesPanel || !notesTable || !notesBody || !notesAddRow || !notesEmptyRow || !notesAddUserDisplay || !notesAddScore || !notesAddText || !notesAddButton || !notesMessage || !notesTitle || !notesSubtitle || !notesCloseButton) {
                 return;
             }
 
@@ -465,12 +465,9 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function initializeNotesPanel() {
-                if (notesAddUser) {
-                    notesAddUser.innerHTML = '';
-                    const placeholder = document.createElement('option');
-                    placeholder.value = '';
-                    placeholder.textContent = 'Select user';
-                    notesAddUser.appendChild(placeholder);
+                if (notesAddUserDisplay) {
+                    notesAddUserDisplay.textContent = '—';
+                    notesAddUserDisplay.dataset.userId = '';
                 }
 
                 clearNotesAddInputs();
@@ -503,10 +500,6 @@ window.WineInventoryTables.initialize = function () {
                     referenceData.users = users;
 
                     populateLocationSelect(detailAddLocation, detailAddLocation?.value ?? '');
-                    populateUserSelect(notesAddUser, notesAddUser?.value ?? '');
-                    if (notesAddUser.firstElementChild) {
-                        notesAddUser.firstElementChild.textContent = 'Select user';
-                    }
                 } catch (error) {
                     showMessage(error.message, 'error');
                 }
@@ -557,37 +550,6 @@ window.WineInventoryTables.initialize = function () {
                 select.appendChild(placeholder);
 
                 referenceData.bottleLocations.forEach(option => {
-                    const id = option?.id ?? option?.Id;
-                    const name = option?.name ?? option?.Name;
-                    if (!id) {
-                        return;
-                    }
-
-                    const opt = document.createElement('option');
-                    opt.value = id;
-                    opt.textContent = name ?? id;
-                    select.appendChild(opt);
-                });
-
-                if (previousValue) {
-                    select.value = previousValue;
-                }
-            }
-
-            function populateUserSelect(select, selectedId) {
-                if (!select) {
-                    return;
-                }
-
-                const previousValue = selectedId ?? select.value ?? '';
-                select.innerHTML = '';
-
-                const placeholder = document.createElement('option');
-                placeholder.value = '';
-                placeholder.textContent = 'No user';
-                select.appendChild(placeholder);
-
-                referenceData.users.forEach(option => {
                     const id = option?.id ?? option?.Id;
                     const name = option?.name ?? option?.Name;
                     if (!id) {
@@ -975,10 +937,6 @@ window.WineInventoryTables.initialize = function () {
                     detailAddDrunkAt.setAttribute('disabled', 'disabled');
                     populateLocationSelect(detailAddLocation, '');
                     detailAddButton.disabled = loading;
-                    populateUserSelect(notesAddUser, notesAddUser?.value ?? '');
-                    if (notesAddUser.firstElementChild) {
-                        notesAddUser.firstElementChild.textContent = 'Select user';
-                    }
                     disableNotesAddRow(notesLoading || !notesSelectedBottleId);
                 } else {
                     detailsTitle.textContent = 'Bottle Details';
@@ -1232,9 +1190,6 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function disableNotesAddRow(disabled) {
-                if (notesAddUser) {
-                    notesAddUser.disabled = disabled;
-                }
                 if (notesAddScore) {
                     notesAddScore.disabled = disabled;
                 }
@@ -1247,9 +1202,6 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function clearNotesAddInputs() {
-                if (notesAddUser) {
-                    notesAddUser.value = '';
-                }
                 if (notesAddScore) {
                     notesAddScore.value = '';
                 }
@@ -1282,6 +1234,10 @@ window.WineInventoryTables.initialize = function () {
                 if (!summary) {
                     notesTitle.textContent = 'Consumption Notes';
                     notesSubtitle.textContent = 'Select a bottle to view consumption notes.';
+                    if (notesAddUserDisplay) {
+                        notesAddUserDisplay.textContent = '—';
+                        notesAddUserDisplay.dataset.userId = '';
+                    }
                     return;
                 }
 
@@ -1295,9 +1251,12 @@ window.WineInventoryTables.initialize = function () {
                     parts.push(`${noteCount} note${noteCount === 1 ? '' : 's'}`);
                 }
 
-                const owner = summary.userName ?? '';
+                const owner = summary.userName ?? summary.UserName ?? '';
+                const summaryUserId = summary.userId ?? summary.UserId ?? '';
                 if (owner) {
                     parts.push(`Owner: ${owner}`);
+                } else if (summaryUserId) {
+                    parts.push('Owner: You');
                 }
 
                 const location = summary.bottleLocation ?? '';
@@ -1311,6 +1270,17 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 notesSubtitle.textContent = parts.length > 0 ? parts.join(' · ') : 'Consumption notes';
+
+                if (notesAddUserDisplay) {
+                    notesAddUserDisplay.dataset.userId = summaryUserId ? String(summaryUserId) : '';
+                    if (owner) {
+                        notesAddUserDisplay.textContent = owner;
+                    } else if (summaryUserId) {
+                        notesAddUserDisplay.textContent = 'You';
+                    } else {
+                        notesAddUserDisplay.textContent = '—';
+                    }
+                }
             }
 
             function setNotesLoading(state) {
@@ -1370,6 +1340,7 @@ window.WineInventoryTables.initialize = function () {
                     wineName: summary?.wineName ?? summary?.WineName ?? '',
                     vintage: summary?.vintage ?? summary?.Vintage,
                     bottleLocation: detail?.bottleLocation ?? detail?.BottleLocation ?? '',
+                    userId: detail?.userId ?? detail?.UserId ?? '',
                     userName: detail?.userName ?? detail?.UserName ?? '',
                     isDrunk: Boolean(detail?.isDrunk ?? detail?.IsDrunk),
                     drunkAt: detail?.drunkAt ?? detail?.DrunkAt ?? null
@@ -1377,11 +1348,6 @@ window.WineInventoryTables.initialize = function () {
 
                 setNotesHeader(headerSummary);
                 showNotesMessage('', 'info');
-
-                populateUserSelect(notesAddUser, notesAddUser?.value ?? '');
-                if (notesAddUser.firstElementChild) {
-                    notesAddUser.firstElementChild.textContent = 'Select user';
-                }
                 clearNotesAddInputs();
                 disableNotesAddRow(notesLoading);
 
@@ -1461,33 +1427,29 @@ window.WineInventoryTables.initialize = function () {
 
                 const scoreValue = note.score ?? note.Score ?? '';
                 const noteText = note.note ?? note.Note ?? '';
+                const userId = note.userId ?? note.UserId ?? '';
+                const userName = note.userName ?? note.UserName ?? '';
+                const normalizedUserId = userId ? String(userId) : '';
+                const currentUserId = notesAddUserDisplay?.dataset?.userId ?? '';
+                let userLabel = userName;
+                if (!userLabel) {
+                    if (normalizedUserId && currentUserId && normalizedUserId === currentUserId) {
+                        userLabel = 'You';
+                    } else {
+                        userLabel = '—';
+                    }
+                }
+
+                row.dataset.userId = normalizedUserId;
 
                 row.innerHTML = `
-                    <td></td>
+                    <td class="note-user"><span class="note-user-name">${escapeHtml(userLabel)}</span></td>
                     <td><input type="number" class="note-score" min="0" max="10" step="0.1" value="${scoreValue}" placeholder="0-10" /></td>
                     <td><textarea class="note-text" rows="3">${escapeHtml(noteText)}</textarea></td>
                     <td class="actions">
                         <button type="button" class="crud-table__action-button save-note">Save</button>
                         <button type="button" class="crud-table__action-button secondary delete-note">Delete</button>
                     </td>`;
-
-                const userCell = row.children[0];
-                const userSelect = document.createElement('select');
-                userSelect.className = 'note-user';
-                userSelect.setAttribute('aria-label', 'Note author');
-                populateUserSelect(userSelect, note.userId ?? note.UserId ?? '');
-                if (userSelect.firstElementChild) {
-                    userSelect.firstElementChild.textContent = 'Select user';
-                }
-                const selectedUserId = note.userId ?? note.UserId ?? '';
-                if (selectedUserId && userSelect.value !== selectedUserId) {
-                    const fallbackOption = document.createElement('option');
-                    fallbackOption.value = selectedUserId;
-                    fallbackOption.textContent = note.userName ?? note.UserName ?? selectedUserId;
-                    userSelect.appendChild(fallbackOption);
-                    userSelect.value = selectedUserId;
-                }
-                userCell.appendChild(userSelect);
 
                 const scoreInput = row.querySelector('.note-score');
                 const noteTextarea = row.querySelector('.note-text');
@@ -1505,12 +1467,6 @@ window.WineInventoryTables.initialize = function () {
                         return;
                     }
 
-                    const userId = userSelect.value;
-                    if (!userId) {
-                        showNotesMessage('Select an author for the note.', 'error');
-                        return;
-                    }
-
                     const parsedScore = parseScore(scoreInput?.value ?? '');
                     if (parsedScore === undefined) {
                         showNotesMessage('Score must be between 0 and 10.', 'error');
@@ -1519,7 +1475,6 @@ window.WineInventoryTables.initialize = function () {
 
                     const payload = {
                         note: noteValue,
-                        userId,
                         score: parsedScore
                     };
 
@@ -1604,12 +1559,6 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                const userId = notesAddUser?.value ?? '';
-                if (!userId) {
-                    showNotesMessage('Select an author for the note.', 'error');
-                    return;
-                }
-
                 const parsedScore = parseScore(notesAddScore?.value ?? '');
                 if (parsedScore === undefined) {
                     showNotesMessage('Score must be between 0 and 10.', 'error');
@@ -1619,7 +1568,6 @@ window.WineInventoryTables.initialize = function () {
                 const payload = {
                     bottleId: notesSelectedBottleId,
                     note: noteValue,
-                    userId,
                     score: parsedScore
                 };
 
@@ -1666,6 +1614,7 @@ window.WineInventoryTables.initialize = function () {
                     wineName: pick(raw, ['wineName', 'WineName']) ?? '',
                     vintage: pick(raw, ['vintage', 'Vintage']),
                     bottleLocation: pick(raw, ['bottleLocation', 'BottleLocation']) ?? '',
+                    userId: pick(raw, ['userId', 'UserId']) ?? '',
                     userName: pick(raw, ['userName', 'UserName']) ?? '',
                     isDrunk: Boolean(pick(raw, ['isDrunk', 'IsDrunk'])),
                     drunkAt: pick(raw, ['drunkAt', 'DrunkAt'])
