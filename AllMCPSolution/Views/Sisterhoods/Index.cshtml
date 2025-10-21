@@ -286,6 +286,239 @@
             transform: translateY(-2px);
         }
 
+        .action-bar {
+            margin-top: 24px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .primary-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border-radius: 999px;
+            border: 1px solid rgba(244, 241, 234, 0.28);
+            background: rgba(244, 241, 234, 0.12);
+            color: #f4f1ea;
+            font-size: 13px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .primary-button:hover {
+            background: rgba(244, 241, 234, 0.18);
+            transform: translateY(-1px);
+        }
+
+        .status-banner {
+            margin-top: 24px;
+            padding: 14px 18px;
+            border-radius: 14px;
+            font-size: 14px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .status-banner.success {
+            background: rgba(51, 133, 107, 0.16);
+            border: 1px solid rgba(51, 133, 107, 0.35);
+        }
+
+        .status-banner.error {
+            background: rgba(133, 51, 65, 0.16);
+            border: 1px solid rgba(133, 51, 65, 0.35);
+        }
+
+        .create-sisterhood-form {
+            margin-top: 24px;
+            width: min(720px, 100%);
+            border-radius: 18px;
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            background: rgba(244, 241, 234, 0.04);
+            padding: 24px;
+            display: none;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .create-sisterhood-form.open {
+            display: flex;
+        }
+
+        .form-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: left;
+        }
+
+        .form-field label {
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        .form-field input,
+        .form-field textarea,
+        .invite-form input {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(244, 241, 234, 0.18);
+            background: rgba(12, 12, 12, 0.55);
+            color: #f4f1ea;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-field textarea {
+            min-height: 96px;
+            resize: vertical;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .secondary-button,
+        .danger-button,
+        .inline-form button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(244, 241, 234, 0.18);
+            background: transparent;
+            color: #f4f1ea;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s ease, opacity 0.2s ease;
+        }
+
+        .secondary-button:hover,
+        .inline-form button:hover {
+            background: rgba(244, 241, 234, 0.12);
+        }
+
+        .danger-button {
+            border-color: rgba(181, 65, 65, 0.45);
+            color: #f6dcdc;
+        }
+
+        .danger-button:hover {
+            background: rgba(181, 65, 65, 0.25);
+        }
+
+        .sisterhood-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .member-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .member-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(244, 241, 234, 0.04);
+        }
+
+        .member-identity {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .member-name {
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        .member-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .inline-form {
+            margin: 0;
+        }
+
+        .inline-form button {
+            padding: 6px 12px;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border: 1px solid rgba(244, 241, 234, 0.25);
+            color: rgba(244, 241, 234, 0.8);
+        }
+
+        .badge.admin {
+            border-color: rgba(126, 216, 182, 0.45);
+            color: #c0f5de;
+        }
+
+        .badge.you {
+            border-color: rgba(244, 241, 234, 0.45);
+            color: #f4f1ea;
+        }
+
+        .invite-form {
+            margin-top: 18px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .invite-form label {
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        .invite-form .invite-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .sisterhood-card footer {
+            margin-top: 8px;
+        }
+
         @@media (max-width: 768px) {
             .top-bar {
                 padding: 18px 20px;
@@ -332,6 +565,39 @@
                 }
             }
             <p class="lead">@leadMessage</p>
+
+            @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+            {
+                <div class="status-banner success" role="status">@Model.StatusMessage</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+            {
+                <div class="status-banner error" role="alert">@Model.ErrorMessage</div>
+            }
+
+            @if (Model.IsAuthenticated)
+            {
+                <div class="action-bar">
+                    <button type="button" class="primary-button" data-sisterhood-create-toggle>Create Sisterhood</button>
+                </div>
+                <form method="post" action="@Url.Action("CreateSisterhood", "WineSurfer")" class="create-sisterhood-form@(Model.ErrorMessage != null ? " open" : string.Empty)" data-sisterhood-create-form>
+                    @Html.AntiForgeryToken()
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label for="sisterhood-name">Name</label>
+                            <input id="sisterhood-name" name="Name" type="text" maxlength="256" required placeholder="Give your sisterhood a name" />
+                        </div>
+                        <div class="form-field">
+                            <label for="sisterhood-description">Description</label>
+                            <textarea id="sisterhood-description" name="Description" maxlength="1024" placeholder="Share the vision for this community (optional)"></textarea>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="secondary-button">Create</button>
+                    </div>
+                </form>
+            }
         </section>
         <section class="sisterhood-grid" aria-label="Wine Surfer sisterhood communities">
             @if (Model.Sisterhoods.Count > 0)
@@ -339,13 +605,83 @@
                 foreach (var sisterhood in Model.Sisterhoods)
                 {
                     <article class="sisterhood-card">
-                        <h2 class="sisterhood-name">@sisterhood.Name</h2>
-                        <p class="sisterhood-members">
-                            @sisterhood.MemberCount @((sisterhood.MemberCount == 1) ? "member" : "members")
-                        </p>
+                        <div class="sisterhood-header">
+                            <div>
+                                <h2 class="sisterhood-name">@sisterhood.Name</h2>
+                                <p class="sisterhood-members">
+                                    @sisterhood.MemberCount @((sisterhood.MemberCount == 1) ? "member" : "members")
+                                    @if (sisterhood.CanManage)
+                                    {
+                                        <span class="badge admin" title="You manage this sisterhood">Admin</span>
+                                    }
+                                </p>
+                            </div>
+                            @if (sisterhood.CanManage)
+                            {
+                                <form method="post" action="@Url.Action("DeleteSisterhood", "WineSurfer")" class="inline-form" onsubmit="return confirm('Delete this sisterhood? This cannot be undone.');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                    <button type="submit" class="danger-button">Delete</button>
+                                </form>
+                            }
+                        </div>
                         @if (!string.IsNullOrWhiteSpace(sisterhood.Description))
                         {
                             <p class="sisterhood-description">@sisterhood.Description</p>
+                        }
+
+                        @if (sisterhood.Members.Count > 0)
+                        {
+                            <ul class="member-list">
+                                @foreach (var member in sisterhood.Members)
+                                {
+                                    <li>
+                                        <div class="member-identity">
+                                            <span class="member-name">@member.DisplayName</span>
+                                            @if (member.IsAdmin)
+                                            {
+                                                <span class="badge admin">Admin</span>
+                                            }
+                                            @if (member.IsCurrentUser)
+                                            {
+                                                <span class="badge you">You</span>
+                                            }
+                                        </div>
+                                        @if (sisterhood.CanManage && !member.IsCurrentUser)
+                                        {
+                                            <div class="member-actions">
+                                                <form method="post" action="@Url.Action("UpdateSisterhoodAdmin", "WineSurfer")" class="inline-form">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                                    <input type="hidden" name="UserId" value="@member.Id" />
+                                                    <input type="hidden" name="MakeAdmin" value="@(member.IsAdmin ? "false" : "true")" />
+                                                    <button type="submit" class="secondary-button">@(member.IsAdmin ? "Remove Admin" : "Make Admin")</button>
+                                                </form>
+                                                <form method="post" action="@Url.Action("RemoveSisterhoodMember", "WineSurfer")" class="inline-form" onsubmit="return confirm('Remove @member.DisplayName.Replace("'", "\\'") from this sisterhood?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                                    <input type="hidden" name="UserId" value="@member.Id" />
+                                                    <button type="submit" class="danger-button">Remove</button>
+                                                </form>
+                                            </div>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+
+                        @if (sisterhood.CanManage)
+                        {
+                            <form method="post" action="@Url.Action("InviteSisterhoodMember", "WineSurfer")" class="invite-form" data-sisterhood-invite-form>
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                <input type="hidden" name="UserId" value="" data-sisterhood-invite-user-id />
+                                <label for="invite-member-@sisterhood.Id">Invite a Wine Surfer</label>
+                                <input id="invite-member-@sisterhood.Id" name="MemberName" type="text" list="sisterhood-user-options" placeholder="Start typing a name" autocomplete="off" />
+                                <div class="invite-actions">
+                                    <button type="submit" class="secondary-button">Invite</button>
+                                </div>
+                            </form>
                         }
                     </article>
                 }
@@ -362,11 +698,75 @@
                 </div>
             }
         </section>
+        <datalist id="sisterhood-user-options"></datalist>
         <section class="cta-card">
             <h2>Join the Wave</h2>
             <p>Bring your guild, tasting group, or collective into the Wine Surfer Sisterhoods network. Share events, co-create cellar maps, and leave no voice untasted.</p>
             <a href="/wine-surfer">Return to Wine Surfer</a>
         </section>
     </main>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const toggleButton = document.querySelector('[data-sisterhood-create-toggle]');
+        const createForm = document.querySelector('[data-sisterhood-create-form]');
+
+        if (toggleButton && createForm) {
+            toggleButton.addEventListener('click', () => {
+                createForm.classList.toggle('open');
+            });
+        }
+
+        const inviteForms = document.querySelectorAll('form[data-sisterhood-invite-form]');
+        if (inviteForms.length === 0) {
+            return;
+        }
+
+        fetch('/wine-surfer/users')
+            .then(response => response.ok ? response.json() : [])
+            .then(users => {
+                const dataList = document.getElementById('sisterhood-user-options');
+                if (!dataList) {
+                    return;
+                }
+
+                const userMap = new Map();
+                users.forEach(user => {
+                    if (!user?.name || !user?.id) {
+                        return;
+                    }
+
+                    const option = document.createElement('option');
+                    option.value = user.name;
+                    if (user.tasteProfile) {
+                        option.label = `${user.name} · ${user.tasteProfile}`;
+                    }
+                    option.dataset.userId = user.id;
+                    dataList.appendChild(option);
+                    userMap.set(user.name.toLowerCase(), user.id);
+                });
+
+                inviteForms.forEach(form => {
+                    const input = form.querySelector('input[name="MemberName"]');
+                    const hidden = form.querySelector('input[name="UserId"][data-sisterhood-invite-user-id]');
+                    if (!input || !hidden) {
+                        return;
+                    }
+
+                    const syncHiddenValue = () => {
+                        const raw = input.value?.trim().toLowerCase();
+                        if (raw && userMap.has(raw)) {
+                            hidden.value = userMap.get(raw);
+                        } else {
+                            hidden.value = '';
+                        }
+                    };
+
+                    input.addEventListener('change', syncHiddenValue);
+                    input.addEventListener('blur', syncHiddenValue);
+                });
+            })
+            .catch(() => { /* Non-blocking hint failure */ });
+    });
+</script>
 </body>
 </html>

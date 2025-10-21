@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -160,8 +162,12 @@ public class WineSurferController : Controller
     {
         Response.ContentType = "text/html; charset=utf-8";
 
+        var statusMessage = TempData["SisterhoodStatus"] as string;
+        var errorMessage = TempData["SisterhoodError"] as string;
+
         var isAuthenticated = User?.Identity?.IsAuthenticated == true;
         string? displayName = null;
+        Guid? currentUserId = null;
         IReadOnlyList<WineSurferSisterhoodSummary> sisterhoods = Array.Empty<WineSurferSisterhoodSummary>();
 
         if (isAuthenticated)
@@ -169,17 +175,12 @@ public class WineSurferController : Controller
             displayName = User.Identity?.Name;
             var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
 
-            Guid? userId = null;
-            var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (Guid.TryParse(idClaim, out var parsedId))
-            {
-                userId = parsedId;
-            }
+            currentUserId = GetCurrentUserId();
 
             ApplicationUser? domainUser = null;
-            if (userId.HasValue)
+            if (currentUserId.HasValue)
             {
-                domainUser = await _userRepository.GetByIdAsync(userId.Value, cancellationToken);
+                domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
             }
 
             if (domainUser is null && !string.IsNullOrWhiteSpace(displayName))
@@ -189,7 +190,7 @@ public class WineSurferController : Controller
 
             if (domainUser is not null)
             {
-                userId = domainUser.Id;
+                currentUserId = domainUser.Id;
                 if (string.IsNullOrWhiteSpace(displayName))
                 {
                     displayName = domainUser.Name;
@@ -201,20 +202,36 @@ public class WineSurferController : Controller
                 displayName = email;
             }
 
-            if (userId.HasValue)
+            if (currentUserId.HasValue)
             {
-                var membership = await _sisterhoodRepository.GetForUserAsync(userId.Value, cancellationToken);
+                var membership = await _sisterhoodRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
                 sisterhoods = membership
-                    .Select(s => new WineSurferSisterhoodSummary(
-                        s.Id,
-                        s.Name,
-                        s.Description,
-                        s.Members?.Count ?? 0))
+                    .Select(s =>
+                    {
+                        var memberSummaries = s.Memberships
+                            .Select(m => new WineSurferSisterhoodMember(
+                                m.UserId,
+                                string.IsNullOrWhiteSpace(m.User?.Name) ? m.User?.UserName ?? "Member" : m.User!.Name,
+                                m.IsAdmin,
+                                m.UserId == currentUserId))
+                            .OrderBy(m => m.DisplayName, StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+
+                        var isAdmin = s.Memberships.Any(m => m.UserId == currentUserId && m.IsAdmin);
+
+                        return new WineSurferSisterhoodSummary(
+                            s.Id,
+                            s.Name,
+                            s.Description,
+                            memberSummaries.Count,
+                            isAdmin,
+                            memberSummaries);
+                    })
                     .ToList();
             }
         }
 
-        var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, sisterhoods);
+        var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, sisterhoods, currentUserId, statusMessage, errorMessage);
         return View("~/Views/Sisterhoods/Index.cshtml", model);
     }
 
@@ -230,6 +247,275 @@ public class WineSurferController : Controller
             .ToList();
 
         return Json(response);
+    }
+
+    [Authorize]
+    [HttpPost("sisterhoods/create")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateSisterhood(CreateSisterhoodRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            TempData["SisterhoodError"] = "Please provide a name for your sisterhood.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        try
+        {
+            var sisterhood = await _sisterhoodRepository.CreateWithAdminAsync(
+                request.Name,
+                request.Description,
+                currentUserId.Value,
+                cancellationToken);
+
+            TempData["SisterhoodStatus"] = $"Created '{sisterhood.Name}'. You're the first admin.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["SisterhoodError"] = ex.Message;
+        }
+        catch (Exception)
+        {
+            TempData["SisterhoodError"] = "We couldn't create that sisterhood just now. Please try again.";
+        }
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
+    [HttpPost("sisterhoods/invite-member")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> InviteSisterhoodMember(InviteSisterhoodMemberRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid || request.SisterhoodId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't understand that invite.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var isAdmin = await _sisterhoodRepository.IsAdminAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (!isAdmin)
+        {
+            TempData["SisterhoodError"] = "Only sisterhood admins can invite members.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var sisterhood = await _sisterhoodRepository.GetByIdAsync(request.SisterhoodId, cancellationToken);
+        if (sisterhood is null)
+        {
+            TempData["SisterhoodError"] = "That sisterhood no longer exists.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        ApplicationUser? invitee = null;
+        if (request.UserId.HasValue)
+        {
+            invitee = await _userRepository.GetByIdAsync(request.UserId.Value, cancellationToken);
+        }
+
+        if (invitee is null && !string.IsNullOrWhiteSpace(request.MemberName))
+        {
+            invitee = await _userRepository.FindByNameAsync(request.MemberName.Trim(), cancellationToken);
+        }
+
+        if (invitee is null)
+        {
+            TempData["SisterhoodError"] = "We couldn't find that Wine Surfer user.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (invitee.Id == currentUserId)
+        {
+            TempData["SisterhoodError"] = "You're already part of this sisterhood.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var existingMembership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, invitee.Id, cancellationToken);
+        if (existingMembership is not null)
+        {
+            TempData["SisterhoodError"] = $"{invitee.Name} is already a member of {sisterhood.Name}.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var added = await _sisterhoodRepository.AddUserToSisterhoodAsync(request.SisterhoodId, invitee.Id, cancellationToken);
+        if (!added)
+        {
+            TempData["SisterhoodError"] = "We couldn't add that member right now.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        TempData["SisterhoodStatus"] = $"{invitee.Name} has been added to {sisterhood.Name}.";
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
+    [HttpPost("sisterhoods/remove-member")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveSisterhoodMember(ModifySisterhoodMemberRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid || request.SisterhoodId == Guid.Empty || request.UserId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't process that removal.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var isAdmin = await _sisterhoodRepository.IsAdminAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (!isAdmin)
+        {
+            TempData["SisterhoodError"] = "Only admins can remove members.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var membership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, request.UserId, cancellationToken);
+        if (membership is null)
+        {
+            TempData["SisterhoodError"] = "That member is no longer part of this sisterhood.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (membership.IsAdmin)
+        {
+            var allMemberships = await _sisterhoodRepository.GetMembershipsAsync(request.SisterhoodId, cancellationToken);
+            var adminCount = allMemberships.Count(m => m.IsAdmin);
+            if (adminCount <= 1)
+            {
+                TempData["SisterhoodError"] = "You need at least one admin in the sisterhood. Promote another member before removing this admin.";
+                return RedirectToAction(nameof(Sisterhoods));
+            }
+        }
+
+        var removed = await _sisterhoodRepository.RemoveUserFromSisterhoodAsync(request.SisterhoodId, request.UserId, cancellationToken);
+        if (!removed)
+        {
+            TempData["SisterhoodError"] = "We couldn't remove that member right now.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var sisterhood = await _sisterhoodRepository.GetByIdAsync(request.SisterhoodId, cancellationToken);
+        TempData["SisterhoodStatus"] = sisterhood is null
+            ? "Member removed."
+            : $"Removed {membership.User?.Name ?? "that member"} from {sisterhood.Name}.";
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
+    [HttpPost("sisterhoods/update-admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateSisterhoodAdmin(UpdateSisterhoodAdminRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid || request.SisterhoodId == Guid.Empty || request.UserId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't update that admin setting.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var isAdmin = await _sisterhoodRepository.IsAdminAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (!isAdmin)
+        {
+            TempData["SisterhoodError"] = "Only admins can change other admins.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var membership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, request.UserId, cancellationToken);
+        if (membership is null)
+        {
+            TempData["SisterhoodError"] = "That member is no longer part of this sisterhood.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (!request.MakeAdmin && membership.IsAdmin)
+        {
+            var memberships = await _sisterhoodRepository.GetMembershipsAsync(request.SisterhoodId, cancellationToken);
+            var adminCount = memberships.Count(m => m.IsAdmin);
+            if (adminCount <= 1)
+            {
+                TempData["SisterhoodError"] = "At least one admin is required. Promote another member before demoting this admin.";
+                return RedirectToAction(nameof(Sisterhoods));
+            }
+        }
+
+        var updated = await _sisterhoodRepository.SetAdminStatusAsync(request.SisterhoodId, request.UserId, request.MakeAdmin, cancellationToken);
+        if (!updated)
+        {
+            TempData["SisterhoodError"] = "We couldn't update that member right now.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var sisterhood = await _sisterhoodRepository.GetByIdAsync(request.SisterhoodId, cancellationToken);
+        var targetName = membership.User?.Name ?? "That member";
+        TempData["SisterhoodStatus"] = request.MakeAdmin
+            ? $"{targetName} is now an admin of {sisterhood?.Name ?? "this sisterhood"}."
+            : $"{targetName} is no longer an admin.";
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
+    [HttpPost("sisterhoods/delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteSisterhood(DeleteSisterhoodRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid || request.SisterhoodId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't delete that sisterhood.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var isAdmin = await _sisterhoodRepository.IsAdminAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (!isAdmin)
+        {
+            TempData["SisterhoodError"] = "Only admins can delete a sisterhood.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var sisterhood = await _sisterhoodRepository.GetByIdAsync(request.SisterhoodId, cancellationToken);
+        if (sisterhood is null)
+        {
+            TempData["SisterhoodError"] = "That sisterhood was already removed.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        await _sisterhoodRepository.DeleteAsync(request.SisterhoodId, cancellationToken);
+        TempData["SisterhoodStatus"] = $"Deleted {sisterhood.Name}.";
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var idClaim = User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(idClaim, out var parsedId) ? parsedId : null;
     }
 
     private static RegionInventoryMetrics CalculateRegionInventoryMetrics(IEnumerable<Wine> wines)
@@ -264,6 +550,47 @@ public class WineSurferController : Controller
             .ToList();
 
         return new RegionInventoryMetrics(cellared, consumed, averageScore, userAverageScores);
+    }
+
+    public class CreateSisterhoodRequest
+    {
+        [Required]
+        [StringLength(256, MinimumLength = 2)]
+        public string Name { get; set; } = string.Empty;
+
+        [StringLength(1024)]
+        public string? Description { get; set; }
+    }
+
+    public class InviteSisterhoodMemberRequest
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
+
+        public Guid? UserId { get; set; }
+
+        [StringLength(256)]
+        public string? MemberName { get; set; }
+    }
+
+    public class ModifySisterhoodMemberRequest
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
+
+        [Required]
+        public Guid UserId { get; set; }
+    }
+
+    public class UpdateSisterhoodAdminRequest : ModifySisterhoodMemberRequest
+    {
+        public bool MakeAdmin { get; set; }
+    }
+
+    public class DeleteSisterhoodRequest
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
     }
 
     private static MapHighlightPoint? CreateHighlightPoint(
@@ -309,9 +636,20 @@ public record WineSurferLandingViewModel(IReadOnlyList<MapHighlightPoint> Highli
 public record WineSurferSisterhoodsViewModel(
     bool IsAuthenticated,
     string? DisplayName,
-    IReadOnlyList<WineSurferSisterhoodSummary> Sisterhoods);
+    IReadOnlyList<WineSurferSisterhoodSummary> Sisterhoods,
+    Guid? CurrentUserId,
+    string? StatusMessage,
+    string? ErrorMessage);
 
-public record WineSurferSisterhoodSummary(Guid Id, string Name, string? Description, int MemberCount);
+public record WineSurferSisterhoodSummary(
+    Guid Id,
+    string Name,
+    string? Description,
+    int MemberCount,
+    bool CanManage,
+    IReadOnlyList<WineSurferSisterhoodMember> Members);
+
+public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser);
 
 public record MapHighlightPoint(
     string Label,
