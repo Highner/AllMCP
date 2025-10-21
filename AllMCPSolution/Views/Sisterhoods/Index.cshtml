@@ -775,7 +775,7 @@
                     userMap.set(user.name.toLowerCase(), user.id);
                 });
 
-                const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                const emailPattern = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
 
                 inviteForms.forEach(form => {
                     const input = form.querySelector('input[name="MemberName"]');
