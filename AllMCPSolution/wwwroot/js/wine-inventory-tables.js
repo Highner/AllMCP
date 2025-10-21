@@ -46,7 +46,6 @@ window.WineInventoryTables.initialize = function () {
             const addWineCancel = addWinePopover?.querySelector('.inventory-add-cancel');
 
             const detailAddLocation = detailAddRow.querySelector('.detail-add-location');
-            const detailAddUser = detailAddRow.querySelector('.detail-add-user');
             const detailAddPrice = detailAddRow.querySelector('.detail-add-price');
             const detailAddIsDrunk = detailAddRow.querySelector('.detail-add-is-drunk');
             const detailAddLabel = detailAddRow.querySelector('.checkbox-row span');
@@ -504,7 +503,6 @@ window.WineInventoryTables.initialize = function () {
                     referenceData.users = users;
 
                     populateLocationSelect(detailAddLocation, detailAddLocation?.value ?? '');
-                    populateUserSelect(detailAddUser, detailAddUser?.value ?? '');
                     populateUserSelect(notesAddUser, notesAddUser?.value ?? '');
                     if (notesAddUser.firstElementChild) {
                         notesAddUser.firstElementChild.textContent = 'Select user';
@@ -971,27 +969,23 @@ window.WineInventoryTables.initialize = function () {
                     detailAddPrice.value = '';
                     detailAddIsDrunk.checked = false;
                     if (detailAddLabel) {
-                    detailAddLabel.textContent = 'No';
+                        detailAddLabel.textContent = 'No';
+                    }
+                    detailAddDrunkAt.value = '';
+                    detailAddDrunkAt.setAttribute('disabled', 'disabled');
+                    populateLocationSelect(detailAddLocation, '');
+                    detailAddButton.disabled = loading;
+                    populateUserSelect(notesAddUser, notesAddUser?.value ?? '');
+                    if (notesAddUser.firstElementChild) {
+                        notesAddUser.firstElementChild.textContent = 'Select user';
+                    }
+                    disableNotesAddRow(notesLoading || !notesSelectedBottleId);
+                } else {
+                    detailsTitle.textContent = 'Bottle Details';
+                    detailsSubtitle.textContent = 'No bottles remain for the selected group.';
+                    detailAddRow.hidden = true;
+                    closeNotesPanel();
                 }
-                detailAddDrunkAt.value = '';
-                detailAddDrunkAt.setAttribute('disabled', 'disabled');
-                populateLocationSelect(detailAddLocation, '');
-                populateUserSelect(detailAddUser, '');
-                if (detailAddUser) {
-                    detailAddUser.value = '';
-                }
-                detailAddButton.disabled = loading;
-                populateUserSelect(notesAddUser, notesAddUser?.value ?? '');
-                if (notesAddUser.firstElementChild) {
-                    notesAddUser.firstElementChild.textContent = 'Select user';
-                }
-                disableNotesAddRow(notesLoading || !notesSelectedBottleId);
-            } else {
-                detailsTitle.textContent = 'Bottle Details';
-                detailsSubtitle.textContent = 'No bottles remain for the selected group.';
-                detailAddRow.hidden = true;
-                closeNotesPanel();
-            }
 
                 detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
                 selectedDetailRowElement = null;
@@ -1052,7 +1046,6 @@ window.WineInventoryTables.initialize = function () {
 
                 row.innerHTML = `
                     <td></td>
-                    <td></td>
                     <td><input type="number" step="0.01" min="0" class="detail-price" value="${detail.price ?? detail.Price ?? ''}" placeholder="0.00" /></td>
                     <td class="detail-average">${formatScore(detail.averageScore ?? detail.AverageScore)}</td>
                     <td>
@@ -1068,26 +1061,10 @@ window.WineInventoryTables.initialize = function () {
                     </td>`;
 
                 const locationCell = row.children[0];
-                const userCell = row.children[1];
                 const locationSelect = document.createElement('select');
                 locationSelect.className = 'detail-location';
                 populateLocationSelect(locationSelect, detail.bottleLocationId ?? detail.BottleLocationId ?? '');
                 locationCell.appendChild(locationSelect);
-
-                const userSelect = document.createElement('select');
-                userSelect.className = 'detail-user';
-                userSelect.setAttribute('aria-label', 'Bottle owner');
-                const selectedUserId = detail.userId ?? detail.UserId ?? '';
-                const selectedUserName = detail.userName ?? detail.UserName ?? '';
-                populateUserSelect(userSelect, selectedUserId || '');
-                if (selectedUserId && userSelect.value !== selectedUserId) {
-                    const fallbackOption = document.createElement('option');
-                    fallbackOption.value = selectedUserId;
-                    fallbackOption.textContent = selectedUserName || selectedUserId;
-                    userSelect.appendChild(fallbackOption);
-                    userSelect.value = selectedUserId;
-                }
-                userCell.appendChild(userSelect);
 
                 const drunkCheckbox = row.querySelector('.detail-is-drunk');
                 const drunkLabel = row.querySelector('.detail-is-drunk')?.nextElementSibling;
@@ -1123,7 +1100,7 @@ window.WineInventoryTables.initialize = function () {
                         isDrunk: drunkCheckbox?.checked ?? false,
                         drunkAt: parseDateTime(drunkInput?.value ?? ''),
                         bottleLocationId: locationSelect.value || null,
-                        userId: userSelect.value || null
+                        userId: detail.userId ?? detail.UserId ?? null
                     };
 
                     try {
@@ -1192,7 +1169,7 @@ window.WineInventoryTables.initialize = function () {
                     isDrunk: detailAddIsDrunk.checked,
                     drunkAt: parseDateTime(detailAddDrunkAt.value),
                     bottleLocationId: detailAddLocation.value || null,
-                    userId: detailAddUser?.value || null
+                    userId: null
                 };
 
                 try {
@@ -1210,9 +1187,6 @@ window.WineInventoryTables.initialize = function () {
                     detailAddDrunkAt.value = '';
                     detailAddDrunkAt.setAttribute('disabled', 'disabled');
                     detailAddLocation.value = '';
-                    if (detailAddUser) {
-                        detailAddUser.value = '';
-                    }
 
                     await renderDetails(response, true);
                     showMessage('Bottle added successfully.', 'success');
@@ -1230,9 +1204,6 @@ window.WineInventoryTables.initialize = function () {
                 }
                 if (detailAddButton) {
                     detailAddButton.disabled = state || detailAddRow.hidden;
-                }
-                if (detailAddUser) {
-                    detailAddUser.disabled = state || detailAddRow.hidden;
                 }
             }
 
