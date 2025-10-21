@@ -29,6 +29,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Sisterhood> Sisterhoods { get; set; }
     public DbSet<SisterhoodMembership> SisterhoodMemberships { get; set; }
     public DbSet<SisterhoodInvitation> SisterhoodInvitations { get; set; }
+    public DbSet<SipSession> SipSessions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -216,6 +217,32 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
             e.HasIndex(s => s.Name)
                 .IsUnique();
+        });
+
+        modelBuilder.Entity<SipSession>(entity =>
+        {
+            entity.Property(session => session.Name)
+                .HasMaxLength(256)
+                .IsRequired();
+
+            entity.Property(session => session.Description)
+                .HasMaxLength(2048);
+
+            entity.Property(session => session.ScheduledAt)
+                .HasColumnType("datetime2");
+
+            entity.Property(session => session.CreatedAt)
+                .HasColumnType("datetime2");
+
+            entity.Property(session => session.UpdatedAt)
+                .HasColumnType("datetime2");
+
+            entity.HasIndex(session => new { session.SisterhoodId, session.ScheduledAt });
+
+            entity.HasOne(session => session.Sisterhood)
+                .WithMany(sisterhood => sisterhood.SipSessions)
+                .HasForeignKey(session => session.SisterhoodId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SisterhoodMembership>(entity =>

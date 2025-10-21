@@ -8,4 +8,5 @@ public class Sisterhood
 
     public ICollection<SisterhoodMembership> Memberships { get; set; } = [];
     public ICollection<SisterhoodInvitation> Invitations { get; set; } = [];
+    public ICollection<SipSession> SipSessions { get; set; } = [];
 }
