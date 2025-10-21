@@ -935,7 +935,7 @@
             </section>
             <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
                 <h2 class="section-title">Upcoming sip sessions</h2>
-                @if (Model.UpcomingSipSessions.Count > 0)
+               @if (Model.UpcomingSipSessions.Count > 0)
                 {
                     foreach (var session in Model.UpcomingSipSessions)
                     {
@@ -949,10 +949,10 @@
                         var sisterhoodNote = string.IsNullOrWhiteSpace(session.SisterhoodDescription)
                             ? null
                             : session.SisterhoodDescription;
-                        @{
-                            var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Session.Id })
-                                ?? $"/wine-surfer/sessions/{session.Session.Id:D}";
-                        }
+
+                        var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Session.Id })
+                            ?? $"/wine-surfer/sessions/{session.Session.Id:D}";
+
                         <a class="sip-session-card" href="@sessionUrl" aria-label="Upcoming sip session: @session.Session.Name">
                             <div class="sip-session-header">
                                 <h3 class="sip-session-name">@session.Session.Name</h3>
@@ -989,6 +989,7 @@
                         </a>
                     }
                 }
+
                 else
                 {
                     <p class="sip-session-empty" role="status">No upcoming sip sessions on the calendar yet. Check back soon or gather your sisterhood to plan the next tasting.</p>
