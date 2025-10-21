@@ -756,14 +756,6 @@
             color: rgba(244, 241, 234, 0.78);
         }
 
-        .sip-session-sisterhood-note {
-            margin: 0;
-            font-size: 13px;
-            letter-spacing: 1.6px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.55);
-        }
-
         .sip-session-bottles {
             margin: 8px 0 0;
             padding: 12px 16px;
@@ -947,9 +939,6 @@
                         var hostLabel = string.IsNullOrWhiteSpace(session.SisterhoodName)
                             ? null
                             : session.SisterhoodName;
-                        var sisterhoodNote = string.IsNullOrWhiteSpace(session.SisterhoodDescription)
-                            ? null
-                            : session.SisterhoodDescription;
 
                         var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Session.Id })
                             ?? $"/wine-surfer/sessions/{session.Session.Id:D}";
@@ -970,15 +959,11 @@
                             {
                                 <p class="sip-session-description">@session.Session.Description</p>
                             }
-                            @if (!string.IsNullOrWhiteSpace(sisterhoodNote))
-                            {
-                                <p class="sip-session-sisterhood-note">@sisterhoodNote</p>
-                            }
                             @{ var bottleSummaries = session.Session.Bottles; }
                             @if (bottleSummaries.Count > 0)
                             {
                                 <div class="sip-session-bottles" aria-label="Bottles planned for this sip session">
-                                    <span class="sip-session-bottle-title">Pour list</span>
+                                    <span class="sip-session-bottle-title">Wine list</span>
                                     <ul class="sip-session-bottle-list">
                                         @foreach (var bottle in bottleSummaries)
                                         {
