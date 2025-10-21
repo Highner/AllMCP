@@ -1,11 +1,13 @@
 using System.Reflection;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using AllMCPSolution.Artists;
 using AllMCPSolution.Artworks;
+using AllMCPSolution.Models;
 using AllMCPSolution.Tools;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -35,6 +37,7 @@ builder.Services
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+builder.Services.AddRazorPages();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
@@ -57,31 +60,59 @@ builder.Services.AddScoped<ITastingNoteRepository, TastingNoteRepository>();
 builder.Services.AddScoped<ISisterhoodRepository, SisterhoodRepository>();
 builder.Services.AddScoped<InventoryIntakeService>();
 
-
-builder.Services.AddAuthentication(options =>
+builder.Services
+    .AddIdentity<ApplicationIdentityUser, IdentityRole<Guid>>(options =>
     {
-        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+        options.SignIn.RequireConfirmedAccount = false;
     })
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+
+var authenticationBuilder = builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
+    options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+    options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
+});
+
+authenticationBuilder.AddCookie(IdentityConstants.ApplicationScheme, options =>
+{
+    options.LoginPath = "/Account/Login";
+    options.LogoutPath = "/Account/Logout";
+});
+
+authenticationBuilder.AddCookie(IdentityConstants.ExternalScheme);
+
+authenticationBuilder
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
     .EnableTokenAcquisitionToCallDownstreamApi()
     .AddInMemoryTokenCaches();
 
-builder.Services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
+    options.SignInScheme = IdentityConstants.ExternalScheme;
     options.SaveTokens = true;
-    options.Events = new OpenIdConnectEvents
+    options.Events ??= new OpenIdConnectEvents();
+    var existingRemoteFailure = options.Events.OnRemoteFailure;
+    options.Events.OnRemoteFailure = async context =>
     {
-        OnRemoteFailure = ctx =>
+        if (existingRemoteFailure != null)
         {
-            ctx.HandleResponse();
-            var msg = Uri.EscapeDataString(ctx.Failure?.Message ?? "remote failure");
-            ctx.Response.Redirect($"/Account/Login?error={msg}");
-            return Task.CompletedTask;
+            await existingRemoteFailure(context);
+
+            if (context.Result != null && (context.Result.Handled || context.Result.Skipped))
+            {
+                return;
+            }
         }
+
+        context.HandleResponse();
+        var message = Uri.EscapeDataString(context.Failure?.Message ?? "remote failure");
+        context.Response.Redirect($"/Account/Login?error={message}");
     };
 });
 
+builder.Services.AddAuthorization();
 
 // Register all tools (auto-discovered by ToolRegistry)
 builder.Services.AddScoped<SearchArtistsTool>();
@@ -164,6 +195,10 @@ app.UseRouting();
 app.UseCors("AllowAIAgents");
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+app.MapRazorPages();
 app.MapControllers();
 
 // Get services
