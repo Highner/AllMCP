@@ -1050,7 +1050,9 @@ textarea:focus {
 }
 
 #detail-add-row td {
+    padding-top: 16px;
     padding-bottom: 20px;
+    border-top: 1px solid hsla(var(--border) / 0.35);
 }
 
 .crud-table__header-row {

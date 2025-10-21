@@ -260,6 +260,15 @@
                         <div class="crud-table__body wine-surface wine-surface-border">
                             <table class="details-table crud-table__table" id="details-table">
                                 <thead>
+                                    <tr class="header-row crud-table__header-row">
+                                        <th scope="col">Bottle Location</th>
+                                        <th scope="col">Price</th>
+                                        <th scope="col">Avg Score</th>
+                                        <th scope="col">Enjoyed at</th>
+                                        <th scope="col">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="details-table-add-body">
                                     <tr class="crud-table__add-row add-row" id="detail-add-row" hidden>
                                         <td>
                                             <label class="detail-add-input-label">
@@ -290,15 +299,8 @@
                                             <button type="button" class="detail-add-submit crud-table__action-button">Add Bottles</button>
                                         </td>
                                     </tr>
-                                    <tr class="header-row crud-table__header-row">
-                                        <th scope="col">Bottle Location</th>
-                                        <th scope="col">Price</th>
-                                        <th scope="col">Avg Score</th>
-                                        <th scope="col">Enjoyed at</th>
-                                        <th scope="col">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                                </tbody>
+                                <tbody id="details-table-body">
                                     <tr class="empty-row">
                                         <td colspan="5">Select a wine group to see its bottles.</td>
                                     </tr>
