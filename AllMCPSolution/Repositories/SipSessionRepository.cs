@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 
 namespace AllMCPSolution.Repositories;
@@ -10,6 +13,7 @@ public interface ISipSessionRepository
     Task<SipSession> AddAsync(SipSession sipSession, CancellationToken ct = default);
     Task UpdateAsync(SipSession sipSession, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
+    Task<int> AddBottlesToSessionAsync(Guid sessionId, Guid ownerUserId, IReadOnlyCollection<Guid> bottleIds, CancellationToken ct = default);
 }
 
 public class SipSessionRepository : ISipSessionRepository
@@ -166,5 +170,71 @@ public class SipSessionRepository : ISipSessionRepository
 
         _db.SipSessions.Remove(existing);
         await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<int> AddBottlesToSessionAsync(Guid sessionId, Guid ownerUserId, IReadOnlyCollection<Guid> bottleIds, CancellationToken ct = default)
+    {
+        if (sessionId == Guid.Empty || ownerUserId == Guid.Empty)
+        {
+            return 0;
+        }
+
+        if (bottleIds is null || bottleIds.Count == 0)
+        {
+            return 0;
+        }
+
+        var normalizedBottleIds = bottleIds
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        if (normalizedBottleIds.Count == 0)
+        {
+            return 0;
+        }
+
+        var session = await _db.SipSessions
+            .Include(s => s.Bottles)
+            .FirstOrDefaultAsync(s => s.Id == sessionId, ct);
+
+        if (session is null)
+        {
+            return 0;
+        }
+
+        var candidateBottles = await _db.Bottles
+            .Where(b => normalizedBottleIds.Contains(b.Id) && b.UserId == ownerUserId && !b.IsDrunk)
+            .ToListAsync(ct);
+
+        if (candidateBottles.Count == 0)
+        {
+            return 0;
+        }
+
+        var existingBottleIds = session.Bottles
+            .Select(b => b.Id)
+            .ToHashSet();
+
+        var addedCount = 0;
+
+        foreach (var bottle in candidateBottles)
+        {
+            if (existingBottleIds.Add(bottle.Id))
+            {
+                session.Bottles.Add(bottle);
+                addedCount++;
+            }
+        }
+
+        if (addedCount == 0)
+        {
+            return 0;
+        }
+
+        session.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        return addedCount;
     }
 }
