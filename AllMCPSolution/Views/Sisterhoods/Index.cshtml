@@ -305,8 +305,22 @@
             gap: 12px;
         }
 
-        .ghost-button {
+        .ghost-button,
+        .ghost-danger-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            border-radius: 999px;
             background: transparent;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s ease, opacity 0.2s ease;
+        }
+
+        .ghost-button {
             border: 1px solid rgba(244, 241, 234, 0.18);
             color: rgba(244, 241, 234, 0.85);
         }
@@ -318,7 +332,6 @@
         }
 
         .ghost-danger-button {
-            background: transparent;
             border: 1px solid rgba(214, 104, 86, 0.45);
             color: #f3b0a3;
         }
