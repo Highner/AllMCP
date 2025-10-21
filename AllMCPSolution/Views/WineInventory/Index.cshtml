@@ -240,15 +240,20 @@
                                 <thead>
                                     <tr class="crud-table__add-row add-row" id="detail-add-row" hidden>
                                         <td>
-                                            <select class="detail-add-location" aria-label="Bottle location">
-                                                <option value="">No location</option>
-                                            </select>
+                                            <label class="detail-add-input-label">
+                                                <span>Location</span>
+                                                <select class="detail-add-location" aria-label="Bottle location">
+                                                    <option value="">No location</option>
+                                                </select>
+                                            </label>
                                         </td>
                                         <td>
-                                            <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
+                                            <label class="detail-add-input-label">
+                                                <span>Price</span>
+                                                <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
+                                            </label>
                                         </td>
-                                        <td class="detail-add-average" aria-label="Average score">—</td>
-                                        <td class="detail-add-quantity" colspan="2">
+                                        <td class="detail-add-quantity" colspan="3">
                                             <label class="detail-add-quantity-label">
                                                 <span>Quantity</span>
                                                 <select class="detail-add-quantity-select" aria-label="Bottle quantity">
