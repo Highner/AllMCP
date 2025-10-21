@@ -1844,14 +1844,17 @@
 
 
                         <section class="sip-session-section">
+                            @{ var createContainerId = $"sip-session-create-container-{sisterhood.Id}"; }
                             <div class="sip-session-header">
                                 <span class="sip-session-title">Sip sessions</span>
                                 @if (sisterhood.CanManage)
                                 {
                                     <button type="button"
                                             class="secondary-button"
-                                            data-sip-session-create-toggle>
-                                        Plan sip session
+                                            data-sip-session-create-toggle
+                                            aria-expanded="false"
+                                            aria-controls="@createContainerId">
+                                        Create sip session
                                     </button>
                                 }
                             </div>
@@ -2006,39 +2009,45 @@
 
                             @if (sisterhood.CanManage)
                             {
-                                <form method="post"
-                                      action="@Url.Action("CreateSipSession", "WineSurfer")"
-                                      class="sip-session-form"
-                                      data-sip-session-create-form
-                                      hidden>
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
-                                    <label for="sip-session-create-name-@sisterhood.Id">Session name</label>
-                                    <input id="sip-session-create-name-@sisterhood.Id"
-                                           name="Name"
-                                           type="text"
-                                           maxlength="256"
-                                           required />
-                                    <label for="sip-session-create-schedule-@sisterhood.Id">Scheduled for</label>
-                                    <input id="sip-session-create-schedule-@sisterhood.Id"
-                                           name="ScheduledAt"
-                                           type="datetime-local" />
-                                    <label for="sip-session-create-location-@sisterhood.Id">Location</label>
-                                    <input id="sip-session-create-location-@sisterhood.Id"
-                                           name="Location"
-                                           type="text"
-                                           maxlength="256" />
-                                    <label for="sip-session-create-description-@sisterhood.Id">Description</label>
-                                    <textarea id="sip-session-create-description-@sisterhood.Id"
-                                              name="Description"
-                                              maxlength="2048"></textarea>
-                                    <div class="sip-session-form-actions">
-                                        <button type="submit" class="secondary-button">Save session</button>
-                                        <button type="button"
-                                                class="ghost-button"
-                                                data-sip-session-create-cancel>Cancel</button>
-                                    </div>
-                                </form>
+                                <div id="@createContainerId"
+                                     class="sip-session-edit-region"
+                                     data-sip-session-create-region
+                                     hidden>
+                                    <template data-sip-session-create-template>
+                                        <form method="post"
+                                              action="@Url.Action("CreateSipSession", "WineSurfer")"
+                                              class="sip-session-form"
+                                              data-sip-session-edit-form>
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                            <label for="sip-session-create-name-@sisterhood.Id">Session name</label>
+                                            <input id="sip-session-create-name-@sisterhood.Id"
+                                                   name="Name"
+                                                   type="text"
+                                                   maxlength="256"
+                                                   required />
+                                            <label for="sip-session-create-schedule-@sisterhood.Id">Scheduled for</label>
+                                            <input id="sip-session-create-schedule-@sisterhood.Id"
+                                                   name="ScheduledAt"
+                                                   type="datetime-local" />
+                                            <label for="sip-session-create-location-@sisterhood.Id">Location</label>
+                                            <input id="sip-session-create-location-@sisterhood.Id"
+                                                   name="Location"
+                                                   type="text"
+                                                   maxlength="256" />
+                                            <label for="sip-session-create-description-@sisterhood.Id">Description</label>
+                                            <textarea id="sip-session-create-description-@sisterhood.Id"
+                                                      name="Description"
+                                                      maxlength="2048"></textarea>
+                                            <div class="sip-session-form-actions">
+                                                <button type="submit" class="secondary-button">Create session</button>
+                                                <button type="button"
+                                                        class="ghost-button"
+                                                        data-sip-session-edit-cancel>Cancel</button>
+                                            </div>
+                                        </form>
+                                    </template>
+                                </div>
                             }
                         </section>
 
@@ -2756,65 +2765,13 @@
             });
         });
 
-        const createSessionButtons = document.querySelectorAll('[data-sip-session-create-toggle]');
-
-        createSessionButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const card = button.closest('[data-sisterhood-card]');
-                if (!card) {
-                    return;
-                }
-
-                const form = card.querySelector('[data-sip-session-create-form]');
-                if (!form) {
-                    return;
-                }
-
-                const isHidden = form.hasAttribute('hidden');
-                if (!button.dataset.originalLabel) {
-                    button.dataset.originalLabel = button.textContent?.trim() ?? '';
-                }
-
-                if (isHidden) {
-                    form.removeAttribute('hidden');
-                    button.textContent = 'Cancel';
-                    const nameField = form.querySelector('input[name="Name"]');
-                    nameField?.focus();
-                } else {
-                    form.setAttribute('hidden', '');
-                    form.reset();
-                    const original = button.dataset.originalLabel ?? 'Plan sip session';
-                    button.textContent = original || 'Plan sip session';
-                }
-            });
-        });
-
-        document.querySelectorAll('[data-sip-session-create-cancel]').forEach(button => {
-            button.addEventListener('click', () => {
-                const form = button.closest('[data-sip-session-create-form]');
-                if (!form) {
-                    return;
-                }
-
-                const card = form.closest('[data-sisterhood-card]');
-                form.setAttribute('hidden', '');
-                form.reset();
-
-                const toggle = card?.querySelector('[data-sip-session-create-toggle]');
-                if (toggle) {
-                    const original = toggle.dataset.originalLabel ?? 'Plan sip session';
-                    toggle.textContent = original || 'Plan sip session';
-                }
-            });
-        });
-
         const sipSessionEditModal = document.querySelector('[data-sip-session-edit-modal]');
-        let activeEditSessionButton = null;
-        let activeEditForm = null;
+        let activeSipSessionButton = null;
+        let activeSipSessionForm = null;
 
         const isEditModalOpen = () => Boolean(sipSessionEditModal && !sipSessionEditModal.hasAttribute('hidden'));
 
-        const setEditButtonState = (button, isOpen) => {
+        const setModalButtonState = (button, isOpen, overrides = {}) => {
             if (!button) {
                 return;
             }
@@ -2823,12 +2780,24 @@
                 button.dataset.originalLabel = button.textContent?.trim() ?? '';
             }
 
+            const { closeLabel, defaultLabel } = overrides;
+
+            if (typeof defaultLabel === 'string') {
+                button.dataset.originalLabel = defaultLabel;
+            }
+
+            if (typeof closeLabel === 'string') {
+                button.dataset.modalCloseLabel = closeLabel;
+            }
+
             if (isOpen) {
-                button.textContent = 'Close edit';
+                const label = (typeof closeLabel === 'string' ? closeLabel : button.dataset.modalCloseLabel) ?? 'Close';
+                button.textContent = label;
                 button.setAttribute('aria-expanded', 'true');
             } else {
-                const original = button.dataset.originalLabel ?? 'Edit';
-                button.textContent = original || 'Edit';
+                const original = (typeof defaultLabel === 'string' ? defaultLabel : button.dataset.originalLabel) ?? '';
+                const fallback = button.dataset.originalLabel ?? '';
+                button.textContent = original || fallback;
                 button.setAttribute('aria-expanded', 'false');
             }
         };
@@ -2839,9 +2808,9 @@
             }
 
             const container = sipSessionEditModal.querySelector('[data-sip-session-edit-modal-body]');
-            if (activeEditForm) {
-                activeEditForm.reset();
-                activeEditForm = null;
+            if (activeSipSessionForm) {
+                activeSipSessionForm.reset();
+                activeSipSessionForm = null;
             }
 
             if (container) {
@@ -2851,18 +2820,18 @@
             sipSessionEditModal.setAttribute('hidden', '');
             sipSessionEditModal.setAttribute('aria-hidden', 'true');
 
-            if (activeEditSessionButton) {
-                const trigger = activeEditSessionButton;
-                setEditButtonState(trigger, false);
+            if (activeSipSessionButton) {
+                const trigger = activeSipSessionButton;
+                setModalButtonState(trigger, false);
                 if (restoreFocus) {
                     window.requestAnimationFrame(() => trigger.focus());
                 }
 
-                activeEditSessionButton = null;
+                activeSipSessionButton = null;
             }
         };
 
-        const openSipSessionEditModal = (button, template, sessionName) => {
+        const openSipSessionEditModal = (button, template, { title, closeLabel, focusSelector } = {}) => {
             if (!sipSessionEditModal || !template) {
                 return;
             }
@@ -2870,7 +2839,7 @@
             closeSipSessionEditModal({ restoreFocus: false });
 
             const container = sipSessionEditModal.querySelector('[data-sip-session-edit-modal-body]');
-            const title = sipSessionEditModal.querySelector('[data-sip-session-edit-modal-title]');
+            const titleElement = sipSessionEditModal.querySelector('[data-sip-session-edit-modal-title]');
 
             if (!container) {
                 return;
@@ -2886,7 +2855,7 @@
                 return;
             }
 
-            activeEditForm = form;
+            activeSipSessionForm = form;
 
             const cancelButton = form.querySelector('[data-sip-session-edit-cancel]');
             if (cancelButton) {
@@ -2900,16 +2869,22 @@
             sipSessionEditModal.removeAttribute('hidden');
             sipSessionEditModal.setAttribute('aria-hidden', 'false');
 
-            activeEditSessionButton = button;
-            setEditButtonState(button, true);
+            activeSipSessionButton = button;
+            setModalButtonState(button, true, { closeLabel });
 
-            if (title) {
-                title.textContent = sessionName ? `Edit sip session · ${sessionName}` : 'Edit sip session';
+            if (titleElement) {
+                if (title) {
+                    titleElement.textContent = title;
+                } else {
+                    titleElement.textContent = 'Edit sip session';
+                }
             }
 
             window.requestAnimationFrame(() => {
-                const nameField = form.querySelector('input[name="Name"]');
-                nameField?.focus();
+                const focusTarget = focusSelector
+                    ? form.querySelector(focusSelector)
+                    : form.querySelector('input[name="Name"]');
+                focusTarget?.focus();
             });
         };
 
@@ -2934,6 +2909,32 @@
             }
         });
 
+        const createSessionButtons = document.querySelectorAll('[data-sip-session-create-toggle]');
+
+        createSessionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const card = button.closest('[data-sisterhood-card]');
+                if (!card) {
+                    return;
+                }
+
+                const template = card.querySelector('template[data-sip-session-create-template]');
+                if (!template) {
+                    return;
+                }
+
+                if (isEditModalOpen() && activeSipSessionButton === button) {
+                    closeSipSessionEditModal();
+                    return;
+                }
+
+                openSipSessionEditModal(button, template, {
+                    title: 'Create sip session',
+                    closeLabel: 'Cancel'
+                });
+            });
+        });
+
         const editSessionButtons = document.querySelectorAll('[data-sip-session-edit-toggle]');
 
         editSessionButtons.forEach(button => {
@@ -2955,12 +2956,15 @@
 
                 const sessionName = item.querySelector('.sip-session-name')?.textContent?.trim() ?? '';
 
-                if (isEditModalOpen() && activeEditSessionButton === button) {
+                if (isEditModalOpen() && activeSipSessionButton === button) {
                     closeSipSessionEditModal();
                     return;
                 }
 
-                openSipSessionEditModal(button, template, sessionName);
+                openSipSessionEditModal(button, template, {
+                    title: sessionName ? `Edit sip session · ${sessionName}` : 'Edit sip session',
+                    closeLabel: 'Close edit'
+                });
             });
         });
     });
