@@ -114,10 +114,6 @@ window.WineInventoryTables.initialize = function () {
                         return;
                     }
 
-                    if (target.closest('.summary-actions')) {
-                        return;
-                    }
-
                     handleRowSelection(row).catch(error => showMessage(error?.message ?? String(error), 'error'));
                 });
 
@@ -589,13 +585,7 @@ window.WineInventoryTables.initialize = function () {
                     <td class="summary-bottles" data-field="bottle-count"></td>
                     <td class="summary-color"></td>
                     <td class="summary-status"><span class="status-pill" data-field="status"></span></td>
-                    <td class="summary-score" data-field="score"></td>
-                    <td class="summary-actions">
-                        <div class="actions">
-                            <button type="button" class="crud-table__action-button secondary edit-group">Edit</button>
-                            <button type="button" class="crud-table__action-button secondary delete-group">Delete</button>
-                        </div>
-                    </td>`;
+                    <td class="summary-score" data-field="score"></td>`;
             }
 
             function applySummaryToRow(row, summary, isNewRow = false) {
@@ -613,7 +603,6 @@ window.WineInventoryTables.initialize = function () {
                 const colorCell = row.querySelector('.summary-color');
                 const statusSpan = row.querySelector('[data-field="status"]');
                 const scoreCell = row.querySelector('[data-field="score"]');
-                const actionsCell = row.querySelector('.summary-actions .actions');
 
                 if (wineCell) {
                     wineCell.textContent = summary?.wineName ?? summary?.WineName ?? '';
@@ -647,12 +636,6 @@ window.WineInventoryTables.initialize = function () {
                 if (scoreCell) {
                     const score = summary?.averageScore ?? summary?.AverageScore;
                     scoreCell.textContent = score != null ? Number(score).toFixed(1) : '—';
-                }
-
-                if (actionsCell) {
-                    actionsCell.innerHTML = `
-                        <button type="button" class="crud-table__action-button secondary edit-group">Edit</button>
-                        <button type="button" class="crud-table__action-button secondary delete-group">Delete</button>`;
                 }
 
                 if (isNewRow) {
