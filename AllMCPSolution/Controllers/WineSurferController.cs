@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AllMCPSolution.Controllers;
@@ -344,30 +345,65 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> InviteSisterhoodMember(InviteSisterhoodMemberRequest request, CancellationToken cancellationToken)
     {
+        var expectsJson = Request.Headers["Accept"].Any(h => h.Contains("application/json", StringComparison.OrdinalIgnoreCase))
+            || Request.Headers["X-Requested-With"].Any(h => string.Equals(h, "XMLHttpRequest", StringComparison.OrdinalIgnoreCase));
+
+        IActionResult Error(string message, int statusCode = StatusCodes.Status400BadRequest)
+        {
+            if (expectsJson)
+            {
+                return StatusCode(statusCode, new { success = false, message });
+            }
+
+            TempData["SisterhoodError"] = message;
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        IActionResult Success(string message, bool inviteeExists, string? inviteeEmail, string? mailtoLink)
+        {
+            if (expectsJson)
+            {
+                return Ok(new
+                {
+                    success = true,
+                    message,
+                    inviteeExists,
+                    inviteeEmail,
+                    mailtoLink,
+                    shouldLaunchMailClient = !inviteeExists && !string.IsNullOrEmpty(mailtoLink)
+                });
+            }
+
+            TempData["SisterhoodStatus"] = message;
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
         if (!ModelState.IsValid || request.SisterhoodId == Guid.Empty)
         {
-            TempData["SisterhoodError"] = "We couldn't understand that invite.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("We couldn't understand that invite.");
         }
 
         var currentUserId = GetCurrentUserId();
         if (!currentUserId.HasValue)
         {
+            if (expectsJson)
+            {
+                return Unauthorized(new { success = false, message = "You need to sign in before inviting members." });
+            }
+
             return Challenge();
         }
 
         var isAdmin = await _sisterhoodRepository.IsAdminAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
         if (!isAdmin)
         {
-            TempData["SisterhoodError"] = "Only sisterhood admins can invite members.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("Only sisterhood admins can invite members.", StatusCodes.Status403Forbidden);
         }
 
         var sisterhood = await _sisterhoodRepository.GetByIdAsync(request.SisterhoodId, cancellationToken);
         if (sisterhood is null)
         {
-            TempData["SisterhoodError"] = "That sisterhood no longer exists.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("That sisterhood no longer exists.", StatusCodes.Status404NotFound);
         }
 
         ApplicationUser? invitee = null;
@@ -417,26 +453,20 @@ public class WineSurferController : Controller
         {
             if (!string.IsNullOrEmpty(trimmedName) && !nameLooksLikeEmail)
             {
-                TempData["SisterhoodError"] = "We couldn't find that Wine Surfer user.";
-            }
-            else
-            {
-                TempData["SisterhoodError"] = "Please provide a valid email address for the invitation.";
+                return Error("We couldn't find that Wine Surfer user.");
             }
 
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("Please provide a valid email address for the invitation.");
         }
 
         if (string.IsNullOrEmpty(inviteeEmail))
         {
-            TempData["SisterhoodError"] = "We couldn't determine where to send that invitation.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("We couldn't determine where to send that invitation.");
         }
 
         if (invitee is not null && invitee.Id == currentUserId)
         {
-            TempData["SisterhoodError"] = "You're already part of this sisterhood.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("You're already part of this sisterhood.");
         }
 
         if (invitee is not null)
@@ -448,8 +478,7 @@ public class WineSurferController : Controller
                     ? invitee.UserName ?? inviteeEmail
                     : invitee.Name;
 
-                TempData["SisterhoodError"] = $"{inviteeDisplayName} is already a member of {sisterhood.Name}.";
-                return RedirectToAction(nameof(Sisterhoods));
+                return Error($"{inviteeDisplayName} is already a member of {sisterhood.Name}.", StatusCodes.Status409Conflict);
             }
         }
 
@@ -460,8 +489,7 @@ public class WineSurferController : Controller
         }
         catch (ArgumentException)
         {
-            TempData["SisterhoodError"] = "That doesn't look like a valid email address.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("That doesn't look like a valid email address.");
         }
 
         try
@@ -474,13 +502,11 @@ public class WineSurferController : Controller
         }
         catch (ArgumentException)
         {
-            TempData["SisterhoodError"] = "That doesn't look like a valid email address.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("That doesn't look like a valid email address.");
         }
         catch (Exception)
         {
-            TempData["SisterhoodError"] = "We couldn't send that invitation right now.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("We couldn't send that invitation right now.", StatusCodes.Status500InternalServerError);
         }
 
         var inviteeLabel = invitee is not null
@@ -496,8 +522,16 @@ public class WineSurferController : Controller
             _ => $"Invitation reactivated for {inviteeLabel}.",
         };
 
-        TempData["SisterhoodStatus"] = statusMessage + " They'll be able to join once they accept.";
-        return RedirectToAction(nameof(Sisterhoods));
+        var fullStatusMessage = statusMessage + " They'll be able to join once they accept.";
+        string? mailtoLink = null;
+        if (invitee is null && !string.IsNullOrEmpty(inviteeEmail))
+        {
+            var subject = $"Join {sisterhood.Name} on Wine Surfer";
+            var body = $"We'd love to have you in the {sisterhood.Name} sisterhood on Wine Surfer. Sign up using this email address and accept the invite we just sent.";
+            mailtoLink = $"mailto:{inviteeEmail}?subject={Uri.EscapeDataString(subject)}&body={Uri.EscapeDataString(body)}";
+        }
+
+        return Success(fullStatusMessage, invitee is not null, inviteeEmail, mailtoLink);
     }
 
     [Authorize]

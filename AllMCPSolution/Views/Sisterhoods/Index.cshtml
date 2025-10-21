@@ -608,6 +608,33 @@
             justify-content: flex-end;
         }
 
+        .invite-feedback {
+            font-size: 13px;
+            letter-spacing: 0.5px;
+            color: rgba(244, 241, 234, 0.72);
+            min-height: 1.2em;
+        }
+
+        .invite-feedback[hidden] {
+            display: none;
+        }
+
+        .invite-feedback.is-success {
+            color: #b5f5dc;
+        }
+
+        .invite-feedback.is-error {
+            color: #f7a4b6;
+        }
+
+        .invite-feedback.is-mailto {
+            color: #f9e27d;
+        }
+
+        .invite-feedback.is-pending {
+            color: rgba(244, 241, 234, 0.6);
+        }
+
         .sisterhood-card footer {
             margin-top: 8px;
         }
@@ -824,13 +851,14 @@
                                 <input type="hidden" name="IsEmail" value="false" data-sisterhood-invite-is-email />
                                 <label for="invite-member-@sisterhood.Id">Invite a Wine Surfer</label>
                                 <input id="invite-member-@sisterhood.Id" name="MemberName" type="text" list="sisterhood-user-options" placeholder="Start typing a name or email" autocomplete="off" />
-                                <div class="invite-actions">
-                                    <button type="submit" class="secondary-button">Invite</button>
-                                </div>
-                            </form>
-                        }
-                    </article>
-                }
+                            <div class="invite-actions">
+                                <button type="submit" class="secondary-button">Invite</button>
+                            </div>
+                            <p class="invite-feedback" data-sisterhood-invite-feedback aria-live="polite" hidden></p>
+                        </form>
+                    }
+                </article>
+            }
             }
             else
             {
@@ -862,6 +890,169 @@
             return;
         }
 
+        const userMap = new Map();
+        const syncByForm = new WeakMap();
+        const emailPattern = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
+
+        const setUpInviteForm = (form) => {
+            const input = form.querySelector('input[name="MemberName"]');
+            const userIdField = form.querySelector('input[name="UserId"][data-sisterhood-invite-user-id]');
+            const emailField = form.querySelector('input[name="MemberEmail"][data-sisterhood-invite-email]');
+            const isEmailField = form.querySelector('input[name="IsEmail"][data-sisterhood-invite-is-email]');
+            const feedback = form.querySelector('[data-sisterhood-invite-feedback]');
+            const submitButton = form.querySelector('button[type="submit"]');
+
+            if (!input || !userIdField || !emailField || !isEmailField) {
+                return;
+            }
+
+            const clearFeedback = () => {
+                if (!feedback) {
+                    return;
+                }
+
+                feedback.textContent = '';
+                feedback.hidden = true;
+                feedback.classList.remove('is-success', 'is-error', 'is-mailto', 'is-pending');
+            };
+
+            const setFeedback = (message, variant) => {
+                if (!feedback) {
+                    return;
+                }
+
+                feedback.textContent = message;
+                feedback.hidden = false;
+                feedback.classList.remove('is-success', 'is-error', 'is-mailto', 'is-pending');
+                if (variant) {
+                    feedback.classList.add(`is-${variant}`);
+                }
+            };
+
+            const syncDerivedValues = () => {
+                const raw = input.value ?? '';
+                const trimmed = raw.trim();
+                const lookupKey = trimmed.toLowerCase();
+
+                if (lookupKey && userMap.has(lookupKey)) {
+                    userIdField.value = userMap.get(lookupKey);
+                } else {
+                    userIdField.value = '';
+                }
+
+                if (trimmed && emailPattern.test(trimmed)) {
+                    emailField.value = trimmed.toLowerCase();
+                    isEmailField.value = 'true';
+                } else {
+                    emailField.value = '';
+                    isEmailField.value = 'false';
+                }
+            };
+
+            syncByForm.set(form, syncDerivedValues);
+
+            input.addEventListener('input', () => {
+                syncDerivedValues();
+                clearFeedback();
+            });
+            input.addEventListener('change', syncDerivedValues);
+            input.addEventListener('blur', syncDerivedValues);
+            syncDerivedValues();
+
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+
+                if (!form.checkValidity()) {
+                    form.reportValidity?.();
+                    return;
+                }
+
+                const action = form.getAttribute('action');
+                if (!action) {
+                    form.submit();
+                    return;
+                }
+
+                const formData = new FormData(form);
+
+                try {
+                    if (submitButton) {
+                        if (!submitButton.dataset.originalLabel) {
+                            submitButton.dataset.originalLabel = submitButton.textContent?.trim() ?? '';
+                        }
+                        submitButton.disabled = true;
+                        submitButton.textContent = 'Inviting…';
+                    }
+
+                    setFeedback('Sending invitation…', 'pending');
+
+                    const response = await fetch(action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    });
+
+                    const contentType = response.headers.get('content-type') ?? '';
+                    const expectsJson = contentType.includes('application/json');
+                    if (!expectsJson) {
+                        window.location.assign(action);
+                        return;
+                    }
+
+                    const payload = await response.json();
+
+                    if (!response.ok || !payload?.success) {
+                        const errorMessage = payload?.message ?? 'We could not send that invitation. Please try again.';
+                        setFeedback(errorMessage, 'error');
+                        return;
+                    }
+
+                    const baseMessage = typeof payload.message === 'string'
+                        ? payload.message
+                        : 'Invitation sent.';
+
+                    let finalMessage = baseMessage;
+                    let variant = 'success';
+                    let shouldOpenMailClient = false;
+
+                    if (payload.shouldLaunchMailClient && payload.mailtoLink) {
+                        const fallbackTarget = payload.mailtoLink.replace(/^mailto:/i, '').split('?')[0];
+                        const emailTarget = payload.inviteeEmail ?? fallbackTarget;
+                        finalMessage = `${baseMessage} We opened your email client so you can reach ${emailTarget} directly.`;
+                        variant = 'mailto';
+                        shouldOpenMailClient = true;
+                    }
+
+                    setFeedback(finalMessage, variant);
+
+                    if (shouldOpenMailClient) {
+                        window.setTimeout(() => {
+                            window.location.href = payload.mailtoLink;
+                        }, 100);
+                    }
+
+                    input.value = '';
+                    userIdField.value = '';
+                    emailField.value = '';
+                    isEmailField.value = 'false';
+                } catch (error) {
+                    setFeedback('We could not send that invitation. Please try again.', 'error');
+                } finally {
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        const originalLabel = submitButton.dataset.originalLabel ?? 'Invite';
+                        submitButton.textContent = originalLabel || 'Invite';
+                    }
+                }
+            });
+        };
+
+        inviteForms.forEach(setUpInviteForm);
+
         fetch('/wine-surfer/users')
             .then(response => response.ok ? response.json() : [])
             .then(users => {
@@ -870,7 +1061,9 @@
                     return;
                 }
 
-                const userMap = new Map();
+                dataList.innerHTML = '';
+                userMap.clear();
+
                 users.forEach(user => {
                     if (!user?.name || !user?.id) {
                         return;
@@ -886,41 +1079,11 @@
                     userMap.set(user.name.toLowerCase(), user.id);
                 });
 
-                const emailPattern = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
-
                 inviteForms.forEach(form => {
-                    const input = form.querySelector('input[name="MemberName"]');
-                    const userIdField = form.querySelector('input[name="UserId"][data-sisterhood-invite-user-id]');
-                    const emailField = form.querySelector('input[name="MemberEmail"][data-sisterhood-invite-email]');
-                    const isEmailField = form.querySelector('input[name="IsEmail"][data-sisterhood-invite-is-email]');
-                    if (!input || !userIdField || !emailField || !isEmailField) {
-                        return;
+                    const sync = syncByForm.get(form);
+                    if (typeof sync === 'function') {
+                        sync();
                     }
-
-                    const syncDerivedValues = () => {
-                        const raw = input.value ?? '';
-                        const trimmed = raw.trim();
-                        const lookupKey = trimmed.toLowerCase();
-
-                        if (lookupKey && userMap.has(lookupKey)) {
-                            userIdField.value = userMap.get(lookupKey);
-                        } else {
-                            userIdField.value = '';
-                        }
-
-                        if (trimmed && emailPattern.test(trimmed)) {
-                            emailField.value = trimmed.toLowerCase();
-                            isEmailField.value = 'true';
-                        } else {
-                            emailField.value = '';
-                            isEmailField.value = 'false';
-                        }
-                    };
-
-                    input.addEventListener('input', syncDerivedValues);
-                    input.addEventListener('change', syncDerivedValues);
-                    input.addEventListener('blur', syncDerivedValues);
-                    syncDerivedValues();
                 });
             })
             .catch(() => { /* Non-blocking hint failure */ });
