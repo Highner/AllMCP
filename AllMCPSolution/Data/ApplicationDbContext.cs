@@ -27,6 +27,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<BottleLocation> BottleLocations { get; set; }
     public DbSet<TastingNote> TastingNotes { get; set; }
     public DbSet<Sisterhood> Sisterhoods { get; set; }
+    public DbSet<SisterhoodMembership> SisterhoodMemberships { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -216,25 +217,30 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .IsUnique();
         });
 
-        modelBuilder.Entity<ApplicationUser>()
-            .HasMany(u => u.Sisterhoods)
-            .WithMany(s => s.Members)
-            .UsingEntity<Dictionary<string, object>>(
-                "UserSisterhoods",
-                j => j
-                    .HasOne<Sisterhood>()
-                    .WithMany()
-                    .HasForeignKey("SisterhoodId")
-                    .OnDelete(DeleteBehavior.Cascade),
-                j => j
-                    .HasOne<ApplicationUser>()
-                    .WithMany()
-                    .HasForeignKey("UserId")
-                    .OnDelete(DeleteBehavior.Cascade),
-                j =>
-                {
-                    j.HasKey("UserId", "SisterhoodId");
-                    j.HasIndex("SisterhoodId", "UserId").IsUnique();
-                });
+        modelBuilder.Entity<SisterhoodMembership>(entity =>
+        {
+            entity.ToTable("UserSisterhoods");
+
+            entity.HasKey(membership => new { membership.UserId, membership.SisterhoodId });
+
+            entity.Property(membership => membership.JoinedAt)
+                .HasColumnType("datetime2");
+
+            entity.Property(membership => membership.IsAdmin)
+                .HasDefaultValue(false);
+
+            entity.HasIndex(membership => new { membership.SisterhoodId, membership.UserId })
+                .IsUnique();
+
+            entity.HasOne(membership => membership.Sisterhood)
+                .WithMany(sisterhood => sisterhood.Memberships)
+                .HasForeignKey(membership => membership.SisterhoodId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(membership => membership.User)
+                .WithMany(user => user.SisterhoodMemberships)
+                .HasForeignKey(membership => membership.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }
