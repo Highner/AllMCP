@@ -1,14 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Net.Mail;
+using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
-using System.ComponentModel.DataAnnotations;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace AllMCPSolution.Controllers;
 
@@ -345,9 +346,25 @@ public class WineSurferController : Controller
             invitee = await _userRepository.GetByIdAsync(request.UserId.Value, cancellationToken);
         }
 
-        if (invitee is null && !string.IsNullOrWhiteSpace(request.MemberName))
+        var trimmedName = string.IsNullOrWhiteSpace(request.MemberName)
+            ? null
+            : request.MemberName.Trim();
+        var normalizedEmailCandidate = NormalizeEmailCandidate(request.MemberEmail);
+        var nameLooksLikeEmail = request.IsEmail || LooksLikeEmail(trimmedName);
+
+        if (invitee is null && string.IsNullOrEmpty(normalizedEmailCandidate) && nameLooksLikeEmail)
         {
-            invitee = await _userRepository.FindByNameAsync(request.MemberName.Trim(), cancellationToken);
+            normalizedEmailCandidate = NormalizeEmailCandidate(trimmedName);
+        }
+
+        if (invitee is null && !string.IsNullOrEmpty(normalizedEmailCandidate))
+        {
+            invitee = await _userRepository.FindByEmailAsync(normalizedEmailCandidate, cancellationToken);
+        }
+
+        if (invitee is null && !string.IsNullOrEmpty(trimmedName) && !nameLooksLikeEmail)
+        {
+            invitee = await _userRepository.FindByNameAsync(trimmedName, cancellationToken);
         }
 
         if (invitee is null)
@@ -640,7 +657,7 @@ public class WineSurferController : Controller
         public string? Description { get; set; }
     }
 
-    public class InviteSisterhoodMemberRequest
+    public class InviteSisterhoodMemberRequest : IValidatableObject
     {
         [Required]
         public Guid SisterhoodId { get; set; }
@@ -649,6 +666,45 @@ public class WineSurferController : Controller
 
         [StringLength(256)]
         public string? MemberName { get; set; }
+
+        [StringLength(256)]
+        [EmailAddress]
+        public string? MemberEmail { get; set; }
+
+        public bool IsEmail { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (UserId.HasValue)
+            {
+                yield break;
+            }
+
+            var trimmedName = string.IsNullOrWhiteSpace(MemberName) ? null : MemberName.Trim();
+            var trimmedEmail = string.IsNullOrWhiteSpace(MemberEmail) ? null : MemberEmail.Trim();
+
+            if (trimmedName is null && trimmedEmail is null)
+            {
+                yield return new ValidationResult(
+                    "Please provide a username or email address.",
+                    new[] { nameof(MemberName), nameof(MemberEmail) });
+                yield break;
+            }
+
+            if (IsEmail && trimmedEmail is null)
+            {
+                yield return new ValidationResult(
+                    "A valid email address is required to send an email invite.",
+                    new[] { nameof(MemberEmail) });
+            }
+
+            if (trimmedEmail is null && trimmedName is not null && trimmedName.Length < 2)
+            {
+                yield return new ValidationResult(
+                    "Usernames must be at least two characters.",
+                    new[] { nameof(MemberName) });
+            }
+        }
     }
 
     public class ModifySisterhoodMemberRequest
@@ -669,6 +725,35 @@ public class WineSurferController : Controller
     {
         [Required]
         public Guid SisterhoodId { get; set; }
+    }
+
+    private static string? NormalizeEmailCandidate(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        return email.Trim().ToLowerInvariant();
+    }
+
+    private static bool LooksLikeEmail(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        try
+        {
+            var trimmed = value.Trim();
+            var address = new MailAddress(trimmed);
+            return string.Equals(address.Address, trimmed, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 
     private static MapHighlightPoint? CreateHighlightPoint(
