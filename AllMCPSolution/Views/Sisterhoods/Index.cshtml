@@ -1040,6 +1040,38 @@
             letter-spacing: 1.4px;
         }
 
+        .sip-session-bottle-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .sip-session-bottle-actions form {
+            margin: 0;
+        }
+
+        .sip-session-bottle-action-button {
+            padding: 4px 10px;
+            font-size: 10px;
+            letter-spacing: 1.4px;
+        }
+
+        .sip-session-bottle-rate-button {
+            border-color: rgba(244, 241, 234, 0.18);
+        }
+
+        .sip-session-bottle-rate-button:hover,
+        .sip-session-bottle-rate-button:focus {
+            border-color: rgba(244, 241, 234, 0.3);
+        }
+
+        .sip-session-bottle-status {
+            font-size: 11px;
+            color: rgba(244, 241, 234, 0.62);
+        }
+
         .sip-session-actions {
             display: inline-flex;
             align-items: center;
@@ -1255,6 +1287,116 @@
             align-items: center;
             gap: 12px;
             padding-top: 8px;
+        }
+
+        .rate-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 5, 5, 0.72);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 16px;
+            z-index: 60;
+            backdrop-filter: blur(8px);
+        }
+
+        .rate-modal-backdrop[hidden] {
+            display: none;
+        }
+
+        .rate-modal {
+            width: min(420px, 100%);
+            background: rgba(12, 12, 12, 0.96);
+            border-radius: 16px;
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 28px 48px rgba(0, 0, 0, 0.45);
+        }
+
+        .rate-modal__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .rate-modal__title {
+            margin: 0;
+            font-size: 17px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .rate-modal__form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .rate-modal__context {
+            margin: 0;
+            font-size: 13px;
+            color: rgba(244, 241, 234, 0.75);
+        }
+
+        .rate-modal__bottle {
+            font-weight: 600;
+            color: #f4f1ea;
+        }
+
+        .rate-modal__field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .rate-modal__field-group label {
+            font-size: 12px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        .rate-modal__field-group textarea {
+            min-height: 120px;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(244, 241, 234, 0.16);
+            background: rgba(244, 241, 234, 0.05);
+            color: #f4f1ea;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
+        }
+
+        .rate-modal__field-group textarea:focus {
+            outline: 2px solid rgba(192, 134, 242, 0.4);
+            outline-offset: 2px;
+        }
+
+        .rate-modal__field-group input[type="number"] {
+            width: 120px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(244, 241, 234, 0.16);
+            background: rgba(244, 241, 234, 0.05);
+            color: #f4f1ea;
+            font-size: 14px;
+        }
+
+        .rate-modal__field-group input[type="number"]:focus {
+            outline: 2px solid rgba(192, 134, 242, 0.4);
+            outline-offset: 2px;
+        }
+
+        .rate-modal__actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
         }
 
         .pending-invitations {
@@ -1863,22 +2005,56 @@
                                                         {
                                                             <li>
                                                                 <span class="sip-session-bottle-label">@bottle.Label</span>
-                                                                @if (bottle.IsOwnedByCurrentUser)
-                                                                {
-                                                                    <form method="post"
-                                                                          action="@Url.Action("RemoveSipSessionBottle", "WineSurfer")"
-                                                                          class="sip-session-bottle-remove-form">
-                                                                        @Html.AntiForgeryToken()
-                                                                        <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
-                                                                        <input type="hidden" name="SipSessionId" value="@session.Id" />
-                                                                        <input type="hidden" name="BottleId" value="@bottle.Id" />
-                                                                        <button type="submit"
-                                                                                class="ghost-button sip-session-bottle-remove-button"
-                                                                                aria-label="Remove @bottle.Label">
-                                                                            Remove
+                                                                <div class="sip-session-bottle-actions">
+                                                                    @if (bottle.IsDrunk)
+                                                                    {
+                                                                        var enjoyedAt = NormalizeDateTime(bottle.DrunkAtUtc);
+                                                                        <span class="sip-session-bottle-status">
+                                                                            Enjoyed @(enjoyedAt.HasValue ? enjoyedAt.Value.ToString("g") : "recently")
+                                                                        </span>
+                                                                    }
+                                                                    @if (bottle.IsOwnedByCurrentUser)
+                                                                    {
+                                                                        if (!bottle.IsDrunk)
+                                                                        {
+                                                                            <form method="post"
+                                                                                  action="@Url.Action("DrinkSipSessionBottle", "WineSurfer")"
+                                                                                  class="sip-session-bottle-drink-form">
+                                                                                @Html.AntiForgeryToken()
+                                                                                <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                                                                <input type="hidden" name="SipSessionId" value="@session.Id" />
+                                                                                <input type="hidden" name="BottleId" value="@bottle.Id" />
+                                                                                <button type="submit"
+                                                                                        class="secondary-button sip-session-bottle-action-button"
+                                                                                        aria-label="Mark @bottle.Label as enjoyed">
+                                                                                    Drink
+                                                                                </button>
+                                                                            </form>
+                                                                        }
+                                                                        <button type="button"
+                                                                                class="ghost-button sip-session-bottle-action-button sip-session-bottle-rate-button"
+                                                                                data-rate-trigger
+                                                                                data-sisterhood-id="@sisterhood.Id"
+                                                                                data-sip-session-id="@session.Id"
+                                                                                data-bottle-id="@bottle.Id"
+                                                                                data-bottle-label="@bottle.Label">
+                                                                            Rate
                                                                         </button>
-                                                                    </form>
-                                                                }
+                                                                        <form method="post"
+                                                                              action="@Url.Action("RemoveSipSessionBottle", "WineSurfer")"
+                                                                              class="sip-session-bottle-remove-form">
+                                                                            @Html.AntiForgeryToken()
+                                                                            <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                                                            <input type="hidden" name="SipSessionId" value="@session.Id" />
+                                                                            <input type="hidden" name="BottleId" value="@bottle.Id" />
+                                                                            <button type="submit"
+                                                                                    class="ghost-button sip-session-bottle-action-button sip-session-bottle-remove-button"
+                                                                                    aria-label="Remove @bottle.Label">
+                                                                                Remove
+                                                                            </button>
+                                                                        </form>
+                                                                    }
+                                                                </div>
                                                             </li>
                                                         }
                                                     </ul>
@@ -2087,8 +2263,48 @@
             </form>
         </div>
     </div>
+    <div class="rate-modal-backdrop" data-rate-modal hidden aria-hidden="true">
+        <div class="rate-modal" role="dialog" aria-modal="true" aria-labelledby="rate-modal-title">
+            <header class="rate-modal__header">
+                <h2 class="rate-modal__title" id="rate-modal-title">Rate bottle</h2>
+                <button type="button" class="ghost-button" data-rate-close aria-label="Close tasting note dialog">Close</button>
+            </header>
+            <form method="post"
+                  action="@Url.Action("RateSipSessionBottle", "WineSurfer")"
+                  class="rate-modal__form"
+                  data-rate-form>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="SisterhoodId" data-rate-sisterhood />
+                <input type="hidden" name="SipSessionId" data-rate-session />
+                <input type="hidden" name="BottleId" data-rate-bottle />
+                <p class="rate-modal__context">
+                    Share your impressions of <span class="rate-modal__bottle" data-rate-bottle-label>this bottle</span>.
+                </p>
+                <div class="rate-modal__field-group">
+                    <label for="rate-note">Tasting note</label>
+                    <textarea id="rate-note" name="Note" maxlength="2048" required data-rate-note></textarea>
+                </div>
+                <div class="rate-modal__field-group">
+                    <label for="rate-score">Score (0-10, optional)</label>
+                    <input id="rate-score" name="Score" type="number" min="0" max="10" step="0.1" inputmode="decimal" />
+                </div>
+                <div class="rate-modal__actions">
+                    <button type="submit" class="secondary-button">Save note</button>
+                    <button type="button" class="ghost-button" data-rate-close>Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        const setScrollLock = (locked) => {
+            if (locked) {
+                document.body.classList.add('no-scroll');
+            } else {
+                document.body.classList.remove('no-scroll');
+            }
+        };
+
         const contributeModal = document.querySelector('[data-contribute-modal]');
         if (contributeModal) {
             const form = contributeModal.querySelector('[data-contribute-form]');
@@ -2121,14 +2337,6 @@
             };
 
             const isModalOpen = () => !contributeModal.hasAttribute('hidden');
-
-            const toggleScrollLock = (disable) => {
-                if (disable) {
-                    document.body.classList.add('no-scroll');
-                } else {
-                    document.body.classList.remove('no-scroll');
-                }
-            };
 
             const resetOptionState = () => {
                 checkboxes.forEach(box => {
@@ -2205,7 +2413,7 @@
 
                 contributeModal.removeAttribute('hidden');
                 contributeModal.setAttribute('aria-hidden', 'false');
-                toggleScrollLock(true);
+                setScrollLock(true);
                 focusInitialControl(enabledCount);
             };
 
@@ -2216,7 +2424,7 @@
 
                 contributeModal.setAttribute('hidden', '');
                 contributeModal.setAttribute('aria-hidden', 'true');
-                toggleScrollLock(false);
+                setScrollLock(false);
                 form.reset();
                 resetOptionState();
 
@@ -2266,6 +2474,98 @@
             });
 
             updateSubmitState();
+        }
+
+        const rateModal = document.querySelector('[data-rate-modal]');
+        if (rateModal) {
+            const form = rateModal.querySelector('[data-rate-form]');
+            const sisterhoodField = form?.querySelector('[data-rate-sisterhood]');
+            const sessionField = form?.querySelector('[data-rate-session]');
+            const bottleField = form?.querySelector('[data-rate-bottle]');
+            const bottleLabelTarget = rateModal.querySelector('[data-rate-bottle-label]');
+            const noteField = form?.querySelector('[data-rate-note]');
+            const closeButtons = rateModal.querySelectorAll('[data-rate-close]');
+            const openButtons = document.querySelectorAll('[data-rate-trigger]');
+            let lastTrigger = null;
+
+            const isModalOpen = () => !rateModal.hasAttribute('hidden');
+
+            const openModal = (context) => {
+                if (!form || !sisterhoodField || !sessionField || !bottleField) {
+                    return;
+                }
+
+                form.reset();
+                sisterhoodField.value = context.sisterhoodId ?? '';
+                sessionField.value = context.sessionId ?? '';
+                bottleField.value = context.bottleId ?? '';
+
+                if (bottleLabelTarget) {
+                    bottleLabelTarget.textContent = context.bottleLabel && context.bottleLabel.length > 0
+                        ? context.bottleLabel
+                        : 'this bottle';
+                }
+
+                rateModal.removeAttribute('hidden');
+                rateModal.setAttribute('aria-hidden', 'false');
+                setScrollLock(true);
+                lastTrigger = context.trigger ?? null;
+
+                window.requestAnimationFrame(() => {
+                    noteField?.focus();
+                });
+            };
+
+            const closeModal = () => {
+                if (!form) {
+                    return;
+                }
+
+                rateModal.setAttribute('hidden', '');
+                rateModal.setAttribute('aria-hidden', 'true');
+                setScrollLock(false);
+                form.reset();
+
+                if (bottleLabelTarget) {
+                    bottleLabelTarget.textContent = 'this bottle';
+                }
+
+                if (lastTrigger) {
+                    const trigger = lastTrigger;
+                    lastTrigger = null;
+                    window.requestAnimationFrame(() => trigger.focus());
+                }
+            };
+
+            openButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const context = {
+                        sisterhoodId: button.getAttribute('data-sisterhood-id') ?? '',
+                        sessionId: button.getAttribute('data-sip-session-id') ?? '',
+                        bottleId: button.getAttribute('data-bottle-id') ?? '',
+                        bottleLabel: button.getAttribute('data-bottle-label') ?? '',
+                        trigger: button
+                    };
+
+                    openModal(context);
+                });
+            });
+
+            closeButtons.forEach(button => {
+                button.addEventListener('click', closeModal);
+            });
+
+            rateModal.addEventListener('click', event => {
+                if (event.target === rateModal) {
+                    closeModal();
+                }
+            });
+
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape' && isModalOpen()) {
+                    closeModal();
+                }
+            });
         }
 
         const toggleButton = document.querySelector('[data-sisterhood-create-toggle]');

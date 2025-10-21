@@ -15,6 +15,7 @@ public interface ISipSessionRepository
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task<int> AddBottlesToSessionAsync(Guid sessionId, Guid ownerUserId, IReadOnlyCollection<Guid> bottleIds, CancellationToken ct = default);
     Task<bool> RemoveBottleFromSessionAsync(Guid sessionId, Guid ownerUserId, Guid bottleId, CancellationToken ct = default);
+    Task<bool> MarkBottleAsDrunkAsync(Guid sessionId, Guid ownerUserId, Guid bottleId, CancellationToken ct = default);
 }
 
 public class SipSessionRepository : ISipSessionRepository
@@ -271,5 +272,89 @@ public class SipSessionRepository : ISipSessionRepository
         await _db.SaveChangesAsync(ct);
 
         return true;
+    }
+
+    public async Task<bool> MarkBottleAsDrunkAsync(Guid sessionId, Guid ownerUserId, Guid bottleId, CancellationToken ct = default)
+    {
+        if (sessionId == Guid.Empty || ownerUserId == Guid.Empty || bottleId == Guid.Empty)
+        {
+            return false;
+        }
+
+        var session = await _db.SipSessions
+            .Include(s => s.Bottles)
+            .FirstOrDefaultAsync(s => s.Id == sessionId, ct);
+
+        if (session is null)
+        {
+            return false;
+        }
+
+        if (session.Bottles is null || session.Bottles.Count == 0)
+        {
+            return false;
+        }
+
+        var bottle = session.Bottles.FirstOrDefault(b => b.Id == bottleId && b.UserId == ownerUserId);
+        if (bottle is null)
+        {
+            return false;
+        }
+
+        var targetDrunkAt = DetermineDrunkAtUtc(session);
+        var hasChanges = false;
+        var existingDrunkAt = bottle.DrunkAt.HasValue ? NormalizeToUtc(bottle.DrunkAt.Value) : (DateTime?)null;
+
+        if (!bottle.IsDrunk)
+        {
+            bottle.IsDrunk = true;
+            hasChanges = true;
+        }
+
+        if (!existingDrunkAt.HasValue || existingDrunkAt.Value != targetDrunkAt)
+        {
+            bottle.DrunkAt = targetDrunkAt;
+            hasChanges = true;
+        }
+
+        if (!hasChanges)
+        {
+            return true;
+        }
+
+        session.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        return true;
+    }
+
+    private static DateTime DetermineDrunkAtUtc(SipSession session)
+    {
+        if (session is null)
+        {
+            return DateTime.UtcNow;
+        }
+
+        if (session.ScheduledAt.HasValue)
+        {
+            return NormalizeToUtc(session.ScheduledAt.Value);
+        }
+
+        if (session.Date.HasValue)
+        {
+            return NormalizeToUtc(session.Date.Value);
+        }
+
+        return DateTime.UtcNow;
+    }
+
+    private static DateTime NormalizeToUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
     }
 }
