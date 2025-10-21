@@ -41,6 +41,7 @@ public class SisterhoodRepository : ISisterhoodRepository
         return await _db.Sisterhoods
             .AsNoTracking()
             .Include(s => s.SipSessions)
+                .ThenInclude(session => session.Bottles)
             .Include(s => s.Memberships)
                 .ThenInclude(membership => membership.User)
             .Include(s => s.Invitations)
@@ -54,6 +55,7 @@ public class SisterhoodRepository : ISisterhoodRepository
         return await _db.Sisterhoods
             .AsNoTracking()
             .Include(s => s.SipSessions)
+                .ThenInclude(session => session.Bottles)
             .Include(s => s.Memberships)
                 .ThenInclude(membership => membership.User)
             .Include(s => s.Invitations)
@@ -72,6 +74,7 @@ public class SisterhoodRepository : ISisterhoodRepository
         return await _db.Sisterhoods
             .AsNoTracking()
             .Include(s => s.SipSessions)
+                .ThenInclude(session => session.Bottles)
             .Include(s => s.Memberships)
                 .ThenInclude(membership => membership.User)
             .Include(s => s.Invitations)
@@ -89,6 +92,7 @@ public class SisterhoodRepository : ISisterhoodRepository
         return await _db.Sisterhoods
             .AsNoTracking()
             .Include(s => s.SipSessions)
+                .ThenInclude(session => session.Bottles)
             .Include(s => s.Memberships)
                 .ThenInclude(membership => membership.User)
                     .ThenInclude(user => user.TastingNotes)

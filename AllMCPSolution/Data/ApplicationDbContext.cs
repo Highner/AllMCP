@@ -228,6 +228,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(session => session.Description)
                 .HasMaxLength(2048);
 
+            entity.Property(session => session.Location)
+                .HasMaxLength(256);
+
             entity.Property(session => session.ScheduledAt)
                 .HasColumnType("datetime2");
 
@@ -243,6 +246,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .WithMany(sisterhood => sisterhood.SipSessions)
                 .HasForeignKey(session => session.SisterhoodId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(session => session.Bottles)
+                .WithMany();
         });
 
         modelBuilder.Entity<SisterhoodMembership>(entity =>

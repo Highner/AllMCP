@@ -25,6 +25,7 @@ public class SipSessionRepository : ISipSessionRepository
         return await _db.SipSessions
             .AsNoTracking()
             .Include(session => session.Sisterhood)
+            .Include(session => session.Bottles)
             .FirstOrDefaultAsync(session => session.Id == id, ct);
     }
 
@@ -39,6 +40,7 @@ public class SipSessionRepository : ISipSessionRepository
             .AsNoTracking()
             .Where(session => session.SisterhoodId == sisterhoodId)
             .Include(session => session.Sisterhood)
+            .Include(session => session.Bottles)
             .OrderBy(session => session.ScheduledAt ?? session.CreatedAt)
             .ThenBy(session => session.Name)
             .ToListAsync(ct);
@@ -65,6 +67,10 @@ public class SipSessionRepository : ISipSessionRepository
         sipSession.Description = string.IsNullOrWhiteSpace(sipSession.Description)
             ? null
             : sipSession.Description.Trim();
+
+        sipSession.Location = string.IsNullOrWhiteSpace(sipSession.Location)
+            ? string.Empty
+            : sipSession.Location.Trim();
 
         if (sipSession.Id == Guid.Empty)
         {
@@ -105,6 +111,10 @@ public class SipSessionRepository : ISipSessionRepository
         sipSession.Description = string.IsNullOrWhiteSpace(sipSession.Description)
             ? null
             : sipSession.Description.Trim();
+
+        sipSession.Location = string.IsNullOrWhiteSpace(sipSession.Location)
+            ? string.Empty
+            : sipSession.Location.Trim();
 
         sipSession.UpdatedAt = DateTime.UtcNow;
 
