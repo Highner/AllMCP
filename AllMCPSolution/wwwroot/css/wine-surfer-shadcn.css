@@ -686,6 +686,10 @@ textarea:focus {
     z-index: 100;
 }
 
+.inventory-add-overlay[hidden] {
+    display: none !important;
+}
+
 .inventory-add-popover {
     width: min(480px, 100%);
     max-height: calc(100% - 48px);
