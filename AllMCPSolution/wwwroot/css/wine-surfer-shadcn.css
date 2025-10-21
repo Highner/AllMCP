@@ -588,7 +588,18 @@ textarea:focus {
 .crud-table__header {
     display: flex;
     flex-direction: column;
+    gap: 12px;
+}
+
+.crud-table__header-content {
+    display: flex;
+    flex-direction: column;
     gap: 4px;
+}
+
+.inventory-add-trigger {
+    align-self: flex-start;
+    margin-left: 0;
 }
 
 .crud-table__title {
@@ -609,6 +620,23 @@ textarea:focus {
     background: hsla(var(--card) / 0.65);
     overflow: hidden;
     border: 1px solid hsla(var(--border) / 0.18);
+}
+
+@media (min-width: 768px) {
+    .crud-table__header {
+        flex-direction: row;
+        align-items: flex-end;
+        gap: 16px;
+    }
+
+    .crud-table__header-content {
+        flex: 1;
+    }
+
+    .inventory-add-trigger {
+        margin-left: auto;
+        align-self: center;
+    }
 }
 
 .crud-table__table {
@@ -646,6 +674,100 @@ textarea:focus {
     display: flex;
 }
 
+.inventory-add-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: hsla(var(--background) / 0.55);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+}
+
+.inventory-add-popover {
+    width: min(480px, 100%);
+    max-height: calc(100% - 48px);
+    overflow-y: auto;
+    background: hsla(var(--popover) / 0.98);
+    border: 1px solid hsla(var(--border) / 0.35);
+    border-radius: calc(var(--radius) + 0.25rem);
+    box-shadow: 0 32px 90px hsla(var(--background) / 0.65);
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.inventory-add-popover h3 {
+    margin: 0;
+    font-size: 1.4rem;
+    letter-spacing: 0.6px;
+}
+
+.inventory-add-intro {
+    margin: 0;
+    font-size: 0.95rem;
+    color: hsla(var(--muted-foreground) / 0.9);
+}
+
+.inventory-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.inventory-add-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.inventory-add-label {
+    font-size: 0.8rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: hsla(var(--muted-foreground) / 0.85);
+}
+
+.inventory-add-field select,
+.inventory-add-field input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid hsla(var(--input) / 0.6);
+    background: hsla(var(--accent) / 0.18);
+    color: hsl(var(--foreground));
+    min-height: 44px;
+}
+
+.inventory-add-summary,
+.inventory-add-vintage-hint {
+    margin: 0;
+    font-size: 0.85rem;
+    color: hsla(var(--muted-foreground) / 0.95);
+}
+
+.inventory-add-error {
+    margin: 0;
+    min-height: 1.2em;
+    font-size: 0.9rem;
+    color: hsl(var(--destructive));
+}
+
+.inventory-add-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.inventory-add-actions .secondary {
+    background: transparent;
+    border: 1px solid hsla(var(--border) / 0.45);
+    color: hsl(var(--foreground));
+}
+
 table,
 .details-table,
 .notes-table {
@@ -667,46 +789,6 @@ table,
 
 .inventory-table thead .header-row {
     background: hsla(var(--accent) / 0.3);
-}
-
-.inventory-table thead tr.add-summary-row {
-    background: hsla(var(--accent) / 0.2);
-}
-
-.inventory-table thead tr.add-summary-row td {
-    border-bottom: 1px solid hsla(var(--border) / 0.25);
-}
-
-.summary-add-row input,
-.summary-add-row select {
-    width: 100%;
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid hsla(var(--input) / 0.55);
-    background: hsla(var(--accent) / 0.18);
-    color: hsl(var(--foreground));
-    min-width: 0;
-    box-sizing: border-box;
-}
-
-.summary-add-row .actions {
-    display: flex;
-}
-
-.summary-add-row .actions button {
-    width: 100%;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: none;
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.summary-add-row .actions button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 18px hsla(var(--background) / 0.6);
 }
 
 table thead,

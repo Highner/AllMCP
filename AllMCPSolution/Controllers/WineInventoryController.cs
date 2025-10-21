@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
@@ -252,6 +253,35 @@ public class WineInventoryController : Controller
         return Json(response);
     }
 
+    [HttpGet("wines")]
+    public async Task<IActionResult> GetWineOptions(CancellationToken cancellationToken)
+    {
+        var wines = await _wineRepository.GetAllAsync(cancellationToken);
+
+        var options = wines
+            .Select(w => new WineInventoryWineOption
+            {
+                Id = w.Id,
+                Name = w.Name,
+                Color = w.Color.ToString(),
+                SubAppellation = w.SubAppellation?.Name,
+                Appellation = w.SubAppellation?.Appellation?.Name,
+                Region = w.SubAppellation?.Appellation?.Region?.Name,
+                Country = w.SubAppellation?.Appellation?.Region?.Country?.Name,
+                Vintages = w.WineVintages?
+                    .Select(v => v.Vintage)
+                    .Distinct()
+                    .OrderByDescending(v => v)
+                    .ToList()
+                    ?? new List<int>()
+            })
+            .OrderBy(option => option.Name)
+            .ThenBy(option => option.SubAppellation)
+            .ToList();
+
+        return Json(options);
+    }
+
     [HttpGet("bottles/{bottleId:guid}/notes")]
     public async Task<IActionResult> GetBottleNotes(Guid bottleId, CancellationToken cancellationToken)
     {
@@ -330,6 +360,63 @@ public class WineInventoryController : Controller
 
             await _bottleRepository.AddAsync(bottle, cancellationToken);
         }
+
+        var response = await BuildBottleGroupResponseAsync(wineVintage.Id, cancellationToken);
+        if (response is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load wine group after creation.");
+        }
+
+        return Json(response);
+    }
+
+    [HttpPost("inventory")]
+    public async Task<IActionResult> AddWineToInventory([FromBody] AddWineToInventoryRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        if (request.WineId == Guid.Empty)
+        {
+            ModelState.AddModelError(nameof(request.WineId), "Wine must be selected.");
+            return ValidationProblem(ModelState);
+        }
+
+        var wine = await _wineRepository.GetByIdAsync(request.WineId, cancellationToken);
+        if (wine is null)
+        {
+            ModelState.AddModelError(nameof(request.WineId), "The selected wine could not be found.");
+            return ValidationProblem(ModelState);
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Unauthorized("You must be signed in to add wine to your inventory.");
+        }
+
+        var user = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
+        if (user is null)
+        {
+            return Unauthorized("You must be signed in to add wine to your inventory.");
+        }
+
+        var wineVintage = await _wineVintageRepository.GetOrCreateAsync(wine.Id, request.Vintage, cancellationToken);
+
+        var bottle = new Bottle
+        {
+            Id = Guid.NewGuid(),
+            WineVintageId = wineVintage.Id,
+            Price = null,
+            IsDrunk = false,
+            DrunkAt = null,
+            BottleLocationId = null,
+            UserId = user.Id
+        };
+
+        await _bottleRepository.AddAsync(bottle, cancellationToken);
 
         var response = await BuildBottleGroupResponseAsync(wineVintage.Id, cancellationToken);
         if (response is null)
@@ -843,6 +930,12 @@ public class WineInventoryController : Controller
         return decimal.Round((decimal)scores.Average(), 1, MidpointRounding.AwayFromZero);
     }
 
+    private Guid? GetCurrentUserId()
+    {
+        var idClaim = User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(idClaim, out var parsedId) ? parsedId : null;
+    }
+
     private static DateTime? NormalizeDrunkAt(bool isDrunk, DateTime? drunkAt)
     {
         if (!isDrunk)
@@ -954,11 +1047,32 @@ public class WineGroupCreateRequest : WineGroupUpdateRequest
     public Guid? BottleLocationId { get; set; }
 }
 
+public class AddWineToInventoryRequest
+{
+    [Required]
+    public Guid WineId { get; set; }
+
+    [Range(1900, 2100)]
+    public int Vintage { get; set; }
+}
+
 public class InventoryReferenceDataResponse
 {
     public IReadOnlyList<SubAppellationOption> SubAppellations { get; set; } = Array.Empty<SubAppellationOption>();
     public IReadOnlyList<BottleLocationOption> BottleLocations { get; set; } = Array.Empty<BottleLocationOption>();
     public IReadOnlyList<UserOption> Users { get; set; } = Array.Empty<UserOption>();
+}
+
+public class WineInventoryWineOption
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? SubAppellation { get; set; }
+    public string? Appellation { get; set; }
+    public string? Region { get; set; }
+    public string? Country { get; set; }
+    public string Color { get; set; } = string.Empty;
+    public IReadOnlyList<int> Vintages { get; set; } = Array.Empty<int>();
 }
 
 public class BottleNotesResponse
