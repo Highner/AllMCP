@@ -4,6 +4,7 @@ using AllMCPSolution.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AllMCPSolution.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251021091441_sipsession")]
+    partial class sipsession
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -364,17 +367,9 @@ namespace AllMCPSolution.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("Date")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Description")
                         .HasMaxLength(2048)
                         .HasColumnType("nvarchar(2048)");
-
-                    b.Property<string>("Location")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -607,21 +602,6 @@ namespace AllMCPSolution.Migrations
                         .IsUnique();
 
                     b.ToTable("WineVintageEvolutionScores");
-                });
-
-            modelBuilder.Entity("BottleSipSession", b =>
-                {
-                    b.Property<Guid>("BottlesId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("SipSessionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("BottlesId", "SipSessionId");
-
-                    b.HasIndex("SipSessionId");
-
-                    b.ToTable("BottleSipSession");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
@@ -944,21 +924,6 @@ namespace AllMCPSolution.Migrations
                         .IsRequired();
 
                     b.Navigation("WineVintage");
-                });
-
-            modelBuilder.Entity("BottleSipSession", b =>
-                {
-                    b.HasOne("AllMCPSolution.Models.Bottle", null)
-                        .WithMany()
-                        .HasForeignKey("BottlesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AllMCPSolution.Models.SipSession", null)
-                        .WithMany()
-                        .HasForeignKey("SipSessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

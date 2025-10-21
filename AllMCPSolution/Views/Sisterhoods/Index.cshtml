@@ -1072,11 +1072,14 @@
 
                         @if (Model.CurrentUserId.HasValue && sisterhood.Members.Any(member => member.IsCurrentUser))
                         {
-                            @{ var leaveConfirmName = string.IsNullOrWhiteSpace(sisterhood.Name)
-                                    ? "this sisterhood"
-                                    : sisterhood.Name.Replace("'", "\\'"); }
+                            var leaveConfirmName = string.IsNullOrWhiteSpace(sisterhood.Name)
+                                ? "this sisterhood"
+                                : sisterhood.Name.Replace("'", "\\'");
+
                             <footer>
-                                <form method="post" action="@Url.Action("RemoveSisterhoodMember", "WineSurfer")" class="inline-form" onsubmit="return confirm('Leave @leaveConfirmName?');">
+                                <form method="post" action="@Url.Action("RemoveSisterhoodMember", "WineSurfer")"
+                                      class="inline-form"
+                                      onsubmit="return confirm('Leave @leaveConfirmName?');">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
                                     <input type="hidden" name="UserId" value="@Model.CurrentUserId" />
@@ -1084,6 +1087,7 @@
                                 </form>
                             </footer>
                         }
+
 
                         @if (sisterhood.CanManage && sisterhood.PendingInvitations.Count > 0)
                         {
