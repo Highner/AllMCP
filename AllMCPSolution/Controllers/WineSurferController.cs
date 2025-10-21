@@ -208,16 +208,35 @@ public class WineSurferController : Controller
                 sisterhoods = membership
                     .Select(s =>
                     {
-                        var memberSummaries = s.Memberships
-                            .Select(m => new WineSurferSisterhoodMember(
-                                m.UserId,
-                                string.IsNullOrWhiteSpace(m.User?.Name) ? m.User?.UserName ?? "Member" : m.User!.Name,
-                                m.IsAdmin,
-                                m.UserId == currentUserId))
-                            .OrderBy(m => m.DisplayName, StringComparer.OrdinalIgnoreCase)
+                        var memberEntries = s.Memberships
+                            .Select(m =>
+                            {
+                                var displayName = string.IsNullOrWhiteSpace(m.User?.Name)
+                                    ? m.User?.UserName ?? "Member"
+                                    : m.User!.Name;
+
+                                var member = new WineSurferSisterhoodMember(
+                                    m.UserId,
+                                    displayName,
+                                    m.IsAdmin,
+                                    m.UserId == currentUserId,
+                                    GetAvatarLetter(displayName));
+
+                                return new
+                                {
+                                    DisplayName = displayName,
+                                    Member = member
+                                };
+                            })
+                            .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+
+                        var memberSummaries = memberEntries
+                            .Select(entry => entry.Member)
                             .ToList();
 
                         var isAdmin = s.Memberships.Any(m => m.UserId == currentUserId && m.IsAdmin);
+                        var favoriteRegion = CalculateFavoriteRegion(s);
 
                         return new WineSurferSisterhoodSummary(
                             s.Id,
@@ -225,7 +244,8 @@ public class WineSurferController : Controller
                             s.Description,
                             memberSummaries.Count,
                             isAdmin,
-                            memberSummaries);
+                            memberSummaries,
+                            favoriteRegion);
                     })
                     .ToList();
             }
@@ -518,6 +538,64 @@ public class WineSurferController : Controller
         return Guid.TryParse(idClaim, out var parsedId) ? parsedId : null;
     }
 
+    private static string GetAvatarLetter(string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return "?";
+        }
+
+        var trimmed = displayName.Trim();
+        return string.IsNullOrEmpty(trimmed)
+            ? "?"
+            : trimmed.Substring(0, 1).ToUpperInvariant();
+    }
+
+    private static WineSurferSisterhoodFavoriteRegion? CalculateFavoriteRegion(Sisterhood sisterhood)
+    {
+        if (sisterhood is null)
+        {
+            return null;
+        }
+
+        var topRegion = sisterhood.Memberships
+            .Where(membership => membership.User?.TastingNotes is not null)
+            .SelectMany(membership => membership.User!.TastingNotes)
+            .Select(note => new
+            {
+                note.Score,
+                Region = note.Bottle?.WineVintage?.Wine?.SubAppellation?.Appellation?.Region
+            })
+            .Where(entry => entry.Score.HasValue && entry.Region is not null)
+            .GroupBy(entry => new
+            {
+                entry.Region!.Id,
+                entry.Region.Name,
+                CountryName = entry.Region.Country?.Name
+            })
+            .Select(group => new
+            {
+                group.Key.Id,
+                group.Key.Name,
+                group.Key.CountryName,
+                AverageScore = group.Average(entry => entry.Score!.Value)
+            })
+            .OrderByDescending(entry => entry.AverageScore)
+            .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
+        if (topRegion is null)
+        {
+            return null;
+        }
+
+        return new WineSurferSisterhoodFavoriteRegion(
+            topRegion.Id,
+            topRegion.Name,
+            topRegion.CountryName,
+            Math.Round(topRegion.AverageScore, 2, MidpointRounding.AwayFromZero));
+    }
+
     private static RegionInventoryMetrics CalculateRegionInventoryMetrics(IEnumerable<Wine> wines)
     {
         var bottleList = wines
@@ -647,9 +725,12 @@ public record WineSurferSisterhoodSummary(
     string? Description,
     int MemberCount,
     bool CanManage,
-    IReadOnlyList<WineSurferSisterhoodMember> Members);
+    IReadOnlyList<WineSurferSisterhoodMember> Members,
+    WineSurferSisterhoodFavoriteRegion? FavoriteRegion);
 
-public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser);
+public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter);
+
+public record WineSurferSisterhoodFavoriteRegion(Guid RegionId, string Name, string? CountryName, decimal AverageScore);
 
 public record MapHighlightPoint(
     string Label,
