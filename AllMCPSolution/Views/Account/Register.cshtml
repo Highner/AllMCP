@@ -1,0 +1,84 @@
+@model AllMCPSolution.Models.RegisterViewModel
+@{
+    Layout = null;
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+    var loginUrl = Url.Action("Login", "Account", new { returnUrl = Model.ReturnUrl });
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Create account • Wine Surfer</title>
+    @await Html.PartialAsync("_AuthStyles")
+</head>
+<body>
+    <div class="page-content">
+        @await Html.PartialAsync("_WineSurferTopBar", currentPath)
+        <main class="auth-main">
+            <section class="auth-card" aria-labelledby="registerTitle">
+                <header>
+                    <h1 id="registerTitle" class="auth-title">Create account</h1>
+                    <p class="auth-subtitle">Join the Wine Surfer community and synchronize your cellar, notes, and tastings.</p>
+                </header>
+
+                @using (Html.BeginForm("Register", "Account", FormMethod.Post, new { @class = "auth-form", autocomplete = "off" }))
+                {
+                    @Html.AntiForgeryToken()
+                    @Html.HiddenFor(model => model.ReturnUrl)
+
+                    @Html.ValidationSummary(false, "", new { @class = "auth-validation", role = "alert" })
+
+                    <div class="auth-field">
+                        @Html.LabelFor(model => model.Name)
+                        @Html.TextBoxFor(model => model.Name, new { @class = "auth-input", autocomplete = "name" })
+                        @Html.ValidationMessageFor(model => model.Name, null, new { @class = "validation-message" })
+                    </div>
+
+                    <div class="auth-field">
+                        @Html.LabelFor(model => model.Email)
+                        @Html.TextBoxFor(model => model.Email, new { @class = "auth-input", type = "email", autocomplete = "email" })
+                        @Html.ValidationMessageFor(model => model.Email, null, new { @class = "validation-message" })
+                    </div>
+
+                    <div class="auth-field">
+                        @Html.LabelFor(model => model.Password)
+                        @Html.PasswordFor(model => model.Password, new { @class = "auth-input", autocomplete = "new-password" })
+                        @Html.ValidationMessageFor(model => model.Password, null, new { @class = "validation-message" })
+                    </div>
+
+                    <div class="auth-field">
+                        @Html.LabelFor(model => model.ConfirmPassword)
+                        @Html.PasswordFor(model => model.ConfirmPassword, new { @class = "auth-input", autocomplete = "new-password" })
+                        @Html.ValidationMessageFor(model => model.ConfirmPassword, null, new { @class = "validation-message" })
+                    </div>
+
+                    <div class="auth-actions">
+                        <button type="submit" class="auth-toggle">Create account</button>
+                        <div class="auth-links">
+                            <a href="@loginUrl">Already have an account? Sign in.</a>
+                        </div>
+                    </div>
+                }
+
+                @if (Model.ExternalLogins.Count > 0)
+                {
+                    <div class="auth-divider" aria-hidden="true">
+                        <span>Or continue with</span>
+                    </div>
+                    <div class="auth-external-list" role="group" aria-label="External registration options">
+                        @foreach (var option in Model.ExternalLogins)
+                        {
+                            var externalUrl = Url.Action("ExternalLogin", "Account", new { scheme = option.AuthenticationScheme, returnUrl = Model.ReturnUrl });
+                            if (!string.IsNullOrWhiteSpace(externalUrl))
+                            {
+                                <a class="auth-external-button" href="@externalUrl">@option.DisplayName</a>
+                            }
+                        }
+                    </div>
+                }
+            </section>
+        </main>
+    </div>
+</body>
+</html>

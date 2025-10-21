@@ -1,4 +1,6 @@
 @using System.Linq
+@using Microsoft.AspNetCore.Authentication.OpenIdConnect
+@using Microsoft.AspNetCore.Mvc.Rendering
 @model string
 
 @{ 
@@ -54,8 +56,11 @@
         returnUrl = "/wine-surfer";
     }
 
-    var googleSignInUrl = Url.Action("SignInWithGoogle", "Account", new { returnUrl });
-    var microsoftSignInUrl = Url.Action("SignInWithMicrosoft", "Account", new { returnUrl });
+    var loginUrl = Url.Action("Login", "Account", new { returnUrl });
+    var registerUrl = Url.Action("Register", "Account", new { returnUrl });
+    var changePasswordUrl = Url.Action("ChangePassword", "Account");
+    var googleSignInUrl = Url.Action("ExternalLogin", "Account", new { scheme = "Google", returnUrl });
+    var microsoftSignInUrl = Url.Action("ExternalLogin", "Account", new { scheme = OpenIdConnectDefaults.AuthenticationScheme, returnUrl });
 }
 
 <header class="top-bar">
@@ -82,25 +87,46 @@
             {
                 <span class="menu-user-label">Signed in as</span>
                 <span class="menu-user-name">@(string.IsNullOrWhiteSpace(userDisplayName) ? "Account" : userDisplayName)</span>
-                <form asp-controller="Account" asp-action="SignOut" method="post" class="auth-form">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="returnUrl" value="@returnUrl" />
-                    <button class="auth-toggle" type="submit" data-auth-state="logout">Sign out</button>
-                </form>
+                <div class="menu-auth-options">
+                    @if (!string.IsNullOrEmpty(changePasswordUrl))
+                    {
+                        <a class="auth-toggle" href="@changePasswordUrl">Change password</a>
+                    }
+                    @using (Html.BeginForm("Logout", "Account", FormMethod.Post, new { @class = "auth-form" }))
+                    {
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <button class="auth-toggle" type="submit" data-auth-state="logout">Sign out</button>
+                    }
+                </div>
             }
             else
             {
-                <span class="menu-user-label">Sign in</span>
+                <span class="menu-user-label">Account</span>
                 <div class="menu-auth-options">
-                    @if (!string.IsNullOrEmpty(googleSignInUrl))
+                    @if (!string.IsNullOrEmpty(loginUrl))
                     {
-                        <a class="auth-toggle" href="@googleSignInUrl">Continue with Google</a>
+                        <a class="auth-toggle" href="@loginUrl">Sign in with email</a>
                     }
-                    @if (!string.IsNullOrEmpty(microsoftSignInUrl))
+                    @if (!string.IsNullOrEmpty(registerUrl))
                     {
-                        <a class="auth-toggle" href="@microsoftSignInUrl">Continue with Microsoft</a>
+                        <a class="auth-toggle" href="@registerUrl">Create an account</a>
                     }
                 </div>
+                if (!string.IsNullOrEmpty(googleSignInUrl) || !string.IsNullOrEmpty(microsoftSignInUrl))
+                {
+                    <span class="menu-user-label">Or continue with</span>
+                    <div class="menu-auth-options">
+                        @if (!string.IsNullOrEmpty(googleSignInUrl))
+                        {
+                            <a class="auth-toggle" href="@googleSignInUrl">Continue with Google</a>
+                        }
+                        @if (!string.IsNullOrEmpty(microsoftSignInUrl))
+                        {
+                            <a class="auth-toggle" href="@microsoftSignInUrl">Continue with Microsoft</a>
+                        }
+                    </div>
+                }
             }
         </div>
     </nav>
