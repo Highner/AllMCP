@@ -1,6 +1,7 @@
 using System.Net;
 using System.Threading;
 using AllMCPSolution.Models;
+using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -18,17 +19,20 @@ public class AccountController : Controller
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly ILogger<AccountController> _logger;
     private readonly IWineSurferTopBarService _topBarService;
+    private readonly IUserRepository _userRepository;
 
     public AccountController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         ILogger<AccountController> logger,
-        IWineSurferTopBarService topBarService)
+        IWineSurferTopBarService topBarService,
+        IUserRepository userRepository)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _logger = logger;
         _topBarService = topBarService;
+        _userRepository = userRepository;
     }
 
     [AllowAnonymous]
@@ -302,6 +306,62 @@ public class AccountController : Controller
 
         await SetTopBarModelAsync(HttpContext.RequestAborted);
         return View("ChangePassword", model);
+    }
+
+    [Authorize]
+    [HttpPost("profile/display-name")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateDisplayName(UpdateAccountDisplayNameViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var trimmedName = model.DisplayName?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(trimmedName))
+        {
+            ModelState.AddModelError(nameof(model.DisplayName), "Display name cannot be empty.");
+            return ValidationProblem(ModelState);
+        }
+
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var updatedUser = await _userRepository.UpdateDisplayNameAsync(user.Id, trimmedName, HttpContext.RequestAborted);
+            if (updatedUser is null)
+            {
+                return NotFound();
+            }
+
+            await _signInManager.RefreshSignInAsync(updatedUser);
+
+            var avatarLetter = string.IsNullOrWhiteSpace(trimmedName)
+                ? "?"
+                : trimmedName[..1].ToUpperInvariant();
+            var accountLabel = string.IsNullOrWhiteSpace(trimmedName)
+                ? "Guest account"
+                : $"{trimmedName}'s account";
+            var menuName = string.IsNullOrWhiteSpace(trimmedName) ? "Account" : trimmedName;
+
+            return Ok(new
+            {
+                displayName = trimmedName,
+                menuName,
+                avatarLetter,
+                accountLabel
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Failed to update display name for user {UserId}.", user.Id);
+            return BadRequest(new { error = "We couldn't update your display name. Please try again." });
+        }
     }
 
     [AllowAnonymous]

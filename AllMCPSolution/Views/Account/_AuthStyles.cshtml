@@ -422,6 +422,165 @@
         gap: 12px;
     }
 
+    body.account-edit-open {
+        overflow: hidden;
+    }
+
+    .account-edit-layer {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 60;
+        padding: 24px;
+    }
+
+    .account-edit-layer.open {
+        display: flex;
+    }
+
+    .account-edit-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(5, 5, 5, 0.72);
+        backdrop-filter: blur(6px);
+    }
+
+    .account-edit-dialog {
+        position: relative;
+        width: min(420px, 100%);
+        border-radius: 22px;
+        padding: 28px;
+        background: rgba(17, 17, 17, 0.95);
+        border: 1px solid rgba(244, 241, 234, 0.25);
+        box-shadow: 0 32px 80px rgba(0, 0, 0, 0.85);
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        z-index: 1;
+    }
+
+    .account-edit-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .account-edit-title {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+    }
+
+    .account-edit-close {
+        border: none;
+        background: transparent;
+        color: #f4f1ea;
+        font-size: 22px;
+        line-height: 1;
+        padding: 6px;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .account-edit-close:hover,
+    .account-edit-close:focus-visible {
+        background: rgba(244, 241, 234, 0.18);
+        color: #050505;
+        outline: none;
+    }
+
+    .account-edit-description {
+        margin: 0;
+        font-size: 14px;
+        letter-spacing: 1px;
+        color: rgba(244, 241, 234, 0.75);
+    }
+
+    .account-edit-field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .account-edit-label {
+        font-size: 12px;
+        letter-spacing: 1.6px;
+        text-transform: uppercase;
+        color: rgba(244, 241, 234, 0.7);
+    }
+
+    .account-edit-input {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(244, 241, 234, 0.35);
+        background: rgba(244, 241, 234, 0.16);
+        color: #f4f1ea;
+        font-size: 14px;
+        letter-spacing: 0.5px;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .account-edit-input:focus {
+        outline: none;
+        border-color: rgba(244, 241, 234, 0.55);
+        background: rgba(244, 241, 234, 0.24);
+        box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.2);
+    }
+
+    .account-edit-error {
+        margin: 0;
+        font-size: 13px;
+        letter-spacing: 0.4px;
+        color: #f96b70;
+    }
+
+    .account-edit-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .account-edit-submit {
+        min-width: 160px;
+    }
+
+    .account-edit-cancel {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 24px;
+        border-radius: 12px;
+        border: 1px solid rgba(244, 241, 234, 0.35);
+        background: transparent;
+        color: #f4f1ea;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .account-edit-cancel:hover,
+    .account-edit-cancel:focus-visible {
+        transform: translateY(-2px);
+        border-color: rgba(244, 241, 234, 0.55);
+        background: rgba(244, 241, 234, 0.12);
+        outline: none;
+    }
+
+    .account-edit-form.is-loading {
+        pointer-events: none;
+        opacity: 0.8;
+    }
+
     .auth-toggle {
         display: inline-flex;
         align-items: center;

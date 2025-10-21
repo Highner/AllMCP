@@ -17,6 +17,7 @@ public interface IUserRepository
     Task<ApplicationUser> GetOrCreateAsync(string name, string tasteProfile, CancellationToken ct = default);
     Task AddAsync(ApplicationUser user, CancellationToken ct = default);
     Task UpdateAsync(ApplicationUser user, CancellationToken ct = default);
+    Task<ApplicationUser?> UpdateDisplayNameAsync(Guid id, string displayName, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 }
 
@@ -170,6 +171,41 @@ public class UserRepository : IUserRepository
 
         var result = await _userManager.UpdateAsync(user);
         EnsureSucceeded(result, $"Failed to update user '{user.Name}'.");
+    }
+
+    public async Task<ApplicationUser?> UpdateDisplayNameAsync(Guid id, string displayName, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var user = await _userManager.Users
+            .FirstOrDefaultAsync(u => u.Id == id, ct);
+
+        if (user is null)
+        {
+            return null;
+        }
+
+        var trimmed = string.IsNullOrWhiteSpace(displayName) ? string.Empty : displayName.Trim();
+
+        user.Name = trimmed;
+
+        if (!string.IsNullOrWhiteSpace(user.UserName))
+        {
+            user.UserName = user.UserName.Trim();
+        }
+        else
+        {
+            user.UserName = trimmed;
+        }
+
+        user.TasteProfile = user.TasteProfile?.Trim() ?? string.Empty;
+
+        var result = await _userManager.UpdateAsync(user);
+        EnsureSucceeded(result, $"Failed to update user '{user.Id}'.");
+
+        return await _userManager.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == id, ct);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)

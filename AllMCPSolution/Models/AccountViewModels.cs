@@ -102,6 +102,14 @@ public class ChangePasswordViewModel
     public string ConfirmPassword { get; set; } = string.Empty;
 }
 
+public class UpdateAccountDisplayNameViewModel
+{
+    [Required]
+    [StringLength(128, MinimumLength = 2, ErrorMessage = "Display name must be between {2} and {1} characters long.")]
+    [Display(Name = "Display name")]
+    public string DisplayName { get; set; } = string.Empty;
+}
+
 public class PasswordResetNotificationViewModel
 {
     public string? Email { get; set; }
