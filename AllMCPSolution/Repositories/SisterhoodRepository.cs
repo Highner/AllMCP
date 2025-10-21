@@ -165,13 +165,49 @@ public class SisterhoodRepository : ISisterhoodRepository
             throw new ArgumentNullException(nameof(sisterhood));
         }
 
-        sisterhood.Name = sisterhood.Name?.Trim() ?? string.Empty;
-        sisterhood.Description = string.IsNullOrWhiteSpace(sisterhood.Description)
+        if (sisterhood.Id == Guid.Empty)
+        {
+            throw new ArgumentException("Sisterhood ID cannot be empty.", nameof(sisterhood));
+        }
+
+        var trimmedName = sisterhood.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedName))
+        {
+            throw new ArgumentException("Sisterhood name cannot be empty.", nameof(sisterhood));
+        }
+
+        var trimmedDescription = string.IsNullOrWhiteSpace(sisterhood.Description)
             ? null
             : sisterhood.Description.Trim();
 
-        _db.Sisterhoods.Update(sisterhood);
-        await _db.SaveChangesAsync(ct);
+        var nameConflictExists = await _db.Sisterhoods
+            .AsNoTracking()
+            .AnyAsync(s => s.Name == trimmedName && s.Id != sisterhood.Id, ct);
+
+        if (nameConflictExists)
+        {
+            throw new InvalidOperationException($"A sisterhood named '{trimmedName}' already exists.");
+        }
+
+        var entity = new Sisterhood
+        {
+            Id = sisterhood.Id,
+            Name = trimmedName,
+            Description = trimmedDescription,
+        };
+
+        _db.Sisterhoods.Attach(entity);
+        _db.Entry(entity).Property(s => s.Name).IsModified = true;
+        _db.Entry(entity).Property(s => s.Description).IsModified = true;
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new InvalidOperationException("That sisterhood was already removed.");
+        }
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)

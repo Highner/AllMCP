@@ -305,6 +305,18 @@
             gap: 12px;
         }
 
+        .ghost-button {
+            background: transparent;
+            border: 1px solid rgba(244, 241, 234, 0.18);
+            color: rgba(244, 241, 234, 0.85);
+        }
+
+        .ghost-button:hover,
+        .ghost-button:focus-visible {
+            background: rgba(244, 241, 234, 0.12);
+            color: #f4f1ea;
+        }
+
         .ghost-danger-button {
             background: transparent;
             border: 1px solid rgba(214, 104, 86, 0.45);
@@ -465,6 +477,21 @@
             display: flex;
         }
 
+        .edit-sisterhood-form {
+            margin-top: 8px;
+            border-radius: 16px;
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            background: rgba(244, 241, 234, 0.03);
+            padding: 20px;
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .edit-sisterhood-form.open {
+            display: flex;
+        }
+
         .form-grid {
             display: grid;
             gap: 16px;
@@ -544,6 +571,12 @@
             justify-content: space-between;
             align-items: flex-start;
             gap: 12px;
+        }
+
+        .sisterhood-actions {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .member-list {
@@ -993,16 +1026,60 @@
                             </div>
                             @if (sisterhood.CanManage)
                             {
-                                <form method="post" action="@Url.Action("DeleteSisterhood", "WineSurfer")" class="inline-form" onsubmit="return confirm('Delete this sisterhood? This cannot be undone.');">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
-                                    <button type="submit" class="danger-button">Delete</button>
-                                </form>
+                                <div class="sisterhood-actions">
+                                    <button type="button"
+                                            class="secondary-button"
+                                            data-sisterhood-edit-toggle="@sisterhood.Id"
+                                            aria-expanded="false"
+                                            aria-controls="edit-sisterhood-form-@sisterhood.Id">
+                                        Edit
+                                    </button>
+                                    <form method="post" action="@Url.Action("DeleteSisterhood", "WineSurfer")" class="inline-form" onsubmit="return confirm('Delete this sisterhood? This cannot be undone.');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                        <button type="submit" class="danger-button">Delete</button>
+                                    </form>
+                                </div>
                             }
                         </div>
                         @if (!string.IsNullOrWhiteSpace(sisterhood.Description))
                         {
                             <p class="sisterhood-description">@sisterhood.Description</p>
+                        }
+
+                        @if (sisterhood.CanManage)
+                        {
+                            <form method="post"
+                                  action="@Url.Action("UpdateSisterhoodDetails", "WineSurfer")"
+                                  class="edit-sisterhood-form"
+                                  data-sisterhood-edit-form
+                                  data-sisterhood-id="@sisterhood.Id"
+                                  id="edit-sisterhood-form-@sisterhood.Id">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                <div class="form-grid">
+                                    <div class="form-field">
+                                        <label for="edit-name-@sisterhood.Id">Name</label>
+                                        <input id="edit-name-@sisterhood.Id"
+                                               name="Name"
+                                               type="text"
+                                               value="@sisterhood.Name"
+                                               maxlength="256"
+                                               minlength="2"
+                                               required />
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="edit-description-@sisterhood.Id">Description</label>
+                                        <textarea id="edit-description-@sisterhood.Id"
+                                                  name="Description"
+                                                  maxlength="1024">@(sisterhood.Description ?? string.Empty)</textarea>
+                                    </div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="secondary-button">Save changes</button>
+                                    <button type="button" class="ghost-button" data-sisterhood-edit-cancel data-sisterhood-id="@sisterhood.Id">Cancel</button>
+                                </div>
+                            </form>
                         }
 
                         @if (sisterhood.FavoriteRegion != null)
@@ -1165,6 +1242,62 @@
                 createForm.classList.toggle('open');
             });
         }
+
+        const editForms = new Map();
+        const editToggles = new Map();
+
+        document.querySelectorAll('[data-sisterhood-edit-form]').forEach(form => {
+            const sisterhoodId = form.getAttribute('data-sisterhood-id');
+            if (!sisterhoodId) {
+                return;
+            }
+
+            editForms.set(sisterhoodId, form);
+        });
+
+        document.querySelectorAll('[data-sisterhood-edit-toggle]').forEach(button => {
+            const sisterhoodId = button.getAttribute('data-sisterhood-edit-toggle');
+            if (!sisterhoodId) {
+                return;
+            }
+
+            editToggles.set(sisterhoodId, button);
+
+            button.addEventListener('click', () => {
+                const form = editForms.get(sisterhoodId);
+                if (!form) {
+                    return;
+                }
+
+                const isOpen = form.classList.toggle('open');
+                button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+
+                if (isOpen) {
+                    const nameField = form.querySelector('input[name="Name"]');
+                    window.requestAnimationFrame(() => nameField?.focus());
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-sisterhood-edit-cancel]').forEach(cancelButton => {
+            const sisterhoodId = cancelButton.getAttribute('data-sisterhood-id');
+            if (!sisterhoodId) {
+                return;
+            }
+
+            cancelButton.addEventListener('click', () => {
+                const form = editForms.get(sisterhoodId);
+                if (!form) {
+                    return;
+                }
+
+                form.reset();
+                form.classList.remove('open');
+
+                const toggle = editToggles.get(sisterhoodId);
+                toggle?.setAttribute('aria-expanded', 'false');
+            });
+        });
 
         const inviteForms = document.querySelectorAll('form[data-sisterhood-invite-form]');
         const userMap = new Map();
