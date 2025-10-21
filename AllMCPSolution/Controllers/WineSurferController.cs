@@ -95,15 +95,18 @@ public class WineSurferController : Controller
     private readonly IWineRepository _wineRepository;
     private readonly IUserRepository _userRepository;
     private readonly ISisterhoodRepository _sisterhoodRepository;
+    private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
 
     public WineSurferController(
         IWineRepository wineRepository,
         IUserRepository userRepository,
-        ISisterhoodRepository sisterhoodRepository)
+        ISisterhoodRepository sisterhoodRepository,
+        ISisterhoodInvitationRepository sisterhoodInvitationRepository)
     {
         _wineRepository = wineRepository;
         _userRepository = userRepository;
         _sisterhoodRepository = sisterhoodRepository;
+        _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
     }
 
     [HttpGet("")]
@@ -238,6 +241,32 @@ public class WineSurferController : Controller
 
                         var isAdmin = s.Memberships.Any(m => m.UserId == currentUserId && m.IsAdmin);
                         var favoriteRegion = CalculateFavoriteRegion(s);
+                        var pendingInvitations = (s.Invitations ?? Array.Empty<SisterhoodInvitation>())
+                            .Where(invitation => invitation.Status == SisterhoodInvitationStatus.Pending)
+                            .Select(invitation =>
+                            {
+                                var inviteeName = string.IsNullOrWhiteSpace(invitation.InviteeUser?.Name)
+                                    ? invitation.InviteeUser?.UserName
+                                    : invitation.InviteeUser!.Name;
+
+                                var summary = new WineSurferSisterhoodInvitationSummary(
+                                    invitation.Id,
+                                    invitation.InviteeEmail,
+                                    invitation.Status,
+                                    invitation.CreatedAt,
+                                    invitation.UpdatedAt,
+                                    invitation.InviteeUserId,
+                                    inviteeName);
+
+                                var sortKey = string.IsNullOrWhiteSpace(inviteeName)
+                                    ? invitation.InviteeEmail
+                                    : inviteeName;
+
+                                return new { SortKey = sortKey, Summary = summary };
+                            })
+                            .OrderBy(entry => entry.SortKey, StringComparer.OrdinalIgnoreCase)
+                            .Select(entry => entry.Summary)
+                            .ToList();
 
                         return new WineSurferSisterhoodSummary(
                             s.Id,
@@ -246,7 +275,8 @@ public class WineSurferController : Controller
                             memberSummaries.Count,
                             isAdmin,
                             memberSummaries,
-                            favoriteRegion);
+                            favoriteRegion,
+                            pendingInvitations);
                     })
                     .ToList();
             }
@@ -367,33 +397,106 @@ public class WineSurferController : Controller
             invitee = await _userRepository.FindByNameAsync(trimmedName, cancellationToken);
         }
 
-        if (invitee is null)
+        string? inviteeEmail = null;
+        if (invitee is not null)
         {
-            TempData["SisterhoodError"] = "We couldn't find that Wine Surfer user.";
+            inviteeEmail = NormalizeEmailCandidate(invitee.Email);
+
+            if (string.IsNullOrEmpty(inviteeEmail) && !string.IsNullOrEmpty(normalizedEmailCandidate))
+            {
+                inviteeEmail = normalizedEmailCandidate;
+            }
+        }
+
+        if (string.IsNullOrEmpty(inviteeEmail) && !string.IsNullOrEmpty(normalizedEmailCandidate))
+        {
+            inviteeEmail = normalizedEmailCandidate;
+        }
+
+        if (invitee is null && string.IsNullOrEmpty(inviteeEmail))
+        {
+            if (!string.IsNullOrEmpty(trimmedName) && !nameLooksLikeEmail)
+            {
+                TempData["SisterhoodError"] = "We couldn't find that Wine Surfer user.";
+            }
+            else
+            {
+                TempData["SisterhoodError"] = "Please provide a valid email address for the invitation.";
+            }
+
             return RedirectToAction(nameof(Sisterhoods));
         }
 
-        if (invitee.Id == currentUserId)
+        if (string.IsNullOrEmpty(inviteeEmail))
+        {
+            TempData["SisterhoodError"] = "We couldn't determine where to send that invitation.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (invitee is not null && invitee.Id == currentUserId)
         {
             TempData["SisterhoodError"] = "You're already part of this sisterhood.";
             return RedirectToAction(nameof(Sisterhoods));
         }
 
-        var existingMembership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, invitee.Id, cancellationToken);
-        if (existingMembership is not null)
+        if (invitee is not null)
         {
-            TempData["SisterhoodError"] = $"{invitee.Name} is already a member of {sisterhood.Name}.";
+            var existingMembership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, invitee.Id, cancellationToken);
+            if (existingMembership is not null)
+            {
+                var inviteeDisplayName = string.IsNullOrWhiteSpace(invitee.Name)
+                    ? invitee.UserName ?? inviteeEmail
+                    : invitee.Name;
+
+                TempData["SisterhoodError"] = $"{inviteeDisplayName} is already a member of {sisterhood.Name}.";
+                return RedirectToAction(nameof(Sisterhoods));
+            }
+        }
+
+        SisterhoodInvitation? existingInvitation = null;
+        try
+        {
+            existingInvitation = await _sisterhoodInvitationRepository.GetAsync(request.SisterhoodId, inviteeEmail, cancellationToken);
+        }
+        catch (ArgumentException)
+        {
+            TempData["SisterhoodError"] = "That doesn't look like a valid email address.";
             return RedirectToAction(nameof(Sisterhoods));
         }
 
-        var added = await _sisterhoodRepository.AddUserToSisterhoodAsync(request.SisterhoodId, invitee.Id, cancellationToken);
-        if (!added)
+        try
         {
-            TempData["SisterhoodError"] = "We couldn't add that member right now.";
+            await _sisterhoodInvitationRepository.CreateOrUpdatePendingAsync(
+                request.SisterhoodId,
+                inviteeEmail,
+                invitee?.Id,
+                cancellationToken);
+        }
+        catch (ArgumentException)
+        {
+            TempData["SisterhoodError"] = "That doesn't look like a valid email address.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+        catch (Exception)
+        {
+            TempData["SisterhoodError"] = "We couldn't send that invitation right now.";
             return RedirectToAction(nameof(Sisterhoods));
         }
 
-        TempData["SisterhoodStatus"] = $"{invitee.Name} has been added to {sisterhood.Name}.";
+        var inviteeLabel = invitee is not null
+            ? (!string.IsNullOrWhiteSpace(invitee.Name)
+                ? invitee.Name
+                : invitee.UserName ?? inviteeEmail)
+            : inviteeEmail;
+
+        string statusMessage = existingInvitation switch
+        {
+            null => $"Invitation sent to {inviteeLabel}.",
+            { Status: SisterhoodInvitationStatus.Pending } => $"An invitation is already pending for {inviteeLabel}. We've refreshed it.",
+            _ => $"Invitation reactivated for {inviteeLabel}.",
+        };
+
+        TempData["SisterhoodStatus"] = statusMessage + " They'll be able to join once they accept.";
         return RedirectToAction(nameof(Sisterhoods));
     }
 
@@ -811,11 +914,21 @@ public record WineSurferSisterhoodSummary(
     int MemberCount,
     bool CanManage,
     IReadOnlyList<WineSurferSisterhoodMember> Members,
-    WineSurferSisterhoodFavoriteRegion? FavoriteRegion);
+    WineSurferSisterhoodFavoriteRegion? FavoriteRegion,
+    IReadOnlyList<WineSurferSisterhoodInvitationSummary> PendingInvitations);
 
 public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter);
 
 public record WineSurferSisterhoodFavoriteRegion(Guid RegionId, string Name, string? CountryName, decimal AverageScore);
+
+public record WineSurferSisterhoodInvitationSummary(
+    Guid Id,
+    string Email,
+    SisterhoodInvitationStatus Status,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc,
+    Guid? InviteeUserId,
+    string? InviteeName);
 
 public record MapHighlightPoint(
     string Label,

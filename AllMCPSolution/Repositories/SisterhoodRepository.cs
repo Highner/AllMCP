@@ -42,6 +42,8 @@ public class SisterhoodRepository : ISisterhoodRepository
             .AsNoTracking()
             .Include(s => s.Memberships)
                 .ThenInclude(membership => membership.User)
+            .Include(s => s.Invitations)
+                .ThenInclude(invitation => invitation.InviteeUser)
             .OrderBy(s => s.Name)
             .ToListAsync(ct);
     }
@@ -52,6 +54,8 @@ public class SisterhoodRepository : ISisterhoodRepository
             .AsNoTracking()
             .Include(s => s.Memberships)
                 .ThenInclude(membership => membership.User)
+            .Include(s => s.Invitations)
+                .ThenInclude(invitation => invitation.InviteeUser)
             .FirstOrDefaultAsync(s => s.Id == id, ct);
     }
 
@@ -67,6 +71,8 @@ public class SisterhoodRepository : ISisterhoodRepository
             .AsNoTracking()
             .Include(s => s.Memberships)
                 .ThenInclude(membership => membership.User)
+            .Include(s => s.Invitations)
+                .ThenInclude(invitation => invitation.InviteeUser)
             .FirstOrDefaultAsync(s => s.Name == trimmedName, ct);
     }
 
@@ -89,6 +95,8 @@ public class SisterhoodRepository : ISisterhoodRepository
                                         .ThenInclude(subAppellation => subAppellation.Appellation)
                                             .ThenInclude(appellation => appellation.Region)
                                                 .ThenInclude(region => region.Country)
+            .Include(s => s.Invitations)
+                .ThenInclude(invitation => invitation.InviteeUser)
             .Where(s => s.Memberships.Any(membership => membership.UserId == userId))
             .OrderBy(s => s.Name)
             .ToListAsync(ct);

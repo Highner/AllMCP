@@ -7,4 +7,5 @@ public class Sisterhood
     public string? Description { get; set; }
 
     public ICollection<SisterhoodMembership> Memberships { get; set; } = [];
+    public ICollection<SisterhoodInvitation> Invitations { get; set; } = [];
 }

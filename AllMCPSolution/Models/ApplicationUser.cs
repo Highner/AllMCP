@@ -11,4 +11,5 @@ public class ApplicationUser : IdentityUser<Guid>
     public ICollection<TastingNote> TastingNotes { get; set; } = [];
     public ICollection<BottleLocation> BottleLocations { get; set; } = [];
     public ICollection<SisterhoodMembership> SisterhoodMemberships { get; set; } = [];
+    public ICollection<SisterhoodInvitation> SisterhoodInvitations { get; set; } = [];
 }
