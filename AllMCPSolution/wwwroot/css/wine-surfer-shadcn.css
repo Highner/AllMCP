@@ -689,8 +689,20 @@ table,
     box-sizing: border-box;
 }
 
+.summary-add-row .summary-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 .summary-add-row .actions {
     display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.summary-add-row .actions select {
+    width: 100%;
 }
 
 .summary-add-row .actions button {
