@@ -29,9 +29,14 @@
         .Where(item => !string.Equals(item.Href, currentPath, StringComparison.OrdinalIgnoreCase))
         .ToList();
 
-    var userDisplayName = User?.Identity?.IsAuthenticated == true
-        ? User.Identity?.Name ?? string.Empty
-        : string.Empty;
+    string? userDisplayName = Model?.DisplayName;
+
+    if (string.IsNullOrWhiteSpace(userDisplayName))
+    {
+        userDisplayName = User?.Identity?.IsAuthenticated == true
+            ? User.Identity?.Name ?? string.Empty
+            : string.Empty;
+    }
 
     if (User?.Identity?.IsAuthenticated == true && string.IsNullOrWhiteSpace(userDisplayName))
     {

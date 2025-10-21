@@ -858,7 +858,8 @@
     var topBarModel = WineSurferTopBarModel.CreateFromSisterhoodData(
         currentLocation,
         Model.IncomingInvitations,
-        Model.SentInvitationNotifications);
+        Model.SentInvitationNotifications,
+        displayName: Model.CurrentUser?.DisplayName);
 }
 <body class="wine-app @bodyClass">
     <div class="page-content">

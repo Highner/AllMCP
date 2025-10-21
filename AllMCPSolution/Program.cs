@@ -62,6 +62,7 @@ builder.Services.AddScoped<ISipSessionRepository, SipSessionRepository>();
 builder.Services.AddScoped<IWineSurferNotificationDismissalRepository, WineSurferNotificationDismissalRepository>();
 builder.Services.AddScoped<InventoryIntakeService>();
 builder.Services.AddScoped<IWineSurferTopBarService, WineSurferTopBarService>();
+builder.Services.AddScoped<IWineImportService, WineImportService>();
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
