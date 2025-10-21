@@ -108,11 +108,12 @@
                     <ul class="notification-list">
                         @foreach (var invitation in openInvitations)
                         {
-                            @{ var tagLabel = invitation.MatchesUserId
-                                    ? "Linked to your account"
-                                    : invitation.MatchesEmail
-                                        ? "Matches your email"
-                                        : null; }
+                            var tagLabel = invitation.MatchesUserId
+                                ? "Linked to your account"
+                                : invitation.MatchesEmail
+                                    ? "Matches your email"
+                                    : null;
+
                             <li class="notification-item">
                                 <a class="notification-link" href="@sisterhoodUrl">
                                     <span class="notification-title">@invitation.SisterhoodName</span>
@@ -124,6 +125,7 @@
                                 </a>
                             </li>
                         }
+
                     </ul>
                 }
                 else
