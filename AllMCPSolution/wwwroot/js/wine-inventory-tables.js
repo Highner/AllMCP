@@ -8,7 +8,7 @@ window.WineInventoryTables.initialize = function () {
 
             const inventoryTable = document.getElementById('inventory-table');
             const detailsTable = document.getElementById('details-table');
-            const detailsBody = detailsTable?.querySelector('tbody');
+            const detailsBody = detailsTable?.querySelector('#details-table-body');
             const detailAddRow = detailsTable?.querySelector('#detail-add-row');
             const emptyRow = detailsBody?.querySelector('.empty-row');
             const detailsTitle = document.getElementById('details-title');
