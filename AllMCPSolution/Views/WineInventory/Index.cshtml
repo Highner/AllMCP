@@ -99,8 +99,7 @@
         <section class="crud-table wine-surface wine-surface-border wine-card-hover" data-crud-table="summary">
             <header class="crud-table__header">
                 <div class="crud-table__header-content">
-                    <h2 class="crud-table__title">Inventory Summary</h2>
-                    <p class="crud-table__description">Manage wine groups and quick actions.</p>
+                    <h2 class="crud-table__title">your cellar</h2>
                 </div>
                 <button type="button" class="crud-table__action-button inventory-add-trigger">Add Wine</button>
             </header>
@@ -147,9 +146,6 @@
                                     <span class="sort-icon" aria-hidden="true"></span>
                                 </a>
                             </th>
-                            <th>
-                                <span class="header-text">Actions</span>
-                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -187,19 +183,13 @@
                                     <td class="summary-color">@bottle.Color</td>
                                     <td class="summary-status"><span class="status-pill @bottle.StatusCssClass" data-field="status">@bottle.StatusLabel</span></td>
                                     <td class="summary-score" data-field="score">@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
-                                      <td class="summary-actions">
-                                          <div class="actions">
-                                              <button type="button" class="crud-table__action-button secondary edit-group">Edit</button>
-                                              <button type="button" class="crud-table__action-button secondary delete-group">Delete</button>
-                                          </div>
-                                      </td>
                                 </tr>
                             }
                         }
                         else
                         {
                             <tr class="crud-table__empty-row empty-row">
-                                <td colspan="8">No bottles yet. Add your first wine above to get started.</td>
+                                <td colspan="7">No bottles yet. Add your first wine above to get started.</td>
                             </tr>
                         }
                     </tbody>
