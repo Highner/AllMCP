@@ -81,20 +81,24 @@
         .ToList();
     var notificationHeadingId = "notificationPanelHeading";
 
+    var trimmedDisplayName = string.IsNullOrWhiteSpace(userDisplayName)
+        ? string.Empty
+        : userDisplayName.Trim();
+
+    var menuUserName = string.IsNullOrWhiteSpace(trimmedDisplayName)
+        ? "Account"
+        : trimmedDisplayName;
+
     var avatarLetter = "?";
 
-    if (!string.IsNullOrWhiteSpace(userDisplayName))
+    if (!string.IsNullOrEmpty(trimmedDisplayName))
     {
-        var trimmedUserName = userDisplayName.Trim();
-        if (!string.IsNullOrEmpty(trimmedUserName))
-        {
-            avatarLetter = trimmedUserName[..1].ToUpperInvariant();
-        }
+        avatarLetter = trimmedDisplayName[..1].ToUpperInvariant();
     }
 
-    var avatarAccountLabel = string.IsNullOrWhiteSpace(userDisplayName)
+    var avatarAccountLabel = string.IsNullOrEmpty(trimmedDisplayName)
         ? "Guest account"
-        : $"{userDisplayName}'s account";
+        : $"{trimmedDisplayName}'s account";
 
     var notificationSummary = totalNotificationCount switch
     {
@@ -119,6 +123,7 @@
     var loginUrl = Url.Action("Login", "Account", new { returnUrl });
     var registerUrl = Url.Action("Register", "Account", new { returnUrl });
     var changePasswordUrl = Url.Action("ChangePassword", "Account");
+    var updateDisplayNameUrl = Url.Action("UpdateDisplayName", "Account");
 
     var dismissalEndpoint = Url.Action("Dismiss", "WineSurferNotifications") ?? "/wine-surfer/notifications/dismiss";
     var dismissedStampJson = JsonSerializer.Serialize(dismissedStampSet.ToArray());
@@ -309,8 +314,12 @@
             @if (User?.Identity?.IsAuthenticated == true)
             {
                 <span class="menu-user-label">Signed in as</span>
-                <span class="menu-user-name">@(string.IsNullOrWhiteSpace(userDisplayName) ? "Account" : userDisplayName)</span>
+                <span class="menu-user-name" data-account-display-name="@trimmedDisplayName" data-account-display-fallback="@menuUserName">@menuUserName</span>
                 <div class="menu-auth-options">
+                    @if (!string.IsNullOrEmpty(updateDisplayNameUrl))
+                    {
+                        <button type="button" class="auth-toggle" data-edit-account-trigger>Edit account</button>
+                    }
                     @if (!string.IsNullOrEmpty(changePasswordUrl))
                     {
                         <a class="auth-toggle" href="@changePasswordUrl">Change password</a>
@@ -338,8 +347,43 @@
                 </div>
             }
         </div>
-    </nav>
+</nav>
 </header>
+@if (isAuthenticated && !string.IsNullOrEmpty(updateDisplayNameUrl))
+{
+    <div class="account-edit-layer" data-account-edit-layer data-account-display-name="@trimmedDisplayName" hidden>
+        <div class="account-edit-backdrop" data-edit-account-dismiss aria-hidden="true"></div>
+        <div class="account-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="accountEditTitle">
+            <form id="accountEditForm" class="account-edit-form" method="post" action="@updateDisplayNameUrl" novalidate>
+                @Html.AntiForgeryToken()
+                <div class="account-edit-header">
+                    <h2 id="accountEditTitle" class="account-edit-title">Edit account</h2>
+                    <button type="button" class="account-edit-close" data-edit-account-cancel aria-label="Close edit account dialog">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <p class="account-edit-description">Update the name that appears across Wine Surfer experiences.</p>
+                <div class="account-edit-field">
+                    <label class="account-edit-label" for="accountEditDisplayName">Display name</label>
+                    <input
+                        id="accountEditDisplayName"
+                        name="DisplayName"
+                        class="account-edit-input"
+                        type="text"
+                        maxlength="128"
+                        autocomplete="name"
+                        value="@trimmedDisplayName"
+                        required />
+                </div>
+                <p class="account-edit-error" data-account-edit-error hidden></p>
+                <div class="account-edit-actions">
+                    <button type="submit" class="auth-toggle account-edit-submit">Save changes</button>
+                    <button type="button" class="account-edit-cancel" data-edit-account-cancel>Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
 <script>
     (() => {
         const dismissalEndpoint = @Html.Raw(dismissalEndpointJson);
@@ -351,6 +395,15 @@
         const notificationToggle = document.getElementById('notificationToggle');
         const notificationPanel = document.getElementById('notificationPanel');
         const notificationBadge = document.querySelector('.notification-badge');
+        const editAccountTrigger = panel?.querySelector('[data-edit-account-trigger]') ?? null;
+        const accountEditLayer = document.querySelector('[data-account-edit-layer]');
+        const accountEditForm = document.getElementById('accountEditForm');
+        const accountEditInput = document.getElementById('accountEditDisplayName');
+        const accountEditError = accountEditLayer?.querySelector('[data-account-edit-error]') ?? null;
+        const accountEditBackdrop = accountEditLayer?.querySelector('[data-edit-account-dismiss]') ?? null;
+        const accountEditCancelButtons = accountEditLayer ? Array.from(accountEditLayer.querySelectorAll('[data-edit-account-cancel]')) : [];
+        const accountDisplayTargets = document.querySelectorAll('[data-account-display-name]');
+        const accountEditSubmit = accountEditForm?.querySelector('.account-edit-submit') ?? null;
 
         const closeMenu = () => {
             if (!toggle || !panel) {
@@ -415,6 +468,122 @@
                 window.localStorage.setItem(dismissedStorageKey, JSON.stringify(Array.from(dismissedStamps)));
             } catch {
                 // Ignore storage errors
+            }
+        };
+
+        const getVisibleNotificationCount = () => {
+            if (notificationPanel) {
+                const items = Array.from(notificationPanel.querySelectorAll('.notification-item'));
+                return items.filter(item => !item.hasAttribute('hidden') && item.getAttribute('aria-hidden') !== 'true').length;
+            }
+
+            if (!notificationBadge) {
+                return 0;
+            }
+
+            const raw = (notificationBadge.textContent ?? '').trim();
+            const parsed = Number.parseInt(raw, 10);
+            return Number.isFinite(parsed) ? parsed : 0;
+        };
+
+        const setAccountDisplayName = (displayName, fallbackName) => {
+            const sanitized = typeof displayName === 'string' ? displayName.trim() : '';
+            const fallback = typeof fallbackName === 'string' && fallbackName.trim().length > 0
+                ? fallbackName.trim()
+                : (sanitized || 'Account');
+
+            accountDisplayTargets.forEach(target => {
+                target.textContent = sanitized || fallback;
+                target.setAttribute('data-account-display-name', sanitized);
+                target.setAttribute('data-account-display-fallback', fallback);
+            });
+
+            if (accountEditLayer) {
+                accountEditLayer.setAttribute('data-account-display-name', sanitized);
+            }
+        };
+
+        const setEditError = (message) => {
+            if (!accountEditError) {
+                return;
+            }
+
+            const content = (message ?? '').trim();
+            if (content.length === 0) {
+                accountEditError.textContent = '';
+                accountEditError.hidden = true;
+                accountEditError.removeAttribute('role');
+            } else {
+                accountEditError.textContent = content;
+                accountEditError.hidden = false;
+                accountEditError.setAttribute('role', 'alert');
+            }
+        };
+
+        const setEditLoading = (isLoading) => {
+            if (!accountEditForm) {
+                return;
+            }
+
+            accountEditForm.classList.toggle('is-loading', isLoading);
+
+            if (accountEditSubmit) {
+                accountEditSubmit.disabled = isLoading;
+                accountEditSubmit.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+            }
+
+            if (accountEditInput) {
+                accountEditInput.readOnly = isLoading;
+            }
+        };
+
+        const isEditModalOpen = () => Boolean(accountEditLayer) && !accountEditLayer.hasAttribute('hidden');
+
+        let lastFocusedBeforeEdit = null;
+
+        const openEditModal = () => {
+            if (!accountEditLayer || !accountEditForm || !accountEditInput) {
+                return;
+            }
+
+            lastFocusedBeforeEdit = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+            const currentName = accountEditLayer.getAttribute('data-account-display-name') ?? '';
+            accountEditInput.value = currentName;
+            accountEditInput.readOnly = false;
+
+            setEditError('');
+            setEditLoading(false);
+
+            accountEditLayer.hidden = false;
+            accountEditLayer.classList.add('open');
+            document.body.classList.add('account-edit-open');
+
+            window.setTimeout(() => {
+                accountEditInput.focus();
+                accountEditInput.select();
+            }, 0);
+        };
+
+        const closeEditModal = () => {
+            if (!accountEditLayer) {
+                return;
+            }
+
+            accountEditLayer.classList.remove('open');
+            accountEditLayer.hidden = true;
+            document.body.classList.remove('account-edit-open');
+            setEditError('');
+            setEditLoading(false);
+
+            if (accountEditInput) {
+                accountEditInput.readOnly = false;
+            }
+
+            const target = lastFocusedBeforeEdit;
+            lastFocusedBeforeEdit = null;
+            if (target && typeof target.focus === 'function') {
+                target.focus();
             }
         };
 
@@ -610,6 +779,132 @@
             updateAvatarLabel(0);
         }
 
+        if (editAccountTrigger && accountEditLayer && accountEditForm && accountEditInput) {
+            editAccountTrigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                closeMenu();
+                openEditModal();
+            });
+
+            if (accountEditBackdrop) {
+                accountEditBackdrop.addEventListener('click', () => {
+                    closeEditModal();
+                });
+            }
+
+            accountEditCancelButtons.forEach(button => {
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    closeEditModal();
+                });
+            });
+
+            accountEditInput.addEventListener('input', () => {
+                setEditError('');
+            });
+
+            accountEditForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                const candidate = accountEditInput.value.trim();
+                if (candidate.length === 0) {
+                    setEditError('Display name cannot be empty.');
+                    accountEditInput.focus();
+                    return;
+                }
+
+                const formData = new FormData(accountEditForm);
+                formData.set('DisplayName', candidate);
+
+                setEditError('');
+                setEditLoading(true);
+
+                try {
+                    const response = await fetch(accountEditForm.action, {
+                        method: accountEditForm.method || 'POST',
+                        body: formData,
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (response.ok) {
+                        let payload = null;
+                        try {
+                            payload = await response.json();
+                        } catch {
+                            payload = null;
+                        }
+
+                        const displayName = typeof payload?.displayName === 'string' ? payload.displayName : candidate;
+                        const menuName = typeof payload?.menuName === 'string' ? payload.menuName : (displayName || 'Account');
+                        const avatarLetter = typeof payload?.avatarLetter === 'string' && payload.avatarLetter.length > 0
+                            ? payload.avatarLetter
+                            : (displayName ? displayName[0].toUpperCase() : '?');
+                        const accountLabel = typeof payload?.accountLabel === 'string'
+                            ? payload.accountLabel
+                            : (displayName ? `${displayName}'s account` : 'Guest account');
+
+                        setAccountDisplayName(displayName, menuName);
+
+                        if (notificationToggle) {
+                            notificationToggle.dataset.accountLabel = accountLabel;
+                            const avatarSpan = notificationToggle.querySelector('span');
+                            if (avatarSpan) {
+                                avatarSpan.textContent = avatarLetter;
+                            }
+
+                            updateAvatarLabel(getVisibleNotificationCount());
+                        }
+
+                        closeEditModal();
+                    } else {
+                        let message = "We couldn't update your display name. Please try again.";
+                        const contentType = response.headers.get('content-type') ?? '';
+                        if (contentType.includes('application/json')) {
+                            let data = null;
+                            try {
+                                data = await response.json();
+                            } catch {
+                                data = null;
+                            }
+
+                            if (data) {
+                                if (typeof data.error === 'string') {
+                                    message = data.error;
+                                } else if (typeof data.detail === 'string') {
+                                    message = data.detail;
+                                } else if (typeof data.title === 'string') {
+                                    message = data.title;
+                                } else if (data.errors && typeof data.errors === 'object') {
+                                    const flattened = [];
+                                    Object.values(data.errors).forEach(entry => {
+                                        if (Array.isArray(entry)) {
+                                            entry.forEach(item => flattened.push(item));
+                                        } else if (typeof entry === 'string') {
+                                            flattened.push(entry);
+                                        }
+                                    });
+
+                                    const firstError = flattened.find(value => typeof value === 'string');
+                                    if (firstError) {
+                                        message = firstError;
+                                    }
+                                }
+                            }
+                        }
+
+                        setEditError(message);
+                    }
+                } catch {
+                    setEditError("We couldn't update your display name. Please try again.");
+                } finally {
+                    setEditLoading(false);
+                }
+            });
+        }
+
         document.addEventListener('click', (event) => {
             const target = event.target;
             if (!(target instanceof Node)) {
@@ -627,11 +922,16 @@
 
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
+                const editOpen = isEditModalOpen();
                 const menuOpen = panel?.classList.contains('open');
                 const notificationsOpen = notificationPanel?.classList.contains('open');
 
-                if (menuOpen || notificationsOpen) {
+                if (editOpen || menuOpen || notificationsOpen) {
                     event.preventDefault();
+                }
+
+                if (editOpen) {
+                    closeEditModal();
                 }
 
                 closeMenu();
