@@ -1086,6 +1086,37 @@
             color: rgba(244, 241, 234, 0.55);
         }
 
+        .sip-session-bottle-scores {
+            display: inline-flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 8px;
+            font-size: 11px;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        .sip-session-bottle-score {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .sip-session-bottle-score-label {
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            font-size: 10px;
+            color: rgba(244, 241, 234, 0.55);
+        }
+
+        .sip-session-bottle-score-value {
+            font-weight: 600;
+            color: rgba(244, 241, 234, 0.88);
+        }
+
+        .sip-session-bottle-score-divider {
+            color: rgba(244, 241, 234, 0.35);
+        }
+
         .sip-session-bottle-actions {
             display: flex;
             flex-wrap: wrap;
@@ -2119,10 +2150,27 @@
                                                             var existingScore = bottle.CurrentUserScore.HasValue
                                                                 ? bottle.CurrentUserScore.Value.ToString("0.##", CultureInfo.InvariantCulture)
                                                                 : string.Empty;
+                                                            var currentUserScoreLabel = bottle.CurrentUserScore.HasValue
+                                                                ? bottle.CurrentUserScore.Value.ToString("0.##", CultureInfo.InvariantCulture)
+                                                                : "—";
+                                                            var averageScoreLabel = bottle.AverageScore.HasValue
+                                                                ? bottle.AverageScore.Value.ToString("0.##", CultureInfo.InvariantCulture)
+                                                                : "—";
                                                             var hasExistingNote = !string.IsNullOrWhiteSpace(existingNote) || !string.IsNullOrWhiteSpace(existingScore);
                                                             <li class="sip-session-bottle-item" data-sip-session-bottle>
                                                                 <div class="sip-session-bottle-info">
                                                                     <span class="sip-session-bottle-label">@bottle.Label</span>
+                                                                    <div class="sip-session-bottle-scores" role="group" aria-label="Scores for this bottle">
+                                                                        <span class="sip-session-bottle-score">
+                                                                            <span class="sip-session-bottle-score-label">Your score</span>
+                                                                            <span class="sip-session-bottle-score-value">@currentUserScoreLabel</span>
+                                                                        </span>
+                                                                        <span class="sip-session-bottle-score-divider" aria-hidden="true">•</span>
+                                                                        <span class="sip-session-bottle-score">
+                                                                            <span class="sip-session-bottle-score-label">Average</span>
+                                                                            <span class="sip-session-bottle-score-value">@averageScoreLabel</span>
+                                                                        </span>
+                                                                    </div>
                                                                     @if (bottle.IsDrunk)
                                                                     {
                                                                         <span class="sip-session-bottle-status">

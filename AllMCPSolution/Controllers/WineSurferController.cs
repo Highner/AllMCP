@@ -2074,6 +2074,17 @@ public class WineSurferController : Controller
                         .FirstOrDefault(note => note.UserId == currentUserId.Value);
                 }
 
+                var scoreValues = bottle!.TastingNotes?
+                    .Where(note => note.Score.HasValue)
+                    .Select(note => note.Score!.Value)
+                    .ToList();
+
+                decimal? averageScore = null;
+                if (scoreValues is { Count: > 0 })
+                {
+                    averageScore = scoreValues.Average();
+                }
+
                 return new WineSurferSipSessionBottle(
                     bottle!.Id,
                     labelBase,
@@ -2081,7 +2092,8 @@ public class WineSurferController : Controller
                     bottle.IsDrunk,
                     bottle.DrunkAt,
                     currentUserNote?.Note,
-                    currentUserNote?.Score);
+                    currentUserNote?.Score,
+                    averageScore);
             })
             .OrderBy(summary => summary.Label, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -2190,7 +2202,8 @@ public record WineSurferSipSessionBottle(
     bool IsDrunk,
     DateTime? DrunkAtUtc,
     string? CurrentUserNote,
-    decimal? CurrentUserScore);
+    decimal? CurrentUserScore,
+    decimal? AverageScore);
 
 public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter);
 
