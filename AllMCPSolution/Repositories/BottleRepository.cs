@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Data;
@@ -15,6 +16,7 @@ public interface IBottleRepository
     Task UpdateAsync(Bottle bottle, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task<List<ActiveBottleLocation>> GetActiveBottleLocationsAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Bottle>> GetAvailableForUserAsync(Guid userId, CancellationToken ct = default);
 }
 
 public class BottleRepository : IBottleRepository
@@ -32,6 +34,19 @@ public class BottleRepository : IBottleRepository
     {
         return await BuildBottleQuery()
             .Where(b => b.WineVintageId == wineVintageId)
+            .ToListAsync(ct);
+    }
+
+
+    public async Task<IReadOnlyList<Bottle>> GetAvailableForUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return Array.Empty<Bottle>();
+        }
+
+        return await BuildBottleQuery()
+            .Where(b => b.UserId == userId && !b.IsDrunk)
             .ToListAsync(ct);
     }
 

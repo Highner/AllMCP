@@ -74,6 +74,10 @@
             flex-direction: column;
         }
 
+        body.no-scroll {
+            overflow: hidden;
+        }
+
         .top-bar {
             display: flex;
             align-items: center;
@@ -1014,6 +1018,15 @@
             flex-wrap: wrap;
         }
 
+        .sip-session-contribute {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .sip-session-contribute .secondary-button {
+            width: auto;
+        }
+
         .sip-session-empty {
             font-size: 13px;
             color: rgba(244, 241, 234, 0.6);
@@ -1091,6 +1104,128 @@
         .ghost-button:hover,
         .ghost-button:focus-visible {
             background: rgba(244, 241, 234, 0.12);
+        }
+
+        .contribute-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 5, 5, 0.72);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            z-index: 50;
+            backdrop-filter: blur(6px);
+        }
+
+        .contribute-modal-backdrop[hidden] {
+            display: none;
+        }
+
+        .contribute-modal {
+            background: rgba(12, 12, 12, 0.96);
+            border-radius: 16px;
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            width: min(520px, 100%);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+        }
+
+        .contribute-modal__header {
+            padding: 20px 24px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .contribute-modal__title {
+            margin: 0;
+            font-size: 16px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .contribute-modal__form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 0 24px 24px;
+            flex: 1;
+        }
+
+        .contribute-modal__hint {
+            margin: 0;
+            font-size: 13px;
+            color: rgba(244, 241, 234, 0.75);
+        }
+
+        .contribute-modal__list {
+            flex: 1;
+            overflow-y: auto;
+            border-radius: 12px;
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            background: rgba(244, 241, 234, 0.04);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .contribute-modal__list ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .contribute-modal__option label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            transition: background 0.2s ease;
+            cursor: pointer;
+        }
+
+        .contribute-modal__option label:hover,
+        .contribute-modal__option label:focus-within {
+            background: rgba(244, 241, 234, 0.08);
+        }
+
+        .contribute-modal__option input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #c086f2;
+        }
+
+        .contribute-modal__option[data-disabled] label {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .contribute-modal__option[data-disabled] label:hover,
+        .contribute-modal__option[data-disabled] label:focus-within {
+            background: transparent;
+        }
+
+        .contribute-modal__empty {
+            margin: 0;
+            font-size: 13px;
+            color: rgba(244, 241, 234, 0.72);
+        }
+
+        .contribute-modal__actions {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+            padding-top: 8px;
         }
 
         .pending-invitations {
@@ -1638,6 +1773,8 @@
                                         var locationLabel = string.IsNullOrWhiteSpace(session.Location) ? "Location TBD" : session.Location;
                                         var scheduledValue = FormatSipSessionInputValue(session);
                                         var updatedLabel = FormatTimestamp(session.UpdatedAtUtc);
+                                        var bottleSummaries = session.Bottles;
+                                        var contributedBottleIds = string.Join(",", bottleSummaries.Select(bottle => bottle.Id));
                                         <li class="sip-session-item" data-sip-session-item id="sip-session-@session.Id">
                                             <div class="sip-session-item-header">
                                                 <div class="sip-session-info">
@@ -1668,11 +1805,26 @@
                                                     </div>
                                                 }
                                             </div>
+                                            @{
+                                                var isCurrentUserMember = Model.CurrentUserId.HasValue && sisterhood.Members.Any(member => member.IsCurrentUser);
+                                            }
+                                            @if (isCurrentUserMember)
+                                            {
+                                                <div class="sip-session-contribute">
+                                                    <button type="button"
+                                                            class="secondary-button"
+                                                            data-contribute-trigger
+                                                            data-sisterhood-id="@sisterhood.Id"
+                                                            data-sip-session-id="@session.Id"
+                                                            data-session-bottle-ids="@contributedBottleIds">
+                                                        Contribute bottle
+                                                    </button>
+                                                </div>
+                                            }
                                             @if (!string.IsNullOrWhiteSpace(session.Description))
                                             {
                                                 <p class="sip-session-description">@session.Description</p>
                                             }
-                                            @{ var bottleSummaries = session.Bottles; }
                                             @if (bottleSummaries.Count > 0)
                                             {
                                                 <div class="sip-session-bottles" aria-label="Bottles planned for this sip session">
@@ -1849,8 +2001,226 @@
         </section>
         <datalist id="sisterhood-user-options"></datalist>
     </main>
+    <div class="contribute-modal-backdrop" data-contribute-modal hidden aria-hidden="true">
+        <div class="contribute-modal" role="dialog" aria-modal="true" aria-labelledby="contribute-modal-title">
+            <header class="contribute-modal__header">
+                <h2 class="contribute-modal__title" id="contribute-modal-title">Contribute bottles</h2>
+                <button type="button" class="ghost-button" data-contribute-close aria-label="Close contribute bottles dialog">Close</button>
+            </header>
+            <form method="post"
+                  action="@Url.Action("ContributeSipSessionBottles", "WineSurfer")"
+                  class="contribute-modal__form"
+                  data-contribute-form>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="SisterhoodId" data-contribute-sisterhood />
+                <input type="hidden" name="SipSessionId" data-contribute-session />
+                <p class="contribute-modal__hint">Select the bottles you'd like to add to this sip session.</p>
+                <div class="contribute-modal__list" role="group" aria-labelledby="contribute-modal-title">
+                    <p class="contribute-modal__empty" data-contribute-empty @(Model.AvailableBottles.Count > 0 ? "hidden" : null)>No bottles available to contribute right now.</p>
+                    @if (Model.AvailableBottles.Count > 0)
+                    {
+                        <ul>
+                            @foreach (var bottle in Model.AvailableBottles)
+                            {
+                                var inputId = $"contribute-bottle-{bottle.Id:N}";
+                                <li class="contribute-modal__option" data-bottle-option>
+                                    <label for="@inputId">
+                                        <input id="@inputId" type="checkbox" name="BottleIds" value="@bottle.Id" />
+                                        <span>@bottle.Label</span>
+                                    </label>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+                <div class="contribute-modal__actions">
+                    <button type="submit" class="secondary-button" data-contribute-submit @(Model.AvailableBottles.Count == 0 ? "disabled" : null)>Add to sip session</button>
+                    <button type="button" class="ghost-button" data-contribute-close>Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        const contributeModal = document.querySelector('[data-contribute-modal]');
+        if (contributeModal) {
+            const form = contributeModal.querySelector('[data-contribute-form]');
+            const sisterhoodField = form?.querySelector('[data-contribute-sisterhood]');
+            const sessionField = form?.querySelector('[data-contribute-session]');
+            const submitButton = form?.querySelector('[data-contribute-submit]');
+            const emptyState = contributeModal.querySelector('[data-contribute-empty]');
+            const closeButtons = contributeModal.querySelectorAll('[data-contribute-close]');
+            const openButtons = document.querySelectorAll('[data-contribute-trigger]');
+            const checkboxNodes = form?.querySelectorAll('input[type="checkbox"][name="BottleIds"]') ?? [];
+            const optionNodes = form?.querySelectorAll('[data-bottle-option]') ?? [];
+
+            const checkboxes = Array.from(checkboxNodes);
+            const options = Array.from(optionNodes);
+            let lastEnabledCount = checkboxes.filter(box => !box.disabled).length;
+            let lastTriggerButton = null;
+
+            const updateSubmitState = () => {
+                if (!submitButton) {
+                    return;
+                }
+
+                if (lastEnabledCount === 0) {
+                    submitButton.disabled = true;
+                    return;
+                }
+
+                const anyChecked = checkboxes.some(box => !box.disabled && box.checked);
+                submitButton.disabled = !anyChecked;
+            };
+
+            const isModalOpen = () => !contributeModal.hasAttribute('hidden');
+
+            const toggleScrollLock = (disable) => {
+                if (disable) {
+                    document.body.classList.add('no-scroll');
+                } else {
+                    document.body.classList.remove('no-scroll');
+                }
+            };
+
+            const resetOptionState = () => {
+                checkboxes.forEach(box => {
+                    box.checked = false;
+                    box.disabled = false;
+                });
+                options.forEach(option => option.removeAttribute('data-disabled'));
+                lastEnabledCount = checkboxes.length;
+                updateSubmitState();
+            };
+
+            const applySessionBottleState = (sessionBottleIds) => {
+                let enabledCount = 0;
+                checkboxes.forEach(box => {
+                    const valueKey = box.value?.trim().toLowerCase() ?? '';
+                    const shouldDisable = valueKey && sessionBottleIds.has(valueKey);
+                    box.checked = false;
+                    box.disabled = shouldDisable;
+
+                    const option = box.closest('[data-bottle-option]');
+                    if (option) {
+                        if (shouldDisable) {
+                            option.setAttribute('data-disabled', 'true');
+                        } else {
+                            option.removeAttribute('data-disabled');
+                            enabledCount += 1;
+                        }
+                    }
+                });
+
+                if (emptyState) {
+                    if (enabledCount === 0) {
+                        emptyState.removeAttribute('hidden');
+                    } else {
+                        emptyState.setAttribute('hidden', '');
+                    }
+                }
+
+                lastEnabledCount = enabledCount;
+                updateSubmitState();
+                return enabledCount;
+            };
+
+            const focusInitialControl = (enabledCount) => {
+                if (enabledCount > 0) {
+                    const firstEnabled = checkboxes.find(box => !box.disabled);
+                    if (firstEnabled) {
+                        window.requestAnimationFrame(() => firstEnabled.focus());
+                        return;
+                    }
+                }
+
+                const fallback = submitButton && !submitButton.disabled
+                    ? submitButton
+                    : closeButtons[0];
+
+                if (fallback) {
+                    window.requestAnimationFrame(() => fallback.focus());
+                }
+            };
+
+            const openModal = (context) => {
+                if (!form || !sisterhoodField || !sessionField) {
+                    return;
+                }
+
+                const { sisterhoodId, sessionId, bottleIds } = context;
+                sisterhoodField.value = sisterhoodId ?? '';
+                sessionField.value = sessionId ?? '';
+
+                const normalized = bottleIds.map(id => id.trim().toLowerCase()).filter(Boolean);
+                const sessionBottleIds = new Set(normalized);
+                const enabledCount = applySessionBottleState(sessionBottleIds);
+
+                contributeModal.removeAttribute('hidden');
+                contributeModal.setAttribute('aria-hidden', 'false');
+                toggleScrollLock(true);
+                focusInitialControl(enabledCount);
+            };
+
+            const closeModal = () => {
+                if (!form) {
+                    return;
+                }
+
+                contributeModal.setAttribute('hidden', '');
+                contributeModal.setAttribute('aria-hidden', 'true');
+                toggleScrollLock(false);
+                form.reset();
+                resetOptionState();
+
+                if (emptyState && !emptyState.hasAttribute('hidden') && checkboxes.length > 0) {
+                    emptyState.setAttribute('hidden', '');
+                }
+
+                if (lastTriggerButton) {
+                    const trigger = lastTriggerButton;
+                    lastTriggerButton = null;
+                    window.requestAnimationFrame(() => trigger.focus());
+                }
+            };
+
+            openButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    lastTriggerButton = button;
+                    const sisterhoodId = button.getAttribute('data-sisterhood-id') ?? '';
+                    const sessionId = button.getAttribute('data-sip-session-id') ?? '';
+                    const rawBottleIds = button.getAttribute('data-session-bottle-ids') ?? '';
+                    const bottleIds = rawBottleIds.split(',').map(id => id.trim()).filter(id => id.length > 0);
+
+                    openModal({ sisterhoodId, sessionId, bottleIds });
+                });
+            });
+
+            closeButtons.forEach(button => {
+                button.addEventListener('click', closeModal);
+            });
+
+            checkboxes.forEach(box => {
+                box.addEventListener('change', () => {
+                    updateSubmitState();
+                });
+            });
+
+            contributeModal.addEventListener('click', event => {
+                if (event.target === contributeModal) {
+                    closeModal();
+                }
+            });
+
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape' && isModalOpen()) {
+                    closeModal();
+                }
+            });
+
+            updateSubmitState();
+        }
+
         const toggleButton = document.querySelector('[data-sisterhood-create-toggle]');
         const createForm = document.querySelector('[data-sisterhood-create-form]');
 

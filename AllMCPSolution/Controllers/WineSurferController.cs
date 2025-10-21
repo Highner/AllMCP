@@ -99,6 +99,7 @@ public class WineSurferController : Controller
     private readonly ISisterhoodRepository _sisterhoodRepository;
     private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
     private readonly ISipSessionRepository _sipSessionRepository;
+    private readonly IBottleRepository _bottleRepository;
     private static readonly TimeSpan SentInvitationNotificationWindow = TimeSpan.FromDays(7);
 
     public WineSurferController(
@@ -106,13 +107,15 @@ public class WineSurferController : Controller
         IUserRepository userRepository,
         ISisterhoodRepository sisterhoodRepository,
         ISisterhoodInvitationRepository sisterhoodInvitationRepository,
-        ISipSessionRepository sipSessionRepository)
+        ISipSessionRepository sipSessionRepository,
+        IBottleRepository bottleRepository)
     {
         _wineRepository = wineRepository;
         _userRepository = userRepository;
         _sisterhoodRepository = sisterhoodRepository;
         _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
         _sipSessionRepository = sipSessionRepository;
+        _bottleRepository = bottleRepository;
     }
 
     [HttpGet("")]
@@ -272,6 +275,7 @@ public class WineSurferController : Controller
         Guid? currentUserId = null;
         IReadOnlyList<WineSurferSisterhoodSummary> sisterhoods = Array.Empty<WineSurferSisterhoodSummary>();
         IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
+        IReadOnlyList<WineSurferSipSessionBottle> availableBottles = Array.Empty<WineSurferSipSessionBottle>();
         IReadOnlyList<WineSurferSentInvitationNotification> sentInvitationNotifications = Array.Empty<WineSurferSentInvitationNotification>();
 
         if (isAuthenticated)
@@ -316,6 +320,8 @@ public class WineSurferController : Controller
             if (currentUserId.HasValue)
             {
                 var membership = await _sisterhoodRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
+                var availableBottleEntities = await _bottleRepository.GetAvailableForUserAsync(currentUserId.Value, cancellationToken);
+                availableBottles = CreateBottleSummaries(availableBottleEntities);
                 var acceptedInvitations = await _sisterhoodInvitationRepository.GetAcceptedForAdminAsync(
                     currentUserId.Value,
                     now - SentInvitationNotificationWindow,
@@ -436,6 +442,7 @@ public class WineSurferController : Controller
             }
         }
 
+        var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, sisterhoods, currentUserId, statusMessage, errorMessage, incomingInvitations, availableBottles);
         var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, sisterhoods, currentUserId, statusMessage, errorMessage, incomingInvitations, sentInvitationNotifications);
         return View("~/Views/Sisterhoods/Index.cshtml", model);
     }
@@ -1292,6 +1299,69 @@ public class WineSurferController : Controller
     }
 
     [Authorize]
+    [HttpPost("sisterhoods/sessions/contribute-bottles")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ContributeSipSessionBottles(ContributeSipSessionBottlesRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid || request is null || request.SisterhoodId == Guid.Empty || request.SipSessionId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't add those bottles.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var membership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (membership is null)
+        {
+            TempData["SisterhoodError"] = "You must be part of this sisterhood to contribute bottles.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var bottleIds = request.BottleIds
+            ?.Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList() ?? new List<Guid>();
+
+        if (bottleIds.Count == 0)
+        {
+            TempData["SisterhoodError"] = "Please select at least one bottle to contribute.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var session = await _sipSessionRepository.GetByIdAsync(request.SipSessionId, cancellationToken);
+        if (session is null || session.SisterhoodId != request.SisterhoodId)
+        {
+            TempData["SisterhoodError"] = "That sip session could not be found.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        try
+        {
+            var addedCount = await _sipSessionRepository.AddBottlesToSessionAsync(request.SipSessionId, currentUserId.Value, bottleIds, cancellationToken);
+            if (addedCount > 0)
+            {
+                var noun = addedCount == 1 ? "bottle" : "bottles";
+                TempData["SisterhoodStatus"] = $"Added {addedCount} {noun} to '{session.Name}'.";
+            }
+            else
+            {
+                TempData["SisterhoodError"] = "We couldn't add those bottles to the sip session.";
+            }
+        }
+        catch (Exception)
+        {
+            TempData["SisterhoodError"] = "We couldn't add those bottles right now. Please try again.";
+        }
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
     [HttpPost("sisterhoods/sessions/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteSipSession(DeleteSipSessionRequest request, CancellationToken cancellationToken)
@@ -1585,6 +1655,17 @@ public class WineSurferController : Controller
         public Guid SipSessionId { get; set; }
     }
 
+    public class ContributeSipSessionBottlesRequest
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
+
+        [Required]
+        public Guid SipSessionId { get; set; }
+
+        public List<Guid> BottleIds { get; set; } = new();
+    }
+
     private static string? NormalizeEmailCandidate(string? email)
     {
         if (string.IsNullOrWhiteSpace(email))
@@ -1748,6 +1829,7 @@ public record WineSurferSisterhoodsViewModel(
     string? StatusMessage,
     string? ErrorMessage,
     IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
+    IReadOnlyList<WineSurferSipSessionBottle> AvailableBottles);
     IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications);
 
 public record WineSurferSisterhoodSummary(
