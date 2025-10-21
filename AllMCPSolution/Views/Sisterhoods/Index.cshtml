@@ -1257,6 +1257,70 @@
             padding-top: 8px;
         }
 
+        .sip-session-edit-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 5, 5, 0.72);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            z-index: 55;
+            backdrop-filter: blur(6px);
+        }
+
+        .sip-session-edit-modal-backdrop[hidden] {
+            display: none;
+        }
+
+        .sip-session-edit-modal {
+            background: rgba(12, 12, 12, 0.96);
+            border-radius: 16px;
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            width: min(540px, 100%);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+            overflow: hidden;
+        }
+
+        .sip-session-edit-modal__header {
+            padding: 20px 24px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 1px solid rgba(244, 241, 234, 0.12);
+        }
+
+        .sip-session-edit-modal__title {
+            margin: 0;
+            font-size: 16px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .sip-session-edit-modal__body {
+            padding: 24px;
+            overflow-y: auto;
+            max-height: calc(90vh - 100px);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sip-session-edit-modal__body .sip-session-form {
+            border: none;
+            padding: 0;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .sip-session-edit-modal__body .sip-session-form .sip-session-form-actions {
+            justify-content: flex-end;
+        }
+
         .pending-invitations {
             margin-top: 18px;
             padding: 16px;
@@ -2048,6 +2112,15 @@
         </section>
         <datalist id="sisterhood-user-options"></datalist>
     </main>
+    <div class="sip-session-edit-modal-backdrop" data-sip-session-edit-modal hidden aria-hidden="true">
+        <div class="sip-session-edit-modal" role="dialog" aria-modal="true" aria-labelledby="sip-session-edit-modal-title">
+            <header class="sip-session-edit-modal__header">
+                <h2 class="sip-session-edit-modal__title" id="sip-session-edit-modal-title" data-sip-session-edit-modal-title>Edit sip session</h2>
+                <button type="button" class="ghost-button" data-sip-session-edit-close aria-label="Close edit sip session dialog">Close</button>
+            </header>
+            <div class="sip-session-edit-modal__body" data-sip-session-edit-modal-body></div>
+        </div>
+    </div>
     <div class="contribute-modal-backdrop" data-contribute-modal hidden aria-hidden="true">
         <div class="contribute-modal" role="dialog" aria-modal="true" aria-labelledby="contribute-modal-title">
             <header class="contribute-modal__header">
@@ -2735,46 +2808,133 @@
             });
         });
 
-        const editSessionButtons = document.querySelectorAll('[data-sip-session-edit-toggle]');
+        const sipSessionEditModal = document.querySelector('[data-sip-session-edit-modal]');
+        let activeEditSessionButton = null;
+        let activeEditForm = null;
 
-        const initializeSipSessionEditRegion = (region, toggleButton) => {
-            if (!region) {
-                return null;
+        const isEditModalOpen = () => Boolean(sipSessionEditModal && !sipSessionEditModal.hasAttribute('hidden'));
+
+        const setEditButtonState = (button, isOpen) => {
+            if (!button) {
+                return;
             }
 
-            if (region.dataset.initialized === 'true') {
-                return region.querySelector('[data-sip-session-edit-form]');
+            if (!button.dataset.originalLabel) {
+                button.dataset.originalLabel = button.textContent?.trim() ?? '';
             }
 
-            const template = region.querySelector('template[data-sip-session-edit-template]');
-            if (!template) {
-                region.dataset.initialized = 'false';
-                return null;
+            if (isOpen) {
+                button.textContent = 'Close edit';
+                button.setAttribute('aria-expanded', 'true');
+            } else {
+                const original = button.dataset.originalLabel ?? 'Edit';
+                button.textContent = original || 'Edit';
+                button.setAttribute('aria-expanded', 'false');
+            }
+        };
+
+        const closeSipSessionEditModal = ({ restoreFocus = true } = {}) => {
+            if (!sipSessionEditModal) {
+                return;
             }
 
+            const container = sipSessionEditModal.querySelector('[data-sip-session-edit-modal-body]');
+            if (activeEditForm) {
+                activeEditForm.reset();
+                activeEditForm = null;
+            }
+
+            if (container) {
+                container.innerHTML = '';
+            }
+
+            sipSessionEditModal.setAttribute('hidden', '');
+            sipSessionEditModal.setAttribute('aria-hidden', 'true');
+
+            if (activeEditSessionButton) {
+                const trigger = activeEditSessionButton;
+                setEditButtonState(trigger, false);
+                if (restoreFocus) {
+                    window.requestAnimationFrame(() => trigger.focus());
+                }
+
+                activeEditSessionButton = null;
+            }
+        };
+
+        const openSipSessionEditModal = (button, template, sessionName) => {
+            if (!sipSessionEditModal || !template) {
+                return;
+            }
+
+            closeSipSessionEditModal({ restoreFocus: false });
+
+            const container = sipSessionEditModal.querySelector('[data-sip-session-edit-modal-body]');
+            const title = sipSessionEditModal.querySelector('[data-sip-session-edit-modal-title]');
+
+            if (!container) {
+                return;
+            }
+
+            container.innerHTML = '';
             const fragment = template.content.cloneNode(true);
-            region.appendChild(fragment);
+            container.appendChild(fragment);
 
-            const form = region.querySelector('[data-sip-session-edit-form]');
+            const form = container.querySelector('[data-sip-session-edit-form]');
             if (!form) {
-                region.dataset.initialized = 'false';
-                return null;
+                container.innerHTML = '';
+                return;
             }
+
+            activeEditForm = form;
 
             const cancelButton = form.querySelector('[data-sip-session-edit-cancel]');
             if (cancelButton) {
-                cancelButton.addEventListener('click', () => {
+                cancelButton.addEventListener('click', event => {
+                    event.preventDefault();
                     form.reset();
-                    region.setAttribute('hidden', '');
-                    toggleButton.setAttribute('aria-expanded', 'false');
-                    const original = toggleButton.dataset.originalLabel ?? 'Edit';
-                    toggleButton.textContent = original || 'Edit';
+                    closeSipSessionEditModal();
                 });
             }
 
-            region.dataset.initialized = 'true';
-            return form;
+            sipSessionEditModal.removeAttribute('hidden');
+            sipSessionEditModal.setAttribute('aria-hidden', 'false');
+
+            activeEditSessionButton = button;
+            setEditButtonState(button, true);
+
+            if (title) {
+                title.textContent = sessionName ? `Edit sip session · ${sessionName}` : 'Edit sip session';
+            }
+
+            window.requestAnimationFrame(() => {
+                const nameField = form.querySelector('input[name="Name"]');
+                nameField?.focus();
+            });
         };
+
+        if (sipSessionEditModal) {
+            const closeButtons = sipSessionEditModal.querySelectorAll('[data-sip-session-edit-close]');
+            closeButtons.forEach(closeButton => {
+                closeButton.addEventListener('click', () => {
+                    closeSipSessionEditModal();
+                });
+            });
+
+            sipSessionEditModal.addEventListener('click', event => {
+                if (event.target === sipSessionEditModal) {
+                    closeSipSessionEditModal();
+                }
+            });
+        }
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && isEditModalOpen()) {
+                closeSipSessionEditModal();
+            }
+        });
+
+        const editSessionButtons = document.querySelectorAll('[data-sip-session-edit-toggle]');
 
         editSessionButtons.forEach(button => {
             button.addEventListener('click', () => {
@@ -2788,32 +2948,19 @@
                     return;
                 }
 
-                let form = region.querySelector('[data-sip-session-edit-form]');
-                if (!form) {
-                    form = initializeSipSessionEditRegion(region, button);
-                    if (!form) {
-                        return;
-                    }
+                const template = region.querySelector('template[data-sip-session-edit-template]');
+                if (!template) {
+                    return;
                 }
 
-                const isHidden = region.hasAttribute('hidden');
-                if (!button.dataset.originalLabel) {
-                    button.dataset.originalLabel = button.textContent?.trim() ?? '';
+                const sessionName = item.querySelector('.sip-session-name')?.textContent?.trim() ?? '';
+
+                if (isEditModalOpen() && activeEditSessionButton === button) {
+                    closeSipSessionEditModal();
+                    return;
                 }
 
-                if (isHidden) {
-                    region.removeAttribute('hidden');
-                    button.setAttribute('aria-expanded', 'true');
-                    button.textContent = 'Close edit';
-                    const nameField = form.querySelector('input[name="Name"]');
-                    nameField?.focus();
-                } else {
-                    region.setAttribute('hidden', '');
-                    button.setAttribute('aria-expanded', 'false');
-                    form.reset();
-                    const original = button.dataset.originalLabel ?? 'Edit';
-                    button.textContent = original || 'Edit';
-                }
+                openSipSessionEditModal(button, template, sessionName);
             });
         });
     });
