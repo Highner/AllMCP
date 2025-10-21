@@ -98,17 +98,20 @@ public class WineSurferController : Controller
     private readonly IUserRepository _userRepository;
     private readonly ISisterhoodRepository _sisterhoodRepository;
     private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
+    private readonly ISipSessionRepository _sipSessionRepository;
 
     public WineSurferController(
         IWineRepository wineRepository,
         IUserRepository userRepository,
         ISisterhoodRepository sisterhoodRepository,
-        ISisterhoodInvitationRepository sisterhoodInvitationRepository)
+        ISisterhoodInvitationRepository sisterhoodInvitationRepository,
+        ISipSessionRepository sipSessionRepository)
     {
         _wineRepository = wineRepository;
         _userRepository = userRepository;
         _sisterhoodRepository = sisterhoodRepository;
         _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
+        _sipSessionRepository = sipSessionRepository;
     }
 
     [HttpGet("")]
@@ -278,6 +281,25 @@ public class WineSurferController : Controller
                             .Select(entry => entry.Summary)
                             .ToList();
 
+                        var sessionSummaries = (s.SipSessions ?? Array.Empty<SipSession>())
+                            .Select(session => new
+                            {
+                                SortKey = session.ScheduledAt ?? session.Date ?? session.CreatedAt,
+                                Session = new WineSurferSipSessionSummary(
+                                    session.Id,
+                                    session.Name,
+                                    session.Description,
+                                    session.ScheduledAt,
+                                    session.Date,
+                                    session.Location,
+                                    session.CreatedAt,
+                                    session.UpdatedAt)
+                            })
+                            .OrderBy(entry => entry.SortKey)
+                            .ThenBy(entry => entry.Session.Name, StringComparer.OrdinalIgnoreCase)
+                            .Select(entry => entry.Session)
+                            .ToList();
+
                         return new WineSurferSisterhoodSummary(
                             s.Id,
                             s.Name,
@@ -286,7 +308,8 @@ public class WineSurferController : Controller
                             isAdmin,
                             memberSummaries,
                             favoriteRegion,
-                            pendingInvitations);
+                            pendingInvitations,
+                            sessionSummaries);
                     })
                     .ToList();
 
@@ -1035,6 +1058,198 @@ public class WineSurferController : Controller
         return RedirectToAction(nameof(Sisterhoods));
     }
 
+    [Authorize]
+    [HttpPost("sisterhoods/sessions/create")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateSipSession(CreateSipSessionRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid || request.SisterhoodId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't plan that sip session.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            TempData["SisterhoodError"] = "Please provide a name for the sip session.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var isAdmin = await _sisterhoodRepository.IsAdminAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (!isAdmin)
+        {
+            TempData["SisterhoodError"] = "Only admins can manage sip sessions.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var sisterhood = await _sisterhoodRepository.GetByIdAsync(request.SisterhoodId, cancellationToken);
+        if (sisterhood is null)
+        {
+            TempData["SisterhoodError"] = "That sisterhood no longer exists.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var sipSession = new SipSession
+        {
+            SisterhoodId = request.SisterhoodId,
+            Name = request.Name,
+            Description = request.Description,
+            ScheduledAt = NormalizeToUtc(request.ScheduledAt),
+            Date = request.ScheduledAt?.Date,
+            Location = request.Location ?? string.Empty
+        };
+
+        try
+        {
+            await _sipSessionRepository.AddAsync(sipSession, cancellationToken);
+
+            var scheduledDisplay = request.ScheduledAt?.ToString("f");
+            TempData["SisterhoodStatus"] = scheduledDisplay is null
+                ? $"Planned '{sipSession.Name}'."
+                : $"Planned '{sipSession.Name}' for {scheduledDisplay}.";
+        }
+        catch (ArgumentException ex)
+        {
+            TempData["SisterhoodError"] = ex.Message;
+        }
+        catch (Exception)
+        {
+            TempData["SisterhoodError"] = "We couldn't plan that sip session right now. Please try again.";
+        }
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
+    [HttpPost("sisterhoods/sessions/update")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateSipSession(UpdateSipSessionRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid || request.SisterhoodId == Guid.Empty || request.SipSessionId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't update that sip session.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            TempData["SisterhoodError"] = "Please provide a name for the sip session.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var isAdmin = await _sisterhoodRepository.IsAdminAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (!isAdmin)
+        {
+            TempData["SisterhoodError"] = "Only admins can manage sip sessions.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var session = await _sipSessionRepository.GetByIdAsync(request.SipSessionId, cancellationToken);
+        if (session is null || session.SisterhoodId != request.SisterhoodId)
+        {
+            TempData["SisterhoodError"] = "That sip session could not be found.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        session.Name = request.Name;
+        session.Description = request.Description;
+        session.Location = request.Location ?? string.Empty;
+        session.ScheduledAt = NormalizeToUtc(request.ScheduledAt);
+        session.Date = request.ScheduledAt?.Date;
+
+        try
+        {
+            await _sipSessionRepository.UpdateAsync(session, cancellationToken);
+
+            var scheduledDisplay = request.ScheduledAt?.ToString("f");
+            TempData["SisterhoodStatus"] = scheduledDisplay is null
+                ? $"Updated '{session.Name}'."
+                : $"Updated '{session.Name}' for {scheduledDisplay}.";
+        }
+        catch (ArgumentException ex)
+        {
+            TempData["SisterhoodError"] = ex.Message;
+        }
+        catch (Exception)
+        {
+            TempData["SisterhoodError"] = "We couldn't update that sip session right now. Please try again.";
+        }
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
+    [HttpPost("sisterhoods/sessions/delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteSipSession(DeleteSipSessionRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid || request.SisterhoodId == Guid.Empty || request.SipSessionId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't remove that sip session.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var isAdmin = await _sisterhoodRepository.IsAdminAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (!isAdmin)
+        {
+            TempData["SisterhoodError"] = "Only admins can manage sip sessions.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var session = await _sipSessionRepository.GetByIdAsync(request.SipSessionId, cancellationToken);
+        if (session is null || session.SisterhoodId != request.SisterhoodId)
+        {
+            TempData["SisterhoodError"] = "That sip session was already removed.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        try
+        {
+            await _sipSessionRepository.DeleteAsync(request.SipSessionId, cancellationToken);
+            TempData["SisterhoodStatus"] = $"Removed '{session.Name}'.";
+        }
+        catch (Exception)
+        {
+            TempData["SisterhoodError"] = "We couldn't remove that sip session right now. Please try again.";
+        }
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    private static DateTime? NormalizeToUtc(DateTime? value)
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        var dateTime = value.Value;
+        return dateTime.Kind switch
+        {
+            DateTimeKind.Utc => dateTime,
+            DateTimeKind.Local => dateTime.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(dateTime, DateTimeKind.Local).ToUniversalTime()
+        };
+    }
+
     private Guid? GetCurrentUserId()
     {
         var idClaim = User?.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -1232,6 +1447,43 @@ public class WineSurferController : Controller
         public Guid SisterhoodId { get; set; }
     }
 
+    public abstract class SipSessionRequestBase
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
+
+        [Required]
+        [StringLength(256)]
+        public string Name { get; set; } = string.Empty;
+
+        [StringLength(2048)]
+        public string? Description { get; set; }
+
+        [StringLength(256)]
+        public string? Location { get; set; }
+
+        public DateTime? ScheduledAt { get; set; }
+    }
+
+    public class CreateSipSessionRequest : SipSessionRequestBase
+    {
+    }
+
+    public class UpdateSipSessionRequest : SipSessionRequestBase
+    {
+        [Required]
+        public Guid SipSessionId { get; set; }
+    }
+
+    public class DeleteSipSessionRequest
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
+
+        [Required]
+        public Guid SipSessionId { get; set; }
+    }
+
     private static string? NormalizeEmailCandidate(string? email)
     {
         if (string.IsNullOrWhiteSpace(email))
@@ -1318,7 +1570,18 @@ public record WineSurferSisterhoodSummary(
     bool CanManage,
     IReadOnlyList<WineSurferSisterhoodMember> Members,
     WineSurferSisterhoodFavoriteRegion? FavoriteRegion,
-    IReadOnlyList<WineSurferSisterhoodInvitationSummary> PendingInvitations);
+    IReadOnlyList<WineSurferSisterhoodInvitationSummary> PendingInvitations,
+    IReadOnlyList<WineSurferSipSessionSummary> SipSessions);
+
+public record WineSurferSipSessionSummary(
+    Guid Id,
+    string Name,
+    string? Description,
+    DateTime? ScheduledAtUtc,
+    DateTime? Date,
+    string Location,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc);
 
 public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter);
 
