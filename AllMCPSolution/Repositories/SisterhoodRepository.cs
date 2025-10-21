@@ -112,7 +112,7 @@ public class SisterhoodRepository : ISisterhoodRepository
             return;
         }
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        var user = await _db.DomainUsers.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null)
         {
             return;

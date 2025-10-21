@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AllMCPSolution.Controllers;
@@ -24,9 +24,11 @@ public class AccountController : Controller
     public IActionResult SignOutCurrentUser([FromForm] string? returnUrl = null)
     {
         var redirectUrl = ResolveReturnUrl(returnUrl);
-        return SignOut(new AuthenticationProperties { RedirectUri = redirectUrl },
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            OpenIdConnectDefaults.AuthenticationScheme); // sign out cookie + OIDC
+        return SignOut(
+            new AuthenticationProperties { RedirectUri = redirectUrl },
+            IdentityConstants.ApplicationScheme,
+            IdentityConstants.ExternalScheme,
+            OpenIdConnectDefaults.AuthenticationScheme); // sign out identity + external + OIDC
     }
 
     private string ResolveReturnUrl(string? returnUrl) =>

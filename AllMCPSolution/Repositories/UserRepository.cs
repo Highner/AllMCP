@@ -28,7 +28,7 @@ public class UserRepository : IUserRepository
 
     public async Task<List<User>> GetAllAsync(CancellationToken ct = default)
     {
-        return await _db.Users
+        return await _db.DomainUsers
             .AsNoTracking()
             .OrderBy(u => u.Name)
             .ToListAsync(ct);
@@ -36,7 +36,7 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        return await _db.Users
+        return await _db.DomainUsers
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == id, ct);
     }
@@ -49,14 +49,14 @@ public class UserRepository : IUserRepository
         }
 
         var normalized = name.Trim().ToLowerInvariant();
-        return await _db.Users
+        return await _db.DomainUsers
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Name.ToLower() == normalized, ct);
     }
 
     public async Task<IReadOnlyList<User>> SearchByApproximateNameAsync(string name, int maxResults = 5, CancellationToken ct = default)
     {
-        var users = await _db.Users
+        var users = await _db.DomainUsers
             .AsNoTracking()
             .ToListAsync(ct);
 
@@ -84,7 +84,7 @@ public class UserRepository : IUserRepository
             TasteProfile = tasteProfile?.Trim() ?? string.Empty
         };
 
-        _db.Users.Add(entity);
+        _db.DomainUsers.Add(entity);
         await _db.SaveChangesAsync(ct);
 
         return entity;
@@ -92,25 +92,25 @@ public class UserRepository : IUserRepository
 
     public async Task AddAsync(User user, CancellationToken ct = default)
     {
-        _db.Users.Add(user);
+        _db.DomainUsers.Add(user);
         await _db.SaveChangesAsync(ct);
     }
 
     public async Task UpdateAsync(User user, CancellationToken ct = default)
     {
-        _db.Users.Update(user);
+        _db.DomainUsers.Update(user);
         await _db.SaveChangesAsync(ct);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var entity = await _db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
+        var entity = await _db.DomainUsers.FirstOrDefaultAsync(u => u.Id == id, ct);
         if (entity is null)
         {
             return;
         }
 
-        _db.Users.Remove(entity);
+        _db.DomainUsers.Remove(entity);
         await _db.SaveChangesAsync(ct);
     }
 }

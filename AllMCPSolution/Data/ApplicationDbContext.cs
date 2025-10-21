@@ -1,10 +1,11 @@
-using System.Collections.Generic;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Models;
 
 namespace AllMCPSolution.Data;
 
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext : IdentityDbContext<ApplicationIdentityUser, IdentityRole<Guid>, Guid>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
@@ -24,9 +25,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<WineVintageEvolutionScore> WineVintageEvolutionScores { get; set; }
     public DbSet<Bottle> Bottles { get; set; }
     public DbSet<BottleLocation> BottleLocations { get; set; }
-    public DbSet<User> Users { get; set; }
     public DbSet<TastingNote> TastingNotes { get; set; }
     public DbSet<Sisterhood> Sisterhoods { get; set; }
+
+    public DbSet<User> DomainUsers => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
