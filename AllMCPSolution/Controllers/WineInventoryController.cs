@@ -901,6 +901,17 @@ public class WineInventoryController : Controller
             })
             .ToList();
 
+        var ownedGroupBottles = await _bottleRepository
+            .GetByWineVintageIdAsync(bottle.WineVintageId, cancellationToken);
+
+        var filteredGroupBottles = ownedGroupBottles
+            .Where(groupBottle => groupBottle.UserId == userId)
+            .ToList();
+
+        var groupAverageScore = filteredGroupBottles.Count > 0
+            ? CalculateAverageScore(filteredGroupBottles)
+            : null;
+
         var bottleSummary = new BottleNotesBottleSummary
         {
             BottleId = bottle.Id,
@@ -911,7 +922,9 @@ public class WineInventoryController : Controller
             UserId = bottle.UserId,
             UserName = bottle.User?.Name ?? string.Empty,
             IsDrunk = bottle.IsDrunk,
-            DrunkAt = bottle.DrunkAt
+            DrunkAt = bottle.DrunkAt,
+            BottleAverageScore = CalculateAverageScore(bottle),
+            GroupAverageScore = groupAverageScore
         };
 
         return new BottleNotesResponse
@@ -1182,6 +1195,8 @@ public class BottleNotesBottleSummary
     public string UserName { get; set; } = string.Empty;
     public bool IsDrunk { get; set; }
     public DateTime? DrunkAt { get; set; }
+    public decimal? BottleAverageScore { get; set; }
+    public decimal? GroupAverageScore { get; set; }
 }
 
 public class TastingNoteViewModel

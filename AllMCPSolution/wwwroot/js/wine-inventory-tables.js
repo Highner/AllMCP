@@ -1397,6 +1397,7 @@ window.WineInventoryTables.initialize = function () {
 
                 if (summary) {
                     setNotesHeader(summary, notes.length);
+                    updateScoresFromNotesSummary(summary);
                 } else if (!notesSelectedBottleId) {
                     setNotesHeader(null);
                 }
@@ -1611,14 +1612,47 @@ window.WineInventoryTables.initialize = function () {
 
                 return {
                     bottleId: pick(raw, ['bottleId', 'BottleId']),
+                    wineVintageId: pick(raw, ['wineVintageId', 'WineVintageId']),
                     wineName: pick(raw, ['wineName', 'WineName']) ?? '',
                     vintage: pick(raw, ['vintage', 'Vintage']),
                     bottleLocation: pick(raw, ['bottleLocation', 'BottleLocation']) ?? '',
                     userId: pick(raw, ['userId', 'UserId']) ?? '',
                     userName: pick(raw, ['userName', 'UserName']) ?? '',
                     isDrunk: Boolean(pick(raw, ['isDrunk', 'IsDrunk'])),
-                    drunkAt: pick(raw, ['drunkAt', 'DrunkAt'])
+                    drunkAt: pick(raw, ['drunkAt', 'DrunkAt']),
+                    bottleAverageScore: pick(raw, ['bottleAverageScore', 'BottleAverageScore']),
+                    groupAverageScore: pick(raw, ['groupAverageScore', 'GroupAverageScore'])
                 };
+            }
+
+            function updateScoresFromNotesSummary(summary) {
+                if (!summary) {
+                    return;
+                }
+
+                const bottleId = summary.bottleId ?? summary.BottleId ?? notesSelectedBottleId;
+                const bottleAverage = summary.bottleAverageScore ?? summary.BottleAverageScore ?? null;
+                if (bottleId) {
+                    const detailRow = detailsBody.querySelector(`.detail-row[data-bottle-id="${bottleId}"]`);
+                    const averageCell = detailRow?.querySelector('.detail-average');
+                    if (averageCell) {
+                        averageCell.textContent = formatScore(bottleAverage);
+                    }
+                }
+
+                const groupId = summary.wineVintageId ?? summary.WineVintageId ?? selectedGroupId;
+                const groupAverage = summary.groupAverageScore ?? summary.GroupAverageScore ?? null;
+                if (groupId) {
+                    const summaryRow = inventoryTable.querySelector(`.group-row[data-group-id="${groupId}"]`);
+                    const scoreCell = summaryRow?.querySelector('[data-field="score"]');
+                    if (scoreCell) {
+                        scoreCell.textContent = formatScore(groupAverage);
+                    }
+                }
+
+                if (selectedSummary) {
+                    selectedSummary.averageScore = groupAverage ?? null;
+                }
             }
 
             function normalizeNote(raw) {
