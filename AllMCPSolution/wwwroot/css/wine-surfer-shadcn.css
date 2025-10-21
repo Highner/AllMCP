@@ -113,20 +113,178 @@ h1 {
     gap: 16px;
 }
 
+.notification-shell {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
 .top-bar-avatar {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border-radius: 999px;
-    border: 1px solid hsla(var(--border) / 0.35);
-    background: hsla(var(--accent) / 0.35);
+    border: 1px solid hsla(var(--border) / 0.4);
+    background: hsla(var(--accent) / 0.2);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     letter-spacing: 1px;
     text-transform: uppercase;
     color: hsl(var(--foreground));
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.top-bar-avatar:hover,
+.top-bar-avatar:focus-visible,
+.top-bar-avatar.active {
+    border-color: hsla(var(--border) / 0.7);
+    background: hsla(var(--accent) / 0.35);
+    outline: none;
+}
+
+.top-bar-avatar:focus-visible {
+    box-shadow: 0 0 0 2px hsla(var(--accent) / 0.45);
+}
+
+.notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: hsl(var(--destructive));
+    color: hsl(var(--destructive-foreground));
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-panel {
+    position: absolute;
+    top: calc(100% + 14px);
+    right: 0;
+    width: min(300px, 80vw);
+    background: hsla(var(--background) / 0.95);
+    border: 1px solid hsla(var(--border) / 0.45);
+    border-radius: calc(var(--radius) * 1.8);
+    padding: 18px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+    display: none;
+    z-index: 20;
+}
+
+.notification-panel.open {
+    display: block;
+}
+
+.notification-heading {
+    margin: 0 0 12px;
+    font-size: 12px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: hsla(var(--muted-foreground) / 0.85);
+}
+
+.notification-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.notification-item {
+    margin: 0;
+}
+
+.notification-link {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: calc(var(--radius) * 1.6);
+    background: hsla(var(--accent) / 0.12);
+    color: hsl(var(--foreground));
+    text-decoration: none;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.notification-link:hover,
+.notification-link:focus-visible {
+    background: hsla(var(--accent) / 0.22);
+    transform: translateY(-1px);
+    outline: none;
+}
+
+.notification-title {
+    font-size: 13px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.notification-meta {
+    font-size: 12px;
+    color: hsla(var(--muted-foreground) / 0.85);
+    letter-spacing: 1.2px;
+}
+
+.notification-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+    background: hsla(var(--accent) / 0.2);
+    color: hsl(var(--foreground));
+    width: fit-content;
+}
+
+.notification-empty {
+    margin: 0 0 12px;
+    font-size: 12px;
+    letter-spacing: 1.3px;
+    color: hsla(var(--muted-foreground) / 0.75);
+}
+
+.notification-footer {
+    margin-top: 14px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.notification-footer a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid hsla(var(--border) / 0.45);
+    background: hsla(var(--accent) / 0.18);
+    color: hsl(var(--foreground));
+    text-decoration: none;
+    font-size: 11px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.notification-footer a:hover,
+.notification-footer a:focus-visible {
+    background: hsla(var(--accent) / 0.28);
+    border-color: hsla(var(--border) / 0.65);
+    outline: none;
 }
 
 .home-button {
