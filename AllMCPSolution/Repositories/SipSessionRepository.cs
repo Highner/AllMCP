@@ -6,6 +6,7 @@ public interface ISipSessionRepository
 {
     Task<SipSession?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<List<SipSession>> GetBySisterhoodAsync(Guid sisterhoodId, CancellationToken ct = default);
+    Task<List<SipSession>> GetUpcomingAsync(DateTime utcNow, int limit, CancellationToken ct = default);
     Task<SipSession> AddAsync(SipSession sipSession, CancellationToken ct = default);
     Task UpdateAsync(SipSession sipSession, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
@@ -44,6 +45,33 @@ public class SipSessionRepository : ISipSessionRepository
             .OrderBy(session => session.ScheduledAt ?? session.CreatedAt)
             .ThenBy(session => session.Name)
             .ToListAsync(ct);
+    }
+
+    public async Task<List<SipSession>> GetUpcomingAsync(DateTime utcNow, int limit, CancellationToken ct = default)
+    {
+        if (limit < 0)
+        {
+            limit = 0;
+        }
+
+        var utcDate = utcNow.Date;
+
+        var query = _db.SipSessions
+            .AsNoTracking()
+            .Include(session => session.Sisterhood)
+            .Include(session => session.Bottles)
+            .Where(session =>
+                (session.ScheduledAt.HasValue && session.ScheduledAt.Value >= utcNow) ||
+                (!session.ScheduledAt.HasValue && session.Date.HasValue && session.Date.Value.Date >= utcDate))
+            .OrderBy(session => session.ScheduledAt ?? session.Date ?? session.CreatedAt)
+            .ThenBy(session => session.Name);
+
+        if (limit > 0)
+        {
+            query = query.Take(limit);
+        }
+
+        return await query.ToListAsync(ct);
     }
 
     public async Task<SipSession> AddAsync(SipSession sipSession, CancellationToken ct = default)
