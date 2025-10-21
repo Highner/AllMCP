@@ -1232,8 +1232,7 @@ window.WineInventoryTables.initialize = function () {
                 const rawDrunkAt = detail.drunkAt ?? detail.DrunkAt ?? null;
                 const normalizedDrunkAt = normalizeIsoDate(rawDrunkAt);
                 const isDrunk = Boolean(detail.isDrunk ?? detail.IsDrunk);
-                const drunkDisplay = isDrunk ? 'Yes' : 'No';
-                const drunkDateDisplay = normalizedDrunkAt ? formatDateDisplay(normalizedDrunkAt) : '—';
+                const enjoyedAtDisplay = normalizedDrunkAt ? formatDateDisplay(normalizedDrunkAt) : '—';
                 const drinkButtonLabel = isDrunk ? 'Update Drink Details' : 'Drink Bottle';
 
                 row.dataset.drunkAt = normalizedDrunkAt;
@@ -1244,8 +1243,7 @@ window.WineInventoryTables.initialize = function () {
                     <td></td>
                     <td><input type="number" step="0.01" min="0" class="detail-price" value="${detail.price ?? detail.Price ?? ''}" placeholder="0.00" /></td>
                     <td class="detail-average">${formatScore(detail.averageScore ?? detail.AverageScore)}</td>
-                    <td class="detail-drunk-display">${escapeHtml(drunkDisplay)}</td>
-                    <td class="detail-drunk-date">${escapeHtml(drunkDateDisplay)}</td>
+                    <td class="detail-enjoyed-at">${escapeHtml(enjoyedAtDisplay)}</td>
                     <td class="actions">
                         <button type="button" class="crud-table__action-button drink-bottle-trigger">${escapeHtml(drinkButtonLabel)}</button>
                         <button type="button" class="crud-table__action-button save">Save</button>
