@@ -2300,6 +2300,12 @@ public class WineSurferController : Controller
             .Select(bottle =>
             {
                 var labelBase = CreateBottleLabel(bottle);
+                var rawWineName = bottle.WineVintage?.Wine?.Name;
+                var wineName = string.IsNullOrWhiteSpace(rawWineName)
+                    ? "Bottle"
+                    : rawWineName!.Trim();
+
+                var vintageValue = bottle.WineVintage?.Vintage;
                 var isOwnedByCurrentUser = currentUserId.HasValue && bottle!.UserId.HasValue && bottle.UserId.Value == currentUserId.Value;
                 TastingNote? currentUserNote = null;
 
@@ -2322,6 +2328,8 @@ public class WineSurferController : Controller
 
                 return new WineSurferSipSessionBottle(
                     bottle!.Id,
+                    wineName,
+                    vintageValue,
                     labelBase,
                     isOwnedByCurrentUser,
                     bottle.IsDrunk,
@@ -2444,6 +2452,8 @@ public record WineSurferSipSessionSummary(
 
 public record WineSurferSipSessionBottle(
     Guid Id,
+    string WineName,
+    int? Vintage,
     string Label,
     bool IsOwnedByCurrentUser,
     bool IsDrunk,
