@@ -38,6 +38,8 @@
 
         return string.Equals(Model.SortDirection, "desc", StringComparison.OrdinalIgnoreCase) ? "sorted-desc" : "sorted-asc";
     }
+
+    var hasBottles = Model.Bottles.Any();
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -83,97 +85,98 @@
             <button type="submit">Apply</button>
         </form>
 
-        @if (!Model.Bottles.Any())
+        @if (!hasBottles)
         {
             <div class="no-results">No bottles match the current filters.</div>
         }
-        else
-        {
-            <section class="crud-table" data-crud-table="summary">
-                <header class="crud-table__header">
-                    <h2 class="crud-table__title">Inventory Summary</h2>
-                    <p class="crud-table__description">Manage wine groups and quick actions.</p>
-                </header>
-                <div class="crud-table__body">
-                    <table id="inventory-table" class="inventory-table crud-table__table">
-                        <thead>
-                            <tr class="crud-table__add-row add-summary-row">
-                                <td>
-                                    <input type="text" class="summary-add-name" placeholder="Wine name" aria-label="Wine name" />
-                                </td>
-                                <td>
-                                    <select class="summary-add-sub-app" aria-label="Sub-appellation">
-                                        <option value="">Select sub-appellation</option>
-                                    </select>
-                                </td>
-                                <td>
-                                    <input type="number" class="summary-add-vintage" min="1900" max="2100" placeholder="Vintage" aria-label="Vintage" />
-                                </td>
-                                <td>
-                                    <input type="number" class="summary-add-count" min="1" value="1" aria-label="Initial bottle count" />
-                                </td>
-                                <td>
-                                    <select class="summary-add-color" aria-label="Color">
-                                        <option value="Red">Red</option>
-                                        <option value="White">White</option>
-                                        <option value="Rose">Rosé</option>
-                                    </select>
-                                </td>
-                                <td class="summary-add-status">—</td>
-                                <td class="summary-add-score">—</td>
-                                <td>
-                                    <div class="actions">
-                                        <button type="button" class="summary-add-submit crud-table__action-button">Add Wine</button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr class="header-row crud-table__header-row">
-                                <th>
-                                    <a class="sort-header @SortStateClass("wine")" href="@BuildSortUrl("wine")">
-                                        <span class="header-text">Wine</span>
-                                        <span class="sort-icon" aria-hidden="true"></span>
-                                    </a>
-                                </th>
-                                <th>
-                                    <a class="sort-header @SortStateClass("appellation")" href="@BuildSortUrl("appellation")">
-                                        <span class="header-text">Appellation</span>
-                                        <span class="sort-icon" aria-hidden="true"></span>
-                                    </a>
-                                </th>
-                                <th>
-                                    <a class="sort-header @SortStateClass("vintage")" href="@BuildSortUrl("vintage")">
-                                        <span class="header-text">Vintage</span>
-                                        <span class="sort-icon" aria-hidden="true"></span>
-                                    </a>
-                                </th>
-                                <th>
-                                    <span class="header-text">Bottles</span>
-                                </th>
-                                <th>
-                                    <a class="sort-header @SortStateClass("color")" href="@BuildSortUrl("color")">
-                                        <span class="header-text">Color</span>
-                                        <span class="sort-icon" aria-hidden="true"></span>
-                                    </a>
-                                </th>
-                                <th>
-                                    <a class="sort-header @SortStateClass("status")" href="@BuildSortUrl("status")">
-                                        <span class="header-text">Status</span>
-                                        <span class="sort-icon" aria-hidden="true"></span>
-                                    </a>
-                                </th>
-                                <th>
-                                    <a class="sort-header @SortStateClass("score")" href="@BuildSortUrl("score")">
-                                        <span class="header-text">Score</span>
-                                        <span class="sort-icon" aria-hidden="true"></span>
-                                    </a>
-                                </th>
-                                <th>
-                                    <span class="header-text">Actions</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var bottle in Model.Bottles)
+
+        <section class="crud-table" data-crud-table="summary">
+            <header class="crud-table__header">
+                <h2 class="crud-table__title">Inventory Summary</h2>
+                <p class="crud-table__description">Manage wine groups and quick actions.</p>
+            </header>
+            <div class="crud-table__body">
+                <table id="inventory-table" class="inventory-table crud-table__table">
+                    <thead>
+                        <tr class="crud-table__add-row add-summary-row">
+                            <td>
+                                <input type="text" class="summary-add-name" placeholder="Wine name" aria-label="Wine name" />
+                            </td>
+                            <td>
+                                <select class="summary-add-sub-app" aria-label="Sub-appellation">
+                                    <option value="">Select sub-appellation</option>
+                                </select>
+                            </td>
+                            <td>
+                                <input type="number" class="summary-add-vintage" min="1900" max="2100" placeholder="Vintage" aria-label="Vintage" />
+                            </td>
+                            <td>
+                                <input type="number" class="summary-add-count" min="1" value="1" aria-label="Initial bottle count" />
+                            </td>
+                            <td>
+                                <select class="summary-add-color" aria-label="Color">
+                                    <option value="Red">Red</option>
+                                    <option value="White">White</option>
+                                    <option value="Rose">Rosé</option>
+                                </select>
+                            </td>
+                            <td class="summary-add-status">—</td>
+                            <td class="summary-add-score">—</td>
+                            <td>
+                                <div class="actions">
+                                    <button type="button" class="summary-add-submit crud-table__action-button">Add Wine</button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="header-row crud-table__header-row">
+                            <th>
+                                <a class="sort-header @SortStateClass("wine")" href="@BuildSortUrl("wine")">
+                                    <span class="header-text">Wine</span>
+                                    <span class="sort-icon" aria-hidden="true"></span>
+                                </a>
+                            </th>
+                            <th>
+                                <a class="sort-header @SortStateClass("appellation")" href="@BuildSortUrl("appellation")">
+                                    <span class="header-text">Appellation</span>
+                                    <span class="sort-icon" aria-hidden="true"></span>
+                                </a>
+                            </th>
+                            <th>
+                                <a class="sort-header @SortStateClass("vintage")" href="@BuildSortUrl("vintage")">
+                                    <span class="header-text">Vintage</span>
+                                    <span class="sort-icon" aria-hidden="true"></span>
+                                </a>
+                            </th>
+                            <th>
+                                <span class="header-text">Bottles</span>
+                            </th>
+                            <th>
+                                <a class="sort-header @SortStateClass("color")" href="@BuildSortUrl("color")">
+                                    <span class="header-text">Color</span>
+                                    <span class="sort-icon" aria-hidden="true"></span>
+                                </a>
+                            </th>
+                            <th>
+                                <a class="sort-header @SortStateClass("status")" href="@BuildSortUrl("status")">
+                                    <span class="header-text">Status</span>
+                                    <span class="sort-icon" aria-hidden="true"></span>
+                                </a>
+                            </th>
+                            <th>
+                                <a class="sort-header @SortStateClass("score")" href="@BuildSortUrl("score")">
+                                    <span class="header-text">Score</span>
+                                    <span class="sort-icon" aria-hidden="true"></span>
+                                </a>
+                            </th>
+                            <th>
+                                <span class="header-text">Actions</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (hasBottles)
+                        {
+                            foreach (var bottle in Model.Bottles)
                             {
                                 var subAppellation = string.IsNullOrWhiteSpace(bottle.SubAppellation) ? null : bottle.SubAppellation;
                                 var appellation = string.IsNullOrWhiteSpace(bottle.Appellation) ? null : bottle.Appellation;
@@ -213,126 +216,132 @@
                                       </td>
                                 </tr>
                             }
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                        }
+                        else
+                        {
+                            <tr class="crud-table__empty-row empty-row">
+                                <td colspan="8">No bottles yet. Add your first wine above to get started.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
-            <section class="details-panel" aria-live="polite">
-                <header>
-                    <h2 id="details-title">Bottle Details</h2>
-                    <p id="details-subtitle">Select a wine group to view individual bottles.</p>
-                </header>
-                <div id="details-message" class="details-message" role="status"></div>
-                <div class="details-layout">
-                    <div class="details-main">
-                        <section class="crud-table" data-crud-table="details">
-                            <header class="crud-table__header">
-                                <h3 class="crud-table__title">Bottle Inventory</h3>
-                                <p class="crud-table__description">Manage individual bottles for the selected wine group.</p>
-                            </header>
-                            <div class="crud-table__body">
-                                <table class="details-table crud-table__table" id="details-table">
-                                    <thead>
-                                        <tr class="crud-table__add-row add-row" id="detail-add-row" hidden>
-                                            <td>
-                                                <select class="detail-add-location" aria-label="Bottle location">
-                                                    <option value="">No location</option>
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <select class="detail-add-user" aria-label="Bottle owner">
-                                                    <option value="">No user</option>
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
-                                            </td>
-                                            <td class="detail-add-average" aria-label="Average score">—</td>
-                                            <td>
-                                                <label class="checkbox-row">
-                                                    <input type="checkbox" class="detail-add-is-drunk" />
-                                                    <span>No</span>
-                                                </label>
-                                            </td>
-                                            <td>
-                                                <input type="datetime-local" class="detail-add-drunk-at" aria-label="Drunk date" disabled />
-                                            </td>
-                                            <td class="actions">
-                                                <button type="button" class="detail-add-submit crud-table__action-button">Add Bottle</button>
-                                            </td>
-                                        </tr>
-                                        <tr class="header-row crud-table__header-row">
-                                            <th scope="col">Bottle Location</th>
-                                            <th scope="col">User</th>
-                                            <th scope="col">Price</th>
-                                            <th scope="col">Avg Score</th>
-                                            <th scope="col">Drunk</th>
-                                            <th scope="col">Drunk Date</th>
-                                            <th scope="col">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr class="empty-row">
-                                            <td colspan="6">Select a wine group to see its bottles.</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-                    </div>
-                    <aside class="notes-panel" id="notes-panel" aria-hidden="true">
-                        <header class="notes-header">
-                            <div class="notes-heading">
-                                <h3 id="notes-title">Consumption Notes</h3>
-                                <p id="notes-subtitle">Select a bottle to view consumption notes.</p>
-                            </div>
-                            <button type="button" id="notes-close" class="notes-close">Close</button>
+        <section class="details-panel" aria-live="polite">
+            <header>
+                <h2 id="details-title">Bottle Details</h2>
+                <p id="details-subtitle">Select a wine group to view individual bottles.</p>
+            </header>
+            <div id="details-message" class="details-message" role="status"></div>
+            <div class="details-layout">
+                <div class="details-main">
+                    <section class="crud-table" data-crud-table="details">
+                        <header class="crud-table__header">
+                            <h3 class="crud-table__title">Bottle Inventory</h3>
+                            <p class="crud-table__description">Manage individual bottles for the selected wine group.</p>
                         </header>
-                        <div id="notes-message" class="notes-message" role="status"></div>
-                        <section class="crud-table" data-crud-table="notes">
-                            <header class="crud-table__header">
-                                <h4 class="crud-table__title">Tasting Notes</h4>
-                                <p class="crud-table__description">Track scores and notes for the selected bottle.</p>
-                            </header>
-                            <div class="crud-table__body">
-                                <table class="notes-table crud-table__table" id="notes-table">
-                                    <thead>
-                                        <tr class="crud-table__add-row add-row" id="note-add-row">
-                                            <td>
-                                                <select class="note-add-user" aria-label="Note author">
-                                                    <option value="">Select user</option>
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <input type="number" class="note-add-score" step="0.1" min="0" max="10" placeholder="0-10" aria-label="Score" />
-                                            </td>
-                                            <td>
-                                                <textarea class="note-add-text" rows="3" placeholder="Tasting note" aria-label="Tasting note"></textarea>
-                                            </td>
-                                            <td class="actions">
-                                                <button type="button" class="note-add-submit crud-table__action-button">Add Note</button>
-                                            </td>
-                                        </tr>
-                                        <tr class="header-row crud-table__header-row">
-                                            <th scope="col">User</th>
-                                            <th scope="col">Score</th>
-                                            <th scope="col">Note</th>
-                                            <th scope="col">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr class="empty-row">
-                                            <td colspan="4">Select a bottle to view consumption notes.</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-                    </aside>
+                        <div class="crud-table__body">
+                            <table class="details-table crud-table__table" id="details-table">
+                                <thead>
+                                    <tr class="crud-table__add-row add-row" id="detail-add-row" hidden>
+                                        <td>
+                                            <select class="detail-add-location" aria-label="Bottle location">
+                                                <option value="">No location</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select class="detail-add-user" aria-label="Bottle owner">
+                                                <option value="">No user</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
+                                        </td>
+                                        <td class="detail-add-average" aria-label="Average score">—</td>
+                                        <td>
+                                            <label class="checkbox-row">
+                                                <input type="checkbox" class="detail-add-is-drunk" />
+                                                <span>No</span>
+                                            </label>
+                                        </td>
+                                        <td>
+                                            <input type="datetime-local" class="detail-add-drunk-at" aria-label="Drunk date" disabled />
+                                        </td>
+                                        <td class="actions">
+                                            <button type="button" class="detail-add-submit crud-table__action-button">Add Bottle</button>
+                                        </td>
+                                    </tr>
+                                    <tr class="header-row crud-table__header-row">
+                                        <th scope="col">Bottle Location</th>
+                                        <th scope="col">User</th>
+                                        <th scope="col">Price</th>
+                                        <th scope="col">Avg Score</th>
+                                        <th scope="col">Drunk</th>
+                                        <th scope="col">Drunk Date</th>
+                                        <th scope="col">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="empty-row">
+                                        <td colspan="6">Select a wine group to see its bottles.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                 </div>
-            </section>
-        }
+                <aside class="notes-panel" id="notes-panel" aria-hidden="true">
+                    <header class="notes-header">
+                        <div class="notes-heading">
+                            <h3 id="notes-title">Consumption Notes</h3>
+                            <p id="notes-subtitle">Select a bottle to view consumption notes.</p>
+                        </div>
+                        <button type="button" id="notes-close" class="notes-close">Close</button>
+                    </header>
+                    <div id="notes-message" class="notes-message" role="status"></div>
+                    <section class="crud-table" data-crud-table="notes">
+                        <header class="crud-table__header">
+                            <h4 class="crud-table__title">Tasting Notes</h4>
+                            <p class="crud-table__description">Track scores and notes for the selected bottle.</p>
+                        </header>
+                        <div class="crud-table__body">
+                            <table class="notes-table crud-table__table" id="notes-table">
+                                <thead>
+                                    <tr class="crud-table__add-row add-row" id="note-add-row">
+                                        <td>
+                                            <select class="note-add-user" aria-label="Note author">
+                                                <option value="">Select user</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="note-add-score" step="0.1" min="0" max="10" placeholder="0-10" aria-label="Score" />
+                                        </td>
+                                        <td>
+                                            <textarea class="note-add-text" rows="3" placeholder="Tasting note" aria-label="Tasting note"></textarea>
+                                        </td>
+                                        <td class="actions">
+                                            <button type="button" class="note-add-submit crud-table__action-button">Add Note</button>
+                                        </td>
+                                    </tr>
+                                    <tr class="header-row crud-table__header-row">
+                                        <th scope="col">User</th>
+                                        <th scope="col">Score</th>
+                                        <th scope="col">Note</th>
+                                        <th scope="col">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="empty-row">
+                                        <td colspan="4">Select a bottle to view consumption notes.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </aside>
+            </div>
+        </section>
     </main>
     <script src="/js/wine-inventory-tables.js"></script>
     <script>
