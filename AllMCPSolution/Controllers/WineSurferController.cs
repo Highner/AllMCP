@@ -155,7 +155,7 @@ public class WineSurferController : Controller
 
         if (User?.Identity?.IsAuthenticated == true)
         {
-            var displayName = User.Identity?.Name;
+            var identityName = User.Identity?.Name;
             var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
             var normalizedEmail = NormalizeEmailCandidate(email);
             currentUserId = GetCurrentUserId();
@@ -166,25 +166,17 @@ public class WineSurferController : Controller
                 domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
             }
 
-            if (domainUser is null && !string.IsNullOrWhiteSpace(displayName))
+            if (domainUser is null && !string.IsNullOrWhiteSpace(identityName))
             {
-                domainUser = await _userRepository.FindByNameAsync(displayName, cancellationToken);
+                domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
             }
+
+            var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
 
             if (domainUser is not null)
             {
                 currentUserId = domainUser.Id;
-                if (string.IsNullOrWhiteSpace(displayName))
-                {
-                    displayName = domainUser.Name;
-                }
-
                 normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
-            }
-
-            if (string.IsNullOrWhiteSpace(displayName))
-            {
-                displayName = email;
             }
 
             if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
@@ -294,7 +286,7 @@ public class WineSurferController : Controller
 
         if (User?.Identity?.IsAuthenticated == true)
         {
-            var displayName = User.Identity?.Name;
+            var identityName = User.Identity?.Name;
             var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
             var normalizedEmail = NormalizeEmailCandidate(email);
             currentUserId = GetCurrentUserId();
@@ -305,25 +297,17 @@ public class WineSurferController : Controller
                 domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
             }
 
-            if (domainUser is null && !string.IsNullOrWhiteSpace(displayName))
+            if (domainUser is null && !string.IsNullOrWhiteSpace(identityName))
             {
-                domainUser = await _userRepository.FindByNameAsync(displayName, cancellationToken);
+                domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
             }
+
+            var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
 
             if (domainUser is not null)
             {
                 currentUserId = domainUser.Id;
-                if (string.IsNullOrWhiteSpace(displayName))
-                {
-                    displayName = domainUser.Name;
-                }
-
                 normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
-            }
-
-            if (string.IsNullOrWhiteSpace(displayName))
-            {
-                displayName = email;
             }
 
             if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
@@ -426,7 +410,7 @@ public class WineSurferController : Controller
 
         if (isAuthenticated)
         {
-            displayName = User.Identity?.Name;
+            var identityName = User.Identity?.Name;
             var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
             var normalizedEmail = NormalizeEmailCandidate(email);
 
@@ -438,24 +422,17 @@ public class WineSurferController : Controller
                 domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
             }
 
-            if (domainUser is null && !string.IsNullOrWhiteSpace(displayName))
+            if (domainUser is null && !string.IsNullOrWhiteSpace(identityName))
             {
-                domainUser = await _userRepository.FindByNameAsync(displayName, cancellationToken);
+                domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
             }
+
+            displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
 
             if (domainUser is not null)
             {
                 currentUserId = domainUser.Id;
-                if (string.IsNullOrWhiteSpace(displayName))
-                {
-                    displayName = domainUser.Name;
-                }
                 normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
-            }
-
-            if (string.IsNullOrWhiteSpace(displayName))
-            {
-                displayName = email;
             }
 
             if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
@@ -2194,6 +2171,26 @@ public class WineSurferController : Controller
         public Guid NoteId { get; set; }
     }
 
+    private static string? ResolveDisplayName(string? domainName, string? identityName, string? email)
+    {
+        if (!string.IsNullOrWhiteSpace(domainName))
+        {
+            return domainName.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(identityName))
+        {
+            return identityName.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            return email.Trim();
+        }
+
+        return null;
+    }
+
     private static string? NormalizeEmailCandidate(string? email)
     {
         if (string.IsNullOrWhiteSpace(email))
@@ -2423,7 +2420,8 @@ public record WineSurferTopBarModel(
     string PanelAriaLabel,
     IReadOnlyList<WineSurferTopBarNotificationSection> Sections,
     IReadOnlyDictionary<string, IReadOnlyCollection<string>> DismissedNotificationStamps,
-    IReadOnlyList<WineSurferTopBarLink> FooterLinks)
+    IReadOnlyList<WineSurferTopBarLink> FooterLinks,
+    string? DisplayName = null)
 {
     public const string SisterhoodNotificationsUrl = "/wine-surfer/sisterhoods";
     public const string DefaultPanelHeading = "Notifications";
@@ -2563,7 +2561,8 @@ public record WineSurferTopBarModel(
         IEnumerable<WineSurferIncomingSisterhoodInvitation> incomingInvitations,
         IEnumerable<WineSurferSentInvitationNotification> sentInvitationNotifications,
         IReadOnlyDictionary<string, IReadOnlyCollection<string>>? dismissed = null,
-        IReadOnlyList<WineSurferTopBarNotificationSection>? precomputedSections = null)
+        IReadOnlyList<WineSurferTopBarNotificationSection>? precomputedSections = null,
+        string? displayName = null)
     {
         var sections = precomputedSections ?? BuildSections(
             incomingInvitations,
@@ -2591,13 +2590,16 @@ public record WineSurferTopBarModel(
             dismissedMap = new Dictionary<string, IReadOnlyCollection<string>>(dismissed, StringComparer.OrdinalIgnoreCase);
         }
 
+        var trimmedDisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim();
+
         return new WineSurferTopBarModel(
             currentPath,
             DefaultPanelHeading,
             DefaultPanelAriaLabel,
             sections,
             dismissedMap,
-            footerLinks);
+            footerLinks,
+            trimmedDisplayName);
     }
 }
 
