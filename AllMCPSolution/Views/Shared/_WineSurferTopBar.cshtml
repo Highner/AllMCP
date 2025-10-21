@@ -132,6 +132,7 @@
 
     var dismissalEndpoint = Url.Action("Dismiss", "WineSurferNotifications") ?? "/wine-surfer/notifications/dismiss";
     var dismissedStampJson = JsonSerializer.Serialize(dismissedStampSet.ToArray());
+    var dismissedStampMapJson = JsonSerializer.Serialize(dismissedMap);
     var dismissalEndpointJson = JsonSerializer.Serialize(dismissalEndpoint);
     var isAuthenticated = User?.Identity?.IsAuthenticated == true;
     var isAuthenticatedJson = JsonSerializer.Serialize(isAuthenticated);
@@ -393,7 +394,9 @@
     (() => {
         const dismissalEndpoint = @Html.Raw(dismissalEndpointJson);
         const isAuthenticatedUser = @Html.Raw(isAuthenticatedJson);
-        const initialServerDismissed = new Set(@Html.Raw(dismissedStampJson));
+        const initialServerDismissedMap = @Html.Raw(dismissedStampMapJson);
+        const dismissedByCategory = new Map();
+        const dismissedStamps = new Set();
 
         const toggle = document.getElementById('menuToggle');
         const panel = document.getElementById('menuPanel');
@@ -409,6 +412,96 @@
         const accountEditCancelButtons = accountEditLayer ? Array.from(accountEditLayer.querySelectorAll('[data-edit-account-cancel]')) : [];
         const accountDisplayTargets = document.querySelectorAll('[data-account-display-name]');
         const accountEditSubmit = accountEditForm?.querySelector('.account-edit-submit') ?? null;
+
+        const normalizeCategoryKey = (value) => {
+            if (typeof value !== 'string') {
+                return '';
+            }
+
+            const trimmed = value.trim();
+            return trimmed.length === 0 ? '' : trimmed.toLowerCase();
+        };
+
+        const normalizeStampValue = (value) => {
+            if (typeof value !== 'string') {
+                return '';
+            }
+
+            const trimmed = value.trim();
+            return trimmed.length === 0 ? '' : trimmed;
+        };
+
+        const trackDismissedStamp = (normalizedCategory, normalizedStamp) => {
+            if (!normalizedStamp) {
+                return;
+            }
+
+            dismissedStamps.add(normalizedStamp);
+
+            if (!normalizedCategory) {
+                return;
+            }
+
+            const categorySet = dismissedByCategory.get(normalizedCategory) ?? new Set();
+            categorySet.add(normalizedStamp);
+            dismissedByCategory.set(normalizedCategory, categorySet);
+        };
+
+        const replaceCategoryDismissals = (normalizedCategory, stampValues) => {
+            if (!normalizedCategory) {
+                return;
+            }
+
+            const existing = dismissedByCategory.get(normalizedCategory);
+            if (existing) {
+                existing.forEach(stamp => {
+                    dismissedStamps.delete(stamp);
+                });
+            }
+
+            dismissedByCategory.delete(normalizedCategory);
+
+            if (!Array.isArray(stampValues) || stampValues.length === 0) {
+                return;
+            }
+
+            const nextSet = new Set();
+            stampValues.forEach(value => {
+                const normalizedStamp = normalizeStampValue(value);
+                if (!normalizedStamp) {
+                    return;
+                }
+
+                nextSet.add(normalizedStamp);
+                dismissedStamps.add(normalizedStamp);
+            });
+
+            if (nextSet.size > 0) {
+                dismissedByCategory.set(normalizedCategory, nextSet);
+            }
+        };
+
+        const removeTrackedDismissedStamp = (normalizedCategory, normalizedStamp) => {
+            if (!normalizedStamp) {
+                return;
+            }
+
+            dismissedStamps.delete(normalizedStamp);
+
+            if (!normalizedCategory) {
+                return;
+            }
+
+            const categorySet = dismissedByCategory.get(normalizedCategory);
+            if (!categorySet) {
+                return;
+            }
+
+            categorySet.delete(normalizedStamp);
+            if (categorySet.size === 0) {
+                dismissedByCategory.delete(normalizedCategory);
+            }
+        };
 
         const closeMenu = () => {
             if (!toggle || !panel) {
@@ -451,13 +544,34 @@
                     return [];
                 }
 
-                return parsed.filter(item => typeof item === 'string');
+                return parsed
+                    .map(item => normalizeStampValue(item))
+                    .filter(item => item.length > 0);
             } catch {
                 return [];
             }
         };
 
-        const dismissedStamps = new Set([...initialServerDismissed, ...loadDismissedStamps()]);
+        if (initialServerDismissedMap && typeof initialServerDismissedMap === 'object') {
+            Object.entries(initialServerDismissedMap).forEach(([categoryKey, stampValues]) => {
+                const normalizedCategory = normalizeCategoryKey(categoryKey);
+                if (!normalizedCategory) {
+                    return;
+                }
+
+                replaceCategoryDismissals(normalizedCategory, stampValues);
+            });
+        }
+
+        const initialLocalDismissed = loadDismissedStamps();
+        if (Array.isArray(initialLocalDismissed)) {
+            initialLocalDismissed.forEach(stampValue => {
+                const normalizedStamp = normalizeStampValue(stampValue);
+                if (normalizedStamp) {
+                    dismissedStamps.add(normalizedStamp);
+                }
+            });
+        }
 
         const persistDismissedStamps = (shouldPersist) => {
             if (typeof window === 'undefined' || !window.localStorage) {
@@ -624,8 +738,9 @@
                 let sectionVisible = 0;
                 const items = Array.from(section.querySelectorAll('.notification-item'));
                 items.forEach(item => {
-                    const stamp = item.dataset.notificationStamp;
-                    if (!stamp) {
+                    const rawStamp = item.dataset.notificationStamp;
+                    const normalizedStamp = normalizeStampValue(rawStamp);
+                    if (!normalizedStamp) {
                         item.hidden = false;
                         item.setAttribute('aria-hidden', 'false');
                         sectionVisible += 1;
@@ -633,7 +748,7 @@
                         return;
                     }
 
-                    const isDismissed = dismissedStamps.has(stamp);
+                    const isDismissed = dismissedStamps.has(normalizedStamp);
                     item.hidden = isDismissed;
                     item.setAttribute('aria-hidden', String(isDismissed));
 
@@ -674,22 +789,32 @@
                 return;
             }
 
-            const stamp = item.dataset.notificationStamp;
-            const category = item.dataset.notificationCategory;
+            const rawStamp = item.dataset.notificationStamp;
+            const rawCategory = item.dataset.notificationCategory;
 
-            if (!stamp || !category) {
+            if (!rawStamp || !rawCategory) {
                 return;
             }
+
+            const normalizedStamp = normalizeStampValue(rawStamp);
+            if (!normalizedStamp) {
+                return;
+            }
+
+            const requestCategory = typeof rawCategory === 'string' ? rawCategory.trim() : '';
+            if (!requestCategory) {
+                return;
+            }
+
+            const normalizedCategory = normalizeCategoryKey(requestCategory);
+
+            trackDismissedStamp(normalizedCategory, normalizedStamp);
+            applyDismissedNotifications();
 
             if (!isAuthenticatedUser || !dismissalEndpoint) {
-                dismissedStamps.add(stamp);
                 persistDismissedStamps(true);
-                applyDismissedNotifications();
                 return;
             }
-
-            dismissedStamps.add(stamp);
-            applyDismissedNotifications();
 
             try {
                 const response = await fetch(dismissalEndpoint, {
@@ -698,29 +823,38 @@
                         'Content-Type': 'application/json'
                     },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ category, stamp })
+                    body: JSON.stringify({ category: requestCategory, stamp: normalizedStamp })
                 });
 
                 if (response.ok) {
                     const payload = await response.json();
                     const dismissed = payload?.dismissedStamps;
                     if (dismissed && typeof dismissed === 'object') {
-                        dismissedStamps.clear();
-                        Object.values(dismissed).forEach(value => {
-                            if (Array.isArray(value)) {
-                                value.forEach(entry => {
-                                    if (typeof entry === 'string') {
-                                        dismissedStamps.add(entry);
-                                    }
-                                });
+                        let hasCategoryUpdates = false;
+                        Object.entries(dismissed).forEach(([key, value]) => {
+                            if (!Array.isArray(value)) {
+                                return;
                             }
+
+                            const responseCategory = normalizeCategoryKey(key);
+                            if (!responseCategory) {
+                                return;
+                            }
+
+                            replaceCategoryDismissals(responseCategory, value);
+                            hasCategoryUpdates = true;
                         });
+
+                        if (!hasCategoryUpdates && normalizedCategory) {
+                            replaceCategoryDismissals(normalizedCategory, []);
+                        }
+
                         persistDismissedStamps(false);
                     } else {
                         persistDismissedStamps(true);
                     }
                 } else if (response.status === 401 || response.status === 403) {
-                    dismissedStamps.delete(stamp);
+                    removeTrackedDismissedStamp(normalizedCategory, normalizedStamp);
                     persistDismissedStamps(true);
                 } else {
                     persistDismissedStamps(true);
