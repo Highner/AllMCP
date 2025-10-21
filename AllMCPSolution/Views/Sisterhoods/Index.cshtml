@@ -1,3 +1,4 @@
+@model AllMCPSolution.Controllers.WineSurferSisterhoodsViewModel
 @{
     Layout = null;
 }
@@ -200,17 +201,43 @@
             font-size: 16px;
         }
 
-        .sisterhood-focus {
-            font-size: 14px;
+        .sisterhood-description {
+            margin: 0;
+            line-height: 1.6;
+            color: rgba(244, 241, 234, 0.78);
+        }
+
+        .sisterhood-members {
+            font-size: 12px;
             letter-spacing: 2px;
             text-transform: uppercase;
             color: rgba(244, 241, 234, 0.6);
         }
 
-        .sisterhood-description {
+        .empty-state {
+            width: min(880px, 100%);
+            border-radius: 18px;
+            padding: 36px;
+            border: 1px solid rgba(244, 241, 234, 0.08);
+            background: linear-gradient(150deg, rgba(244, 241, 234, 0.08), rgba(244, 241, 234, 0.02));
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            color: rgba(244, 241, 234, 0.78);
+        }
+
+        .empty-state h2 {
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            font-size: 18px;
+            color: #f4f1ea;
+        }
+
+        .empty-state p {
             margin: 0;
             line-height: 1.6;
-            color: rgba(244, 241, 234, 0.78);
         }
 
         .cta-card {
@@ -285,29 +312,55 @@
     <main>
         <section>
             <h1>Sisterhoods</h1>
-            <p class="lead">Across continents and cultures, our Sisterhoods gather to share knowledge, amplify underrepresented voices, and craft cellars that celebrate every story in the vineyard. Explore the communities shaping tomorrow&#39;s wine world.</p>
+            @{
+                var sanitizedDisplayName = string.IsNullOrWhiteSpace(Model.DisplayName) ? null : Model.DisplayName;
+                var hasMembership = Model.Sisterhoods.Count > 0;
+                string leadMessage;
+                if (Model.IsAuthenticated && hasMembership)
+                {
+                    var prefix = sanitizedDisplayName is null ? "You&#39;re" : $"{sanitizedDisplayName}, you&#39;re";
+                    leadMessage = $"{prefix} currently connected with these sisterhoods. Stay close to your fellow members and explore what&#39;s next together.";
+                }
+                else if (Model.IsAuthenticated)
+                {
+                    var subject = sanitizedDisplayName ?? "You";
+                    leadMessage = $"{subject} haven&#39;t joined any sisterhoods yet. Discover the communities shaping tomorrow&#39;s wine world and find your next circle.";
+                }
+                else
+                {
+                    leadMessage = "Across continents and cultures, our Sisterhoods gather to share knowledge, amplify underrepresented voices, and craft cellars that celebrate every story in the vineyard. Explore the communities shaping tomorrow&#39;s wine world.";
+                }
+            }
+            <p class="lead">@leadMessage</p>
         </section>
         <section class="sisterhood-grid" aria-label="Wine Surfer sisterhood communities">
-            <article class="sisterhood-card">
-                <h2 class="sisterhood-name">The Coastal Guardians</h2>
-                <p class="sisterhood-focus">Sustainable seaside terroirs</p>
-                <p class="sisterhood-description">From Cornwall to the Cape, the Guardians champion cool-climate viticulture, pairing ocean stewardship with crisp, saline whites and sparkling wines that shimmer like morning tide.</p>
-            </article>
-            <article class="sisterhood-card">
-                <h2 class="sisterhood-name">Highland Alchemists</h2>
-                <p class="sisterhood-focus">Mountain-grown experimentation</p>
-                <p class="sisterhood-description">Perched on volcanic slopes and alpine terraces, these innovators blend heritage grapes with modern biodynamics, bottling altitude into precise, expressive reds.</p>
-            </article>
-            <article class="sisterhood-card">
-                <h2 class="sisterhood-name">Desert Bloom Circle</h2>
-                <p class="sisterhood-focus">Arid climate resilience</p>
-                <p class="sisterhood-description">Harnessing scarce water and abundant sun, the circle pioneers regenerative practices that coax lush aromatics from the world&#39;s driest soils.</p>
-            </article>
-            <article class="sisterhood-card">
-                <h2 class="sisterhood-name">Midnight Assemblage</h2>
-                <p class="sisterhood-focus">Night-harvested artistry</p>
-                <p class="sisterhood-description">By moonlight, the assemblage choreographs harvests that preserve delicate aromatics, crafting velvety blends for contemplative evenings.</p>
-            </article>
+            @if (Model.Sisterhoods.Count > 0)
+            {
+                foreach (var sisterhood in Model.Sisterhoods)
+                {
+                    <article class="sisterhood-card">
+                        <h2 class="sisterhood-name">@sisterhood.Name</h2>
+                        <p class="sisterhood-members">
+                            @sisterhood.MemberCount @((sisterhood.MemberCount == 1) ? "member" : "members")
+                        </p>
+                        @if (!string.IsNullOrWhiteSpace(sisterhood.Description))
+                        {
+                            <p class="sisterhood-description">@sisterhood.Description</p>
+                        }
+                    </article>
+                }
+            }
+            else
+            {
+                <div class="empty-state" role="status">
+                    <h2>@(Model.IsAuthenticated ? "No sisterhoods yet" : "Sign in to see your sisterhoods")</h2>
+                    <p>
+                        @(Model.IsAuthenticated
+                            ? "When you join a sisterhood, it will appear here with quick insight into the community."
+                            : "Authenticate to discover the sisterhoods you're connected to and explore tailored communities.")
+                    </p>
+                </div>
+            }
         </section>
         <section class="cta-card">
             <h2>Join the Wave</h2>

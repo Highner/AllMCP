@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ public interface ISisterhoodRepository
     Task<List<Sisterhood>> GetAllAsync(CancellationToken ct = default);
     Task<Sisterhood?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Sisterhood?> FindByNameAsync(string name, CancellationToken ct = default);
+    Task<IReadOnlyList<Sisterhood>> GetForUserAsync(Guid userId, CancellationToken ct = default);
     Task AddAsync(Sisterhood sisterhood, CancellationToken ct = default);
     Task UpdateAsync(Sisterhood sisterhood, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
@@ -59,6 +61,21 @@ public class SisterhoodRepository : ISisterhoodRepository
             .AsNoTracking()
             .Include(s => s.Members)
             .FirstOrDefaultAsync(s => s.Name == trimmedName, ct);
+    }
+
+    public async Task<IReadOnlyList<Sisterhood>> GetForUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return Array.Empty<Sisterhood>();
+        }
+
+        return await _db.Sisterhoods
+            .AsNoTracking()
+            .Include(s => s.Members)
+            .Where(s => s.Members.Any(member => member.Id == userId))
+            .OrderBy(s => s.Name)
+            .ToListAsync(ct);
     }
 
     public async Task AddAsync(Sisterhood sisterhood, CancellationToken ct = default)
