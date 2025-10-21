@@ -99,7 +99,7 @@
 
         .session-meta {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 1fr);
             gap: 24px;
             margin: 0;
             padding: 0;
@@ -167,7 +167,7 @@
 
         .bottle-name {
             margin: 0;
-            font-size: 22px;
+            font-size: 20px;
             letter-spacing: 4px;
             text-transform: uppercase;
         }
@@ -232,6 +232,10 @@
 
             .session-title {
                 letter-spacing: 6px;
+            }
+
+            .session-meta {
+                grid-template-columns: 1fr;
             }
 
             .bottle-card {
