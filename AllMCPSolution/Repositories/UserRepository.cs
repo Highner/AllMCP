@@ -11,6 +11,7 @@ public interface IUserRepository
     Task<List<ApplicationUser>> GetAllAsync(CancellationToken ct = default);
     Task<ApplicationUser?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<ApplicationUser?> FindByNameAsync(string name, CancellationToken ct = default);
+    Task<ApplicationUser?> FindByEmailAsync(string email, CancellationToken ct = default);
     Task<IReadOnlyList<ApplicationUser>> SearchByApproximateNameAsync(string name, int maxResults = 5, CancellationToken ct = default);
     Task<ApplicationUser> GetOrCreateAsync(string name, string tasteProfile, CancellationToken ct = default);
     Task AddAsync(ApplicationUser user, CancellationToken ct = default);
@@ -56,6 +57,21 @@ public class UserRepository : IUserRepository
         return await _userManager.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.NormalizedUserName == normalized, ct);
+    }
+
+    public async Task<ApplicationUser?> FindByEmailAsync(string email, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        var trimmed = email.Trim();
+        var normalized = _userManager.NormalizeEmail(trimmed);
+
+        return await _userManager.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.NormalizedEmail == normalized, ct);
     }
 
     public async Task<IReadOnlyList<ApplicationUser>> SearchByApproximateNameAsync(string name, int maxResults = 5, CancellationToken ct = default)

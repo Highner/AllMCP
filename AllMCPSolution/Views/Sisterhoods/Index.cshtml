@@ -709,8 +709,10 @@
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
                                 <input type="hidden" name="UserId" value="" data-sisterhood-invite-user-id />
+                                <input type="hidden" name="MemberEmail" value="" data-sisterhood-invite-email />
+                                <input type="hidden" name="IsEmail" value="false" data-sisterhood-invite-is-email />
                                 <label for="invite-member-@sisterhood.Id">Invite a Wine Surfer</label>
-                                <input id="invite-member-@sisterhood.Id" name="MemberName" type="text" list="sisterhood-user-options" placeholder="Start typing a name" autocomplete="off" />
+                                <input id="invite-member-@sisterhood.Id" name="MemberName" type="text" list="sisterhood-user-options" placeholder="Start typing a name or email" autocomplete="off" />
                                 <div class="invite-actions">
                                     <button type="submit" class="secondary-button">Invite</button>
                                 </div>
@@ -773,24 +775,41 @@
                     userMap.set(user.name.toLowerCase(), user.id);
                 });
 
+                const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
                 inviteForms.forEach(form => {
                     const input = form.querySelector('input[name="MemberName"]');
-                    const hidden = form.querySelector('input[name="UserId"][data-sisterhood-invite-user-id]');
-                    if (!input || !hidden) {
+                    const userIdField = form.querySelector('input[name="UserId"][data-sisterhood-invite-user-id]');
+                    const emailField = form.querySelector('input[name="MemberEmail"][data-sisterhood-invite-email]');
+                    const isEmailField = form.querySelector('input[name="IsEmail"][data-sisterhood-invite-is-email]');
+                    if (!input || !userIdField || !emailField || !isEmailField) {
                         return;
                     }
 
-                    const syncHiddenValue = () => {
-                        const raw = input.value?.trim().toLowerCase();
-                        if (raw && userMap.has(raw)) {
-                            hidden.value = userMap.get(raw);
+                    const syncDerivedValues = () => {
+                        const raw = input.value ?? '';
+                        const trimmed = raw.trim();
+                        const lookupKey = trimmed.toLowerCase();
+
+                        if (lookupKey && userMap.has(lookupKey)) {
+                            userIdField.value = userMap.get(lookupKey);
                         } else {
-                            hidden.value = '';
+                            userIdField.value = '';
+                        }
+
+                        if (trimmed && emailPattern.test(trimmed)) {
+                            emailField.value = trimmed.toLowerCase();
+                            isEmailField.value = 'true';
+                        } else {
+                            emailField.value = '';
+                            isEmailField.value = 'false';
                         }
                     };
 
-                    input.addEventListener('change', syncHiddenValue);
-                    input.addEventListener('blur', syncHiddenValue);
+                    input.addEventListener('input', syncDerivedValues);
+                    input.addEventListener('change', syncDerivedValues);
+                    input.addEventListener('blur', syncDerivedValues);
+                    syncDerivedValues();
                 });
             })
             .catch(() => { /* Non-blocking hint failure */ });
