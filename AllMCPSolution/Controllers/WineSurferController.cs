@@ -1375,6 +1375,7 @@ public class WineSurferController : Controller
 
     [Authorize]
     [HttpPost("sisterhoods/sessions/update")]
+    [HttpPost("[action]")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateSipSession(UpdateSipSessionRequest request, CancellationToken cancellationToken)
     {
