@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace AllMCPSolution.Controllers;
 
@@ -764,7 +765,8 @@ public class WineSurferController : Controller
             var registerRouteValues = new { email = inviteeEmail };
             var signupLink = Url.ActionLink("Register", "Account", registerRouteValues)
                 ?? Url.Action("Register", "Account", registerRouteValues)
-                ?? $"/account/register?email={Uri.EscapeDataString(inviteeEmail)}";
+                ?? "/account/register";
+            signupLink = EnsureEmailQueryParameter(signupLink, inviteeEmail);
             var body = $"We'd love to have you in the {sisterhood.Name} sisterhood on Wine Surfer. Sign up at {signupLink} using this email address and accept the invite we just sent.";
             mailtoLink = $"mailto:{inviteeEmail}?subject={Uri.EscapeDataString(subject)}&body={Uri.EscapeDataString(body)}";
         }
@@ -1741,6 +1743,27 @@ public class WineSurferController : Controller
         }
 
         return email.Trim().ToLowerInvariant();
+    }
+
+    private static string EnsureEmailQueryParameter(string link, string email)
+    {
+        if (string.IsNullOrWhiteSpace(link) || string.IsNullOrWhiteSpace(email))
+        {
+            return link;
+        }
+
+        var queryIndex = link.IndexOf('?', StringComparison.Ordinal);
+        if (queryIndex >= 0)
+        {
+            var query = link.Substring(queryIndex);
+            var parsed = QueryHelpers.ParseQuery(query);
+            if (parsed.Any(pair => string.Equals(pair.Key, "email", StringComparison.OrdinalIgnoreCase)))
+            {
+                return link;
+            }
+        }
+
+        return QueryHelpers.AddQueryString(link, "email", email);
     }
 
     private static bool LooksLikeEmail(string? value)
