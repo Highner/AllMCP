@@ -831,9 +831,19 @@ public class WineSurferController : Controller
         var removed = await _sisterhoodRepository.RemoveUserFromSisterhoodAsync(request.SisterhoodId, request.UserId, cancellationToken);
         if (!removed)
         {
-            TempData["SisterhoodError"] = isSelfRemoval
-                ? "We couldn't remove you from that sisterhood right now."
-                : "We couldn't remove that member right now.";
+            if (membership.IsAdmin)
+            {
+                TempData["SisterhoodError"] = isSelfRemoval
+                    ? "You need at least one admin in the sisterhood. Promote another member before leaving."
+                    : "You need at least one admin in the sisterhood. Promote another member before removing this admin.";
+            }
+            else
+            {
+                TempData["SisterhoodError"] = isSelfRemoval
+                    ? "We couldn't remove you from that sisterhood right now."
+                    : "We couldn't remove that member right now.";
+            }
+
             return RedirectToAction(nameof(Sisterhoods));
         }
 
