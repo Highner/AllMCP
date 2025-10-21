@@ -46,6 +46,7 @@
     <style>
         :root {
             color-scheme: dark;
+            --wine-surfer-card-max-width: 960px;
         }
 
         * {
@@ -58,6 +59,11 @@
             background: var(--wine-app-background);
             color: #f4f1ea;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .wine-surfer-card {
+            width: min(100%, var(--wine-surfer-card-max-width));
+            max-width: var(--wine-surfer-card-max-width);
         }
 
         .page-content {
@@ -599,7 +605,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 18px;
-            width: min(100%, 960px);
+            width: min(100%, var(--wine-surfer-card-max-width));
         }
 
         .region-card {
@@ -680,7 +686,7 @@
             display: flex;
             flex-direction: column;
             gap: 18px;
-            width: min(100%, 960px);
+            width: min(100%, var(--wine-surfer-card-max-width));
         }
 
         .sip-session-card {
@@ -886,7 +892,7 @@
                 @for (var i = 0; i < Model.HighlightPoints.Count; i++)
                 {
                     var point = Model.HighlightPoints[i];
-                    <article class="region-card wine-card wine-surface wine-surface-border wine-card-hover" data-region-index="@i">
+                    <article class="region-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" data-region-index="@i">
                         <span class="label wine-card__title">@point.Label</span>
                         @if (!string.IsNullOrWhiteSpace(point.Country))
                         {
@@ -910,7 +916,7 @@
                 }
                 @if (!Model.HighlightPoints.Any())
                 {
-                    <article class="region-card wine-card wine-surface wine-surface-border wine-card-hover">
+                    <article class="region-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card">
                         <span class="label wine-card__title">No wine regions available yet</span>
                         <span class="country wine-card__subtitle">Add bottles to your inventory to light up the map.</span>
                     </article>
@@ -933,7 +939,7 @@
                         var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Session.Id })
                             ?? $"/wine-surfer/sessions/{session.Session.Id:D}";
 
-                        <a class="sip-session-card wine-card wine-surface wine-surface-border wine-card-hover" href="@sessionUrl" aria-label="Upcoming sip session: @session.Session.Name">
+                        <a class="sip-session-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" href="@sessionUrl" aria-label="Upcoming sip session: @session.Session.Name">
                             <div class="sip-session-header wine-card__header">
                                 <h3 class="sip-session-name wine-card__title">@session.Session.Name</h3>
                                 @if (!string.IsNullOrWhiteSpace(hostLabel))
