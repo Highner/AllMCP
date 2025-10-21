@@ -1,4 +1,5 @@
 @model AllMCPSolution.Controllers.WineSurferSisterhoodsViewModel
+@using System.Linq
 @{
     Layout = null;
 }
@@ -891,7 +892,12 @@
                 </form>
             }
         </section>
-        @if (Model.IncomingInvitations.Count > 0)
+        @{
+            var openInvitations = Model.IncomingInvitations
+                .Where(invitation => invitation.Status == AllMCPSolution.Models.SisterhoodInvitationStatus.Pending)
+                .ToList();
+        }
+        @if (openInvitations.Count > 0)
         {
             var acceptAction = Url.Action("AcceptSisterhoodInvitation", "WineSurfer");
             var declineAction = Url.Action("DeclineSisterhoodInvitation", "WineSurfer");
@@ -902,7 +908,7 @@
                     <p>Respond to join a sisterhood or decline to clear the invite. You can remove invitations whenever you like.</p>
                 </div>
                 <div class="invitation-card-grid">
-                    @foreach (var invitation in Model.IncomingInvitations)
+                    @foreach (var invitation in openInvitations)
                     {
                         var statusClass = invitation.Status.ToString().ToLowerInvariant();
                         var isPending = invitation.Status == AllMCPSolution.Models.SisterhoodInvitationStatus.Pending;
