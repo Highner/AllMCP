@@ -607,18 +607,25 @@ public class WineInventoryController : Controller
             return ValidationProblem(ModelState);
         }
 
-        var bottle = new Bottle
-        {
-            Id = Guid.NewGuid(),
-            WineVintageId = request.WineVintageId,
-            Price = request.Price,
-            IsDrunk = request.IsDrunk,
-            DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt),
-            BottleLocationId = bottleLocation?.Id,
-            UserId = targetUserId
-        };
+        var quantity = request.Quantity <= 0 ? 1 : request.Quantity;
+        var isDrunk = request.IsDrunk;
+        var drunkAt = NormalizeDrunkAt(isDrunk, request.DrunkAt);
 
-        await _bottleRepository.AddAsync(bottle, cancellationToken);
+        for (var i = 0; i < quantity; i++)
+        {
+            var bottle = new Bottle
+            {
+                Id = Guid.NewGuid(),
+                WineVintageId = request.WineVintageId,
+                Price = request.Price,
+                IsDrunk = isDrunk,
+                DrunkAt = drunkAt,
+                BottleLocationId = bottleLocation?.Id,
+                UserId = targetUserId
+            };
+
+            await _bottleRepository.AddAsync(bottle, cancellationToken);
+        }
 
         var response = await BuildBottleGroupResponseAsync(request.WineVintageId, currentUserId, cancellationToken);
         return response is null
@@ -1132,6 +1139,9 @@ public class BottleMutationRequest
     public Guid? BottleLocationId { get; set; }
 
     public Guid? UserId { get; set; }
+
+    [Range(1, 12)]
+    public int Quantity { get; set; } = 1;
 }
 
 public record FilterOption(string Value, string Label);

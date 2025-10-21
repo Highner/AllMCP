@@ -1049,6 +1049,10 @@ textarea:focus {
     border-bottom: 1px solid hsla(var(--border) / 0.25);
 }
 
+#detail-add-row td {
+    padding-bottom: 20px;
+}
+
 .crud-table__header-row {
     background: hsla(var(--accent) / 0.28);
 }
@@ -1471,6 +1475,20 @@ tbody tr:hover {
     box-sizing: border-box;
 }
 
+.details-table .add-row .detail-add-quantity-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: hsla(var(--muted-foreground) / 0.85);
+}
+
+.details-table .add-row .detail-add-quantity-select {
+    max-width: 120px;
+}
+
 .details-table .add-row .actions button,
 .notes-table .add-row .actions button {
     width: 100%;
@@ -1506,6 +1524,12 @@ tbody tr:hover {
     flex: none;
     width: 100%;
     min-width: 0;
+}
+
+.details-main > .crud-table {
+    margin-left: -24px;
+    margin-right: -24px;
+    width: calc(100% + 48px);
 }
 
 .details-panel.notes-visible .details-main {
