@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Data;
 using AllMCPSolution.Models;
@@ -21,10 +22,12 @@ public interface ISisterhoodRepository
 public class SisterhoodRepository : ISisterhoodRepository
 {
     private readonly ApplicationDbContext _db;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public SisterhoodRepository(ApplicationDbContext db)
+    public SisterhoodRepository(ApplicationDbContext db, UserManager<ApplicationUser> userManager)
     {
         _db = db;
+        _userManager = userManager;
     }
 
     public async Task<List<Sisterhood>> GetAllAsync(CancellationToken ct = default)
@@ -112,7 +115,9 @@ public class SisterhoodRepository : ISisterhoodRepository
             return;
         }
 
-        var user = await _db.DomainUsers.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        ct.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user is null)
         {
             return;

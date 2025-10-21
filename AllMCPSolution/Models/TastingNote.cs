@@ -8,7 +8,7 @@ public class TastingNote
     public decimal? Score { get; set; }
 
     public Guid UserId { get; set; }
-    public User User { get; set; } = null!;
+    public ApplicationUser User { get; set; } = null!;
 
     public Guid BottleId { get; set; }
     public Bottle Bottle { get; set; } = null!;

@@ -1,5 +1,6 @@
+using System.Linq;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using AllMCPSolution.Data;
 using AllMCPSolution.Models;
 using AllMCPSolution.Utilities;
 
@@ -7,63 +8,66 @@ namespace AllMCPSolution.Repositories;
 
 public interface IUserRepository
 {
-    Task<List<User>> GetAllAsync(CancellationToken ct = default);
-    Task<User?> GetByIdAsync(Guid id, CancellationToken ct = default);
-    Task<User?> FindByNameAsync(string name, CancellationToken ct = default);
-    Task<IReadOnlyList<User>> SearchByApproximateNameAsync(string name, int maxResults = 5, CancellationToken ct = default);
-    Task<User> GetOrCreateAsync(string name, string tasteProfile, CancellationToken ct = default);
-    Task AddAsync(User user, CancellationToken ct = default);
-    Task UpdateAsync(User user, CancellationToken ct = default);
+    Task<List<ApplicationUser>> GetAllAsync(CancellationToken ct = default);
+    Task<ApplicationUser?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<ApplicationUser?> FindByNameAsync(string name, CancellationToken ct = default);
+    Task<IReadOnlyList<ApplicationUser>> SearchByApproximateNameAsync(string name, int maxResults = 5, CancellationToken ct = default);
+    Task<ApplicationUser> GetOrCreateAsync(string name, string tasteProfile, CancellationToken ct = default);
+    Task AddAsync(ApplicationUser user, CancellationToken ct = default);
+    Task UpdateAsync(ApplicationUser user, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 }
 
 public class UserRepository : IUserRepository
 {
-    private readonly ApplicationDbContext _db;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public UserRepository(ApplicationDbContext db)
+    public UserRepository(UserManager<ApplicationUser> userManager)
     {
-        _db = db;
+        _userManager = userManager;
     }
 
-    public async Task<List<User>> GetAllAsync(CancellationToken ct = default)
+    public async Task<List<ApplicationUser>> GetAllAsync(CancellationToken ct = default)
     {
-        return await _db.DomainUsers
+        return await _userManager.Users
             .AsNoTracking()
             .OrderBy(u => u.Name)
+            .ThenBy(u => u.UserName)
             .ToListAsync(ct);
     }
 
-    public async Task<User?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    public async Task<ApplicationUser?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        return await _db.DomainUsers
+        return await _userManager.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == id, ct);
     }
 
-    public async Task<User?> FindByNameAsync(string name, CancellationToken ct = default)
+    public async Task<ApplicationUser?> FindByNameAsync(string name, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
             return null;
         }
 
-        var normalized = name.Trim().ToLowerInvariant();
-        return await _db.DomainUsers
+        var trimmed = name.Trim();
+        var normalized = _userManager.NormalizeName(trimmed);
+
+        return await _userManager.Users
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Name.ToLower() == normalized, ct);
+            .FirstOrDefaultAsync(u => u.NormalizedUserName == normalized, ct);
     }
 
-    public async Task<IReadOnlyList<User>> SearchByApproximateNameAsync(string name, int maxResults = 5, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ApplicationUser>> SearchByApproximateNameAsync(string name, int maxResults = 5, CancellationToken ct = default)
     {
-        var users = await _db.DomainUsers
+        var users = await _userManager.Users
             .AsNoTracking()
             .ToListAsync(ct);
 
         return FuzzyMatchUtilities.FindClosestMatches(users, name, u => u.Name, maxResults);
     }
 
-    public async Task<User> GetOrCreateAsync(string name, string tasteProfile, CancellationToken ct = default)
+    public async Task<ApplicationUser> GetOrCreateAsync(string name, string tasteProfile, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -77,40 +81,87 @@ public class UserRepository : IUserRepository
             return existing;
         }
 
-        var entity = new User
+        var entity = new ApplicationUser
         {
             Id = Guid.NewGuid(),
             Name = trimmedName,
+            UserName = trimmedName,
             TasteProfile = tasteProfile?.Trim() ?? string.Empty
         };
 
-        _db.DomainUsers.Add(entity);
-        await _db.SaveChangesAsync(ct);
-
-        return entity;
+        await AddAsync(entity, ct);
+        return await GetByIdAsync(entity.Id, ct) ?? entity;
     }
 
-    public async Task AddAsync(User user, CancellationToken ct = default)
+    public async Task AddAsync(ApplicationUser user, CancellationToken ct = default)
     {
-        _db.DomainUsers.Add(user);
-        await _db.SaveChangesAsync(ct);
+        if (user is null)
+        {
+            throw new ArgumentNullException(nameof(user));
+        }
+
+        ct.ThrowIfCancellationRequested();
+
+        NormalizeUser(user);
+
+        if (user.Id == Guid.Empty)
+        {
+            user.Id = Guid.NewGuid();
+        }
+
+        var result = await _userManager.CreateAsync(user);
+        EnsureSucceeded(result, $"Failed to create user '{user.Name}'.");
     }
 
-    public async Task UpdateAsync(User user, CancellationToken ct = default)
+    public async Task UpdateAsync(ApplicationUser user, CancellationToken ct = default)
     {
-        _db.DomainUsers.Update(user);
-        await _db.SaveChangesAsync(ct);
+        if (user is null)
+        {
+            throw new ArgumentNullException(nameof(user));
+        }
+
+        ct.ThrowIfCancellationRequested();
+
+        NormalizeUser(user);
+
+        var result = await _userManager.UpdateAsync(user);
+        EnsureSucceeded(result, $"Failed to update user '{user.Name}'.");
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var entity = await _db.DomainUsers.FirstOrDefaultAsync(u => u.Id == id, ct);
-        if (entity is null)
+        ct.ThrowIfCancellationRequested();
+
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
+        if (user is null)
         {
             return;
         }
 
-        _db.DomainUsers.Remove(entity);
-        await _db.SaveChangesAsync(ct);
+        var result = await _userManager.DeleteAsync(user);
+        EnsureSucceeded(result, $"Failed to delete user '{user.Name}'.");
+    }
+
+    private void NormalizeUser(ApplicationUser user)
+    {
+        if (!string.IsNullOrWhiteSpace(user.Name))
+        {
+            var trimmed = user.Name.Trim();
+            user.Name = trimmed;
+            user.UserName = trimmed;
+        }
+
+        user.TasteProfile = user.TasteProfile?.Trim() ?? string.Empty;
+    }
+
+    private static void EnsureSucceeded(IdentityResult result, string message)
+    {
+        if (result.Succeeded)
+        {
+            return;
+        }
+
+        var details = string.Join(", ", result.Errors.Select(e => e.Description));
+        throw new InvalidOperationException($"{message} {details}");
     }
 }

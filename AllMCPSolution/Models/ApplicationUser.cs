@@ -1,10 +1,11 @@
+using Microsoft.AspNetCore.Identity;
+
 namespace AllMCPSolution.Models;
 
-public class User
+public class ApplicationUser : IdentityUser<Guid>
 {
-    public Guid Id { get; set; }
-    public string Name { get; set; }
-    public string TasteProfile { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string TasteProfile { get; set; } = string.Empty;
 
     public ICollection<Bottle> Bottles { get; set; } = [];
     public ICollection<TastingNote> TastingNotes { get; set; } = [];

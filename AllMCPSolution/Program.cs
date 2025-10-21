@@ -61,7 +61,7 @@ builder.Services.AddScoped<ISisterhoodRepository, SisterhoodRepository>();
 builder.Services.AddScoped<InventoryIntakeService>();
 
 builder.Services
-    .AddIdentity<ApplicationIdentityUser, IdentityRole<Guid>>(options =>
+    .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
     {
         options.SignIn.RequireConfirmedAccount = false;
     })
