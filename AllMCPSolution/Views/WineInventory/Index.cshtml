@@ -92,42 +92,15 @@
 
         <section class="crud-table" data-crud-table="summary">
             <header class="crud-table__header">
-                <h2 class="crud-table__title">Inventory Summary</h2>
-                <p class="crud-table__description">Manage wine groups and quick actions.</p>
+                <div class="crud-table__header-content">
+                    <h2 class="crud-table__title">Inventory Summary</h2>
+                    <p class="crud-table__description">Manage wine groups and quick actions.</p>
+                </div>
+                <button type="button" class="crud-table__action-button inventory-add-trigger">Add Wine</button>
             </header>
             <div class="crud-table__body">
                 <table id="inventory-table" class="inventory-table crud-table__table">
                     <thead>
-                        <tr class="crud-table__add-row add-summary-row">
-                            <td>
-                                <input type="text" class="summary-add-name" placeholder="Wine name" aria-label="Wine name" />
-                            </td>
-                            <td>
-                                <select class="summary-add-sub-app" aria-label="Sub-appellation">
-                                    <option value="">Select sub-appellation</option>
-                                </select>
-                            </td>
-                            <td>
-                                <input type="number" class="summary-add-vintage" min="1900" max="2100" placeholder="Vintage" aria-label="Vintage" />
-                            </td>
-                            <td>
-                                <input type="number" class="summary-add-count" min="1" value="1" aria-label="Initial bottle count" />
-                            </td>
-                            <td>
-                                <select class="summary-add-color" aria-label="Color">
-                                    <option value="Red">Red</option>
-                                    <option value="White">White</option>
-                                    <option value="Rose">Rosé</option>
-                                </select>
-                            </td>
-                            <td class="summary-add-status">—</td>
-                            <td class="summary-add-score">—</td>
-                            <td>
-                                <div class="actions">
-                                    <button type="button" class="summary-add-submit crud-table__action-button">Add Wine</button>
-                                </div>
-                            </td>
-                        </tr>
                         <tr class="header-row crud-table__header-row">
                             <th>
                                 <a class="sort-header @SortStateClass("wine")" href="@BuildSortUrl("wine")">
@@ -227,6 +200,31 @@
                 </table>
             </div>
         </section>
+        <div class="inventory-add-overlay" id="inventory-add-overlay" hidden>
+            <div class="inventory-add-popover" id="inventory-add-popover" role="dialog" aria-modal="true" aria-labelledby="inventory-add-title">
+                <h3 id="inventory-add-title">Add Wine to Inventory</h3>
+                <p class="inventory-add-intro">Choose an existing wine and vintage to add a bottle to your cellar.</p>
+                <form class="inventory-add-form">
+                    <label class="inventory-add-field">
+                        <span class="inventory-add-label">Wine</span>
+                        <select class="inventory-add-wine" aria-label="Wine">
+                            <option value="">Select a wine</option>
+                        </select>
+                    </label>
+                    <p class="inventory-add-summary" aria-live="polite">Select a wine to see its appellation and color.</p>
+                    <label class="inventory-add-field">
+                        <span class="inventory-add-label">Vintage</span>
+                        <input type="number" class="inventory-add-vintage" min="1900" max="2100" placeholder="Year" aria-label="Vintage" />
+                    </label>
+                    <p class="inventory-add-vintage-hint" aria-live="polite">Pick a wine to view existing vintages.</p>
+                    <p class="inventory-add-error" role="alert" aria-hidden="true"></p>
+                    <div class="inventory-add-actions">
+                        <button type="button" class="crud-table__action-button secondary inventory-add-cancel">Cancel</button>
+                        <button type="submit" class="crud-table__action-button inventory-add-submit">Add Wine</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <section class="details-panel" aria-live="polite">
             <header>
