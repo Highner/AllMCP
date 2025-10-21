@@ -1,5 +1,7 @@
 using System.Net;
+using System.Threading;
 using AllMCPSolution.Models;
+using AllMCPSolution.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -15,15 +17,18 @@ public class AccountController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly ILogger<AccountController> _logger;
+    private readonly IWineSurferTopBarService _topBarService;
 
     public AccountController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
-        ILogger<AccountController> logger)
+        ILogger<AccountController> logger,
+        IWineSurferTopBarService topBarService)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _logger = logger;
+        _topBarService = topBarService;
     }
 
     [AllowAnonymous]
@@ -46,6 +51,7 @@ public class AccountController : Controller
             ViewData["ErrorMessage"] = WebUtility.UrlDecode(error);
         }
 
+        await SetTopBarModelAsync(HttpContext.RequestAborted);
         return View("Login", model);
     }
 
@@ -60,6 +66,7 @@ public class AccountController : Controller
         {
             model.ReturnUrl = resolvedReturnUrl;
             model.ExternalLogins = await GetExternalLoginOptionsAsync();
+            await SetTopBarModelAsync(HttpContext.RequestAborted);
             return View("Login", model);
         }
 
@@ -84,6 +91,7 @@ public class AccountController : Controller
 
         model.ReturnUrl = resolvedReturnUrl;
         model.ExternalLogins = await GetExternalLoginOptionsAsync();
+        await SetTopBarModelAsync(HttpContext.RequestAborted);
         return View("Login", model);
     }
 
@@ -102,6 +110,7 @@ public class AccountController : Controller
             ExternalLogins = await GetExternalLoginOptionsAsync()
         };
 
+        await SetTopBarModelAsync(HttpContext.RequestAborted);
         return View("Register", model);
     }
 
@@ -116,6 +125,7 @@ public class AccountController : Controller
         {
             model.ReturnUrl = resolvedReturnUrl;
             model.ExternalLogins = await GetExternalLoginOptionsAsync();
+            await SetTopBarModelAsync(HttpContext.RequestAborted);
             return View("Register", model);
         }
 
@@ -142,13 +152,15 @@ public class AccountController : Controller
 
         model.ReturnUrl = resolvedReturnUrl;
         model.ExternalLogins = await GetExternalLoginOptionsAsync();
+        await SetTopBarModelAsync(HttpContext.RequestAborted);
         return View("Register", model);
     }
 
     [AllowAnonymous]
     [HttpGet("forgot-password")]
-    public IActionResult ForgotPassword()
+    public async Task<IActionResult> ForgotPassword()
     {
+        await SetTopBarModelAsync(HttpContext.RequestAborted);
         return View("ForgotPassword", new ForgotPasswordViewModel());
     }
 
@@ -159,6 +171,7 @@ public class AccountController : Controller
     {
         if (!ModelState.IsValid)
         {
+            await SetTopBarModelAsync(HttpContext.RequestAborted);
             return View("ForgotPassword", model);
         }
 
@@ -176,12 +189,13 @@ public class AccountController : Controller
             ResetLink = resetLink
         };
 
+        await SetTopBarModelAsync(HttpContext.RequestAborted);
         return View("ForgotPasswordConfirmation", confirmationModel);
     }
 
     [AllowAnonymous]
     [HttpGet("reset-password")]
-    public IActionResult ResetPassword([FromQuery] string? token = null, [FromQuery] string? email = null)
+    public async Task<IActionResult> ResetPassword([FromQuery] string? token = null, [FromQuery] string? email = null)
     {
         if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(email))
         {
@@ -194,6 +208,7 @@ public class AccountController : Controller
             Email = email
         };
 
+        await SetTopBarModelAsync(HttpContext.RequestAborted);
         return View("ResetPassword", model);
     }
 
@@ -204,6 +219,7 @@ public class AccountController : Controller
     {
         if (!ModelState.IsValid)
         {
+            await SetTopBarModelAsync(HttpContext.RequestAborted);
             return View("ResetPassword", model);
         }
 
@@ -224,25 +240,28 @@ public class AccountController : Controller
             ModelState.AddModelError(string.Empty, error.Description);
         }
 
+        await SetTopBarModelAsync(HttpContext.RequestAborted);
         return View("ResetPassword", model);
     }
 
     [AllowAnonymous]
     [HttpGet("reset-password-confirmation")]
-    public IActionResult ResetPasswordConfirmation()
+    public async Task<IActionResult> ResetPasswordConfirmation()
     {
+        await SetTopBarModelAsync(HttpContext.RequestAborted);
         return View("ResetPasswordConfirmation");
     }
 
     [Authorize]
     [HttpGet("change-password")]
-    public IActionResult ChangePassword()
+    public async Task<IActionResult> ChangePassword()
     {
         if (TempData.TryGetValue(StatusMessageTempDataKey, out var statusMessage))
         {
             ViewData["StatusMessage"] = statusMessage;
         }
 
+        await SetTopBarModelAsync(HttpContext.RequestAborted);
         return View("ChangePassword", new ChangePasswordViewModel());
     }
 
@@ -253,6 +272,7 @@ public class AccountController : Controller
     {
         if (!ModelState.IsValid)
         {
+            await SetTopBarModelAsync(HttpContext.RequestAborted);
             return View("ChangePassword", model);
         }
 
@@ -275,6 +295,7 @@ public class AccountController : Controller
             ModelState.AddModelError(string.Empty, error.Description);
         }
 
+        await SetTopBarModelAsync(HttpContext.RequestAborted);
         return View("ChangePassword", model);
     }
 
@@ -342,4 +363,10 @@ public class AccountController : Controller
         !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
             ? returnUrl
             : Url.Content("~/wine-surfer");
+
+    private async Task SetTopBarModelAsync(CancellationToken cancellationToken)
+    {
+        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
+        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
+    }
 }

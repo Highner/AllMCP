@@ -5,6 +5,7 @@ using AllMCPSolution.Artists;
 using AllMCPSolution.Artworks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Tools;
+using AllMCPSolution.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +60,7 @@ builder.Services.AddScoped<ISisterhoodRepository, SisterhoodRepository>();
 builder.Services.AddScoped<ISisterhoodInvitationRepository, SisterhoodInvitationRepository>();
 builder.Services.AddScoped<ISipSessionRepository, SipSessionRepository>();
 builder.Services.AddScoped<InventoryIntakeService>();
+builder.Services.AddScoped<IWineSurferTopBarService, WineSurferTopBarService>();
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
