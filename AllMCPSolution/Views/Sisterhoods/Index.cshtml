@@ -161,6 +161,161 @@
             color: rgba(244, 241, 234, 0.78);
         }
 
+        .invitation-section {
+            width: min(1040px, 100%);
+            background: linear-gradient(160deg, rgba(244, 241, 234, 0.05), rgba(244, 241, 234, 0.02));
+            border: 1px solid rgba(244, 241, 234, 0.08);
+            border-radius: 20px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .invitation-section-header {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .invitation-section-header h2 {
+            margin: 0;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+        }
+
+        .invitation-section-header p {
+            margin: 0;
+            color: rgba(244, 241, 234, 0.65);
+            font-size: 14px;
+        }
+
+        .invitation-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .invitation-card {
+            background: rgba(244, 241, 234, 0.05);
+            border: 1px solid rgba(244, 241, 234, 0.1);
+            border-radius: 18px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-height: 0;
+        }
+
+        .invitation-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .invitation-card-title {
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            font-size: 15px;
+        }
+
+        .invitation-status {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            border: 1px solid rgba(244, 241, 234, 0.18);
+        }
+
+        .invitation-status.pending {
+            background: rgba(244, 241, 234, 0.12);
+            color: #f4f1ea;
+        }
+
+        .invitation-status.accepted {
+            background: rgba(65, 160, 108, 0.16);
+            border-color: rgba(65, 160, 108, 0.35);
+            color: #9fe3c1;
+        }
+
+        .invitation-status.declined {
+            background: rgba(214, 104, 86, 0.16);
+            border-color: rgba(214, 104, 86, 0.35);
+            color: #f3b0a3;
+        }
+
+        .invitation-description {
+            margin: 0;
+            color: rgba(244, 241, 234, 0.72);
+            line-height: 1.55;
+        }
+
+        .invitation-email {
+            margin: 0;
+            font-size: 14px;
+            color: rgba(244, 241, 234, 0.72);
+        }
+
+        .invitation-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 11px;
+        }
+
+        .invitation-tag {
+            padding: 4px 10px;
+            border-radius: 999px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            background: rgba(244, 241, 234, 0.08);
+            color: rgba(244, 241, 234, 0.82);
+        }
+
+        .invitation-tag.account {
+            background: rgba(86, 152, 214, 0.18);
+            color: #b7d8ff;
+        }
+
+        .invitation-tag.email {
+            background: rgba(244, 241, 234, 0.12);
+            color: rgba(244, 241, 234, 0.82);
+        }
+
+        .invitation-updated {
+            margin: 0;
+            font-size: 12px;
+            color: rgba(244, 241, 234, 0.55);
+        }
+
+        .invitation-response {
+            margin: 0;
+            font-size: 13px;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        .invitation-card-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .ghost-danger-button {
+            background: transparent;
+            border: 1px solid rgba(214, 104, 86, 0.45);
+            color: #f3b0a3;
+        }
+
+        .ghost-danger-button:hover,
+        .ghost-danger-button:focus-visible {
+            background: rgba(214, 104, 86, 0.15);
+            color: #ffd6cc;
+        }
+
         .sisterhood-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -736,6 +891,79 @@
                 </form>
             }
         </section>
+        @if (Model.IncomingInvitations.Count > 0)
+        {
+            var acceptAction = Url.Action("AcceptSisterhoodInvitation", "WineSurfer");
+            var declineAction = Url.Action("DeclineSisterhoodInvitation", "WineSurfer");
+            var deleteAction = Url.Action("DeleteSisterhoodInvitation", "WineSurfer");
+            <section class="invitation-section" aria-label="Sisterhood invitations awaiting your response">
+                <div class="invitation-section-header">
+                    <h2>Invitations waiting for you</h2>
+                    <p>Respond to join a sisterhood or decline to clear the invite. You can remove invitations whenever you like.</p>
+                </div>
+                <div class="invitation-card-grid">
+                    @foreach (var invitation in Model.IncomingInvitations)
+                    {
+                        var statusClass = invitation.Status.ToString().ToLowerInvariant();
+                        var isPending = invitation.Status == AllMCPSolution.Models.SisterhoodInvitationStatus.Pending;
+                        var responseMessage = invitation.Status switch
+                        {
+                            AllMCPSolution.Models.SisterhoodInvitationStatus.Accepted => "You accepted this invitation.",
+                            AllMCPSolution.Models.SisterhoodInvitationStatus.Declined => "You declined this invitation.",
+                            _ => ""
+                        };
+                        var updatedLocal = invitation.UpdatedAtUtc.ToLocalTime();
+                        var createdLocal = invitation.CreatedAtUtc.ToLocalTime();
+                        <article class="invitation-card" data-invitation-card data-invitation-id="@invitation.Id">
+                            <div class="invitation-card-header">
+                                <h3 class="invitation-card-title">@invitation.SisterhoodName</h3>
+                                <span class="invitation-status @statusClass">@invitation.Status</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(invitation.SisterhoodDescription))
+                            {
+                                <p class="invitation-description">@invitation.SisterhoodDescription</p>
+                            }
+                            <p class="invitation-email">Invited as <strong>@invitation.InviteeEmail</strong></p>
+                            <div class="invitation-tags">
+                                @if (invitation.MatchesUserId)
+                                {
+                                    <span class="invitation-tag account">Linked to your account</span>
+                                }
+                                else if (invitation.MatchesEmail)
+                                {
+                                    <span class="invitation-tag email">Email match</span>
+                                }
+                            </div>
+                            <p class="invitation-updated" title="@($"Sent {createdLocal:f}")">Updated @updatedLocal.ToString("g")</p>
+                            @if (!string.IsNullOrEmpty(responseMessage))
+                            {
+                                <p class="invitation-response">@responseMessage</p>
+                            }
+                            <div class="invitation-card-actions">
+                                @if (isPending)
+                                {
+                                    <form method="post" action="@(acceptAction ?? string.Empty)" class="inline-form">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="InvitationId" value="@invitation.Id" />
+                                        <button type="submit" class="primary-button">Accept</button>
+                                    </form>
+                                    <form method="post" action="@(declineAction ?? string.Empty)" class="inline-form">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="InvitationId" value="@invitation.Id" />
+                                        <button type="submit" class="secondary-button">Decline</button>
+                                    </form>
+                                }
+                                <form method="post" action="@(deleteAction ?? string.Empty)" class="inline-form" onsubmit="return confirm('Remove this invitation?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="InvitationId" value="@invitation.Id" />
+                                    <button type="submit" class="ghost-danger-button">Delete invitation</button>
+                                </form>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
         <section class="sisterhood-grid" aria-label="Wine Surfer sisterhood communities">
             @if (Model.Sisterhoods.Count > 0)
             {

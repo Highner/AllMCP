@@ -174,11 +174,13 @@ public class WineSurferController : Controller
         string? displayName = null;
         Guid? currentUserId = null;
         IReadOnlyList<WineSurferSisterhoodSummary> sisterhoods = Array.Empty<WineSurferSisterhoodSummary>();
+        IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
 
         if (isAuthenticated)
         {
             displayName = User.Identity?.Name;
             var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
+            var normalizedEmail = NormalizeEmailCandidate(email);
 
             currentUserId = GetCurrentUserId();
 
@@ -200,11 +202,17 @@ public class WineSurferController : Controller
                 {
                     displayName = domainUser.Name;
                 }
+                normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
             }
 
             if (string.IsNullOrWhiteSpace(displayName))
             {
                 displayName = email;
+            }
+
+            if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
+            {
+                normalizedEmail = NormalizeEmailCandidate(displayName);
             }
 
             if (currentUserId.HasValue)
@@ -280,10 +288,30 @@ public class WineSurferController : Controller
                             pendingInvitations);
                     })
                     .ToList();
+
+                incomingInvitations = (await _sisterhoodInvitationRepository.GetForInviteeAsync(currentUserId, normalizedEmail, cancellationToken))
+                    .Select(invitation =>
+                    {
+                        var matchesUserId = currentUserId.HasValue && invitation.InviteeUserId == currentUserId.Value;
+                        var matchesEmail = normalizedEmail is not null && string.Equals(invitation.InviteeEmail, normalizedEmail, StringComparison.Ordinal);
+                        return new WineSurferIncomingSisterhoodInvitation(
+                            invitation.Id,
+                            invitation.SisterhoodId,
+                            invitation.Sisterhood?.Name ?? "Sisterhood",
+                            invitation.Sisterhood?.Description,
+                            invitation.InviteeEmail,
+                            invitation.Status,
+                            invitation.CreatedAt,
+                            invitation.UpdatedAt,
+                            invitation.InviteeUserId,
+                            matchesUserId,
+                            matchesEmail);
+                    })
+                    .ToList();
             }
         }
 
-        var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, sisterhoods, currentUserId, statusMessage, errorMessage);
+        var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, sisterhoods, currentUserId, statusMessage, errorMessage, incomingInvitations);
         return View("~/Views/Sisterhoods/Index.cshtml", model);
     }
 
@@ -535,6 +563,214 @@ public class WineSurferController : Controller
         }
 
         return Success(fullStatusMessage, invitee is not null, inviteeEmail, mailtoLink);
+    }
+
+    [Authorize]
+    [HttpPost("sisterhoods/invitations/accept")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AcceptSisterhoodInvitation(ManageSisterhoodInvitationRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid || request.InvitationId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't process that invitation.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var invitation = await _sisterhoodInvitationRepository.GetByIdAsync(request.InvitationId, cancellationToken);
+        if (invitation is null)
+        {
+            TempData["SisterhoodError"] = "That invitation is no longer available.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var normalizedEmail = NormalizeEmailCandidate(User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email"));
+        if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(User.Identity?.Name))
+        {
+            normalizedEmail = NormalizeEmailCandidate(User.Identity?.Name);
+        }
+
+        if (normalizedEmail is null)
+        {
+            var domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
+            normalizedEmail = NormalizeEmailCandidate(domainUser?.Email);
+        }
+
+        var matchesUserId = invitation.InviteeUserId == currentUserId.Value;
+        var matchesEmail = normalizedEmail is not null && string.Equals(invitation.InviteeEmail, normalizedEmail, StringComparison.Ordinal);
+
+        if (!matchesUserId && !matchesEmail)
+        {
+            TempData["SisterhoodError"] = "That invitation isn't assigned to you.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (invitation.Status == SisterhoodInvitationStatus.Accepted)
+        {
+            TempData["SisterhoodStatus"] = $"You're already part of {invitation.Sisterhood?.Name ?? "that sisterhood"}.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (invitation.Status != SisterhoodInvitationStatus.Pending)
+        {
+            TempData["SisterhoodError"] = "That invitation is no longer open.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var added = await _sisterhoodRepository.AddUserToSisterhoodAsync(invitation.SisterhoodId, currentUserId.Value, cancellationToken);
+        var alreadyMember = false;
+        if (!added)
+        {
+            var membership = await _sisterhoodRepository.GetMembershipAsync(invitation.SisterhoodId, currentUserId.Value, cancellationToken);
+            if (membership is null)
+            {
+                TempData["SisterhoodError"] = "We couldn't add you to that sisterhood right now.";
+                return RedirectToAction(nameof(Sisterhoods));
+            }
+
+            alreadyMember = true;
+        }
+
+        await _sisterhoodInvitationRepository.UpdateStatusAsync(invitation.SisterhoodId, invitation.InviteeEmail, SisterhoodInvitationStatus.Accepted, currentUserId.Value, cancellationToken);
+
+        var sisterhoodName = invitation.Sisterhood?.Name ?? "this sisterhood";
+        TempData["SisterhoodStatus"] = alreadyMember
+            ? $"You're already part of {sisterhoodName}."
+            : $"You're now part of {sisterhoodName}.";
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
+    [HttpPost("sisterhoods/invitations/decline")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeclineSisterhoodInvitation(ManageSisterhoodInvitationRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid || request.InvitationId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't process that invitation.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var invitation = await _sisterhoodInvitationRepository.GetByIdAsync(request.InvitationId, cancellationToken);
+        if (invitation is null)
+        {
+            TempData["SisterhoodError"] = "That invitation is no longer available.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var normalizedEmail = NormalizeEmailCandidate(User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email"));
+        if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(User.Identity?.Name))
+        {
+            normalizedEmail = NormalizeEmailCandidate(User.Identity?.Name);
+        }
+
+        if (normalizedEmail is null)
+        {
+            var domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
+            normalizedEmail = NormalizeEmailCandidate(domainUser?.Email);
+        }
+
+        var matchesUserId = invitation.InviteeUserId == currentUserId.Value;
+        var matchesEmail = normalizedEmail is not null && string.Equals(invitation.InviteeEmail, normalizedEmail, StringComparison.Ordinal);
+
+        if (!matchesUserId && !matchesEmail)
+        {
+            TempData["SisterhoodError"] = "That invitation isn't assigned to you.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (invitation.Status == SisterhoodInvitationStatus.Declined)
+        {
+            TempData["SisterhoodStatus"] = "You've already declined that invitation.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (invitation.Status == SisterhoodInvitationStatus.Accepted)
+        {
+            TempData["SisterhoodError"] = "You've already accepted that invitation.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (invitation.Status != SisterhoodInvitationStatus.Pending)
+        {
+            TempData["SisterhoodError"] = "That invitation is no longer open.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        await _sisterhoodInvitationRepository.UpdateStatusAsync(invitation.SisterhoodId, invitation.InviteeEmail, SisterhoodInvitationStatus.Declined, currentUserId.Value, cancellationToken);
+
+        var sisterhoodName = invitation.Sisterhood?.Name ?? "that sisterhood";
+        TempData["SisterhoodStatus"] = $"Declined the invitation to {sisterhoodName}.";
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
+    [HttpPost("sisterhoods/invitations/delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteSisterhoodInvitation(ManageSisterhoodInvitationRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid || request.InvitationId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't process that invitation.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var invitation = await _sisterhoodInvitationRepository.GetByIdAsync(request.InvitationId, cancellationToken);
+        if (invitation is null)
+        {
+            TempData["SisterhoodError"] = "That invitation was already removed.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var normalizedEmail = NormalizeEmailCandidate(User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email"));
+        if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(User.Identity?.Name))
+        {
+            normalizedEmail = NormalizeEmailCandidate(User.Identity?.Name);
+        }
+
+        if (normalizedEmail is null)
+        {
+            var domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
+            normalizedEmail = NormalizeEmailCandidate(domainUser?.Email);
+        }
+
+        var matchesUserId = invitation.InviteeUserId == currentUserId.Value;
+        var matchesEmail = normalizedEmail is not null && string.Equals(invitation.InviteeEmail, normalizedEmail, StringComparison.Ordinal);
+
+        if (!matchesUserId && !matchesEmail)
+        {
+            TempData["SisterhoodError"] = "That invitation isn't assigned to you.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var deleted = await _sisterhoodInvitationRepository.DeleteAsync(request.InvitationId, cancellationToken);
+        if (!deleted)
+        {
+            TempData["SisterhoodError"] = "We couldn't remove that invitation right now.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        TempData["SisterhoodStatus"] = "Invitation removed.";
+        return RedirectToAction(nameof(Sisterhoods));
     }
 
     [Authorize]
@@ -847,6 +1083,12 @@ public class WineSurferController : Controller
         }
     }
 
+    public class ManageSisterhoodInvitationRequest
+    {
+        [Required]
+        public Guid InvitationId { get; set; }
+    }
+
     public class ModifySisterhoodMemberRequest
     {
         [Required]
@@ -942,7 +1184,8 @@ public record WineSurferSisterhoodsViewModel(
     IReadOnlyList<WineSurferSisterhoodSummary> Sisterhoods,
     Guid? CurrentUserId,
     string? StatusMessage,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations);
 
 public record WineSurferSisterhoodSummary(
     Guid Id,
@@ -976,6 +1219,19 @@ public record MapHighlightPoint(
     int BottlesConsumed,
     decimal? AverageScore,
     IReadOnlyList<RegionUserAverageScore> UserAverageScores);
+
+public record WineSurferIncomingSisterhoodInvitation(
+    Guid Id,
+    Guid SisterhoodId,
+    string SisterhoodName,
+    string? SisterhoodDescription,
+    string InviteeEmail,
+    SisterhoodInvitationStatus Status,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc,
+    Guid? InviteeUserId,
+    bool MatchesUserId,
+    bool MatchesEmail);
 
 public record RegionInventoryMetrics(
     int BottlesCellared,
