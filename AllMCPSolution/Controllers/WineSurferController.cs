@@ -442,8 +442,7 @@ public class WineSurferController : Controller
             }
         }
 
-        var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, sisterhoods, currentUserId, statusMessage, errorMessage, incomingInvitations, availableBottles);
-        var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, sisterhoods, currentUserId, statusMessage, errorMessage, incomingInvitations, sentInvitationNotifications);
+        var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, sisterhoods, currentUserId, statusMessage, errorMessage, incomingInvitations, sentInvitationNotifications, availableBottles);
         return View("~/Views/Sisterhoods/Index.cshtml", model);
     }
 
@@ -1829,8 +1828,8 @@ public record WineSurferSisterhoodsViewModel(
     string? StatusMessage,
     string? ErrorMessage,
     IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
+    IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
     IReadOnlyList<WineSurferSipSessionBottle> AvailableBottles);
-    IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications);
 
 public record WineSurferSisterhoodSummary(
     Guid Id,
