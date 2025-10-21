@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using AllMCPSolution.Data;
@@ -9,6 +11,7 @@ namespace AllMCPSolution.Repositories;
 public interface IWineRepository
 {
     Task<List<Wine>> GetAllAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<WineOptionResult>> GetInventoryOptionsAsync(CancellationToken ct = default);
     Task<Wine?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Wine?> FindByNameAsync(string name, string? subAppellation = null, string? appellation = null, CancellationToken ct = default);
     Task<IReadOnlyList<Wine>> FindClosestMatchesAsync(string name, int maxResults = 5, CancellationToken ct = default);
@@ -37,6 +40,54 @@ public class WineRepository : IWineRepository
             .ThenBy(w => w.SubAppellation.Appellation.Name)
             .ThenBy(w => w.SubAppellation.Name)
             .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<WineOptionResult>> GetInventoryOptionsAsync(CancellationToken ct = default)
+    {
+        var items = await _db.Wines
+            .AsNoTracking()
+            .Select(w => new
+            {
+                w.Id,
+                w.Name,
+                w.Color,
+                SubAppellation = w.SubAppellation == null ? null : w.SubAppellation.Name,
+                Appellation = w.SubAppellation == null || w.SubAppellation.Appellation == null
+                    ? null
+                    : w.SubAppellation.Appellation.Name,
+                Region = w.SubAppellation == null || w.SubAppellation.Appellation == null
+                    || w.SubAppellation.Appellation.Region == null
+                    ? null
+                    : w.SubAppellation.Appellation.Region.Name,
+                Country = w.SubAppellation == null || w.SubAppellation.Appellation == null
+                    || w.SubAppellation.Appellation.Region == null
+                    || w.SubAppellation.Appellation.Region.Country == null
+                    ? null
+                    : w.SubAppellation.Appellation.Region.Country.Name,
+                Vintages = w.WineVintages
+                    .Select(v => v.Vintage)
+                    .ToList()
+            })
+            .ToListAsync(ct);
+
+        return items
+            .Select(item => new WineOptionResult
+            {
+                Id = item.Id,
+                Name = item.Name,
+                Color = item.Color,
+                SubAppellation = item.SubAppellation,
+                Appellation = item.Appellation,
+                Region = item.Region,
+                Country = item.Country,
+                Vintages = item.Vintages
+                    .Distinct()
+                    .OrderByDescending(v => v)
+                    .ToList()
+            })
+            .OrderBy(option => option.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(option => option.SubAppellation, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     public async Task<Wine?> GetByIdAsync(Guid id, CancellationToken ct = default)
@@ -140,4 +191,16 @@ public class WineRepository : IWineRepository
         _db.Wines.Remove(entity);
         await _db.SaveChangesAsync(ct);
     }
+}
+
+public sealed class WineOptionResult
+{
+    public Guid Id { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string? SubAppellation { get; init; }
+    public string? Appellation { get; init; }
+    public string? Region { get; init; }
+    public string? Country { get; init; }
+    public WineColor Color { get; init; }
+    public IReadOnlyList<int> Vintages { get; init; } = Array.Empty<int>();
 }

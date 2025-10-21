@@ -256,30 +256,25 @@ public class WineInventoryController : Controller
     [HttpGet("wines")]
     public async Task<IActionResult> GetWineOptions(CancellationToken cancellationToken)
     {
-        var wines = await _wineRepository.GetAllAsync(cancellationToken);
+        var wineOptions = await _wineRepository.GetInventoryOptionsAsync(cancellationToken);
 
-        var options = wines
-            .Select(w => new WineInventoryWineOption
+        var response = wineOptions
+            .Select(option => new WineInventoryWineOption
             {
-                Id = w.Id,
-                Name = w.Name,
-                Color = w.Color.ToString(),
-                SubAppellation = w.SubAppellation?.Name,
-                Appellation = w.SubAppellation?.Appellation?.Name,
-                Region = w.SubAppellation?.Appellation?.Region?.Name,
-                Country = w.SubAppellation?.Appellation?.Region?.Country?.Name,
-                Vintages = w.WineVintages?
-                    .Select(v => v.Vintage)
-                    .Distinct()
-                    .OrderByDescending(v => v)
-                    .ToList()
-                    ?? new List<int>()
+                Id = option.Id,
+                Name = option.Name,
+                Color = option.Color.ToString(),
+                SubAppellation = option.SubAppellation,
+                Appellation = option.Appellation,
+                Region = option.Region,
+                Country = option.Country,
+                Vintages = option.Vintages.ToList()
             })
             .OrderBy(option => option.Name)
             .ThenBy(option => option.SubAppellation)
             .ToList();
 
-        return Json(options);
+        return Json(response);
     }
 
     [HttpGet("bottles/{bottleId:guid}/notes")]
