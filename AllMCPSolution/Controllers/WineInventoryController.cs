@@ -8,11 +8,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AllMCPSolution.Controllers;
 
+[Authorize]
 [Route("wine-manager")]
 public class WineInventoryController : Controller
 {
@@ -51,7 +53,16 @@ public class WineInventoryController : Controller
         [FromQuery] string? sortDir,
         CancellationToken cancellationToken)
     {
-        var bottles = await _bottleRepository.GetAllAsync(cancellationToken);
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        var allBottles = await _bottleRepository.GetAllAsync(cancellationToken);
+
+        var bottles = allBottles
+            .Where(bottle => bottle.UserId == currentUserId)
+            .ToList();
 
         var bottleGroups = bottles
             .GroupBy(b => b.WineVintageId)
@@ -209,7 +220,12 @@ public class WineInventoryController : Controller
     [HttpGet("bottles/{wineVintageId:guid}")]
     public async Task<IActionResult> GetBottleGroupDetails(Guid wineVintageId, CancellationToken cancellationToken)
     {
-        var response = await BuildBottleGroupResponseAsync(wineVintageId, cancellationToken);
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        var response = await BuildBottleGroupResponseAsync(wineVintageId, currentUserId, cancellationToken);
         if (response is null)
         {
             return NotFound();
@@ -280,7 +296,12 @@ public class WineInventoryController : Controller
     [HttpGet("bottles/{bottleId:guid}/notes")]
     public async Task<IActionResult> GetBottleNotes(Guid bottleId, CancellationToken cancellationToken)
     {
-        var response = await BuildBottleNotesResponseAsync(bottleId, cancellationToken);
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        var response = await BuildBottleNotesResponseAsync(bottleId, currentUserId, cancellationToken);
         if (response is null)
         {
             return NotFound();
@@ -295,6 +316,11 @@ public class WineInventoryController : Controller
         if (!ModelState.IsValid)
         {
             return ValidationProblem(ModelState);
+        }
+
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
         }
 
         var trimmedName = request.WineName?.Trim();
@@ -350,13 +376,14 @@ public class WineInventoryController : Controller
                 IsDrunk = false,
                 DrunkAt = null,
                 Price = null,
-                BottleLocationId = bottleLocation?.Id
+                BottleLocationId = bottleLocation?.Id,
+                UserId = currentUserId
             };
 
             await _bottleRepository.AddAsync(bottle, cancellationToken);
         }
 
-        var response = await BuildBottleGroupResponseAsync(wineVintage.Id, cancellationToken);
+        var response = await BuildBottleGroupResponseAsync(wineVintage.Id, currentUserId, cancellationToken);
         if (response is null)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load wine group after creation.");
@@ -413,7 +440,7 @@ public class WineInventoryController : Controller
 
         await _bottleRepository.AddAsync(bottle, cancellationToken);
 
-        var response = await BuildBottleGroupResponseAsync(wineVintage.Id, cancellationToken);
+        var response = await BuildBottleGroupResponseAsync(wineVintage.Id, currentUserId.Value, cancellationToken);
         if (response is null)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load wine group after creation.");
@@ -430,8 +457,19 @@ public class WineInventoryController : Controller
             return ValidationProblem(ModelState);
         }
 
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
         var existingVintage = await _wineVintageRepository.GetByIdAsync(wineVintageId, cancellationToken);
         if (existingVintage is null)
+        {
+            return NotFound();
+        }
+
+        var existingBottles = await _bottleRepository.GetByWineVintageIdAsync(wineVintageId, cancellationToken);
+        if (!existingBottles.Any(bottle => bottle.UserId == currentUserId))
         {
             return NotFound();
         }
@@ -478,7 +516,7 @@ public class WineInventoryController : Controller
 
         await _wineVintageRepository.UpdateAsync(updatedVintage, cancellationToken);
 
-        var response = await BuildBottleGroupResponseAsync(updatedVintage.Id, cancellationToken);
+        var response = await BuildBottleGroupResponseAsync(updatedVintage.Id, currentUserId, cancellationToken);
         if (response is null)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load wine group after update.");
@@ -490,6 +528,11 @@ public class WineInventoryController : Controller
     [HttpDelete("groups/{wineVintageId:guid}")]
     public async Task<IActionResult> DeleteGroup(Guid wineVintageId, CancellationToken cancellationToken)
     {
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
         var existingVintage = await _wineVintageRepository.GetByIdAsync(wineVintageId, cancellationToken);
         if (existingVintage is null)
         {
@@ -497,17 +540,30 @@ public class WineInventoryController : Controller
         }
 
         var bottles = await _bottleRepository.GetByWineVintageIdAsync(wineVintageId, cancellationToken);
-        foreach (var bottle in bottles)
+        var ownedBottles = bottles
+            .Where(bottle => bottle.UserId == currentUserId)
+            .ToList();
+
+        if (ownedBottles.Count == 0)
+        {
+            return NotFound();
+        }
+
+        foreach (var bottle in ownedBottles)
         {
             await _bottleRepository.DeleteAsync(bottle.Id, cancellationToken);
         }
 
-        await _wineVintageRepository.DeleteAsync(wineVintageId, cancellationToken);
-
-        var wine = await _wineRepository.GetByIdAsync(existingVintage.WineId, cancellationToken);
-        if (wine is not null && (wine.WineVintages == null || wine.WineVintages.Count == 0))
+        var remainingBottles = await _bottleRepository.GetByWineVintageIdAsync(wineVintageId, cancellationToken);
+        if (!remainingBottles.Any())
         {
-            await _wineRepository.DeleteAsync(wine.Id, cancellationToken);
+            await _wineVintageRepository.DeleteAsync(wineVintageId, cancellationToken);
+
+            var wine = await _wineRepository.GetByIdAsync(existingVintage.WineId, cancellationToken);
+            if (wine is not null && (wine.WineVintages == null || wine.WineVintages.Count == 0))
+            {
+                await _wineRepository.DeleteAsync(wine.Id, cancellationToken);
+            }
         }
 
         return NoContent();
@@ -521,60 +577,13 @@ public class WineInventoryController : Controller
             return ValidationProblem(ModelState);
         }
 
-        BottleLocation? bottleLocation = null;
-        if (request.BottleLocationId.HasValue)
+        if (!TryGetCurrentUserId(out var currentUserId))
         {
-            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
-            if (bottleLocation is null)
-            {
-                ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
-                return ValidationProblem(ModelState);
-            }
+            return Challenge();
         }
 
-        ApplicationUser? user = null;
-        if (request.UserId.HasValue)
-        {
-            user = await _userRepository.GetByIdAsync(request.UserId.Value, cancellationToken);
-            if (user is null)
-            {
-                ModelState.AddModelError(nameof(request.UserId), "User was not found.");
-                return ValidationProblem(ModelState);
-            }
-        }
-
-        var bottle = new Bottle
-        {
-            Id = Guid.NewGuid(),
-            WineVintageId = request.WineVintageId,
-            Price = request.Price,
-            IsDrunk = request.IsDrunk,
-            DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt),
-            BottleLocationId = bottleLocation?.Id,
-            UserId = user?.Id
-        };
-
-        await _bottleRepository.AddAsync(bottle, cancellationToken);
-
-        var response = await BuildBottleGroupResponseAsync(request.WineVintageId, cancellationToken);
-        if (response is null)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load bottle group after creation.");
-        }
-
-        return Json(response);
-    }
-
-    [HttpPut("bottles/{id:guid}")]
-    public async Task<IActionResult> UpdateBottle(Guid id, [FromBody] BottleMutationRequest request, CancellationToken cancellationToken)
-    {
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(ModelState);
-        }
-
-        var bottle = await _bottleRepository.GetByIdAsync(id, cancellationToken);
-        if (bottle is null)
+        var existingBottles = await _bottleRepository.GetByWineVintageIdAsync(request.WineVintageId, cancellationToken);
+        if (!existingBottles.Any(bottle => bottle.UserId == currentUserId))
         {
             return NotFound();
         }
@@ -590,22 +599,69 @@ public class WineInventoryController : Controller
             }
         }
 
-        if (request.UserId.HasValue)
+        Guid targetUserId = currentUserId;
+        if (request.UserId.HasValue && request.UserId.Value != currentUserId)
         {
-            var user = await _userRepository.GetByIdAsync(request.UserId.Value, cancellationToken);
-            if (user is null)
+            ModelState.AddModelError(nameof(request.UserId), "You can only assign bottles to your account.");
+            return ValidationProblem(ModelState);
+        }
+
+        var bottle = new Bottle
+        {
+            Id = Guid.NewGuid(),
+            WineVintageId = request.WineVintageId,
+            Price = request.Price,
+            IsDrunk = request.IsDrunk,
+            DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt),
+            BottleLocationId = bottleLocation?.Id,
+            UserId = targetUserId
+        };
+
+        await _bottleRepository.AddAsync(bottle, cancellationToken);
+
+        var response = await BuildBottleGroupResponseAsync(request.WineVintageId, currentUserId, cancellationToken);
+        return response is null
+            ? StatusCode(StatusCodes.Status500InternalServerError, "Unable to load bottle group after creation.")
+            : Json(response);
+    }
+
+    [HttpPut("bottles/{id:guid}")]
+    public async Task<IActionResult> UpdateBottle(Guid id, [FromBody] BottleMutationRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        var bottle = await _bottleRepository.GetByIdAsync(id, cancellationToken);
+        if (bottle is null || bottle.UserId != currentUserId)
+        {
+            return NotFound();
+        }
+
+        BottleLocation? bottleLocation = null;
+        if (request.BottleLocationId.HasValue)
+        {
+            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            if (bottleLocation is null)
             {
-                ModelState.AddModelError(nameof(request.UserId), "User was not found.");
+                ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
                 return ValidationProblem(ModelState);
             }
-
-            bottle.UserId = user.Id;
         }
-        else
+
+        if (request.UserId.HasValue && request.UserId.Value != currentUserId)
         {
-            bottle.UserId = null;
+            ModelState.AddModelError(nameof(request.UserId), "You can only assign bottles to your account.");
+            return ValidationProblem(ModelState);
         }
 
+        bottle.UserId = currentUserId;
         bottle.Price = request.Price;
         bottle.IsDrunk = request.IsDrunk;
         bottle.DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt);
@@ -613,7 +669,7 @@ public class WineInventoryController : Controller
 
         await _bottleRepository.UpdateAsync(bottle, cancellationToken);
 
-        var response = await BuildBottleGroupResponseAsync(bottle.WineVintageId, cancellationToken);
+        var response = await BuildBottleGroupResponseAsync(bottle.WineVintageId, currentUserId, cancellationToken);
         return Json(response ?? new BottleGroupDetailsResponse
         {
             Group = null,
@@ -629,6 +685,11 @@ public class WineInventoryController : Controller
             return ValidationProblem(ModelState);
         }
 
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
         var trimmedNote = request.Note?.Trim();
         if (string.IsNullOrWhiteSpace(trimmedNote))
         {
@@ -641,6 +702,11 @@ public class WineInventoryController : Controller
         {
             ModelState.AddModelError(nameof(request.BottleId), "Bottle was not found.");
             return ValidationProblem(ModelState);
+        }
+
+        if (bottle.UserId != currentUserId)
+        {
+            return NotFound();
         }
 
         var user = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
@@ -661,7 +727,7 @@ public class WineInventoryController : Controller
 
         await _tastingNoteRepository.AddAsync(entity, cancellationToken);
 
-        var response = await BuildBottleNotesResponseAsync(bottle.Id, cancellationToken);
+        var response = await BuildBottleNotesResponseAsync(bottle.Id, currentUserId, cancellationToken);
         if (response is null)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load tasting notes after creation.");
@@ -678,6 +744,11 @@ public class WineInventoryController : Controller
             return ValidationProblem(ModelState);
         }
 
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
         var trimmedNote = request.Note?.Trim();
         if (string.IsNullOrWhiteSpace(trimmedNote))
         {
@@ -687,6 +758,11 @@ public class WineInventoryController : Controller
 
         var existing = await _tastingNoteRepository.GetByIdAsync(noteId, cancellationToken);
         if (existing is null)
+        {
+            return NotFound();
+        }
+
+        if (existing.Bottle?.UserId != currentUserId)
         {
             return NotFound();
         }
@@ -704,7 +780,7 @@ public class WineInventoryController : Controller
 
         await _tastingNoteRepository.UpdateAsync(existing, cancellationToken);
 
-        var response = await BuildBottleNotesResponseAsync(existing.BottleId, cancellationToken);
+        var response = await BuildBottleNotesResponseAsync(existing.BottleId, currentUserId, cancellationToken);
         if (response is null)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load tasting notes after update.");
@@ -716,15 +792,25 @@ public class WineInventoryController : Controller
     [HttpDelete("notes/{noteId:guid}")]
     public async Task<IActionResult> DeleteNote(Guid noteId, CancellationToken cancellationToken)
     {
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
         var existing = await _tastingNoteRepository.GetByIdAsync(noteId, cancellationToken);
         if (existing is null)
         {
             return NotFound();
         }
 
+        if (existing.Bottle?.UserId != currentUserId)
+        {
+            return NotFound();
+        }
+
         await _tastingNoteRepository.DeleteAsync(noteId, cancellationToken);
 
-        var response = await BuildBottleNotesResponseAsync(existing.BottleId, cancellationToken);
+        var response = await BuildBottleNotesResponseAsync(existing.BottleId, currentUserId, cancellationToken);
         if (response is null)
         {
             return Json(new BottleNotesResponse
@@ -740,15 +826,20 @@ public class WineInventoryController : Controller
     [HttpDelete("bottles/{id:guid}")]
     public async Task<IActionResult> DeleteBottle(Guid id, CancellationToken cancellationToken)
     {
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
         var bottle = await _bottleRepository.GetByIdAsync(id, cancellationToken);
-        if (bottle is null)
+        if (bottle is null || bottle.UserId != currentUserId)
         {
             return NotFound();
         }
 
         await _bottleRepository.DeleteAsync(id, cancellationToken);
 
-        var response = await BuildBottleGroupResponseAsync(bottle.WineVintageId, cancellationToken);
+        var response = await BuildBottleGroupResponseAsync(bottle.WineVintageId, currentUserId, cancellationToken);
         return Json(response ?? new BottleGroupDetailsResponse
         {
             Group = null,
@@ -756,22 +847,22 @@ public class WineInventoryController : Controller
         });
     }
 
-    private async Task<BottleGroupDetailsResponse?> BuildBottleGroupResponseAsync(Guid wineVintageId, CancellationToken cancellationToken)
+    private async Task<BottleGroupDetailsResponse?> BuildBottleGroupResponseAsync(Guid wineVintageId, Guid userId, CancellationToken cancellationToken)
     {
         var bottles = await _bottleRepository.GetByWineVintageIdAsync(wineVintageId, cancellationToken);
 
-        if (!bottles.Any())
+        var ownedBottles = bottles
+            .Where(bottle => bottle.UserId == userId)
+            .ToList();
+
+        if (!ownedBottles.Any())
         {
-            return new BottleGroupDetailsResponse
-            {
-                Group = null,
-                Details = Array.Empty<WineInventoryBottleDetailViewModel>()
-            };
+            return null;
         }
 
-        var averageScore = CalculateAverageScore(bottles);
-        var summary = CreateBottleGroupViewModel(wineVintageId, bottles, averageScore);
-        var details = bottles
+        var averageScore = CalculateAverageScore(ownedBottles);
+        var summary = CreateBottleGroupViewModel(wineVintageId, ownedBottles, averageScore);
+        var details = ownedBottles
             .OrderBy(b => b.IsDrunk)
             .ThenBy(b => b.DrunkAt ?? DateTime.MaxValue)
             .Select(b => new WineInventoryBottleDetailViewModel
@@ -797,10 +888,10 @@ public class WineInventoryController : Controller
         };
     }
 
-    private async Task<BottleNotesResponse?> BuildBottleNotesResponseAsync(Guid bottleId, CancellationToken cancellationToken)
+    private async Task<BottleNotesResponse?> BuildBottleNotesResponseAsync(Guid bottleId, Guid userId, CancellationToken cancellationToken)
     {
         var bottle = await _bottleRepository.GetByIdAsync(bottleId, cancellationToken);
-        if (bottle is null)
+        if (bottle is null || bottle.UserId != userId)
         {
             return null;
         }
@@ -929,6 +1020,19 @@ public class WineInventoryController : Controller
     {
         var idClaim = User?.FindFirstValue(ClaimTypes.NameIdentifier);
         return Guid.TryParse(idClaim, out var parsedId) ? parsedId : null;
+    }
+
+    private bool TryGetCurrentUserId(out Guid userId)
+    {
+        var currentUserId = GetCurrentUserId();
+        if (currentUserId.HasValue)
+        {
+            userId = currentUserId.Value;
+            return true;
+        }
+
+        userId = Guid.Empty;
+        return false;
     }
 
     private static DateTime? NormalizeDrunkAt(bool isDrunk, DateTime? drunkAt)
