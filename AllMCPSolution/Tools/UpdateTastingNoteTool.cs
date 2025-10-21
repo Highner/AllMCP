@@ -116,7 +116,7 @@ public sealed class UpdateTastingNoteTool : TastingNoteToolBase
 
         if (hasUserParameter)
         {
-            User? user = null;
+            ApplicationUser? user = null;
             if (userId is not null)
             {
                 user = await UserRepository.GetByIdAsync(userId.Value, ct);

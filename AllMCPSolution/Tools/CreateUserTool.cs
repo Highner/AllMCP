@@ -54,10 +54,11 @@ public sealed class CreateUserTool : UserToolBase
                 });
         }
 
-        var user = new User
+        var user = new ApplicationUser
         {
             Id = Guid.NewGuid(),
             Name = name!,
+            UserName = name!,
             TasteProfile = tasteProfile!
         };
 

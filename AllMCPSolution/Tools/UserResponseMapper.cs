@@ -4,7 +4,7 @@ namespace AllMCPSolution.Tools;
 
 internal static class UserResponseMapper
 {
-    public static object MapUser(User user)
+    public static object MapUser(ApplicationUser user)
         => new
         {
             id = user.Id,

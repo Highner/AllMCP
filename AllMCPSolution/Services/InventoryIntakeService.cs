@@ -329,7 +329,7 @@ public sealed class InventoryIntakeService
 
             var wineVintage = await _wineVintageRepository.GetOrCreateAsync(wine.Id, vintage!.Value, ct);
 
-            User? resolvedUser = null;
+        ApplicationUser? resolvedUser = null;
             if (userId.HasValue || !string.IsNullOrWhiteSpace(userName))
             {
                 var userResolution = await ResolveUserAsync(userId, userName, ct);
@@ -532,7 +532,7 @@ public sealed class InventoryIntakeService
 
     private async Task<UserResolutionResult> ResolveUserAsync(Guid? userId, string? userName, CancellationToken ct)
     {
-        User? user = null;
+        ApplicationUser? user = null;
 
         if (userId is not null)
         {
@@ -656,7 +656,7 @@ public sealed class InventoryIntakeService
 
     private sealed record UserResolutionResult(
         bool Success,
-        User? User,
+        ApplicationUser? User,
         string Message,
         IReadOnlyList<string>? Errors,
         object? Suggestions);

@@ -450,7 +450,7 @@ public class WineInventoryController : Controller
             }
         }
 
-        User? user = null;
+        ApplicationUser? user = null;
         if (request.UserId.HasValue)
         {
             user = await _userRepository.GetByIdAsync(request.UserId.Value, cancellationToken);
