@@ -59,7 +59,7 @@
 <body>
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main class="inventory-shell">
-        <h1>Wine Surfer</h1>
+        @await Html.PartialAsync("_WineSurferPageHeader", new WineSurferPageHeaderModel("Wine Inventory"))
         <form method="get" class="filters">
             <label>
                 Status

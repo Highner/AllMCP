@@ -432,7 +432,7 @@
             align-items: center;
         }
 
-        h1 {
+        .wine-surfer-page-header .wine-surfer-page-header__title {
             font-size: clamp(40px, 6vw, 88px);
             margin: 0;
             letter-spacing: 10px;
@@ -1753,7 +1753,7 @@
                 padding-top: 60px;
             }
 
-            h1 {
+            .wine-surfer-page-header .wine-surfer-page-header__title {
                 letter-spacing: 6px;
             }
         }
@@ -1764,7 +1764,7 @@
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main>
         <section>
-            <h1>Sisterhoods</h1>
+            @await Html.PartialAsync("_WineSurferPageHeader", new WineSurferPageHeaderModel("Sisterhoods"))
             @{
                 var sanitizedDisplayName = string.IsNullOrWhiteSpace(Model.DisplayName) ? null : Model.DisplayName;
                 var hasMembership = Model.Sisterhoods.Count > 0;
