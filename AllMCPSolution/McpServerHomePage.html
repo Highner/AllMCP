@@ -48,6 +48,18 @@
             color: white;
         }
 
+        .navbar nav a.nav-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+        }
+
+        .navbar nav a.nav-button:hover {
+            background: linear-gradient(135deg, #5a6fe0 0%, #6a3f96 100%);
+            color: white;
+            transform: translateY(-1px);
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -193,6 +205,7 @@
                 <a href="/">Home</a>
                 <a href="/FileUploadComponent.html">Upload</a>
                 <a href="/tools">Tools API</a>
+                <a href="/wine-manager/import" class="nav-button" aria-label="Wine Surfer import">Wine Surfer Import</a>
                 <a href="/.well-known/mcp-manifest">Manifest</a>
             </nav>
         </div>
