@@ -152,7 +152,8 @@ public class WineSurferController : Controller
                     session.Date,
                     session.Location ?? string.Empty,
                     session.CreatedAt,
-                    session.UpdatedAt)))
+                    session.UpdatedAt,
+                    CreateBottleSummaries(session.Bottles)))
             .ToList();
 
         WineSurferCurrentUser? currentUser = null;
@@ -364,7 +365,8 @@ public class WineSurferController : Controller
                                     session.Date,
                                     session.Location,
                                     session.CreatedAt,
-                                    session.UpdatedAt)
+                                    session.UpdatedAt,
+                                    CreateBottleSummaries(session.Bottles))
                             })
                             .OrderBy(entry => entry.SortKey)
                             .ThenBy(entry => entry.Session.Name, StringComparer.OrdinalIgnoreCase)
@@ -1584,6 +1586,48 @@ public class WineSurferController : Controller
         }
     }
 
+    private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(IEnumerable<Bottle>? bottles)
+    {
+        if (bottles is null)
+        {
+            return Array.Empty<WineSurferSipSessionBottle>();
+        }
+
+        var summaries = bottles
+            .Where(bottle => bottle is not null)
+            .Select(bottle =>
+            {
+                var wineName = bottle.WineVintage?.Wine?.Name;
+                string labelBase;
+
+                if (string.IsNullOrWhiteSpace(wineName))
+                {
+                    labelBase = "Bottle";
+                }
+                else
+                {
+                    labelBase = wineName.Trim();
+                }
+                var vintage = bottle.WineVintage?.Vintage;
+
+                if (vintage.HasValue && vintage.Value > 0)
+                {
+                    labelBase = $"{labelBase} {vintage.Value}";
+                }
+
+                return new WineSurferSipSessionBottle(bottle.Id, labelBase);
+            })
+            .OrderBy(summary => summary.Label, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (summaries.Count == 0)
+        {
+            return Array.Empty<WineSurferSipSessionBottle>();
+        }
+
+        return summaries;
+    }
+
     private static MapHighlightPoint? CreateHighlightPoint(
         Region region,
         RegionInventoryMetrics metrics)
@@ -1666,7 +1710,10 @@ public record WineSurferSipSessionSummary(
     DateTime? Date,
     string Location,
     DateTime CreatedAtUtc,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    IReadOnlyList<WineSurferSipSessionBottle> Bottles);
+
+public record WineSurferSipSessionBottle(Guid Id, string Label);
 
 public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter);
 

@@ -27,6 +27,8 @@ public class SipSessionRepository : ISipSessionRepository
             .AsNoTracking()
             .Include(session => session.Sisterhood)
             .Include(session => session.Bottles)
+                .ThenInclude(bottle => bottle.WineVintage)
+                    .ThenInclude(vintage => vintage.Wine)
             .FirstOrDefaultAsync(session => session.Id == id, ct);
     }
 
@@ -42,6 +44,8 @@ public class SipSessionRepository : ISipSessionRepository
             .Where(session => session.SisterhoodId == sisterhoodId)
             .Include(session => session.Sisterhood)
             .Include(session => session.Bottles)
+                .ThenInclude(bottle => bottle.WineVintage)
+                    .ThenInclude(vintage => vintage.Wine)
             .OrderBy(session => session.ScheduledAt ?? session.CreatedAt)
             .ThenBy(session => session.Name)
             .ToListAsync(ct);
@@ -60,6 +64,8 @@ public class SipSessionRepository : ISipSessionRepository
             .AsNoTracking()
             .Include(session => session.Sisterhood)
             .Include(session => session.Bottles)
+                .ThenInclude(bottle => bottle.WineVintage)
+                    .ThenInclude(vintage => vintage.Wine)
             .Where(session =>
                 (session.ScheduledAt.HasValue && session.ScheduledAt.Value >= utcNow) ||
                 (!session.ScheduledAt.HasValue && session.Date.HasValue && session.Date.Value.Date >= utcDate))
