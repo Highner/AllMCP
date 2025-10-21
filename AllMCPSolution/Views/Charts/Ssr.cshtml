@@ -16,6 +16,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <style>
         /* Styles copied to match charts section of ChartView.html */
         .chart-container {
@@ -23,9 +24,8 @@
             height: 400px;
             margin-bottom: 30px;
             padding: 20px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            border-radius: 18px;
+            box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
         }
         .chart-controls {
             position: absolute;
@@ -37,19 +37,21 @@
         .chart-controls.left { left: 10px; }
         .chart-controls.right { right: 10px; }
         .btn-scale {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            border: none;
-            padding: 6px 10px;
-            border-radius: 5px;
+            background: linear-gradient(135deg, rgba(244, 241, 234, 0.28) 0%, rgba(244, 241, 234, 0.14) 100%);
+            color: #050505;
+            border: 1px solid rgba(244, 241, 234, 0.28);
+            padding: 6px 12px;
+            border-radius: 999px;
             cursor: pointer;
             font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
         }
-        body { background: #f0f2f8; margin: 0; padding: 20px; }
+        body { background: var(--wine-app-background); margin: 0; padding: 20px; color: #f4f1ea; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     </style>
 </head>
-<body>
-    <div class="chart-container">
+<body class="wine-app">
+    <div class="chart-container wine-surface wine-surface-border wine-card-hover">
         <div class="chart-controls left" id="scaleToggleY1">
             <button class="btn-scale" id="toggleY1Scale">Y1: Log</button>
         </div>
@@ -59,11 +61,11 @@
         <canvas id="salesChart"></canvas>
     </div>
 
-    <div class="chart-container">
+    <div class="chart-container wine-surface wine-surface-border wine-card-hover">
         <canvas id="performanceChart"></canvas>
     </div>
 
-    <div class="chart-container">
+    <div class="chart-container wine-surface wine-surface-border wine-card-hover">
         <canvas id="hammerPerAreaChart"></canvas>
     </div>
 

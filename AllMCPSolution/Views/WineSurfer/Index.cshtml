@@ -42,6 +42,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Wine Surfer</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <style>
         :root {
             color-scheme: dark;
@@ -54,7 +55,7 @@
         body {
             margin: 0;
             min-height: 100vh;
-            background: #050505;
+            background: var(--wine-app-background);
             color: #f4f1ea;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
@@ -602,10 +603,8 @@
         }
 
         .region-card {
-            border: 1px solid rgba(244, 241, 234, 0.12);
             border-radius: 18px;
             padding: 18px 22px;
-            background: rgba(10, 10, 10, 0.85);
             backdrop-filter: blur(4px);
             display: flex;
             flex-direction: column;
@@ -690,10 +689,8 @@
         }
 
         .sip-session-card {
-            border: 1px solid rgba(244, 241, 234, 0.12);
             border-radius: 18px;
             padding: 22px 26px;
-            background: rgba(10, 10, 10, 0.85);
             backdrop-filter: blur(4px);
             display: flex;
             flex-direction: column;
@@ -865,7 +862,7 @@
     var currentLocation = string.Concat(requestPath, requestQuery);
     var topBarModel = new WineSurferTopBarModel(currentLocation, Model.IncomingInvitations, Model.SentInvitationNotifications);
 }
-<body class="@bodyClass">
+<body class="wine-app @bodyClass">
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main>
@@ -897,7 +894,7 @@
                 @for (var i = 0; i < Model.HighlightPoints.Count; i++)
                 {
                     var point = Model.HighlightPoints[i];
-                    <article class="region-card" data-region-index="@i">
+                    <article class="region-card wine-surface wine-surface-border wine-card-hover" data-region-index="@i">
                         <span class="label">@point.Label</span>
                         @if (!string.IsNullOrWhiteSpace(point.Country))
                         {
@@ -921,7 +918,7 @@
                 }
                 @if (!Model.HighlightPoints.Any())
                 {
-                    <article class="region-card">
+                    <article class="region-card wine-surface wine-surface-border wine-card-hover">
                         <span class="label">No wine regions available yet</span>
                         <span class="country">Add bottles to your inventory to light up the map.</span>
                     </article>
@@ -944,7 +941,7 @@
                         var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Session.Id })
                             ?? $"/wine-surfer/sessions/{session.Session.Id:D}";
 
-                        <a class="sip-session-card" href="@sessionUrl" aria-label="Upcoming sip session: @session.Session.Name">
+                        <a class="sip-session-card wine-surface wine-surface-border wine-card-hover" href="@sessionUrl" aria-label="Upcoming sip session: @session.Session.Name">
                             <div class="sip-session-header">
                                 <h3 class="sip-session-name">@session.Session.Name</h3>
                                 @if (!string.IsNullOrWhiteSpace(hostLabel))

@@ -63,6 +63,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Wine Surfer · Sisterhoods</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <style>
         :root {
             color-scheme: dark;
@@ -75,7 +76,7 @@
         body {
             margin: 0;
             min-height: 100vh;
-            background: radial-gradient(circle at top, rgba(244, 241, 234, 0.08), transparent 60%), #050505;
+            background: var(--wine-app-background);
             color: #f4f1ea;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
@@ -451,8 +452,6 @@
 
         .invitation-section {
             width: min(1040px, 100%);
-            background: linear-gradient(160deg, rgba(244, 241, 234, 0.05), rgba(244, 241, 234, 0.02));
-            border: 1px solid rgba(244, 241, 234, 0.08);
             border-radius: 20px;
             padding: 28px;
             display: flex;
@@ -486,8 +485,6 @@
         }
 
         .invitation-card {
-            background: rgba(244, 241, 234, 0.05);
-            border: 1px solid rgba(244, 241, 234, 0.1);
             border-radius: 18px;
             padding: 22px;
             display: flex;
@@ -637,29 +634,11 @@
         }
 
         .sisterhood-card {
-            background: linear-gradient(160deg, rgba(244, 241, 234, 0.06), rgba(244, 241, 234, 0.02));
-            border: 1px solid rgba(244, 241, 234, 0.08);
             border-radius: 18px;
             padding: 28px;
             display: flex;
             flex-direction: column;
             gap: 16px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .sisterhood-card::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            background: radial-gradient(circle at top right, rgba(244, 241, 234, 0.12), transparent 55%);
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
-
-        .sisterhood-card:hover::after {
-            opacity: 1;
         }
 
         .sisterhood-name {
@@ -693,8 +672,6 @@
             width: min(880px, 100%);
             border-radius: 18px;
             padding: 36px;
-            border: 1px solid rgba(244, 241, 234, 0.08);
-            background: linear-gradient(150deg, rgba(244, 241, 234, 0.08), rgba(244, 241, 234, 0.02));
             text-align: center;
             display: flex;
             flex-direction: column;
@@ -1761,7 +1738,7 @@
     </style>
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
 </head>
-<body>
+<body class="wine-app">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main>
         <section>
@@ -1830,7 +1807,7 @@
             var acceptAction = Url.Action("AcceptSisterhoodInvitation", "WineSurfer");
             var declineAction = Url.Action("DeclineSisterhoodInvitation", "WineSurfer");
             var deleteAction = Url.Action("DeleteSisterhoodInvitation", "WineSurfer");
-            <section class="invitation-section" aria-label="Sisterhood invitations awaiting your response">
+            <section class="invitation-section wine-surface wine-surface-border" aria-label="Sisterhood invitations awaiting your response">
                 <div class="invitation-section-header">
                     <h2>Invitations waiting for you</h2>
                     <p>Respond to join a sisterhood or decline to clear the invite. You can remove invitations whenever you like.</p>
@@ -1848,7 +1825,7 @@
                         };
                         var updatedLocal = invitation.UpdatedAtUtc.ToLocalTime();
                         var createdLocal = invitation.CreatedAtUtc.ToLocalTime();
-                        <article class="invitation-card" data-invitation-card data-invitation-id="@invitation.Id">
+                        <article class="invitation-card wine-surface wine-surface-border wine-card-hover" data-invitation-card data-invitation-id="@invitation.Id">
                             <div class="invitation-card-header">
                                 <h3 class="invitation-card-title">@invitation.SisterhoodName</h3>
                                 <span class="invitation-status @statusClass">@invitation.Status</span>
@@ -1903,7 +1880,7 @@
             {
                 foreach (var sisterhood in Model.Sisterhoods)
                 {
-                    <article class="sisterhood-card" data-sisterhood-card data-sisterhood-id="@sisterhood.Id">
+                    <article class="sisterhood-card wine-surface wine-surface-border wine-card-hover" data-sisterhood-card data-sisterhood-id="@sisterhood.Id">
                         <div class="sisterhood-header">
                             <div>
                                 <h2 class="sisterhood-name">@sisterhood.Name</h2>
@@ -2399,7 +2376,7 @@
             }
             else
             {
-                <div class="empty-state" role="status">
+                <div class="empty-state wine-surface--prominent wine-surface-border wine-card-hover wine-card-hover--prominent" role="status">
                     <h2>@(Model.IsAuthenticated ? "No sisterhoods yet" : "Sign in to see your sisterhoods")</h2>
                     <p>
                         @(Model.IsAuthenticated

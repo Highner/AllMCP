@@ -19,11 +19,11 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     @await Html.PartialAsync("_AuthStyles")
 </head>
-<body>
+<body class="wine-app">
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="auth-main">
-            <section class="auth-card" aria-labelledby="registerTitle">
+            <section class="auth-card wine-surface wine-surface-border wine-card-hover" aria-labelledby="registerTitle">
                 <header>
                     <h1 id="registerTitle" class="auth-title">Create account</h1>
                     <p class="auth-subtitle">Join the Wine Surfer community and synchronize your cellar, notes, and tastings.</p>
