@@ -1396,6 +1396,11 @@ tbody tr:hover {
     gap: 8px;
 }
 
+.details-table .actions {
+    justify-content: flex-end;
+    align-items: center;
+}
+
 .details-table tbody .actions button,
 .notes-table tbody .actions button,
 .inventory-table .actions button {
