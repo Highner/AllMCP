@@ -18,7 +18,14 @@ public class SipSession
     [MaxLength(2048)]
     public string? Description { get; set; }
 
+    public DateTime? Date { get; set; }
+
+    [MaxLength(256)]
+    public string Location { get; set; } = string.Empty;
+
     public DateTime? ScheduledAt { get; set; }
+
+    public ICollection<Bottle> Bottles { get; set; } = [];
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
