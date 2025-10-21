@@ -13,6 +13,7 @@ public interface IUserRepository
     Task<ApplicationUser?> FindByNameAsync(string name, CancellationToken ct = default);
     Task<ApplicationUser?> FindByEmailAsync(string email, CancellationToken ct = default);
     Task<IReadOnlyList<ApplicationUser>> SearchByApproximateNameAsync(string name, int maxResults = 5, CancellationToken ct = default);
+    Task<IReadOnlyList<ApplicationUser>> SearchByNameOrEmailAsync(string query, int maxResults = 10, CancellationToken ct = default);
     Task<ApplicationUser> GetOrCreateAsync(string name, string tasteProfile, CancellationToken ct = default);
     Task AddAsync(ApplicationUser user, CancellationToken ct = default);
     Task UpdateAsync(ApplicationUser user, CancellationToken ct = default);
@@ -81,6 +82,33 @@ public class UserRepository : IUserRepository
             .ToListAsync(ct);
 
         return FuzzyMatchUtilities.FindClosestMatches(users, name, u => u.Name, maxResults);
+    }
+
+    public async Task<IReadOnlyList<ApplicationUser>> SearchByNameOrEmailAsync(string query, int maxResults = 10, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return Array.Empty<ApplicationUser>();
+        }
+
+        var trimmed = query.Trim();
+        var normalizedName = _userManager.NormalizeName(trimmed) ?? trimmed.ToUpperInvariant();
+        var normalizedEmail = _userManager.NormalizeEmail(trimmed) ?? trimmed.ToUpperInvariant();
+        var likeName = $"%{EscapeLikePattern(trimmed)}%";
+        var likeNormalizedName = $"%{EscapeLikePattern(normalizedName)}%";
+        var likeNormalizedEmail = $"%{EscapeLikePattern(normalizedEmail)}%";
+        var limit = Math.Max(1, maxResults);
+
+        return await _userManager.Users
+            .AsNoTracking()
+            .Where(u =>
+                (!string.IsNullOrEmpty(u.Name) && EF.Functions.Like(u.Name!, likeName, "\\")) ||
+                (!string.IsNullOrEmpty(u.NormalizedUserName) && EF.Functions.Like(u.NormalizedUserName!, likeNormalizedName, "\\")) ||
+                (!string.IsNullOrEmpty(u.NormalizedEmail) && EF.Functions.Like(u.NormalizedEmail!, likeNormalizedEmail, "\\")))
+            .OrderBy(u => u.Name)
+            .ThenBy(u => u.UserName)
+            .Take(limit)
+            .ToListAsync(ct);
     }
 
     public async Task<ApplicationUser> GetOrCreateAsync(string name, string tasteProfile, CancellationToken ct = default)
@@ -179,5 +207,19 @@ public class UserRepository : IUserRepository
 
         var details = string.Join(", ", result.Errors.Select(e => e.Description));
         throw new InvalidOperationException($"{message} {details}");
+    }
+
+    private static string EscapeLikePattern(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        return value
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal)
+            .Replace("[", "\\[", StringComparison.Ordinal);
     }
 }

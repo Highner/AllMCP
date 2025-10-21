@@ -2911,6 +2911,127 @@
         const userMap = new Map();
         const syncByForm = new WeakMap();
         const emailPattern = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
+        const inviteDataList = document.getElementById('sisterhood-user-options');
+        const inviteSearchCache = new Map();
+        const inviteSearchConfig = {
+            endpoint: '/wine-surfer/users',
+            debounceMs: 500,
+            minLength: 3
+        };
+        let inviteSearchTimerId = null;
+        let inviteSearchAbortController = null;
+        let inviteSearchCurrentTerm = '';
+
+        const updateInviteUserOptions = (users) => {
+            if (!inviteDataList) {
+                return;
+            }
+
+            inviteDataList.innerHTML = '';
+            userMap.clear();
+
+            users.forEach(user => {
+                if (!user?.name || !user?.id) {
+                    return;
+                }
+
+                const option = document.createElement('option');
+                option.value = user.name;
+                if (user.tasteProfile) {
+                    option.label = `${user.name} · ${user.tasteProfile}`;
+                }
+                option.dataset.userId = user.id;
+                inviteDataList.appendChild(option);
+                userMap.set(user.name.toLowerCase(), user.id);
+            });
+
+            inviteForms.forEach(form => {
+                const sync = syncByForm.get(form);
+                if (typeof sync === 'function') {
+                    sync();
+                }
+            });
+        };
+
+        const scheduleInviteUserSearch = (rawValue) => {
+            if (!inviteDataList) {
+                return;
+            }
+
+            const trimmed = (rawValue ?? '').trim();
+            inviteSearchCurrentTerm = trimmed;
+
+            if (inviteSearchTimerId) {
+                window.clearTimeout(inviteSearchTimerId);
+                inviteSearchTimerId = null;
+            }
+
+            if (inviteSearchAbortController) {
+                inviteSearchAbortController.abort();
+                inviteSearchAbortController = null;
+            }
+
+            if (trimmed.length < inviteSearchConfig.minLength) {
+                updateInviteUserOptions([]);
+                return;
+            }
+
+            const cacheKey = trimmed.toLowerCase();
+            if (inviteSearchCache.has(cacheKey)) {
+                updateInviteUserOptions(inviteSearchCache.get(cacheKey));
+                return;
+            }
+
+            inviteSearchTimerId = window.setTimeout(async () => {
+                inviteSearchTimerId = null;
+                const controller = new AbortController();
+                inviteSearchAbortController = controller;
+
+                try {
+                    const url = new URL(inviteSearchConfig.endpoint, window.location.origin);
+                    url.searchParams.set('query', trimmed);
+
+                    const response = await fetch(url.toString(), {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'same-origin',
+                        signal: controller.signal
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const contentType = response.headers.get('content-type') ?? '';
+                    if (!contentType.includes('application/json')) {
+                        return;
+                    }
+
+                    const payload = await response.json();
+                    if (!Array.isArray(payload)) {
+                        return;
+                    }
+
+                    inviteSearchCache.set(cacheKey, payload);
+
+                    if (inviteSearchCurrentTerm !== trimmed) {
+                        return;
+                    }
+
+                    updateInviteUserOptions(payload);
+                } catch (error) {
+                    if (!controller.signal.aborted) {
+                        /* Non-blocking lookup failure */
+                    }
+                } finally {
+                    if (inviteSearchAbortController === controller) {
+                        inviteSearchAbortController = null;
+                    }
+                }
+            }, inviteSearchConfig.debounceMs);
+        };
 
         const setUpInviteForm = (form) => {
             const input = form.querySelector('input[name="MemberName"]');
@@ -2972,6 +3093,7 @@
             input.addEventListener('input', () => {
                 syncDerivedValues();
                 clearFeedback();
+                scheduleInviteUserSearch(input.value);
             });
             input.addEventListener('change', syncDerivedValues);
             input.addEventListener('blur', syncDerivedValues);
@@ -3071,41 +3193,7 @@
 
         if (inviteForms.length > 0) {
             inviteForms.forEach(setUpInviteForm);
-
-            fetch('/wine-surfer/users')
-                .then(response => response.ok ? response.json() : [])
-                .then(users => {
-                    const dataList = document.getElementById('sisterhood-user-options');
-                    if (!dataList) {
-                        return;
-                    }
-
-                    dataList.innerHTML = '';
-                    userMap.clear();
-
-                    users.forEach(user => {
-                        if (!user?.name || !user?.id) {
-                            return;
-                        }
-
-                        const option = document.createElement('option');
-                        option.value = user.name;
-                        if (user.tasteProfile) {
-                            option.label = `${user.name} · ${user.tasteProfile}`;
-                        }
-                        option.dataset.userId = user.id;
-                        dataList.appendChild(option);
-                        userMap.set(user.name.toLowerCase(), user.id);
-                    });
-
-                    inviteForms.forEach(form => {
-                        const sync = syncByForm.get(form);
-                        if (typeof sync === 'function') {
-                            sync();
-                        }
-                    });
-                })
-                .catch(() => { /* Non-blocking hint failure */ });
+            updateInviteUserOptions([]);
         }
 
         const resendButtons = document.querySelectorAll('[data-resend-invite-button]');

@@ -601,9 +601,16 @@ public class WineSurferController : Controller
     }
 
     [HttpGet("users")]
-    public async Task<IActionResult> GetUsers(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetUsers([FromQuery] string? query, CancellationToken cancellationToken)
     {
-        var users = await _userRepository.GetAllAsync(cancellationToken);
+        var trimmed = query?.Trim();
+
+        if (string.IsNullOrWhiteSpace(trimmed) || trimmed.Length < 3)
+        {
+            return Json(Array.Empty<WineSurferUserSummary>());
+        }
+
+        var users = await _userRepository.SearchByNameOrEmailAsync(trimmed, 10, cancellationToken);
 
         var response = users
             .Where(u => !string.IsNullOrWhiteSpace(u.Name))
