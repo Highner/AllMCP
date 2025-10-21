@@ -139,17 +139,46 @@ public class WineSurferController : Controller
             .ToList();
 
         WineSurferCurrentUser? currentUser = null;
+        IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
+
         if (User?.Identity?.IsAuthenticated == true)
         {
             var displayName = User.Identity?.Name;
+            var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
+            var normalizedEmail = NormalizeEmailCandidate(email);
+            var currentUserId = GetCurrentUserId();
             ApplicationUser? domainUser = null;
 
-            if (!string.IsNullOrWhiteSpace(displayName))
+            if (currentUserId.HasValue)
+            {
+                domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
+            }
+
+            if (domainUser is null && !string.IsNullOrWhiteSpace(displayName))
             {
                 domainUser = await _userRepository.FindByNameAsync(displayName, cancellationToken);
             }
 
-            var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
+            if (domainUser is not null)
+            {
+                currentUserId = domainUser.Id;
+                if (string.IsNullOrWhiteSpace(displayName))
+                {
+                    displayName = domainUser.Name;
+                }
+
+                normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
+            }
+
+            if (string.IsNullOrWhiteSpace(displayName))
+            {
+                displayName = email;
+            }
+
+            if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
+            {
+                normalizedEmail = NormalizeEmailCandidate(displayName);
+            }
 
             if (!string.IsNullOrWhiteSpace(displayName) || !string.IsNullOrWhiteSpace(email) || domainUser is not null)
             {
@@ -159,9 +188,34 @@ public class WineSurferController : Controller
                     email,
                     domainUser?.TasteProfile);
             }
+
+            if (currentUserId.HasValue || normalizedEmail is not null)
+            {
+                incomingInvitations = (await _sisterhoodInvitationRepository.GetForInviteeAsync(currentUserId, normalizedEmail, cancellationToken))
+                    .Where(invitation => invitation.Status == SisterhoodInvitationStatus.Pending)
+                    .Select(invitation =>
+                    {
+                        var matchesUserId = currentUserId.HasValue && invitation.InviteeUserId == currentUserId.Value;
+                        var matchesEmail = normalizedEmail is not null && string.Equals(invitation.InviteeEmail, normalizedEmail, StringComparison.Ordinal);
+
+                        return new WineSurferIncomingSisterhoodInvitation(
+                            invitation.Id,
+                            invitation.SisterhoodId,
+                            invitation.Sisterhood?.Name ?? "Sisterhood",
+                            invitation.Sisterhood?.Description,
+                            invitation.InviteeEmail,
+                            invitation.Status,
+                            invitation.CreatedAt,
+                            invitation.UpdatedAt,
+                            invitation.InviteeUserId,
+                            matchesUserId,
+                            matchesEmail);
+                    })
+                    .ToList();
+            }
         }
 
-        var model = new WineSurferLandingViewModel(highlightPoints, currentUser);
+        var model = new WineSurferLandingViewModel(highlightPoints, currentUser, incomingInvitations);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
     }
@@ -1551,7 +1605,14 @@ public class WineSurferController : Controller
     }
 }
 
-public record WineSurferLandingViewModel(IReadOnlyList<MapHighlightPoint> HighlightPoints, WineSurferCurrentUser? CurrentUser);
+public record WineSurferLandingViewModel(
+    IReadOnlyList<MapHighlightPoint> HighlightPoints,
+    WineSurferCurrentUser? CurrentUser,
+    IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations);
+
+public record WineSurferTopBarModel(
+    string CurrentPath,
+    IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations);
 
 public record WineSurferSisterhoodsViewModel(
     bool IsAuthenticated,

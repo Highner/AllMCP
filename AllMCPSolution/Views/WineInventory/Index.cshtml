@@ -1,9 +1,11 @@
 @model AllMCPSolution.Controllers.WineInventoryViewModel
+@using AllMCPSolution.Controllers
 @using Microsoft.AspNetCore.WebUtilities
 @using System.Collections.Generic
 @using System.Linq
 @{
     Layout = null;
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
     string BuildSortUrl(string field)
     {
         var nextDir = string.Equals(Model.SortField, field, StringComparison.OrdinalIgnoreCase) &&
@@ -40,6 +42,7 @@
     }
 
     var hasBottles = Model.Bottles.Any();
+    var topBarModel = new WineSurferTopBarModel(currentPath, Array.Empty<WineSurferIncomingSisterhoodInvitation>());
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -50,7 +53,7 @@
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
 </head>
 <body>
-    @await Html.PartialAsync("_WineSurferTopBar", Context.Request.Path.Value ?? string.Empty)
+    @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main class="inventory-shell">
         <h1>Wine Surfer</h1>
         <form method="get" class="filters">

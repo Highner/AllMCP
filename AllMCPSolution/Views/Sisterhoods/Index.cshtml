@@ -1,7 +1,13 @@
 @model AllMCPSolution.Controllers.WineSurferSisterhoodsViewModel
+@using AllMCPSolution.Controllers
 @using System.Linq
 @{
     Layout = null;
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+    var pendingInvitations = Model.IncomingInvitations
+        .Where(invitation => invitation.Status == AllMCPSolution.Models.SisterhoodInvitationStatus.Pending)
+        .ToList();
+    var topBarModel = new WineSurferTopBarModel(currentPath, pendingInvitations);
 }
 
 @functions {
@@ -89,6 +95,185 @@
             text-transform: uppercase;
             font-weight: 600;
             font-size: 20px;
+        }
+
+        .top-bar-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .notification-shell {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .top-bar-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 1px solid rgba(244, 241, 234, 0.25);
+            background: rgba(244, 241, 234, 0.08);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: #f4f1ea;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .top-bar-avatar:hover,
+        .top-bar-avatar:focus-visible,
+        .top-bar-avatar.active {
+            background: rgba(244, 241, 234, 0.16);
+            border-color: rgba(244, 241, 234, 0.4);
+            outline: none;
+        }
+
+        .top-bar-avatar:focus-visible {
+            box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.35);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 999px;
+            background: #f96b70;
+            color: #050505;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .notification-panel {
+            position: absolute;
+            top: calc(100% + 14px);
+            right: 0;
+            width: min(300px, 80vw);
+            background: rgba(12, 12, 12, 0.95);
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            border-radius: 16px;
+            padding: 18px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+            display: none;
+            z-index: 20;
+        }
+
+        .notification-panel.open {
+            display: block;
+        }
+
+        .notification-heading {
+            margin: 0 0 12px;
+            font-size: 12px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.75);
+        }
+
+        .notification-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .notification-item {
+            margin: 0;
+        }
+
+        .notification-link {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(244, 241, 234, 0.05);
+            color: #f4f1ea;
+            text-decoration: none;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .notification-link:hover,
+        .notification-link:focus-visible {
+            background: rgba(244, 241, 234, 0.12);
+            transform: translateY(-1px);
+            outline: none;
+        }
+
+        .notification-title {
+            font-size: 13px;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .notification-meta {
+            font-size: 12px;
+            color: rgba(244, 241, 234, 0.75);
+            letter-spacing: 1.2px;
+        }
+
+        .notification-tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            letter-spacing: 1.1px;
+            text-transform: uppercase;
+            background: rgba(244, 241, 234, 0.12);
+            color: rgba(244, 241, 234, 0.9);
+            width: fit-content;
+        }
+
+        .notification-empty {
+            margin: 0 0 12px;
+            font-size: 12px;
+            letter-spacing: 1.3px;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .notification-footer {
+            margin-top: 14px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .notification-footer a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(244, 241, 234, 0.25);
+            background: rgba(244, 241, 234, 0.08);
+            color: #f4f1ea;
+            text-decoration: none;
+            font-size: 11px;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .notification-footer a:hover,
+        .notification-footer a:focus-visible {
+            background: rgba(244, 241, 234, 0.16);
+            border-color: rgba(244, 241, 234, 0.4);
+            outline: none;
         }
 
         .burger {
@@ -1076,7 +1261,7 @@
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
 </head>
 <body>
-    @await Html.PartialAsync("_WineSurferTopBar", Context.Request.Path.Value ?? string.Empty)
+    @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main>
         <section>
             <h1>Sisterhoods</h1>

@@ -1,6 +1,8 @@
 @using System.Linq
 @using Microsoft.AspNetCore.Mvc.Rendering
-@model string
+@using AllMCPSolution.Controllers
+@using AllMCPSolution.Models
+@model WineSurferTopBarModel?
 
 @{ 
     var navItems = new (string Href, string Label)[]
@@ -10,11 +12,12 @@
         ("/wine-manager", "Wine Inventory")
     };
 
-    var currentPath = string.IsNullOrWhiteSpace(Model)
+    var rawPath = Model?.CurrentPath;
+    var currentPath = string.IsNullOrWhiteSpace(rawPath)
         ? string.Empty
-        : Model.TrimEnd('/');
+        : rawPath!.TrimEnd('/');
 
-    if (string.IsNullOrEmpty(currentPath) && !string.IsNullOrEmpty(Model))
+    if (string.IsNullOrEmpty(currentPath) && !string.IsNullOrEmpty(rawPath))
     {
         currentPath = "/";
     }
@@ -34,6 +37,17 @@
             ?? string.Empty;
     }
 
+    var incomingInvitations = Model?.IncomingInvitations ?? Array.Empty<WineSurferIncomingSisterhoodInvitation>();
+    var openInvitations = incomingInvitations
+        .Where(invitation => invitation.Status == SisterhoodInvitationStatus.Pending)
+        .OrderBy(invitation => invitation.SisterhoodName, StringComparer.OrdinalIgnoreCase)
+        .ThenBy(invitation => invitation.CreatedAtUtc)
+        .ToList();
+
+    var openInvitationCount = openInvitations.Count;
+    var sisterhoodUrl = Url.Action("Sisterhoods", "WineSurfer") ?? "/wine-surfer/sisterhoods";
+    var notificationHeadingId = "notificationPanelHeading";
+
     var avatarLetter = "?";
 
     if (!string.IsNullOrWhiteSpace(userDisplayName))
@@ -45,12 +59,21 @@
         }
     }
 
-    var avatarLabel = string.IsNullOrWhiteSpace(userDisplayName)
-        ? "Guest avatar"
-        : $"User avatar for {userDisplayName}";
+    var avatarAccountLabel = string.IsNullOrWhiteSpace(userDisplayName)
+        ? "Guest account"
+        : $"{userDisplayName}'s account";
 
-    var returnUrl = string.IsNullOrWhiteSpace(Model) ? "/wine-surfer" : Model;
-    if (!returnUrl.StartsWith('/'))
+    var invitationStatusLabel = openInvitationCount switch
+    {
+        0 => "No open invitations",
+        1 => "1 open invitation",
+        _ => $"{openInvitationCount} open invitations"
+    };
+
+    var avatarButtonLabel = $"{avatarAccountLabel}. {invitationStatusLabel}.";
+
+    var returnUrl = string.IsNullOrWhiteSpace(rawPath) ? "/wine-surfer" : rawPath!;
+    if (!string.IsNullOrEmpty(returnUrl) && !returnUrl.StartsWith('/'))
     {
         returnUrl = "/wine-surfer";
     }
@@ -63,7 +86,55 @@
 <header class="top-bar">
     <a class="brand" href="/wine-surfer">Wine Surfer</a>
     <div class="top-bar-actions">
-        <span class="top-bar-avatar" role="img" aria-label="@avatarLabel">@avatarLetter</span>
+        <div class="notification-shell">
+            <button
+                id="notificationToggle"
+                class="top-bar-avatar"
+                type="button"
+                aria-haspopup="true"
+                aria-expanded="false"
+                aria-controls="notificationPanel"
+                aria-label="@avatarButtonLabel">
+                <span aria-hidden="true">@avatarLetter</span>
+            </button>
+            @if (openInvitationCount > 0)
+            {
+                <span class="notification-badge" aria-hidden="true">@openInvitationCount</span>
+            }
+            <div id="notificationPanel" class="notification-panel" role="region" aria-hidden="true" aria-labelledby="@notificationHeadingId">
+                <p id="@notificationHeadingId" class="notification-heading">Sisterhood invitations</p>
+                @if (openInvitationCount > 0)
+                {
+                    <ul class="notification-list">
+                        @foreach (var invitation in openInvitations)
+                        {
+                            @{ var tagLabel = invitation.MatchesUserId
+                                    ? "Linked to your account"
+                                    : invitation.MatchesEmail
+                                        ? "Matches your email"
+                                        : null; }
+                            <li class="notification-item">
+                                <a class="notification-link" href="@sisterhoodUrl">
+                                    <span class="notification-title">@invitation.SisterhoodName</span>
+                                    <span class="notification-meta">Invited as <strong>@invitation.InviteeEmail</strong></span>
+                                    @if (!string.IsNullOrWhiteSpace(tagLabel))
+                                    {
+                                        <span class="notification-tag">@tagLabel</span>
+                                    }
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="notification-empty">You're all caught up. No open invitations.</p>
+                }
+                <div class="notification-footer">
+                    <a href="@sisterhoodUrl">View Sisterhoods</a>
+                </div>
+            </div>
+        </div>
         <button id="menuToggle" class="burger" type="button" aria-expanded="false" aria-controls="menuPanel">
             <span></span>
         </button>
@@ -118,40 +189,95 @@
     (() => {
         const toggle = document.getElementById('menuToggle');
         const panel = document.getElementById('menuPanel');
-
-        if (!toggle || !panel) {
-            return;
-        }
+        const notificationToggle = document.getElementById('notificationToggle');
+        const notificationPanel = document.getElementById('notificationPanel');
 
         const closeMenu = () => {
+            if (!toggle || !panel) {
+                return;
+            }
+
             toggle.classList.remove('active');
             toggle.setAttribute('aria-expanded', 'false');
             panel.classList.remove('open');
             panel.setAttribute('aria-hidden', 'true');
         };
 
-        toggle.addEventListener('click', () => {
-            const isOpen = toggle.classList.toggle('active');
-            toggle.setAttribute('aria-expanded', String(isOpen));
-            panel.classList.toggle('open', isOpen);
-            panel.setAttribute('aria-hidden', String(!isOpen));
-        });
+        const closeNotifications = () => {
+            if (!notificationToggle || !notificationPanel) {
+                return;
+            }
 
-        panel.querySelectorAll('a, button').forEach(element => {
-            element.addEventListener('click', () => {
-                closeMenu();
+            notificationToggle.classList.remove('active');
+            notificationToggle.setAttribute('aria-expanded', 'false');
+            notificationPanel.classList.remove('open');
+            notificationPanel.setAttribute('aria-hidden', 'true');
+        };
+
+        if (toggle && panel) {
+            toggle.addEventListener('click', () => {
+                const isOpen = toggle.classList.toggle('active');
+                toggle.setAttribute('aria-expanded', String(isOpen));
+                panel.classList.toggle('open', isOpen);
+                panel.setAttribute('aria-hidden', String(!isOpen));
+
+                if (isOpen) {
+                    closeNotifications();
+                }
             });
-        });
+
+            panel.querySelectorAll('a, button').forEach(element => {
+                element.addEventListener('click', () => {
+                    closeMenu();
+                });
+            });
+        }
+
+        if (notificationToggle && notificationPanel) {
+            notificationToggle.addEventListener('click', () => {
+                const isOpen = notificationToggle.classList.toggle('active');
+                notificationToggle.setAttribute('aria-expanded', String(isOpen));
+                notificationPanel.classList.toggle('open', isOpen);
+                notificationPanel.setAttribute('aria-hidden', String(!isOpen));
+
+                if (isOpen) {
+                    closeMenu();
+                }
+            });
+
+            notificationPanel.querySelectorAll('a, button').forEach(element => {
+                element.addEventListener('click', () => {
+                    closeNotifications();
+                });
+            });
+        }
 
         document.addEventListener('click', (event) => {
-            if (!panel.contains(event.target) && event.target !== toggle) {
+            const target = event.target;
+            if (!(target instanceof Node)) {
+                return;
+            }
+
+            if (panel && toggle && !panel.contains(target) && !toggle.contains(target)) {
                 closeMenu();
+            }
+
+            if (notificationPanel && notificationToggle && !notificationPanel.contains(target) && !notificationToggle.contains(target)) {
+                closeNotifications();
             }
         });
 
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
+                const menuOpen = panel?.classList.contains('open');
+                const notificationsOpen = notificationPanel?.classList.contains('open');
+
+                if (menuOpen || notificationsOpen) {
+                    event.preventDefault();
+                }
+
                 closeMenu();
+                closeNotifications();
             }
         });
     })();

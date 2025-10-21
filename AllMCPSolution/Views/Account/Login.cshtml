@@ -1,10 +1,12 @@
 @model AllMCPSolution.Models.LoginViewModel
-@{
+@using AllMCPSolution.Controllers
+@{ 
     Layout = null;
     var currentPath = Context.Request.Path.Value ?? string.Empty;
     var registerUrl = Url.Action("Register", "Account", new { returnUrl = Model.ReturnUrl });
     var forgotPasswordUrl = Url.Action("ForgotPassword", "Account");
     var errorMessage = ViewData["ErrorMessage"] as string;
+    var topBarModel = new WineSurferTopBarModel(currentPath, Array.Empty<WineSurferIncomingSisterhoodInvitation>());
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -16,7 +18,7 @@
 </head>
 <body>
     <div class="page-content">
-        @await Html.PartialAsync("_WineSurferTopBar", currentPath)
+        @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="auth-main">
             <section class="auth-card" aria-labelledby="loginTitle">
                 <header>
