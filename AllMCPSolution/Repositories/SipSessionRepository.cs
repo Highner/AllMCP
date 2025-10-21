@@ -9,7 +9,7 @@ public interface ISipSessionRepository
 {
     Task<SipSession?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<List<SipSession>> GetBySisterhoodAsync(Guid sisterhoodId, CancellationToken ct = default);
-    Task<List<SipSession>> GetUpcomingAsync(DateTime utcNow, int limit, CancellationToken ct = default);
+    Task<List<SipSession>> GetUpcomingAsync(DateTime utcNow, int limit, Guid? memberUserId, CancellationToken ct = default);
     Task<SipSession> AddAsync(SipSession sipSession, CancellationToken ct = default);
     Task UpdateAsync(SipSession sipSession, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
@@ -60,14 +60,20 @@ public class SipSessionRepository : ISipSessionRepository
             .ToListAsync(ct);
     }
 
-    public async Task<List<SipSession>> GetUpcomingAsync(DateTime utcNow, int limit, CancellationToken ct = default)
+    public async Task<List<SipSession>> GetUpcomingAsync(DateTime utcNow, int limit, Guid? memberUserId, CancellationToken ct = default)
     {
+        if (!memberUserId.HasValue || memberUserId.Value == Guid.Empty)
+        {
+            return new List<SipSession>();
+        }
+
         if (limit < 0)
         {
             limit = 0;
         }
 
         var utcDate = utcNow.Date;
+        var userId = memberUserId.Value;
 
         IQueryable<SipSession> query = _db.SipSessions
             .AsNoTracking()
@@ -80,6 +86,9 @@ public class SipSessionRepository : ISipSessionRepository
             .Where(session =>
                 (session.ScheduledAt.HasValue && session.ScheduledAt.Value >= utcNow) ||
                 (!session.ScheduledAt.HasValue && session.Date.HasValue && session.Date.Value.Date >= utcDate))
+            .Where(session =>
+                session.Sisterhood != null &&
+                session.Sisterhood.Memberships.Any(membership => membership.UserId == userId))
             .OrderBy(session => session.ScheduledAt ?? session.Date ?? session.CreatedAt)
             .ThenBy(session => session.Name);
 

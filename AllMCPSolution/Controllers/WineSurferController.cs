@@ -148,28 +148,6 @@ public class WineSurferController : Controller
 
         var now = DateTime.UtcNow;
         const int upcomingSipSessionLimit = 4;
-        var upcomingSipSessions = (await _sipSessionRepository.GetUpcomingAsync(now, upcomingSipSessionLimit, cancellationToken))
-            .Select(session =>
-            {
-                var summary = new WineSurferSipSessionSummary(
-                    session.Id,
-                    session.Name,
-                    session.Description,
-                    session.ScheduledAt,
-                    session.Date,
-                    session.Location ?? string.Empty,
-                    session.CreatedAt,
-                    session.UpdatedAt,
-                    CreateBottleSummaries(session.Bottles)
-                );
-                return new WineSurferUpcomingSipSession(
-                    session.SisterhoodId,
-                    session.Sisterhood?.Name ?? "Sisterhood",
-                    session.Sisterhood?.Description,
-                    summary
-                );
-            })
-            .ToList();
 
         WineSurferCurrentUser? currentUser = null;
         IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
@@ -254,6 +232,33 @@ public class WineSurferController : Controller
                         entry.MatchesEmail))
                     .ToList();
             }
+        }
+
+        IReadOnlyList<WineSurferUpcomingSipSession> upcomingSipSessions = Array.Empty<WineSurferUpcomingSipSession>();
+        if (currentUserId.HasValue)
+        {
+            upcomingSipSessions = (await _sipSessionRepository.GetUpcomingAsync(now, upcomingSipSessionLimit, currentUserId.Value, cancellationToken))
+                .Select(session =>
+                {
+                    var summary = new WineSurferSipSessionSummary(
+                        session.Id,
+                        session.Name,
+                        session.Description,
+                        session.ScheduledAt,
+                        session.Date,
+                        session.Location ?? string.Empty,
+                        session.CreatedAt,
+                        session.UpdatedAt,
+                        CreateBottleSummaries(session.Bottles)
+                    );
+                    return new WineSurferUpcomingSipSession(
+                        session.SisterhoodId,
+                        session.Sisterhood?.Name ?? "Sisterhood",
+                        session.Sisterhood?.Description,
+                        summary
+                    );
+                })
+                .ToList();
         }
 
         IReadOnlyList<WineSurferSentInvitationNotification> sentInvitationNotifications = Array.Empty<WineSurferSentInvitationNotification>();
