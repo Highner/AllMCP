@@ -452,6 +452,35 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex: 1;
+        }
+
+        .member-avatar {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid rgba(244, 241, 234, 0.18);
+            background: rgba(244, 241, 234, 0.08);
+            color: #f4f1ea;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .member-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .member-badges {
+            display: inline-flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
         }
 
         .member-name {
@@ -463,6 +492,34 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .sisterhood-favorite-region {
+            margin: 14px 0;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(244, 241, 234, 0.05);
+            display: grid;
+            gap: 4px;
+        }
+
+        .favorite-region-label {
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .favorite-region-name {
+            font-size: 15px;
+            letter-spacing: 1px;
+        }
+
+        .favorite-region-score {
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
         }
 
         .inline-form {
@@ -630,22 +687,44 @@
                             <p class="sisterhood-description">@sisterhood.Description</p>
                         }
 
+                        @if (sisterhood.FavoriteRegion != null)
+                        {
+                            var favorite = sisterhood.FavoriteRegion;
+                            var favoriteRegionDisplay = string.IsNullOrWhiteSpace(favorite.CountryName)
+                                ? favorite.Name
+                                : $"{favorite.Name}, {favorite.CountryName}";
+                            <div class="sisterhood-favorite-region" role="group" aria-label="Favorite region insight">
+                                <span class="favorite-region-label">Favorite region</span>
+                                <span class="favorite-region-name">@favoriteRegionDisplay</span>
+                                <span class="favorite-region-score">Average score · @favorite.AverageScore.ToString("0.##")</span>
+                            </div>
+                        }
+
                         @if (sisterhood.Members.Count > 0)
                         {
                             <ul class="member-list">
                                 @foreach (var member in sisterhood.Members)
                                 {
                                     <li>
-                                        <div class="member-identity">
-                                            <span class="member-name">@member.DisplayName</span>
-                                            @if (member.IsAdmin)
-                                            {
-                                                <span class="badge admin">Admin</span>
-                                            }
-                                            @if (member.IsCurrentUser)
-                                            {
-                                                <span class="badge you">You</span>
-                                            }
+                                        @{ var avatarLabel = string.IsNullOrWhiteSpace(member.DisplayName) ? "Member avatar" : $"Avatar for {member.DisplayName}"; }
+                                            <div class="member-identity">
+                                                <span class="member-avatar" role="img" aria-label="@avatarLabel">@member.AvatarLetter</span>
+                                                <div class="member-details">
+                                                    <span class="member-name">@member.DisplayName</span>
+                                                    @if (member.IsAdmin || member.IsCurrentUser)
+                                                    {
+                                                        <div class="member-badges">
+                                                            @if (member.IsAdmin)
+                                                            {
+                                                                <span class="badge admin">Admin</span>
+                                                            }
+                                                            @if (member.IsCurrentUser)
+                                                            {
+                                                                <span class="badge you">You</span>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
                                         </div>
                                         @if (sisterhood.CanManage && !member.IsCurrentUser)
                                         {
