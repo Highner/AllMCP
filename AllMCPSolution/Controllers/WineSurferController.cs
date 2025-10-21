@@ -11,6 +11,7 @@ using AllMCPSolution.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace AllMCPSolution.Controllers;
 
@@ -363,6 +364,81 @@ public class WineSurferController : Controller
         catch (Exception)
         {
             TempData["SisterhoodError"] = "We couldn't create that sisterhood just now. Please try again.";
+        }
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
+    [HttpPost("sisterhoods/update-details")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateSisterhoodDetails(UpdateSisterhoodDetailsRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid || request.SisterhoodId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't update that sisterhood.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var trimmedNameCandidate = request.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedNameCandidate))
+        {
+            TempData["SisterhoodError"] = "Please provide a valid sisterhood name.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var trimmedName = trimmedNameCandidate!;
+        var trimmedDescription = string.IsNullOrWhiteSpace(request.Description)
+            ? null
+            : request.Description!.Trim();
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var sisterhood = await _sisterhoodRepository.GetByIdAsync(request.SisterhoodId, cancellationToken);
+        if (sisterhood is null)
+        {
+            TempData["SisterhoodError"] = "That sisterhood was already removed.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var isAdmin = await _sisterhoodRepository.IsAdminAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (!isAdmin)
+        {
+            TempData["SisterhoodError"] = "Only admins can update sisterhood details.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var existingDescription = sisterhood.Description ?? string.Empty;
+        var nextDescription = trimmedDescription ?? string.Empty;
+        if (string.Equals(sisterhood.Name, trimmedName, StringComparison.Ordinal)
+            && string.Equals(existingDescription, nextDescription, StringComparison.Ordinal))
+        {
+            TempData["SisterhoodStatus"] = "No changes to save.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        try
+        {
+            await _sisterhoodRepository.UpdateAsync(new Sisterhood
+            {
+                Id = request.SisterhoodId,
+                Name = trimmedName,
+                Description = trimmedDescription,
+            }, cancellationToken);
+
+            TempData["SisterhoodStatus"] = $"Updated '{trimmedName}'.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["SisterhoodError"] = ex.Message;
+        }
+        catch (DbUpdateException)
+        {
+            TempData["SisterhoodError"] = "We couldn't update that sisterhood right now. Please try again.";
         }
 
         return RedirectToAction(nameof(Sisterhoods));
@@ -1059,6 +1135,19 @@ public class WineSurferController : Controller
 
     public class CreateSisterhoodRequest
     {
+        [Required]
+        [StringLength(256, MinimumLength = 2)]
+        public string Name { get; set; } = string.Empty;
+
+        [StringLength(1024)]
+        public string? Description { get; set; }
+    }
+
+    public class UpdateSisterhoodDetailsRequest
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
+
         [Required]
         [StringLength(256, MinimumLength = 2)]
         public string Name { get; set; } = string.Empty;
