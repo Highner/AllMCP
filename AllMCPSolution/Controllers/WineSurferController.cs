@@ -91,11 +91,16 @@ public class WineSurferController : Controller
 
     private readonly IWineRepository _wineRepository;
     private readonly IUserRepository _userRepository;
+    private readonly ISisterhoodRepository _sisterhoodRepository;
 
-    public WineSurferController(IWineRepository wineRepository, IUserRepository userRepository)
+    public WineSurferController(
+        IWineRepository wineRepository,
+        IUserRepository userRepository,
+        ISisterhoodRepository sisterhoodRepository)
     {
         _wineRepository = wineRepository;
         _userRepository = userRepository;
+        _sisterhoodRepository = sisterhoodRepository;
     }
 
     [HttpGet("")]
@@ -151,10 +156,66 @@ public class WineSurferController : Controller
     }
 
     [HttpGet("sisterhoods")]
-    public IActionResult Sisterhoods()
+    public async Task<IActionResult> Sisterhoods(CancellationToken cancellationToken)
     {
         Response.ContentType = "text/html; charset=utf-8";
-        return View("~/Views/Sisterhoods/Index.cshtml");
+
+        var isAuthenticated = User?.Identity?.IsAuthenticated == true;
+        string? displayName = null;
+        IReadOnlyList<WineSurferSisterhoodSummary> sisterhoods = Array.Empty<WineSurferSisterhoodSummary>();
+
+        if (isAuthenticated)
+        {
+            displayName = User.Identity?.Name;
+            var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
+
+            Guid? userId = null;
+            var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (Guid.TryParse(idClaim, out var parsedId))
+            {
+                userId = parsedId;
+            }
+
+            ApplicationUser? domainUser = null;
+            if (userId.HasValue)
+            {
+                domainUser = await _userRepository.GetByIdAsync(userId.Value, cancellationToken);
+            }
+
+            if (domainUser is null && !string.IsNullOrWhiteSpace(displayName))
+            {
+                domainUser = await _userRepository.FindByNameAsync(displayName, cancellationToken);
+            }
+
+            if (domainUser is not null)
+            {
+                userId = domainUser.Id;
+                if (string.IsNullOrWhiteSpace(displayName))
+                {
+                    displayName = domainUser.Name;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(displayName))
+            {
+                displayName = email;
+            }
+
+            if (userId.HasValue)
+            {
+                var membership = await _sisterhoodRepository.GetForUserAsync(userId.Value, cancellationToken);
+                sisterhoods = membership
+                    .Select(s => new WineSurferSisterhoodSummary(
+                        s.Id,
+                        s.Name,
+                        s.Description,
+                        s.Members?.Count ?? 0))
+                    .ToList();
+            }
+        }
+
+        var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, sisterhoods);
+        return View("~/Views/Sisterhoods/Index.cshtml", model);
     }
 
     [HttpGet("users")]
@@ -244,6 +305,13 @@ public class WineSurferController : Controller
 }
 
 public record WineSurferLandingViewModel(IReadOnlyList<MapHighlightPoint> HighlightPoints, WineSurferCurrentUser? CurrentUser);
+
+public record WineSurferSisterhoodsViewModel(
+    bool IsAuthenticated,
+    string? DisplayName,
+    IReadOnlyList<WineSurferSisterhoodSummary> Sisterhoods);
+
+public record WineSurferSisterhoodSummary(Guid Id, string Name, string? Description, int MemberCount);
 
 public record MapHighlightPoint(
     string Label,
