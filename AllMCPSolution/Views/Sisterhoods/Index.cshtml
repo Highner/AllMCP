@@ -1048,17 +1048,35 @@
                                                     <input type="hidden" name="MakeAdmin" value="@(member.IsAdmin ? "false" : "true")" />
                                                     <button type="submit" class="secondary-button">@(member.IsAdmin ? "Remove Admin" : "Make Admin")</button>
                                                 </form>
-                                                <form method="post" action="@Url.Action("RemoveSisterhoodMember", "WineSurfer")" class="inline-form" onsubmit="return confirm('Remove @member.DisplayName.Replace("'", "\\'") from this sisterhood?');">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
-                                                    <input type="hidden" name="UserId" value="@member.Id" />
-                                                    <button type="submit" class="danger-button">Remove</button>
-                                                </form>
+                                                @if (!member.IsAdmin)
+                                                {
+                                                    <form method="post" action="@Url.Action("RemoveSisterhoodMember", "WineSurfer")" class="inline-form" onsubmit="return confirm('Remove @member.DisplayName.Replace("'", "\\'") from this sisterhood?');">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                                        <input type="hidden" name="UserId" value="@member.Id" />
+                                                        <button type="submit" class="danger-button">Remove</button>
+                                                    </form>
+                                                }
                                             </div>
                                         }
                                     </li>
                                 }
                             </ul>
+                        }
+
+                        @if (Model.CurrentUserId.HasValue && sisterhood.Members.Any(member => member.IsCurrentUser))
+                        {
+                            @{ var leaveConfirmName = string.IsNullOrWhiteSpace(sisterhood.Name)
+                                    ? "this sisterhood"
+                                    : sisterhood.Name.Replace("'", "\\'"); }
+                            <footer>
+                                <form method="post" action="@Url.Action("RemoveSisterhoodMember", "WineSurfer")" class="inline-form" onsubmit="return confirm('Leave @leaveConfirmName?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                    <input type="hidden" name="UserId" value="@Model.CurrentUserId" />
+                                    <button type="submit" class="ghost-danger-button">Leave sisterhood</button>
+                                </form>
+                            </footer>
                         }
 
                         @if (sisterhood.CanManage && sisterhood.PendingInvitations.Count > 0)

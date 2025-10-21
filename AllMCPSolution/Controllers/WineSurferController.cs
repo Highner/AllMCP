@@ -790,11 +790,16 @@ public class WineSurferController : Controller
             return Challenge();
         }
 
-        var isAdmin = await _sisterhoodRepository.IsAdminAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
-        if (!isAdmin)
+        var isSelfRemoval = request.UserId == currentUserId.Value;
+
+        if (!isSelfRemoval)
         {
-            TempData["SisterhoodError"] = "Only admins can remove members.";
-            return RedirectToAction(nameof(Sisterhoods));
+            var isAdmin = await _sisterhoodRepository.IsAdminAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+            if (!isAdmin)
+            {
+                TempData["SisterhoodError"] = "Only admins can remove members.";
+                return RedirectToAction(nameof(Sisterhoods));
+            }
         }
 
         var membership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, request.UserId, cancellationToken);
@@ -804,13 +809,21 @@ public class WineSurferController : Controller
             return RedirectToAction(nameof(Sisterhoods));
         }
 
+        if (!isSelfRemoval && membership.IsAdmin)
+        {
+            TempData["SisterhoodError"] = "Admins can only remove non-admin members. Update their role before removing them.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
         if (membership.IsAdmin)
         {
             var allMemberships = await _sisterhoodRepository.GetMembershipsAsync(request.SisterhoodId, cancellationToken);
             var adminCount = allMemberships.Count(m => m.IsAdmin);
             if (adminCount <= 1)
             {
-                TempData["SisterhoodError"] = "You need at least one admin in the sisterhood. Promote another member before removing this admin.";
+                TempData["SisterhoodError"] = isSelfRemoval
+                    ? "You need at least one admin in the sisterhood. Promote another member before leaving."
+                    : "You need at least one admin in the sisterhood. Promote another member before removing this admin.";
                 return RedirectToAction(nameof(Sisterhoods));
             }
         }
@@ -818,14 +831,25 @@ public class WineSurferController : Controller
         var removed = await _sisterhoodRepository.RemoveUserFromSisterhoodAsync(request.SisterhoodId, request.UserId, cancellationToken);
         if (!removed)
         {
-            TempData["SisterhoodError"] = "We couldn't remove that member right now.";
+            TempData["SisterhoodError"] = isSelfRemoval
+                ? "We couldn't remove you from that sisterhood right now."
+                : "We couldn't remove that member right now.";
             return RedirectToAction(nameof(Sisterhoods));
         }
 
         var sisterhood = await _sisterhoodRepository.GetByIdAsync(request.SisterhoodId, cancellationToken);
-        TempData["SisterhoodStatus"] = sisterhood is null
-            ? "Member removed."
-            : $"Removed {membership.User?.Name ?? "that member"} from {sisterhood.Name}.";
+        if (isSelfRemoval)
+        {
+            TempData["SisterhoodStatus"] = sisterhood is null
+                ? "You left the sisterhood."
+                : $"You left {sisterhood.Name}.";
+        }
+        else
+        {
+            TempData["SisterhoodStatus"] = sisterhood is null
+                ? "Member removed."
+                : $"Removed {membership.User?.Name ?? "that member"} from {sisterhood.Name}.";
+        }
 
         return RedirectToAction(nameof(Sisterhoods));
     }
