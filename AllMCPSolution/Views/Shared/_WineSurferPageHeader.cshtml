@@ -1,0 +1,94 @@
+@model WineSurferPageHeaderModel
+
+<header class="wine-surfer-page-header" data-wine-surfer-page-header data-page-title="@Model.Title">
+    <h1 class="wine-surfer-page-header__title" data-page-header-title>@Model.Title</h1>
+</header>
+<script>
+(() => {
+    const init = () => {
+        const header = document.querySelector('[data-wine-surfer-page-header]');
+        const topBarTitle = document.querySelector('[data-top-bar-page-title]');
+        if (!header || !topBarTitle) {
+            return;
+        }
+
+        const rawTitle = header.getAttribute('data-page-title') || '';
+        const titleText = rawTitle.trim();
+        if (!titleText) {
+            return;
+        }
+
+        const topBar = document.querySelector('.top-bar');
+        let isTitleVisible = false;
+
+        const showTitle = () => {
+            if (isTitleVisible) {
+                return;
+            }
+
+            topBarTitle.textContent = titleText;
+            topBarTitle.hidden = false;
+            topBarTitle.classList.add('is-visible');
+            topBarTitle.setAttribute('aria-hidden', 'false');
+            isTitleVisible = true;
+        };
+
+        const hideTitle = () => {
+            if (!isTitleVisible) {
+                return;
+            }
+
+            topBarTitle.classList.remove('is-visible');
+            topBarTitle.setAttribute('aria-hidden', 'true');
+            topBarTitle.hidden = true;
+            topBarTitle.textContent = '';
+            isTitleVisible = false;
+        };
+
+        const compute = () => {
+            const headerRect = header.getBoundingClientRect();
+            const topBarHeight = topBar ? Math.max(0, Math.round(topBar.getBoundingClientRect().height)) : 0;
+            const headerVisible = headerRect.bottom > topBarHeight;
+
+            if (headerVisible) {
+                hideTitle();
+            } else {
+                showTitle();
+            }
+        };
+
+        let scheduled = false;
+        const schedule = () => {
+            if (scheduled) {
+                return;
+            }
+
+            scheduled = true;
+            const run = () => {
+                scheduled = false;
+                compute();
+            };
+
+            if (typeof window.requestAnimationFrame === 'function') {
+                window.requestAnimationFrame(run);
+            } else {
+                setTimeout(run, 16);
+            }
+        };
+
+        schedule();
+        window.addEventListener('scroll', schedule, { passive: true });
+        window.addEventListener('resize', schedule);
+        window.addEventListener('beforeunload', () => {
+            window.removeEventListener('scroll', schedule);
+            window.removeEventListener('resize', schedule);
+        }, { once: true });
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+    } else {
+        init();
+    }
+})();
+</script>

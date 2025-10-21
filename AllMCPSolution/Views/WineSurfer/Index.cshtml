@@ -482,7 +482,7 @@
             gap: 48px;
         }
 
-        h1 {
+        .wine-surfer-page-header .wine-surfer-page-header__title {
             font-size: clamp(48px, 6vw, 96px);
             margin: 0;
             letter-spacing: 12px;
@@ -818,7 +818,7 @@
                 padding-top: 60px;
             }
 
-            h1 {
+            .wine-surfer-page-header .wine-surfer-page-header__title {
                 letter-spacing: 8px;
             }
 
@@ -872,7 +872,7 @@
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main>
-            <h1>Wine Surfer</h1>
+            @await Html.PartialAsync("_WineSurferPageHeader", new WineSurferPageHeaderModel("Wine Surfer"))
             <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
             @if (Model.CurrentUser is null)
             {

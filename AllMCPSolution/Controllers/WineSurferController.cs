@@ -2177,6 +2177,8 @@ public record WineSurferTopBarModel(
     IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
     IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications);
 
+public record WineSurferPageHeaderModel(string Title);
+
 public record WineSurferSisterhoodsViewModel(
     bool IsAuthenticated,
     string? DisplayName,
