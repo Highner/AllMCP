@@ -52,9 +52,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Wine Surfer</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
 </head>
-<body>
+<body class="wine-app">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main class="inventory-shell">
         @await Html.PartialAsync("_WineSurferPageHeader", new WineSurferPageHeaderModel("Wine Inventory"))
@@ -92,10 +93,10 @@
 
         @if (!hasBottles)
         {
-            <div class="no-results">No bottles match the current filters.</div>
+        <div class="no-results wine-card-hover wine-card-hover--prominent">No bottles match the current filters.</div>
         }
 
-        <section class="crud-table" data-crud-table="summary">
+        <section class="crud-table wine-surface wine-surface-border wine-card-hover" data-crud-table="summary">
             <header class="crud-table__header">
                 <div class="crud-table__header-content">
                     <h2 class="crud-table__title">Inventory Summary</h2>
@@ -103,7 +104,7 @@
                 </div>
                 <button type="button" class="crud-table__action-button inventory-add-trigger">Add Wine</button>
             </header>
-            <div class="crud-table__body">
+            <div class="crud-table__body wine-surface wine-surface-border">
                 <table id="inventory-table" class="inventory-table crud-table__table">
                     <thead>
                         <tr class="header-row crud-table__header-row">
@@ -239,12 +240,12 @@
             <div id="details-message" class="details-message" role="status"></div>
             <div class="details-layout">
                 <div class="details-main">
-                    <section class="crud-table" data-crud-table="details">
+                    <section class="crud-table wine-surface wine-surface-border wine-card-hover" data-crud-table="details">
                         <header class="crud-table__header">
                             <h3 class="crud-table__title">Bottle Inventory</h3>
                             <p class="crud-table__description">Manage individual bottles for the selected wine group.</p>
                         </header>
-                        <div class="crud-table__body">
+                        <div class="crud-table__body wine-surface wine-surface-border">
                             <table class="details-table crud-table__table" id="details-table">
                                 <thead>
                                     <tr class="crud-table__add-row add-row" id="detail-add-row" hidden>
@@ -297,12 +298,12 @@
                         <button type="button" id="notes-close" class="notes-close">Close</button>
                     </header>
                     <div id="notes-message" class="notes-message" role="status"></div>
-                    <section class="crud-table" data-crud-table="notes">
+                    <section class="crud-table wine-surface wine-surface-border wine-card-hover" data-crud-table="notes">
                         <header class="crud-table__header">
                             <h4 class="crud-table__title">Tasting Notes</h4>
                             <p class="crud-table__description">Track scores and notes for the selected bottle.</p>
                         </header>
-                        <div class="crud-table__body">
+                        <div class="crud-table__body wine-surface wine-surface-border">
                             <table class="notes-table crud-table__table" id="notes-table">
                                 <thead>
                                     <tr class="crud-table__add-row add-row" id="note-add-row">

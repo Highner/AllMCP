@@ -1,0 +1,56 @@
+:root {
+    color-scheme: dark;
+    --wine-app-background: radial-gradient(circle at top, rgba(244, 241, 234, 0.08), transparent 60%), #050505;
+    --wine-surface-gradient: linear-gradient(160deg, rgba(244, 241, 234, 0.06), rgba(244, 241, 234, 0.02));
+    --wine-surface-gradient-strong: linear-gradient(150deg, rgba(244, 241, 234, 0.08), rgba(244, 241, 234, 0.02));
+    --wine-surface-border: rgba(244, 241, 234, 0.08);
+    --wine-surface-border-strong: rgba(244, 241, 234, 0.12);
+    --wine-surface-highlight: radial-gradient(circle at top right, rgba(244, 241, 234, 0.12), transparent 55%);
+    --wine-surface-highlight-strong: radial-gradient(circle at top right, rgba(244, 241, 234, 0.18), transparent 55%);
+}
+
+body.wine-app {
+    background: var(--wine-app-background);
+    color: #f4f1ea;
+}
+
+.wine-surface {
+    background: var(--wine-surface-gradient);
+}
+
+.wine-surface--prominent {
+    background: var(--wine-surface-gradient-strong);
+}
+
+.wine-surface-border {
+    border: 1px solid var(--wine-surface-border);
+}
+
+.wine-surface-border--prominent {
+    border: 1px solid var(--wine-surface-border-strong);
+}
+
+.wine-card-hover {
+    position: relative;
+    overflow: hidden;
+}
+
+.wine-card-hover::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: var(--wine-surface-highlight);
+    opacity: 0;
+    transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.wine-card-hover:hover::after,
+.wine-card-hover:focus-visible::after,
+.wine-card-hover:focus-within::after {
+    opacity: 1;
+}
+
+.wine-card-hover--prominent::after {
+    background: var(--wine-surface-highlight-strong);
+}

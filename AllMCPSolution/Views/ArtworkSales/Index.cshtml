@@ -8,33 +8,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@ViewData["Title"]</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6fb; margin: 0; }
-        .container { max-width: 1600px; margin: 30px auto; background: white; padding: 24px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-        h1 { margin: 0 0 16px; color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--wine-app-background); margin: 0; color: #f4f1ea; }
+        .container { max-width: 1600px; margin: 30px auto; padding: 24px; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.45); }
+        h1 { margin: 0 0 16px; color: #f4f1ea; }
         .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
-        .toolbar input[type="text"]{ padding: 10px 12px; border: 2px solid #667eea; border-radius: 6px; min-width: 260px; }
-        .btn{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
-        .btn.secondary{ background: linear-gradient(135deg, #6c757d 0%, #495057 100%); }
-        .preview-table{ width: 100%; min-width: 1500px; border-collapse: collapse; font-size: 14px; background: white; border-radius: 6px; overflow: hidden; }
-        .preview-table th, .preview-table td{ padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; white-space: nowrap; }
-        .preview-table thead th{ background: #eef1ff; color: #333; position: sticky; top: 0; z-index: 1; cursor: pointer; }
+        .toolbar input[type="text"]{ padding: 10px 12px; border: 1px solid rgba(244, 241, 234, 0.28); border-radius: 8px; min-width: 260px; background: rgba(244, 241, 234, 0.08); color: #f4f1ea; }
+        .toolbar input[type="text"]::placeholder { color: rgba(244, 241, 234, 0.6); }
+        .btn{ background: linear-gradient(135deg, rgba(244, 241, 234, 0.35) 0%, rgba(244, 241, 234, 0.18) 100%); color: #050505; border: none; padding: 10px 16px; border-radius: 999px; cursor: pointer; font-weight: 600; letter-spacing: 1px; }
+        .btn.secondary{ background: linear-gradient(135deg, rgba(244, 241, 234, 0.2) 0%, rgba(244, 241, 234, 0.12) 100%); color: #f4f1ea; border: 1px solid rgba(244, 241, 234, 0.28); }
+        .preview-table{ width: 100%; min-width: 1500px; border-collapse: collapse; font-size: 14px; background: transparent; border-radius: 12px; overflow: hidden; color: #f4f1ea; }
+        .preview-table th, .preview-table td{ padding: 10px 12px; border-bottom: 1px solid rgba(244, 241, 234, 0.12); text-align: left; white-space: nowrap; }
+        .preview-table thead th{ background: rgba(244, 241, 234, 0.12); color: #f4f1ea; position: sticky; top: 0; z-index: 1; cursor: pointer; }
         .preview-table th.name-col, .preview-table td.name-col { width: 350px; max-width: 350px; }
         .preview-table td.name-col { overflow: hidden; text-overflow: ellipsis; }
-        .preview-scroller{ max-height: 500px; overflow: auto; border: 1px solid #eef1ff; border-radius: 6px; }
-        .muted{ color: #777; font-size: 13px; }
+        .preview-scroller{ max-height: 500px; overflow: auto; border: 1px solid rgba(244, 241, 234, 0.12); border-radius: 12px; background: rgba(10, 10, 10, 0.6); }
+        .muted{ color: rgba(244, 241, 234, 0.7); font-size: 13px; }
         .actions button{ margin-right: 6px; }
         .form-grid{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
-        .form-grid input, .form-grid select{ padding: 8px; border: 1px solid #ccd; border-radius: 6px; }
-        .section { background: #f8f9ff; border-radius: 8px; padding: 12px; margin-top: 14px; }
-        .label { font-weight: 600; color: #333; margin-bottom: 6px; }
-                .mode-badge { padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; border: 1px solid transparent; }
-                .mode-badge.create { background: #e6f7ec; color: #1a7f37; border-color: #b5e6c6; }
-                .mode-badge.edit { background: #fff4e5; color: #9a6700; border-color: #f1c26b; }
+        .form-grid input, .form-grid select{ padding: 10px; border: 1px solid rgba(244, 241, 234, 0.24); border-radius: 8px; background: rgba(244, 241, 234, 0.08); color: #f4f1ea; }
+        .form-grid select option { color: #050505; }
+        .section { border-radius: 16px; padding: 16px; margin-top: 14px; }
+        .label { font-weight: 600; color: rgba(244, 241, 234, 0.85); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1.2px; font-size: 12px; }
+        .mode-badge { padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 12px; border: 1px solid rgba(244, 241, 234, 0.28); background: rgba(244, 241, 234, 0.12); color: #f4f1ea; }
+        .mode-badge.create { border-color: rgba(110, 196, 140, 0.45); background: rgba(110, 196, 140, 0.18); color: #d3f7df; }
+        .mode-badge.edit { border-color: rgba(255, 198, 125, 0.45); background: rgba(255, 198, 125, 0.18); color: #ffe7c7; }
     </style>
 </head>
-<body>
-<div class="container">
+<body class="wine-app">
+<div class="container wine-surface--prominent wine-surface-border wine-card-hover wine-card-hover--prominent">
     <h1>Artwork Trades</h1>
     <div class="toolbar">
         <button class="btn secondary" onclick="window.location.href='/'">← Main Menu</button>
@@ -43,7 +46,7 @@
         <span id="count" class="muted"></span>
     </div>
 
-    <div class="section">
+    <div class="section wine-surface wine-surface-border wine-card-hover">
         <div style="display:flex; align-items:center; justify-content: space-between;">
             <div class="label"><span id="modeTitle">Create New Trade</span></div>
             <span id="modeBadge" class="mode-badge create">Create mode</span>
@@ -129,7 +132,7 @@
 
     <div style="margin-top:14px;" class="muted">Click a column header to sort. Click a row to load it into the form for editing.</div>
 
-    <div class="preview-scroller" style="margin-top:10px;">
+    <div class="preview-scroller wine-surface wine-surface-border" style="margin-top:10px;">
         <table class="preview-table" id="salesTable">
             <thead>
                 <tr>

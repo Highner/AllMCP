@@ -40,6 +40,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Wine Surfer · Sip Session</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <style>
         :root {
             color-scheme: dark;
@@ -48,7 +49,7 @@
         body {
             margin: 0;
             min-height: 100vh;
-            background: radial-gradient(circle at top, rgba(244, 241, 234, 0.08), transparent 60%), #050505;
+            background: var(--wine-app-background);
             color: #f4f1ea;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
@@ -168,10 +169,8 @@
         }
 
         .bottle-card {
-            border: 1px solid rgba(244, 241, 234, 0.12);
             border-radius: 18px;
             padding: 22px 26px;
-            background: rgba(10, 10, 10, 0.85);
             backdrop-filter: blur(4px);
             display: flex;
             flex-direction: column;
@@ -272,7 +271,7 @@
     var scheduleLabel = FormatSipSessionSchedule(Model.Session);
     var locationLabel = string.IsNullOrWhiteSpace(Model.Session.Location) ? "Location TBD" : Model.Session.Location;
 }
-<body class="session-page @bodyClass">
+<body class="wine-app session-page @bodyClass">
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="session-main">
