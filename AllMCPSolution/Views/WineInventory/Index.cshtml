@@ -100,18 +100,30 @@
                     <thead>
                         <tr class="crud-table__add-row add-summary-row">
                             <td>
-                                <input type="text" class="summary-add-name" placeholder="Wine name" aria-label="Wine name" />
+                                <div class="summary-field summary-field--wine">
+                                    <select class="summary-add-wine" aria-label="Existing wine">
+                                        <option value="">Create new wine</option>
+                                    </select>
+                                    <input type="text" class="summary-add-name" placeholder="Wine name" aria-label="Wine name" />
+                                </div>
                             </td>
                             <td>
-                                <select class="summary-add-sub-app" aria-label="Sub-appellation">
-                                    <option value="">Select sub-appellation</option>
-                                </select>
+                                <div class="summary-field">
+                                    <select class="summary-add-sub-app" aria-label="Sub-appellation">
+                                        <option value="">Select sub-appellation</option>
+                                    </select>
+                                </div>
                             </td>
                             <td>
-                                <input type="number" class="summary-add-vintage" min="1900" max="2100" placeholder="Vintage" aria-label="Vintage" />
+                                <div class="summary-field summary-field--vintage">
+                                    <select class="summary-add-vintage-select" aria-label="Existing vintage" hidden>
+                                        <option value="">Select vintage</option>
+                                    </select>
+                                    <input type="number" class="summary-add-vintage" min="1900" max="2100" placeholder="Vintage" aria-label="Vintage" />
+                                </div>
                             </td>
                             <td>
-                                <input type="number" class="summary-add-count" min="1" value="1" aria-label="Initial bottle count" />
+                                <span class="summary-add-count" aria-label="Initial bottle count">1</span>
                             </td>
                             <td>
                                 <select class="summary-add-color" aria-label="Color">
@@ -124,6 +136,9 @@
                             <td class="summary-add-score">—</td>
                             <td>
                                 <div class="actions">
+                                    <select class="summary-add-user" aria-label="Bottle owner">
+                                        <option value="">Select user</option>
+                                    </select>
                                     <button type="button" class="summary-add-submit crud-table__action-button">Add Wine</button>
                                 </div>
                             </td>
