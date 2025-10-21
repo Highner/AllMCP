@@ -101,6 +101,7 @@ public class WineSurferController : Controller
     private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
     private readonly ISipSessionRepository _sipSessionRepository;
     private readonly IBottleRepository _bottleRepository;
+    private readonly ITastingNoteRepository _tastingNoteRepository;
     private static readonly TimeSpan SentInvitationNotificationWindow = TimeSpan.FromDays(7);
 
     public WineSurferController(
@@ -109,7 +110,8 @@ public class WineSurferController : Controller
         ISisterhoodRepository sisterhoodRepository,
         ISisterhoodInvitationRepository sisterhoodInvitationRepository,
         ISipSessionRepository sipSessionRepository,
-        IBottleRepository bottleRepository)
+        IBottleRepository bottleRepository,
+        ITastingNoteRepository tastingNoteRepository)
     {
         _wineRepository = wineRepository;
         _userRepository = userRepository;
@@ -117,6 +119,7 @@ public class WineSurferController : Controller
         _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
         _sipSessionRepository = sipSessionRepository;
         _bottleRepository = bottleRepository;
+        _tastingNoteRepository = tastingNoteRepository;
     }
 
     [HttpGet("")]
@@ -1419,6 +1422,162 @@ public class WineSurferController : Controller
     }
 
     [Authorize]
+    [HttpPost("sisterhoods/sessions/drink-bottle")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DrinkSipSessionBottle(DrinkSipSessionBottleRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid ||
+            request is null ||
+            request.SisterhoodId == Guid.Empty ||
+            request.SipSessionId == Guid.Empty ||
+            request.BottleId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't mark that bottle as enjoyed.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var membership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (membership is null)
+        {
+            TempData["SisterhoodError"] = "You must be part of this sisterhood to manage bottles.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var session = await _sipSessionRepository.GetByIdAsync(request.SipSessionId, cancellationToken);
+        if (session is null || session.SisterhoodId != request.SisterhoodId)
+        {
+            TempData["SisterhoodError"] = "That sip session could not be found.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var bottle = session.Bottles?.FirstOrDefault(b => b.Id == request.BottleId && b.UserId == currentUserId.Value);
+        if (bottle is null)
+        {
+            TempData["SisterhoodError"] = "Only the bottle contributor can mark it as enjoyed.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var drunkAt = DetermineSipSessionDrunkAt(session);
+        var bottleLabel = CreateBottleLabel(bottle);
+
+        try
+        {
+            var marked = await _bottleRepository.MarkAsDrunkAsync(request.BottleId, currentUserId.Value, drunkAt, cancellationToken);
+            if (marked)
+            {
+                TempData["SisterhoodStatus"] = $"Marked {bottleLabel} as enjoyed during '{session.Name}'.";
+            }
+            else
+            {
+                TempData["SisterhoodError"] = "We couldn't mark that bottle as enjoyed.";
+            }
+        }
+        catch (Exception)
+        {
+            TempData["SisterhoodError"] = "We couldn't mark that bottle as enjoyed right now. Please try again.";
+        }
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
+    [HttpPost("sisterhoods/sessions/rate-bottle")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RateSipSessionBottle(RateSipSessionBottleRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid ||
+            request is null ||
+            request.SisterhoodId == Guid.Empty ||
+            request.SipSessionId == Guid.Empty ||
+            request.BottleId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't save that tasting note.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var membership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (membership is null)
+        {
+            TempData["SisterhoodError"] = "You must be part of this sisterhood to leave a tasting note.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var session = await _sipSessionRepository.GetByIdAsync(request.SipSessionId, cancellationToken);
+        if (session is null || session.SisterhoodId != request.SisterhoodId)
+        {
+            TempData["SisterhoodError"] = "That sip session could not be found.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var bottle = session.Bottles?.FirstOrDefault(b => b.Id == request.BottleId);
+        if (bottle is null)
+        {
+            TempData["SisterhoodError"] = "That bottle is no longer part of the sip session.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var noteText = request.Note?.Trim();
+        if (string.IsNullOrWhiteSpace(noteText))
+        {
+            TempData["SisterhoodError"] = "Please share a tasting note before saving.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        decimal? score = null;
+        if (request.Score.HasValue)
+        {
+            score = Math.Round(request.Score.Value, 1, MidpointRounding.AwayFromZero);
+        }
+
+        var bottleLabel = CreateBottleLabel(bottle);
+
+        try
+        {
+            var existingNotes = await _tastingNoteRepository.GetByBottleIdAsync(request.BottleId, cancellationToken);
+            var existing = existingNotes.FirstOrDefault(note => note.UserId == currentUserId.Value);
+
+            if (existing is not null)
+            {
+                existing.Note = noteText;
+                existing.Score = score;
+                await _tastingNoteRepository.UpdateAsync(existing, cancellationToken);
+                TempData["SisterhoodStatus"] = $"Updated your tasting note for {bottleLabel}.";
+            }
+            else
+            {
+                var entity = new TastingNote
+                {
+                    BottleId = request.BottleId,
+                    UserId = currentUserId.Value,
+                    Note = noteText,
+                    Score = score
+                };
+
+                await _tastingNoteRepository.AddAsync(entity, cancellationToken);
+                TempData["SisterhoodStatus"] = $"Saved a tasting note for {bottleLabel}.";
+            }
+        }
+        catch (Exception)
+        {
+            TempData["SisterhoodError"] = "We couldn't save that tasting note right now. Please try again.";
+        }
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
     [HttpPost("sisterhoods/sessions/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteSipSession(DeleteSipSessionRequest request, CancellationToken cancellationToken)
@@ -1460,6 +1619,33 @@ public class WineSurferController : Controller
         }
 
         return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    private static DateTime DetermineSipSessionDrunkAt(SipSession session)
+    {
+        if (session is null)
+        {
+            return DateTime.UtcNow;
+        }
+
+        var normalizedScheduledAt = NormalizeToUtc(session.ScheduledAt);
+        if (normalizedScheduledAt.HasValue)
+        {
+            return normalizedScheduledAt.Value;
+        }
+
+        if (session.Date.HasValue)
+        {
+            var date = session.Date.Value;
+            return date.Kind switch
+            {
+                DateTimeKind.Utc => date,
+                DateTimeKind.Local => date.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(date, DateTimeKind.Local).ToUniversalTime()
+            };
+        }
+
+        return DateTime.UtcNow;
     }
 
     private static DateTime? NormalizeToUtc(DateTime? value)
@@ -1735,6 +1921,37 @@ public class WineSurferController : Controller
         public Guid BottleId { get; set; }
     }
 
+    public class DrinkSipSessionBottleRequest
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
+
+        [Required]
+        public Guid SipSessionId { get; set; }
+
+        [Required]
+        public Guid BottleId { get; set; }
+    }
+
+    public class RateSipSessionBottleRequest
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
+
+        [Required]
+        public Guid SipSessionId { get; set; }
+
+        [Required]
+        public Guid BottleId { get; set; }
+
+        [Required]
+        [StringLength(2048, MinimumLength = 1)]
+        public string Note { get; set; } = string.Empty;
+
+        [Range(0, 10)]
+        public decimal? Score { get; set; }
+    }
+
     private static string? NormalizeEmailCandidate(string? email)
     {
         if (string.IsNullOrWhiteSpace(email))
@@ -1813,6 +2030,27 @@ public class WineSurferController : Controller
             .ToList();
     }
 
+    private static string CreateBottleLabel(Bottle? bottle)
+    {
+        if (bottle is null)
+        {
+            return "Bottle";
+        }
+
+        var wineName = bottle.WineVintage?.Wine?.Name;
+        var labelBase = string.IsNullOrWhiteSpace(wineName)
+            ? "Bottle"
+            : wineName!.Trim();
+
+        var vintage = bottle.WineVintage?.Vintage;
+        if (vintage.HasValue && vintage.Value > 0)
+        {
+            labelBase = $"{labelBase} {vintage.Value}";
+        }
+
+        return labelBase;
+    }
+
     private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(
         IEnumerable<Bottle>? bottles,
         Guid? currentUserId = null)
@@ -1826,27 +2064,24 @@ public class WineSurferController : Controller
             .Where(bottle => bottle is not null)
             .Select(bottle =>
             {
-                var wineName = bottle.WineVintage?.Wine?.Name;
-                string labelBase;
+                var labelBase = CreateBottleLabel(bottle);
+                var isOwnedByCurrentUser = currentUserId.HasValue && bottle!.UserId.HasValue && bottle.UserId.Value == currentUserId.Value;
+                TastingNote? currentUserNote = null;
 
-                if (string.IsNullOrWhiteSpace(wineName))
+                if (currentUserId.HasValue)
                 {
-                    labelBase = "Bottle";
-                }
-                else
-                {
-                    labelBase = wineName.Trim();
-                }
-                var vintage = bottle.WineVintage?.Vintage;
-
-                if (vintage.HasValue && vintage.Value > 0)
-                {
-                    labelBase = $"{labelBase} {vintage.Value}";
+                    currentUserNote = bottle!.TastingNotes?
+                        .FirstOrDefault(note => note.UserId == currentUserId.Value);
                 }
 
-                var isOwnedByCurrentUser = currentUserId.HasValue && bottle.UserId.HasValue && bottle.UserId.Value == currentUserId.Value;
-
-                return new WineSurferSipSessionBottle(bottle.Id, labelBase, isOwnedByCurrentUser);
+                return new WineSurferSipSessionBottle(
+                    bottle!.Id,
+                    labelBase,
+                    isOwnedByCurrentUser,
+                    bottle.IsDrunk,
+                    bottle.DrunkAt,
+                    currentUserNote?.Note,
+                    currentUserNote?.Score);
             })
             .OrderBy(summary => summary.Label, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -1948,7 +2183,14 @@ public record WineSurferSipSessionSummary(
     DateTime UpdatedAtUtc,
     IReadOnlyList<WineSurferSipSessionBottle> Bottles);
 
-public record WineSurferSipSessionBottle(Guid Id, string Label, bool IsOwnedByCurrentUser);
+public record WineSurferSipSessionBottle(
+    Guid Id,
+    string Label,
+    bool IsOwnedByCurrentUser,
+    bool IsDrunk,
+    DateTime? DrunkAtUtc,
+    string? CurrentUserNote,
+    decimal? CurrentUserScore);
 
 public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter);
 

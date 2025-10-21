@@ -34,6 +34,8 @@ public class SipSessionRepository : ISipSessionRepository
             .Include(session => session.Bottles)
                 .ThenInclude(bottle => bottle.WineVintage)
                     .ThenInclude(vintage => vintage.Wine)
+            .Include(session => session.Bottles)
+                .ThenInclude(bottle => bottle.TastingNotes)
             .FirstOrDefaultAsync(session => session.Id == id, ct);
     }
 
@@ -51,6 +53,8 @@ public class SipSessionRepository : ISipSessionRepository
             .Include(session => session.Bottles)
                 .ThenInclude(bottle => bottle.WineVintage)
                     .ThenInclude(vintage => vintage.Wine)
+            .Include(session => session.Bottles)
+                .ThenInclude(bottle => bottle.TastingNotes)
             .OrderBy(session => session.ScheduledAt ?? session.CreatedAt)
             .ThenBy(session => session.Name)
             .ToListAsync(ct);
@@ -71,6 +75,8 @@ public class SipSessionRepository : ISipSessionRepository
             .Include(session => session.Bottles)
                 .ThenInclude(bottle => bottle.WineVintage)
                     .ThenInclude(vintage => vintage.Wine)
+            .Include(session => session.Bottles)
+                .ThenInclude(bottle => bottle.TastingNotes)
             .Where(session =>
                 (session.ScheduledAt.HasValue && session.ScheduledAt.Value >= utcNow) ||
                 (!session.ScheduledAt.HasValue && session.Date.HasValue && session.Date.Value.Date >= utcDate))
