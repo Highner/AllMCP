@@ -140,11 +140,9 @@ public class WineSurferController : Controller
 
         const int upcomingSipSessionLimit = 4;
         var upcomingSipSessions = (await _sipSessionRepository.GetUpcomingAsync(DateTime.UtcNow, upcomingSipSessionLimit, cancellationToken))
-            .Select(session => new WineSurferUpcomingSipSession(
-                session.SisterhoodId,
-                session.Sisterhood?.Name ?? "Sisterhood",
-                session.Sisterhood?.Description,
-                new WineSurferSipSessionSummary(
+            .Select(session =>
+            {
+                var summary = new WineSurferSipSessionSummary(
                     session.Id,
                     session.Name,
                     session.Description,
@@ -153,7 +151,15 @@ public class WineSurferController : Controller
                     session.Location ?? string.Empty,
                     session.CreatedAt,
                     session.UpdatedAt,
-                    CreateBottleSummaries(session.Bottles)))
+                    CreateBottleSummaries(session.Bottles)
+                );
+                return new WineSurferUpcomingSipSession(
+                    session.SisterhoodId,
+                    session.Sisterhood?.Name ?? "Sisterhood",
+                    session.Sisterhood?.Description,
+                    summary
+                );
+            })
             .ToList();
 
         WineSurferCurrentUser? currentUser = null;
