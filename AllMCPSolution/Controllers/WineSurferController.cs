@@ -232,19 +232,26 @@ public class WineSurferController : Controller
                         var matchesUserId = currentUserId.HasValue && invitation.InviteeUserId == currentUserId.Value;
                         var matchesEmail = normalizedEmail is not null && string.Equals(invitation.InviteeEmail, normalizedEmail, StringComparison.Ordinal);
 
-                        return new WineSurferIncomingSisterhoodInvitation(
-                            invitation.Id,
-                            invitation.SisterhoodId,
-                            invitation.Sisterhood?.Name ?? "Sisterhood",
-                            invitation.Sisterhood?.Description,
-                            invitation.InviteeEmail,
-                            invitation.Status,
-                            invitation.CreatedAt,
-                            invitation.UpdatedAt,
-                            invitation.InviteeUserId,
-                            matchesUserId,
-                            matchesEmail);
+                        return new
+                        {
+                            Invitation = invitation,
+                            MatchesUserId = matchesUserId,
+                            MatchesEmail = matchesEmail,
+                        };
                     })
+                    .Where(entry => entry.MatchesUserId || entry.MatchesEmail)
+                    .Select(entry => new WineSurferIncomingSisterhoodInvitation(
+                        entry.Invitation.Id,
+                        entry.Invitation.SisterhoodId,
+                        entry.Invitation.Sisterhood?.Name ?? "Sisterhood",
+                        entry.Invitation.Sisterhood?.Description,
+                        entry.Invitation.InviteeEmail,
+                        entry.Invitation.Status,
+                        entry.Invitation.CreatedAt,
+                        entry.Invitation.UpdatedAt,
+                        entry.Invitation.InviteeUserId,
+                        entry.MatchesUserId,
+                        entry.MatchesEmail))
                     .ToList();
             }
         }
@@ -429,19 +436,27 @@ public class WineSurferController : Controller
                     {
                         var matchesUserId = currentUserId.HasValue && invitation.InviteeUserId == currentUserId.Value;
                         var matchesEmail = normalizedEmail is not null && string.Equals(invitation.InviteeEmail, normalizedEmail, StringComparison.Ordinal);
-                        return new WineSurferIncomingSisterhoodInvitation(
-                            invitation.Id,
-                            invitation.SisterhoodId,
-                            invitation.Sisterhood?.Name ?? "Sisterhood",
-                            invitation.Sisterhood?.Description,
-                            invitation.InviteeEmail,
-                            invitation.Status,
-                            invitation.CreatedAt,
-                            invitation.UpdatedAt,
-                            invitation.InviteeUserId,
-                            matchesUserId,
-                            matchesEmail);
+
+                        return new
+                        {
+                            Invitation = invitation,
+                            MatchesUserId = matchesUserId,
+                            MatchesEmail = matchesEmail,
+                        };
                     })
+                    .Where(entry => entry.MatchesUserId || entry.MatchesEmail)
+                    .Select(entry => new WineSurferIncomingSisterhoodInvitation(
+                        entry.Invitation.Id,
+                        entry.Invitation.SisterhoodId,
+                        entry.Invitation.Sisterhood?.Name ?? "Sisterhood",
+                        entry.Invitation.Sisterhood?.Description,
+                        entry.Invitation.InviteeEmail,
+                        entry.Invitation.Status,
+                        entry.Invitation.CreatedAt,
+                        entry.Invitation.UpdatedAt,
+                        entry.Invitation.InviteeUserId,
+                        entry.MatchesUserId,
+                        entry.MatchesEmail))
                     .ToList();
             }
         }

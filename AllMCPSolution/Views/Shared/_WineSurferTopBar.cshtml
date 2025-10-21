@@ -415,10 +415,12 @@
                     notificationBadge.textContent = String(openCount + acceptedCount);
                     notificationBadge.removeAttribute('hidden');
                     notificationBadge.setAttribute('aria-hidden', 'false');
+                    notificationBadge.style.removeProperty('display');
                 } else {
-                    notificationBadge.textContent = '0';
+                    notificationBadge.textContent = '';
                     notificationBadge.setAttribute('hidden', '');
                     notificationBadge.setAttribute('aria-hidden', 'true');
+                    notificationBadge.style.display = 'none';
                 }
             }
 
