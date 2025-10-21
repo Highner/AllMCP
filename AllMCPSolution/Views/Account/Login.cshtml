@@ -6,7 +6,10 @@
     var registerUrl = Url.Action("Register", "Account", new { returnUrl = Model.ReturnUrl });
     var forgotPasswordUrl = Url.Action("ForgotPassword", "Account");
     var errorMessage = ViewData["ErrorMessage"] as string;
-    var topBarModel = new WineSurferTopBarModel(currentPath, Array.Empty<WineSurferIncomingSisterhoodInvitation>());
+    var topBarModel = new WineSurferTopBarModel(
+        currentPath,
+        Array.Empty<WineSurferIncomingSisterhoodInvitation>(),
+        Array.Empty<WineSurferSentInvitationNotification>());
 }
 <!DOCTYPE html>
 <html lang="en">
