@@ -30,6 +30,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<SisterhoodMembership> SisterhoodMemberships { get; set; }
     public DbSet<SisterhoodInvitation> SisterhoodInvitations { get; set; }
     public DbSet<SipSession> SipSessions { get; set; }
+    public DbSet<WineSurferNotificationDismissal> WineSurferNotificationDismissals { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -306,6 +307,28 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .WithMany(user => user.SisterhoodInvitations)
                 .HasForeignKey(invite => invite.InviteeUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<WineSurferNotificationDismissal>(entity =>
+        {
+            entity.Property(dismissal => dismissal.Category)
+                .HasMaxLength(128)
+                .IsRequired();
+
+            entity.Property(dismissal => dismissal.Stamp)
+                .HasMaxLength(512)
+                .IsRequired();
+
+            entity.Property(dismissal => dismissal.DismissedAtUtc)
+                .HasColumnType("datetime2");
+
+            entity.HasIndex(dismissal => new { dismissal.UserId, dismissal.Category, dismissal.Stamp })
+                .IsUnique();
+
+            entity.HasOne(dismissal => dismissal.User)
+                .WithMany(user => user.NotificationDismissals)
+                .HasForeignKey(dismissal => dismissal.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

@@ -43,10 +43,7 @@
 
     var hasBottles = Model.Bottles.Any();
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
-        ?? new WineSurferTopBarModel(
-            currentPath,
-            Array.Empty<WineSurferIncomingSisterhoodInvitation>(),
-            Array.Empty<WineSurferSentInvitationNotification>());
+        ?? WineSurferTopBarModel.Empty(currentPath);
 }
 <!DOCTYPE html>
 <html lang="en">

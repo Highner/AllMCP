@@ -2412,8 +2412,209 @@ public record WineSurferSipSessionDetailViewModel(
 
 public record WineSurferTopBarModel(
     string CurrentPath,
-    IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
-    IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications);
+    string PanelHeading,
+    string PanelAriaLabel,
+    IReadOnlyList<WineSurferTopBarNotificationSection> Sections,
+    IReadOnlyDictionary<string, IReadOnlyCollection<string>> DismissedNotificationStamps,
+    IReadOnlyList<WineSurferTopBarLink> FooterLinks)
+{
+    public const string SisterhoodNotificationsUrl = "/wine-surfer/sisterhoods";
+    public const string DefaultPanelHeading = "Notifications";
+    public const string DefaultPanelAriaLabel = "Wine Surfer notifications";
+
+    private static readonly IReadOnlyDictionary<string, IReadOnlyCollection<string>> EmptyDismissedMap =
+        new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase);
+
+    public static IReadOnlyDictionary<string, IReadOnlyCollection<string>> EmptyDismissedNotificationSet => EmptyDismissedMap;
+
+    public static WineSurferTopBarModel Empty(string currentPath)
+    {
+        return new WineSurferTopBarModel(
+            currentPath,
+            DefaultPanelHeading,
+            DefaultPanelAriaLabel,
+            Array.Empty<WineSurferTopBarNotificationSection>(),
+            EmptyDismissedMap,
+            Array.Empty<WineSurferTopBarLink>());
+    }
+
+    public static IReadOnlyList<WineSurferTopBarNotificationSection> BuildSections(
+        IEnumerable<WineSurferIncomingSisterhoodInvitation> incomingInvitations,
+        IEnumerable<WineSurferSentInvitationNotification> sentInvitationNotifications,
+        string sisterhoodUrl)
+    {
+        var sections = new List<WineSurferTopBarNotificationSection>();
+
+        if (incomingInvitations is not null)
+        {
+            var pendingNotifications = incomingInvitations
+                .Where(invitation => invitation is not null && invitation.Status == SisterhoodInvitationStatus.Pending)
+                .OrderBy(invitation => invitation.SisterhoodName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(invitation => invitation.CreatedAtUtc)
+                .Select(invitation =>
+                {
+                    var notificationTitle = string.IsNullOrWhiteSpace(invitation.SisterhoodName)
+                        ? invitation.InviteeEmail
+                        : invitation.SisterhoodName;
+
+                    var dismissLabel = string.IsNullOrWhiteSpace(invitation.SisterhoodName)
+                        ? "Dismiss invitation"
+                        : $"Dismiss invitation for {invitation.SisterhoodName}";
+
+                    var bodySegments = new List<WineSurferTopBarTextSegment>
+                    {
+                        new("Invited as "),
+                        new(invitation.InviteeEmail, true),
+                    };
+
+                    var tagLabel = invitation.MatchesUserId
+                        ? "Linked to your account"
+                        : invitation.MatchesEmail
+                            ? "Matches your email"
+                            : null;
+
+                    return new WineSurferTopBarNotification(
+                        "sisterhood.pending",
+                        $"{invitation.Id:D}|{invitation.UpdatedAtUtc:O}",
+                        notificationTitle ?? "Invitation",
+                        bodySegments,
+                        Array.Empty<WineSurferTopBarTextSegment>(),
+                        tagLabel,
+                        sisterhoodUrl,
+                        invitation.UpdatedAtUtc,
+                        dismissLabel);
+                })
+                .ToList();
+
+            sections.Add(new WineSurferTopBarNotificationSection(
+                "sisterhood.pending",
+                "Pending invitations",
+                "Pending invitations for you",
+                "No pending invitations",
+                pendingNotifications));
+        }
+
+        if (sentInvitationNotifications is not null)
+        {
+            var acceptedNotifications = sentInvitationNotifications
+                .Where(notification => notification is not null)
+                .OrderByDescending(notification => notification.UpdatedAtUtc)
+                .ThenBy(notification => notification.InviteeName ?? notification.InviteeEmail, StringComparer.OrdinalIgnoreCase)
+                .Select(notification =>
+                {
+                    var inviteeLabel = string.IsNullOrWhiteSpace(notification.InviteeName)
+                        ? notification.InviteeEmail
+                        : notification.InviteeName!;
+
+                    var notificationTitle = string.IsNullOrWhiteSpace(inviteeLabel)
+                        ? string.IsNullOrWhiteSpace(notification.InviteeEmail)
+                            ? notification.SisterhoodName
+                            : notification.InviteeEmail
+                        : inviteeLabel;
+
+                    var bodySegments = new List<WineSurferTopBarTextSegment>
+                    {
+                        new("Accepted your invitation to "),
+                        new(notification.SisterhoodName, true),
+                    };
+
+                    if (!string.IsNullOrWhiteSpace(notification.InviteeEmail))
+                    {
+                        bodySegments.Add(new($" ({notification.InviteeEmail})"));
+                    }
+
+                    var dismissLabel = string.IsNullOrWhiteSpace(inviteeLabel)
+                        ? "Dismiss notification"
+                        : $"Dismiss notification for {inviteeLabel}";
+
+                    return new WineSurferTopBarNotification(
+                        "sisterhood.accepted",
+                        $"{notification.InvitationId:D}|{notification.UpdatedAtUtc:O}",
+                        notificationTitle ?? "Sisterhood invitation",
+                        bodySegments,
+                        Array.Empty<WineSurferTopBarTextSegment>(),
+                        null,
+                        sisterhoodUrl,
+                        notification.UpdatedAtUtc,
+                        dismissLabel);
+                })
+                .ToList();
+
+            sections.Add(new WineSurferTopBarNotificationSection(
+                "sisterhood.accepted",
+                "Accepted invitations",
+                "Accepted invitations you sent",
+                "No accepted invitations",
+                acceptedNotifications));
+        }
+
+        return sections;
+    }
+
+    public static WineSurferTopBarModel CreateFromSisterhoodData(
+        string currentPath,
+        IEnumerable<WineSurferIncomingSisterhoodInvitation> incomingInvitations,
+        IEnumerable<WineSurferSentInvitationNotification> sentInvitationNotifications,
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>>? dismissed = null,
+        IReadOnlyList<WineSurferTopBarNotificationSection>? precomputedSections = null)
+    {
+        var sections = precomputedSections ?? BuildSections(
+            incomingInvitations,
+            sentInvitationNotifications,
+            SisterhoodNotificationsUrl);
+
+        var hasSisterhoodNotifications = sections.Any(section =>
+            section.Key.StartsWith("sisterhood.", StringComparison.OrdinalIgnoreCase));
+
+        var footerLinks = hasSisterhoodNotifications
+            ? new[] { new WineSurferTopBarLink(SisterhoodNotificationsUrl, "View Sisterhoods") }
+            : Array.Empty<WineSurferTopBarLink>();
+
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> dismissedMap;
+        if (dismissed is null || dismissed.Count == 0)
+        {
+            dismissedMap = EmptyDismissedMap;
+        }
+        else if (ReferenceEquals(dismissed, EmptyDismissedMap))
+        {
+            dismissedMap = EmptyDismissedMap;
+        }
+        else
+        {
+            dismissedMap = new Dictionary<string, IReadOnlyCollection<string>>(dismissed, StringComparer.OrdinalIgnoreCase);
+        }
+
+        return new WineSurferTopBarModel(
+            currentPath,
+            DefaultPanelHeading,
+            DefaultPanelAriaLabel,
+            sections,
+            dismissedMap,
+            footerLinks);
+    }
+}
+
+public record WineSurferTopBarNotificationSection(
+    string Key,
+    string Heading,
+    string? AriaLabel,
+    string EmptyMessage,
+    IReadOnlyList<WineSurferTopBarNotification> Notifications);
+
+public record WineSurferTopBarNotification(
+    string Category,
+    string Stamp,
+    string Title,
+    IReadOnlyList<WineSurferTopBarTextSegment> Body,
+    IReadOnlyList<WineSurferTopBarTextSegment> Meta,
+    string? Tag,
+    string? Url,
+    DateTime? OccurredAtUtc,
+    string? DismissLabel);
+
+public record WineSurferTopBarTextSegment(string Text, bool Emphasize = false);
+
+public record WineSurferTopBarLink(string Href, string Label);
 
 public record WineSurferPageHeaderModel(string Title);
 

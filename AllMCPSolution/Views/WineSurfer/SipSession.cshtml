@@ -246,7 +246,10 @@
     var requestPath = Context.Request.Path.HasValue ? Context.Request.Path.Value : string.Empty;
     var requestQuery = Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value : string.Empty;
     var currentLocation = string.Concat(requestPath, requestQuery);
-    var topBarModel = new WineSurferTopBarModel(currentLocation, Model.IncomingInvitations, Model.SentInvitationNotifications);
+    var topBarModel = WineSurferTopBarModel.CreateFromSisterhoodData(
+        currentLocation,
+        Model.IncomingInvitations,
+        Model.SentInvitationNotifications);
     var sisterhoodName = string.IsNullOrWhiteSpace(Model.SisterhoodName) ? "Sisterhood" : Model.SisterhoodName;
     var scheduleLabel = FormatSipSessionSchedule(Model.Session);
     var locationLabel = string.IsNullOrWhiteSpace(Model.Session.Location) ? "Location TBD" : Model.Session.Location;
