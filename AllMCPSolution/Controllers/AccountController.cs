@@ -1,7 +1,6 @@
 using System.Net;
 using AllMCPSolution.Models;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -280,22 +279,17 @@ public class AccountController : Controller
     }
 
     [AllowAnonymous]
-    [HttpGet("signin/microsoft")]
-    public Task<IActionResult> SignInWithMicrosoft([FromQuery] string? returnUrl = null) =>
-        ExternalLogin(OpenIdConnectDefaults.AuthenticationScheme, returnUrl);
-
-    [AllowAnonymous]
-    [HttpGet("signin/google")]
-    public Task<IActionResult> SignInWithGoogle([FromQuery] string? returnUrl = null) =>
-        ExternalLogin("Google", returnUrl);
-
-    [AllowAnonymous]
     [HttpGet("signin/external")]
     public async Task<IActionResult> ExternalLogin([FromQuery] string scheme, [FromQuery] string? returnUrl = null)
     {
         if (string.IsNullOrWhiteSpace(scheme))
         {
             return BadRequest();
+        }
+
+        if (IsUnsupportedExternalScheme(scheme))
+        {
+            return NotFound();
         }
 
         var externalOptions = await _signInManager.GetExternalAuthenticationSchemesAsync();
@@ -321,11 +315,7 @@ public class AccountController : Controller
         await _signInManager.SignOutAsync();
         await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
 
-        return SignOut(
-            new AuthenticationProperties { RedirectUri = redirectUrl },
-            IdentityConstants.ApplicationScheme,
-            IdentityConstants.ExternalScheme,
-            OpenIdConnectDefaults.AuthenticationScheme);
+        return LocalRedirect(redirectUrl);
     }
 
     private async Task<IReadOnlyList<ExternalLoginOption>> GetExternalLoginOptionsAsync()
@@ -333,6 +323,7 @@ public class AccountController : Controller
         var schemes = await _signInManager.GetExternalAuthenticationSchemesAsync();
         return schemes
             .Where(s => !string.IsNullOrWhiteSpace(s.Name))
+            .Where(s => !IsUnsupportedExternalScheme(s.Name))
             .Select(s => new ExternalLoginOption
             {
                 AuthenticationScheme = s.Name,
@@ -341,6 +332,11 @@ public class AccountController : Controller
             .OrderBy(s => s.DisplayName)
             .ToList();
     }
+
+    private static bool IsUnsupportedExternalScheme(string? scheme) =>
+        !string.IsNullOrWhiteSpace(scheme) &&
+        (string.Equals(scheme, "Google", StringComparison.OrdinalIgnoreCase)
+         || string.Equals(scheme, "OpenIdConnect", StringComparison.OrdinalIgnoreCase));
 
     private string ResolveReturnUrl(string? returnUrl) =>
         !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
