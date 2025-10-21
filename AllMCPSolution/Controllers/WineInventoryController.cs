@@ -223,7 +223,6 @@ public class WineInventoryController : Controller
         var subAppellations = await _subAppellationRepository.GetAllAsync(cancellationToken);
         var bottleLocations = await _bottleLocationRepository.GetAllAsync(cancellationToken);
         var users = await _userRepository.GetAllAsync(cancellationToken);
-        var wines = await _wineRepository.GetAllAsync(cancellationToken);
 
         var response = new InventoryReferenceDataResponse
         {
@@ -246,26 +245,6 @@ public class WineInventoryController : Controller
                 {
                     Id = u.Id,
                     Name = u.Name
-                })
-                .ToList(),
-            Wines = wines
-                .Select(w => new WineOption
-                {
-                    Id = w.Id,
-                    Name = w.Name,
-                    Label = BuildWineOptionLabel(w),
-                    Color = w.Color,
-                    SubAppellationId = w.SubAppellationId,
-                    AppellationId = w.SubAppellation?.Appellation?.Id,
-                    SubAppellationLabel = w.SubAppellation is null ? string.Empty : BuildSubAppellationLabel(w.SubAppellation),
-                    Vintages = w.WineVintages
-                        .OrderByDescending(v => v.Vintage)
-                        .Select(v => new WineVintageOption
-                        {
-                            Id = v.Id,
-                            Vintage = v.Vintage
-                        })
-                        .ToList()
                 })
                 .ToList()
         };
@@ -293,6 +272,27 @@ public class WineInventoryController : Controller
             return ValidationProblem(ModelState);
         }
 
+        var trimmedName = request.WineName?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedName))
+        {
+            ModelState.AddModelError(nameof(request.WineName), "Wine name is required.");
+            return ValidationProblem(ModelState);
+        }
+
+        var subAppellation = await _subAppellationRepository.GetByIdAsync(request.SubAppellationId, cancellationToken);
+        if (subAppellation is null)
+        {
+            ModelState.AddModelError(nameof(request.SubAppellationId), "Sub-appellation was not found.");
+            return ValidationProblem(ModelState);
+        }
+
+        var duplicate = await _wineRepository.FindByNameAsync(trimmedName, subAppellation.Name, subAppellation.Appellation?.Name, cancellationToken);
+        if (duplicate is not null)
+        {
+            ModelState.AddModelError(nameof(request.WineName), "A wine with the same name already exists for the selected sub-appellation.");
+            return ValidationProblem(ModelState);
+        }
+
         BottleLocation? bottleLocation = null;
         if (request.BottleLocationId.HasValue)
         {
@@ -304,129 +304,32 @@ public class WineInventoryController : Controller
             }
         }
 
-        ApplicationUser? user = null;
-        if (request.UserId.HasValue)
-        {
-            user = await _userRepository.GetByIdAsync(request.UserId.Value, cancellationToken);
-            if (user is null)
-            {
-                ModelState.AddModelError(nameof(request.UserId), "User was not found.");
-                return ValidationProblem(ModelState);
-            }
-        }
-
-        Wine? wine = null;
-        WineVintage? wineVintage = null;
-
-        if (request.WineVintageId.HasValue)
-        {
-            wineVintage = await _wineVintageRepository.GetByIdAsync(request.WineVintageId.Value, cancellationToken);
-            if (wineVintage is null)
-            {
-                ModelState.AddModelError(nameof(request.WineVintageId), "Wine vintage was not found.");
-                return ValidationProblem(ModelState);
-            }
-
-            if (request.WineId.HasValue && request.WineId.Value != wineVintage.WineId)
-            {
-                ModelState.AddModelError(nameof(request.WineId), "Selected wine does not match the provided vintage.");
-                return ValidationProblem(ModelState);
-            }
-
-            wine = await _wineRepository.GetByIdAsync(wineVintage.WineId, cancellationToken);
-            if (wine is null)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, "Wine for the selected vintage could not be found.");
-            }
-        }
-        else if (request.WineId.HasValue)
-        {
-            wine = await _wineRepository.GetByIdAsync(request.WineId.Value, cancellationToken);
-            if (wine is null)
-            {
-                ModelState.AddModelError(nameof(request.WineId), "Wine was not found.");
-                return ValidationProblem(ModelState);
-            }
-
-            if (!request.Vintage.HasValue)
-            {
-                ModelState.AddModelError(nameof(request.Vintage), "Vintage is required when selecting an existing wine.");
-                return ValidationProblem(ModelState);
-            }
-
-            wineVintage = await _wineVintageRepository.GetOrCreateAsync(wine.Id, request.Vintage.Value, cancellationToken);
-        }
-        else
-        {
-            var trimmedName = request.WineName?.Trim();
-            if (string.IsNullOrWhiteSpace(trimmedName))
-            {
-                ModelState.AddModelError(nameof(request.WineName), "Wine name is required.");
-                return ValidationProblem(ModelState);
-            }
-
-            if (!request.SubAppellationId.HasValue)
-            {
-                ModelState.AddModelError(nameof(request.SubAppellationId), "Sub-appellation is required.");
-                return ValidationProblem(ModelState);
-            }
-
-            if (!request.Color.HasValue)
-            {
-                ModelState.AddModelError(nameof(request.Color), "Wine color is required.");
-                return ValidationProblem(ModelState);
-            }
-
-            if (!request.Vintage.HasValue)
-            {
-                ModelState.AddModelError(nameof(request.Vintage), "Vintage is required when creating a new wine.");
-                return ValidationProblem(ModelState);
-            }
-
-            var subAppellation = await _subAppellationRepository.GetByIdAsync(request.SubAppellationId.Value, cancellationToken);
-            if (subAppellation is null)
-            {
-                ModelState.AddModelError(nameof(request.SubAppellationId), "Sub-appellation was not found.");
-                return ValidationProblem(ModelState);
-            }
-
-            var duplicate = await _wineRepository.FindByNameAsync(trimmedName, subAppellation.Name, subAppellation.Appellation?.Name, cancellationToken);
-            if (duplicate is not null)
-            {
-                ModelState.AddModelError(nameof(request.WineName), "A wine with the same name already exists for the selected sub-appellation.");
-                return ValidationProblem(ModelState);
-            }
-
-            wine = new Wine
-            {
-                Id = Guid.NewGuid(),
-                Name = trimmedName,
-                Color = request.Color.Value,
-                SubAppellationId = subAppellation.Id
-            };
-
-            await _wineRepository.AddAsync(wine, cancellationToken);
-
-            wineVintage = await _wineVintageRepository.GetOrCreateAsync(wine.Id, request.Vintage.Value, cancellationToken);
-        }
-
-        if (wineVintage is null)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, "Unable to determine wine vintage for the new bottle.");
-        }
-
-        var bottle = new Bottle
+        var wine = new Wine
         {
             Id = Guid.NewGuid(),
-            WineVintageId = wineVintage.Id,
-            IsDrunk = false,
-            DrunkAt = null,
-            Price = null,
-            BottleLocationId = bottleLocation?.Id,
-            UserId = user?.Id
+            Name = trimmedName,
+            Color = request.Color,
+            SubAppellationId = subAppellation.Id
         };
 
-        await _bottleRepository.AddAsync(bottle, cancellationToken);
+        await _wineRepository.AddAsync(wine, cancellationToken);
+
+        var wineVintage = await _wineVintageRepository.GetOrCreateAsync(wine.Id, request.Vintage, cancellationToken);
+
+        for (var i = 0; i < request.InitialBottleCount; i++)
+        {
+            var bottle = new Bottle
+            {
+                Id = Guid.NewGuid(),
+                WineVintageId = wineVintage.Id,
+                IsDrunk = false,
+                DrunkAt = null,
+                Price = null,
+                BottleLocationId = bottleLocation?.Id
+            };
+
+            await _bottleRepository.AddAsync(bottle, cancellationToken);
+        }
 
         var response = await BuildBottleGroupResponseAsync(wineVintage.Id, cancellationToken);
         if (response is null)
@@ -884,24 +787,6 @@ public class WineInventoryController : Controller
         };
     }
 
-    private static string BuildWineOptionLabel(Wine wine)
-    {
-        var baseLabel = string.IsNullOrWhiteSpace(wine.Name) ? "Unnamed wine" : wine.Name;
-
-        if (wine.SubAppellation is null)
-        {
-            return baseLabel;
-        }
-
-        var locationLabel = BuildSubAppellationLabel(wine.SubAppellation);
-        if (string.IsNullOrWhiteSpace(locationLabel) || string.Equals(locationLabel, "Unspecified", StringComparison.OrdinalIgnoreCase))
-        {
-            return baseLabel;
-        }
-
-        return $"{baseLabel} • {locationLabel}";
-    }
-
     private static string BuildSubAppellationLabel(SubAppellation subAppellation)
     {
         var segments = new List<string>();
@@ -1061,60 +946,12 @@ public class WineGroupUpdateRequest
     public Guid SubAppellationId { get; set; }
 }
 
-public class WineGroupCreateRequest : IValidatableObject
+public class WineGroupCreateRequest : WineGroupUpdateRequest
 {
-    public Guid? WineId { get; set; }
-
-    public Guid? WineVintageId { get; set; }
-
-    [StringLength(256, MinimumLength = 1)]
-    public string? WineName { get; set; }
-
-    public Guid? SubAppellationId { get; set; }
-
-    public WineColor? Color { get; set; }
-
-    [Range(1900, 2100)]
-    public int? Vintage { get; set; }
+    [Range(1, 5000)]
+    public int InitialBottleCount { get; set; } = 1;
 
     public Guid? BottleLocationId { get; set; }
-
-    [Required]
-    public Guid? UserId { get; set; }
-
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-    {
-        if (!WineVintageId.HasValue)
-        {
-            if (!WineId.HasValue)
-            {
-                if (string.IsNullOrWhiteSpace(WineName))
-                {
-                    yield return new ValidationResult("Wine name is required when creating a new wine.", new[] { nameof(WineName) });
-                }
-
-                if (!SubAppellationId.HasValue)
-                {
-                    yield return new ValidationResult("Sub-appellation is required when creating a new wine.", new[] { nameof(SubAppellationId) });
-                }
-
-                if (!Color.HasValue)
-                {
-                    yield return new ValidationResult("Wine color is required when creating a new wine.", new[] { nameof(Color) });
-                }
-            }
-
-            if (!Vintage.HasValue)
-            {
-                yield return new ValidationResult("Vintage is required when selecting a wine that does not already have a vintage.", new[] { nameof(Vintage) });
-            }
-        }
-
-        if (!UserId.HasValue)
-        {
-            yield return new ValidationResult("A user must be selected for the initial bottle.", new[] { nameof(UserId) });
-        }
-    }
 }
 
 public class InventoryReferenceDataResponse
@@ -1122,7 +959,6 @@ public class InventoryReferenceDataResponse
     public IReadOnlyList<SubAppellationOption> SubAppellations { get; set; } = Array.Empty<SubAppellationOption>();
     public IReadOnlyList<BottleLocationOption> BottleLocations { get; set; } = Array.Empty<BottleLocationOption>();
     public IReadOnlyList<UserOption> Users { get; set; } = Array.Empty<UserOption>();
-    public IReadOnlyList<WineOption> Wines { get; set; } = Array.Empty<WineOption>();
 }
 
 public class BottleNotesResponse
@@ -1188,22 +1024,4 @@ public class UserOption
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
-}
-
-public class WineOption
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Label { get; set; } = string.Empty;
-    public WineColor Color { get; set; }
-    public Guid? SubAppellationId { get; set; }
-    public Guid? AppellationId { get; set; }
-    public string SubAppellationLabel { get; set; } = string.Empty;
-    public IReadOnlyList<WineVintageOption> Vintages { get; set; } = Array.Empty<WineVintageOption>();
-}
-
-public class WineVintageOption
-{
-    public Guid Id { get; set; }
-    public int Vintage { get; set; }
 }

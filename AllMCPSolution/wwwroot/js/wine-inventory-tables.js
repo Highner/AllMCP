@@ -28,13 +28,11 @@ window.WineInventoryTables.initialize = function () {
             }
 
             const summaryAddRow = inventoryTable.querySelector('.add-summary-row');
-            const summaryAddWine = summaryAddRow?.querySelector('.summary-add-wine');
             const summaryAddName = summaryAddRow?.querySelector('.summary-add-name');
             const summaryAddSubApp = summaryAddRow?.querySelector('.summary-add-sub-app');
-            const summaryAddVintageSelect = summaryAddRow?.querySelector('.summary-add-vintage-select');
             const summaryAddVintage = summaryAddRow?.querySelector('.summary-add-vintage');
+            const summaryAddCount = summaryAddRow?.querySelector('.summary-add-count');
             const summaryAddColor = summaryAddRow?.querySelector('.summary-add-color');
-            const summaryAddUser = summaryAddRow?.querySelector('.summary-add-user');
             const summaryAddButton = summaryAddRow?.querySelector('.summary-add-submit');
 
             const detailAddLocation = detailAddRow.querySelector('.detail-add-location');
@@ -56,8 +54,7 @@ window.WineInventoryTables.initialize = function () {
             const referenceData = {
                 subAppellations: [],
                 bottleLocations: [],
-                users: [],
-                wines: []
+                users: []
             };
             const referenceDataPromise = loadReferenceData();
 
@@ -129,11 +126,6 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                showVintageInput();
-
-                summaryAddWine?.addEventListener('change', handleWineSelectionChange);
-                summaryAddVintageSelect?.addEventListener('change', handleVintageSelectChange);
-
                 summaryAddButton.addEventListener('click', async () => {
                     await referenceDataPromise;
 
@@ -141,90 +133,44 @@ window.WineInventoryTables.initialize = function () {
                         return;
                     }
 
-                    const selectedWine = getSelectedWine();
-                    const userId = summaryAddUser?.value?.trim() ?? '';
+                    const name = summaryAddName?.value?.trim() ?? '';
+                    const subAppellationId = summaryAddSubApp?.value ?? '';
+                    const vintageValue = Number(summaryAddVintage?.value ?? '');
+                    const bottleCountValue = Number(summaryAddCount?.value ?? '');
+                    const color = summaryAddColor?.value ?? '';
 
-                    if (!userId) {
-                        showMessage('Select a user to own the initial bottle.', 'error');
+                    if (!name) {
+                        showMessage('Wine name is required.', 'error');
                         return;
                     }
 
-                    let wineVintageId = '';
-                    let requiresVintageInput = !selectedWine;
-
-                    if (selectedWine && summaryAddVintageSelect && !summaryAddVintageSelect.hidden) {
-                        const selectedVintageValue = summaryAddVintageSelect.value?.trim() ?? '';
-                        if (selectedVintageValue === '__create') {
-                            requiresVintageInput = true;
-                        } else if (selectedVintageValue) {
-                            wineVintageId = selectedVintageValue;
-                            requiresVintageInput = false;
-                        } else {
-                            showMessage('Select a vintage or choose to add a new one.', 'error');
-                            return;
-                        }
+                    if (!subAppellationId) {
+                        showMessage('Select a sub-appellation for the wine.', 'error');
+                        return;
                     }
 
-                    if (selectedWine && (!summaryAddVintageSelect || summaryAddVintageSelect.hidden)) {
-                        requiresVintageInput = true;
+                    if (!Number.isInteger(vintageValue)) {
+                        showMessage('Enter a valid vintage year.', 'error');
+                        return;
                     }
 
-                    let vintageValue = null;
-                    if (requiresVintageInput) {
-                        const rawVintage = summaryAddVintage?.value?.trim() ?? '';
-                        const parsedVintage = Number(rawVintage);
-                        if (!Number.isInteger(parsedVintage) || parsedVintage < 1900 || parsedVintage > 2100) {
-                            showMessage('Enter a valid vintage year (1900-2100).', 'error');
-                            return;
-                        }
-
-                        vintageValue = parsedVintage;
+                    if (!Number.isInteger(bottleCountValue) || bottleCountValue < 1) {
+                        showMessage('Initial bottle count must be at least 1.', 'error');
+                        return;
                     }
 
-                    let wineName = summaryAddName?.value?.trim() ?? '';
-                    let subAppellationId = summaryAddSubApp?.value?.trim() ?? '';
-                    let color = summaryAddColor?.value?.trim() ?? '';
-
-                    if (selectedWine) {
-                        wineName = selectedWine.name ?? wineName;
-                        subAppellationId = selectedWine.subAppellationId ?? subAppellationId;
-                        color = selectedWine.color ?? color;
-                    } else {
-                        if (!wineName) {
-                            showMessage('Wine name is required.', 'error');
-                            return;
-                        }
-
-                        if (!subAppellationId) {
-                            showMessage('Select a sub-appellation for the wine.', 'error');
-                            return;
-                        }
-
-                        if (!color) {
-                            showMessage('Choose a wine color.', 'error');
-                            return;
-                        }
+                    if (!color) {
+                        showMessage('Choose a wine color.', 'error');
+                        return;
                     }
 
                     const payload = {
-                        userId
+                        wineName: name,
+                        subAppellationId,
+                        vintage: vintageValue,
+                        color,
+                        initialBottleCount: bottleCountValue
                     };
-
-                    if (selectedWine) {
-                        payload.wineId = selectedWine.id;
-                        if (wineVintageId) {
-                            payload.wineVintageId = wineVintageId;
-                        } else if (vintageValue != null) {
-                            payload.vintage = vintageValue;
-                        }
-                    } else {
-                        payload.wineName = wineName;
-                        payload.subAppellationId = subAppellationId;
-                        payload.color = color;
-                        if (vintageValue != null) {
-                            payload.vintage = vintageValue;
-                        }
-                    }
 
                     try {
                         setLoading(true);
@@ -233,170 +179,44 @@ window.WineInventoryTables.initialize = function () {
                             body: JSON.stringify(payload)
                         });
 
-                        resetSummaryAddInputs();
+                        if (summaryAddName) {
+                            summaryAddName.value = '';
+                        }
+
+                        if (summaryAddSubApp) {
+                            summaryAddSubApp.value = '';
+                        }
+
+                        if (summaryAddVintage) {
+                            summaryAddVintage.value = '';
+                        }
+
+                        if (summaryAddCount) {
+                            summaryAddCount.value = '1';
+                        }
+
+                        if (summaryAddColor) {
+                            summaryAddColor.value = 'Red';
+                        }
 
                         const summary = normalizeSummary(response?.group ?? response?.Group);
                         if (!summary) {
-                            showMessage('Wine saved, but it could not be displayed.', 'warning');
+                            showMessage('Wine group created, but it could not be displayed.', 'warning');
                             return;
                         }
 
-                        const existingRow = inventoryTable.querySelector(`tbody tr[data-group-id="${summary.wineVintageId}"]`);
-                        if (existingRow) {
-                            applySummaryToRow(existingRow, summary);
-                            showMessage('Bottle added to the wine group.', 'success');
-                            await handleRowSelection(existingRow, { force: true, response });
-                            existingRow.focus();
-                        } else {
-                            const newRow = buildSummaryRow(summary);
-                            attachSummaryRowHandlers(newRow);
-                            inventoryTable.querySelector('tbody')?.appendChild(newRow);
-                            showMessage('Wine group created and bottle added.', 'success');
-                            await handleRowSelection(newRow, { force: true, response });
-                            newRow.focus();
-                        }
+                        const newRow = buildSummaryRow(summary);
+                        attachSummaryRowHandlers(newRow);
+                        inventoryTable.querySelector('tbody')?.appendChild(newRow);
+                        showMessage('Wine group created.', 'success');
+                        await handleRowSelection(newRow, { force: true, response });
+                        newRow.focus();
                     } catch (error) {
                         showMessage(error.message, 'error');
                     } finally {
                         setLoading(false);
                     }
                 });
-
-                handleWineSelectionChange();
-
-                function getSelectedWine() {
-                    if (!summaryAddWine) {
-                        return null;
-                    }
-
-                    const wineId = summaryAddWine.value;
-                    if (!wineId) {
-                        return null;
-                    }
-
-                    return referenceData.wines.find(option => option?.id === wineId) ?? null;
-                }
-
-                function handleWineSelectionChange() {
-                    const selectedWine = getSelectedWine();
-
-                    if (selectedWine) {
-                        if (summaryAddName) {
-                            summaryAddName.value = selectedWine.name ?? '';
-                            summaryAddName.setAttribute('disabled', 'disabled');
-                        }
-
-                        if (summaryAddSubApp) {
-                            populateSubAppellationSelect(summaryAddSubApp, selectedWine.subAppellationId ?? '');
-                            summaryAddSubApp.value = selectedWine.subAppellationId ?? '';
-                            summaryAddSubApp.setAttribute('disabled', 'disabled');
-                        }
-
-                        if (summaryAddColor) {
-                            const colorValue = selectedWine.color ?? summaryAddColor.value ?? '';
-                            summaryAddColor.value = colorValue;
-                            summaryAddColor.setAttribute('disabled', 'disabled');
-                        }
-
-                        showVintageSelectForWine(selectedWine);
-                    } else {
-                        if (summaryAddName) {
-                            summaryAddName.removeAttribute('disabled');
-                        }
-
-                        if (summaryAddSubApp) {
-                            summaryAddSubApp.removeAttribute('disabled');
-                        }
-
-                        if (summaryAddColor) {
-                            summaryAddColor.removeAttribute('disabled');
-                            if (!summaryAddColor.value) {
-                                summaryAddColor.value = 'Red';
-                            }
-                        }
-
-                        showVintageInput();
-                    }
-                }
-
-                function handleVintageSelectChange() {
-                    if (!summaryAddVintageSelect || !summaryAddVintage) {
-                        return;
-                    }
-
-                    if (summaryAddVintageSelect.value === '__create') {
-                        summaryAddVintage.hidden = false;
-                        summaryAddVintage.removeAttribute('disabled');
-                        summaryAddVintage.focus();
-                    } else {
-                        summaryAddVintage.value = '';
-                        summaryAddVintage.hidden = true;
-                        summaryAddVintage.setAttribute('disabled', 'disabled');
-                    }
-                }
-
-                function showVintageInput() {
-                    if (summaryAddVintageSelect) {
-                        summaryAddVintageSelect.hidden = true;
-                        summaryAddVintageSelect.value = '';
-                        summaryAddVintageSelect.setAttribute('disabled', 'disabled');
-                    }
-
-                    if (summaryAddVintage) {
-                        summaryAddVintage.hidden = false;
-                        summaryAddVintage.removeAttribute('disabled');
-                    }
-                }
-
-                function showVintageSelectForWine(wine) {
-                    if (!summaryAddVintageSelect || !summaryAddVintage) {
-                        return;
-                    }
-
-                    const vintages = Array.isArray(wine?.vintages) ? wine.vintages : [];
-                    if (vintages.length === 0) {
-                        showVintageInput();
-                        return;
-                    }
-
-                    populateVintageSelect(summaryAddVintageSelect, wine, '');
-                    summaryAddVintageSelect.hidden = false;
-                    summaryAddVintageSelect.removeAttribute('disabled');
-
-                    summaryAddVintage.value = '';
-                    summaryAddVintage.hidden = true;
-                    summaryAddVintage.setAttribute('disabled', 'disabled');
-                }
-
-                function resetSummaryAddInputs() {
-                    if (summaryAddWine) {
-                        summaryAddWine.value = '';
-                    }
-
-                    if (summaryAddUser) {
-                        summaryAddUser.value = '';
-                    }
-
-                    if (summaryAddName) {
-                        summaryAddName.value = '';
-                    }
-
-                    if (summaryAddSubApp) {
-                        summaryAddSubApp.value = '';
-                        summaryAddSubApp.removeAttribute('disabled');
-                    }
-
-                    if (summaryAddColor) {
-                        summaryAddColor.value = 'Red';
-                        summaryAddColor.removeAttribute('disabled');
-                    }
-
-                    if (summaryAddVintage) {
-                        summaryAddVintage.value = '';
-                    }
-
-                    handleWineSelectionChange();
-                }
             }
 
             function bindDetailAddRow() {
@@ -457,36 +277,17 @@ window.WineInventoryTables.initialize = function () {
                         : Array.isArray(response?.Users)
                             ? response.Users
                             : [];
-                    const wines = Array.isArray(response?.wines)
-                        ? response.wines
-                        : Array.isArray(response?.Wines)
-                            ? response.Wines
-                            : [];
 
                     referenceData.subAppellations = subApps;
                     referenceData.bottleLocations = locations;
                     referenceData.users = users;
-                    referenceData.wines = wines
-                        .map(normalizeWineOption)
-                        .filter(Boolean);
 
-                    populateWineSelect(summaryAddWine, summaryAddWine?.value ?? '');
                     populateSubAppellationSelect(summaryAddSubApp, summaryAddSubApp?.value ?? '');
                     populateLocationSelect(detailAddLocation, detailAddLocation?.value ?? '');
                     populateUserSelect(detailAddUser, detailAddUser?.value ?? '');
                     populateUserSelect(notesAddUser, notesAddUser?.value ?? '');
-                    populateUserSelect(summaryAddUser, summaryAddUser?.value ?? '');
-
-                    if (summaryAddUser?.firstElementChild) {
-                        summaryAddUser.firstElementChild.textContent = 'Select user';
-                    }
-
-                    if (notesAddUser?.firstElementChild) {
+                    if (notesAddUser.firstElementChild) {
                         notesAddUser.firstElementChild.textContent = 'Select user';
-                    }
-
-                    if (summaryAddWine) {
-                        summaryAddWine.dispatchEvent(new Event('change'));
                     }
                 } catch (error) {
                     showMessage(error.message, 'error');
@@ -518,83 +319,6 @@ window.WineInventoryTables.initialize = function () {
                     opt.textContent = label ?? id;
                     select.appendChild(opt);
                 });
-
-                if (previousValue) {
-                    select.value = previousValue;
-                }
-            }
-
-            function populateWineSelect(select, selectedId) {
-                if (!select) {
-                    return;
-                }
-
-                const previousValue = selectedId ?? select.value ?? '';
-                select.innerHTML = '';
-
-                const placeholder = document.createElement('option');
-                placeholder.value = '';
-                placeholder.textContent = 'Create new wine';
-                select.appendChild(placeholder);
-
-                referenceData.wines.forEach(option => {
-                    const id = option?.id;
-                    if (!id) {
-                        return;
-                    }
-
-                    const opt = document.createElement('option');
-                    opt.value = id;
-                    opt.textContent = option?.label || option?.name || id;
-                    select.appendChild(opt);
-                });
-
-                if (previousValue) {
-                    select.value = previousValue;
-                }
-            }
-
-            function populateVintageSelect(select, wine, selectedId) {
-                if (!select) {
-                    return;
-                }
-
-                const previousValue = selectedId ?? select.value ?? '';
-                select.innerHTML = '';
-
-                const placeholder = document.createElement('option');
-                placeholder.value = '';
-                placeholder.textContent = 'Select vintage';
-                select.appendChild(placeholder);
-
-                const vintages = Array.isArray(wine?.vintages)
-                    ? [...wine.vintages]
-                    : [];
-
-                vintages
-                    .sort((a, b) => {
-                        const aValue = Number.isFinite(a?.vintage) ? a.vintage : -Infinity;
-                        const bValue = Number.isFinite(b?.vintage) ? b.vintage : -Infinity;
-                        return bValue - aValue;
-                    })
-                    .forEach(vintage => {
-                        const id = vintage?.id;
-                        if (!id) {
-                            return;
-                        }
-
-                        const option = document.createElement('option');
-                        option.value = id;
-                        option.textContent = Number.isFinite(vintage?.vintage)
-                            ? String(vintage.vintage)
-                            : 'Unknown vintage';
-                        select.appendChild(option);
-                    });
-
-                const createOption = document.createElement('option');
-                createOption.value = '__create';
-                createOption.textContent = 'Add new vintage';
-                select.appendChild(createOption);
 
                 if (previousValue) {
                     select.value = previousValue;
@@ -1872,49 +1596,6 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 return undefined;
-            }
-
-            function normalizeWineOption(raw) {
-                if (!raw) {
-                    return null;
-                }
-
-                const id = pick(raw, ['id', 'Id']);
-                if (!id) {
-                    return null;
-                }
-
-                const rawVintages = Array.isArray(raw?.vintages)
-                    ? raw.vintages
-                    : Array.isArray(raw?.Vintages)
-                        ? raw.Vintages
-                        : [];
-
-                const vintages = rawVintages
-                    .map(entry => {
-                        const vintageId = pick(entry, ['id', 'Id']);
-                        if (!vintageId) {
-                            return null;
-                        }
-
-                        const value = Number(pick(entry, ['vintage', 'Vintage']));
-                        return {
-                            id: vintageId,
-                            vintage: Number.isFinite(value) ? value : null
-                        };
-                    })
-                    .filter(Boolean);
-
-                return {
-                    id,
-                    name: pick(raw, ['name', 'Name']) ?? '',
-                    label: pick(raw, ['label', 'Label']) ?? pick(raw, ['name', 'Name']) ?? id,
-                    color: pick(raw, ['color', 'Color']) ?? '',
-                    subAppellationId: pick(raw, ['subAppellationId', 'SubAppellationId']) ?? '',
-                    appellationId: pick(raw, ['appellationId', 'AppellationId']) ?? '',
-                    subAppellationLabel: pick(raw, ['subAppellationLabel', 'SubAppellationLabel']) ?? '',
-                    vintages
-                };
             }
 
             function normalizeSummary(raw) {
