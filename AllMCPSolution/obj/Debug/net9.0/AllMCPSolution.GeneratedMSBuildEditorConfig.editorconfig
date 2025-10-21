@@ -91,3 +91,7 @@ build_metadata.AdditionalFiles.CssScope =
 [/Users/johann/RiderProjects/AllMCP/AllMCPSolution/Views/WineSurfer/SipSession.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3MvV2luZVN1cmZlci9TaXBTZXNzaW9uLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/johann/RiderProjects/AllMCP/AllMCPSolution/Views/WineSurfer/_BottleCard.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvV2luZVN1cmZlci9fQm90dGxlQ2FyZC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
