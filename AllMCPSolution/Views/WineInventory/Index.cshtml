@@ -248,17 +248,19 @@
                                             <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
                                         </td>
                                         <td class="detail-add-average" aria-label="Average score">—</td>
-                                        <td>
-                                            <label class="checkbox-row">
-                                                <input type="checkbox" class="detail-add-is-drunk" />
-                                                <span>No</span>
+                                        <td class="detail-add-quantity" colspan="2">
+                                            <label class="detail-add-quantity-label">
+                                                <span>Quantity</span>
+                                                <select class="detail-add-quantity-select" aria-label="Bottle quantity">
+                                                    @for (var quantity = 1; quantity <= 12; quantity++)
+                                                    {
+                                                        <option value="@quantity">@quantity</option>
+                                                    }
+                                                </select>
                                             </label>
                                         </td>
-                                        <td>
-                                            <input type="datetime-local" class="detail-add-drunk-at" aria-label="Drunk date" disabled />
-                                        </td>
                                         <td class="actions">
-                                            <button type="button" class="detail-add-submit crud-table__action-button">Add Bottle</button>
+                                            <button type="button" class="detail-add-submit crud-table__action-button">Add Bottles</button>
                                         </td>
                                     </tr>
                                     <tr class="header-row crud-table__header-row">

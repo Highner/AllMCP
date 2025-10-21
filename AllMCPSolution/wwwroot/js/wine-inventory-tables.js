@@ -47,9 +47,7 @@ window.WineInventoryTables.initialize = function () {
 
             const detailAddLocation = detailAddRow.querySelector('.detail-add-location');
             const detailAddPrice = detailAddRow.querySelector('.detail-add-price');
-            const detailAddIsDrunk = detailAddRow.querySelector('.detail-add-is-drunk');
-            const detailAddLabel = detailAddRow.querySelector('.checkbox-row span');
-            const detailAddDrunkAt = detailAddRow.querySelector('.detail-add-drunk-at');
+            const detailAddQuantity = detailAddRow.querySelector('.detail-add-quantity-select');
             const detailAddButton = detailAddRow.querySelector('.detail-add-submit');
 
             let selectedGroupId = null;
@@ -436,21 +434,6 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function bindDetailAddRow() {
-                detailAddIsDrunk?.addEventListener('change', () => {
-                    if (detailAddIsDrunk.checked) {
-                        detailAddDrunkAt.removeAttribute('disabled');
-                        if (detailAddLabel) {
-                            detailAddLabel.textContent = 'Yes';
-                        }
-                    } else {
-                        detailAddDrunkAt.value = '';
-                        detailAddDrunkAt.setAttribute('disabled', 'disabled');
-                        if (detailAddLabel) {
-                            detailAddLabel.textContent = 'No';
-                        }
-                    }
-                });
-
                 detailAddButton?.addEventListener('click', handleAddBottle);
             }
 
@@ -912,13 +895,10 @@ window.WineInventoryTables.initialize = function () {
                     detailsSubtitle.textContent = `${summary.bottleCount ?? 0} bottle${summary.bottleCount === 1 ? '' : 's'} · ${summary.statusLabel ?? ''}`;
                     detailAddRow.hidden = false;
                     detailAddPrice.value = '';
-                    detailAddIsDrunk.checked = false;
-                    if (detailAddLabel) {
-                        detailAddLabel.textContent = 'No';
-                    }
-                    detailAddDrunkAt.value = '';
-                    detailAddDrunkAt.setAttribute('disabled', 'disabled');
                     populateLocationSelect(detailAddLocation, '');
+                    if (detailAddQuantity) {
+                        detailAddQuantity.value = '1';
+                    }
                     detailAddButton.disabled = loading;
                     disableNotesAddRow(notesLoading || !notesSelectedBottleId);
                 } else {
@@ -1104,13 +1084,19 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
+                const quantityValue = parseInt(detailAddQuantity?.value ?? '1', 10);
+                const quantity = Number.isNaN(quantityValue) ? 1 : Math.min(Math.max(quantityValue, 1), 12);
+
+                const locationValue = detailAddLocation?.value ?? '';
+
                 const payload = {
                     wineVintageId: selectedSummary.wineVintageId,
                     price: parsePrice(detailAddPrice.value),
-                    isDrunk: detailAddIsDrunk.checked,
-                    drunkAt: parseDateTime(detailAddDrunkAt.value),
-                    bottleLocationId: detailAddLocation.value || null,
-                    userId: null
+                    isDrunk: false,
+                    drunkAt: null,
+                    bottleLocationId: locationValue || null,
+                    userId: null,
+                    quantity
                 };
 
                 try {
@@ -1121,16 +1107,15 @@ window.WineInventoryTables.initialize = function () {
                     });
 
                     detailAddPrice.value = '';
-                    detailAddIsDrunk.checked = false;
-                    if (detailAddLabel) {
-                        detailAddLabel.textContent = 'No';
+                    if (detailAddLocation) {
+                        detailAddLocation.value = '';
                     }
-                    detailAddDrunkAt.value = '';
-                    detailAddDrunkAt.setAttribute('disabled', 'disabled');
-                    detailAddLocation.value = '';
+                    if (detailAddQuantity) {
+                        detailAddQuantity.value = '1';
+                    }
 
                     await renderDetails(response, true);
-                    showMessage('Bottle added successfully.', 'success');
+                    showMessage(quantity > 1 ? 'Bottles added successfully.' : 'Bottle added successfully.', 'success');
                 } catch (error) {
                     showMessage(error.message, 'error');
                 } finally {
