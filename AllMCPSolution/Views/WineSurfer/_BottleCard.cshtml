@@ -1,0 +1,28 @@
+@model AllMCPSolution.Controllers.WineSurferSipSessionBottle
+
+@functions {
+    private static string FormatScore(decimal? value)
+    {
+        return value.HasValue ? value.Value.ToString("0.0") : "—";
+    }
+}
+
+<article class="bottle-card">
+    <header class="bottle-card-header">
+        <h3 class="bottle-name">@Model.WineName</h3>
+        @if (Model.Vintage.HasValue && Model.Vintage.Value > 0)
+        {
+            <span class="bottle-vintage">@Model.Vintage.Value</span>
+        }
+    </header>
+    <dl class="bottle-meta" aria-label="Bottle tasting stats">
+        <div class="bottle-meta-item">
+            <dt>Average score</dt>
+            <dd>@FormatScore(Model.AverageScore)</dd>
+        </div>
+        <div class="bottle-meta-item">
+            <dt>Your score</dt>
+            <dd>@FormatScore(Model.CurrentUserScore)</dd>
+        </div>
+    </dl>
+</article>
