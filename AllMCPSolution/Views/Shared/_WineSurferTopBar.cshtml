@@ -160,71 +160,60 @@
                 aria-label="@panelAriaLabel">
                 <p id="@notificationHeadingId" class="notification-heading">@panelHeading</p>
                 @if (sections.Count > 0)
-                {
-                    foreach (var section in sections)
                     {
-                        var notifications = (section.Notifications ?? Array.Empty<WineSurferTopBarNotification>())
-                            .Where(notification => notification is not null)
-                            .ToList();
-                        var sectionHasVisible = notifications.Any(notification => !dismissedStampSet.Contains(notification.Stamp));
-                        <div
-                            class="notification-section"
-                            data-section-key="@section.Key"
-                            aria-label="@(section.AriaLabel ?? section.Heading)"
-                            @(sectionHasVisible ? string.Empty : " hidden")>
-                            <p class="notification-subheading">@section.Heading</p>
-                            <ul class="notification-list">
-                                @foreach (var notification in notifications)
-                                {
-                                    var isDismissed = dismissedStampSet.Contains(notification.Stamp);
-                                    var url = string.IsNullOrWhiteSpace(notification.Url) ? "#" : notification.Url!;
-                                    var disableLink = string.IsNullOrWhiteSpace(notification.Url);
-                                    var bodySegments = (notification.Body ?? Array.Empty<WineSurferTopBarTextSegment>())
-                                        .Where(segment => segment is not null)
-                                        .ToList();
-                                    var metaSegments = (notification.Meta ?? Array.Empty<WineSurferTopBarTextSegment>())
-                                        .Where(segment => segment is not null)
-                                        .ToList();
-                                    var occurredLocal = notification.OccurredAtUtc?.ToLocalTime();
-                                    var occurredLabel = occurredLocal?.ToString("g");
-                                    var dismissLabel = string.IsNullOrWhiteSpace(notification.DismissLabel)
-                                        ? $"Dismiss notification for {notification.Title}"
-                                        : notification.DismissLabel!;
-                                    <li
-                                        class="notification-item"
-                                        data-notification-stamp="@notification.Stamp"
-                                        data-notification-category="@notification.Category"
-                                        data-section-key="@section.Key"
-                                        @(isDismissed ? " hidden aria-hidden=\"true\"" : string.Empty)>
-                                        <a
-                                            class="notification-link"
-                                            href="@url"
-                                            @(disableLink ? " aria-disabled=\"true\" tabindex=\"-1\"" : string.Empty)>
-                                            <span class="notification-title">@notification.Title</span>
-                                            @if (bodySegments.Count > 0)
-                                            {
-                                                <span class="notification-meta">
-                                                    @foreach (var segment in bodySegments)
-                                                    {
-                                                        if (segment.Emphasize)
+                        foreach (var sec in sections)
+                        {
+                            var notifications = (sec.Notifications ?? Array.Empty<WineSurferTopBarNotification>())
+                                .Where(notification => notification is not null)
+                                .ToList();
+
+                            var sectionHasVisible = notifications.Any(notification => !dismissedStampSet.Contains(notification.Stamp));
+
+                            <div
+                                class="notification-section"
+                                data-section-key="@sec.Key"
+                                aria-label="@(sec.AriaLabel ?? sec.Heading)"
+                                @(sectionHasVisible ? string.Empty : " hidden")>
+                                
+                                <p class="notification-subheading">@sec.Heading</p>
+                                
+                                <ul class="notification-list">
+                                    @foreach (var notification in notifications)
+                                    {
+                                        var isDismissed = dismissedStampSet.Contains(notification.Stamp);
+                                        var url = string.IsNullOrWhiteSpace(notification.Url) ? "#" : notification.Url!;
+                                        var disableLink = string.IsNullOrWhiteSpace(notification.Url);
+                                        var bodySegments = (notification.Body ?? Array.Empty<WineSurferTopBarTextSegment>())
+                                            .Where(segment => segment is not null)
+                                            .ToList();
+                                        var metaSegments = (notification.Meta ?? Array.Empty<WineSurferTopBarTextSegment>())
+                                            .Where(segment => segment is not null)
+                                            .ToList();
+                                        var occurredLocal = notification.OccurredAtUtc?.ToLocalTime();
+                                        var occurredLabel = occurredLocal?.ToString("g");
+                                        var dismissLabel = string.IsNullOrWhiteSpace(notification.DismissLabel)
+                                            ? $"Dismiss notification for {notification.Title}"
+                                            : notification.DismissLabel!;
+
+                                        <li
+                                            class="notification-item"
+                                            data-notification-stamp="@notification.Stamp"
+                                            data-notification-category="@notification.Category"
+                                            data-section-key="@sec.Key"
+                                            @(isDismissed ? " hidden aria-hidden=\"true\"" : string.Empty)>
+                                            
+                                            <a
+                                                class="notification-link"
+                                                href="@url"
+                                                @(disableLink ? " aria-disabled=\"true\" tabindex=\"-1\"" : string.Empty)>
+                                                
+                                                <span class="notification-title">@notification.Title</span>
+
+                                                @if (bodySegments.Count > 0)
+                                                {
+                                                    <span class="notification-meta">
+                                                        @foreach (var segment in bodySegments)
                                                         {
-                                                            <strong>@segment.Text</strong>
-                                                        }
-                                                        else
-                                                        {
-                                                            @segment.Text
-                                                        }
-                                                    }
-                                                </span>
-                                            }
-                                            @if (metaSegments.Count > 0 || occurredLabel is not null)
-                                            {
-                                                <span class="notification-meta notification-meta-secondary">
-                                                    @{
-                                                        var hasMetaText = false;
-                                                        foreach (var segment in metaSegments)
-                                                        {
-                                                            hasMetaText = true;
                                                             if (segment.Emphasize)
                                                             {
                                                                 <strong>@segment.Text</strong>
@@ -234,38 +223,61 @@
                                                                 @segment.Text
                                                             }
                                                         }
+                                                    </span>
+                                                }
 
-                                                        if (occurredLabel is not null)
-                                                        {
-                                                            if (hasMetaText)
+                                                @if (metaSegments.Count > 0 || occurredLabel is not null)
+                                                {
+                                                    <span class="notification-meta notification-meta-secondary">
+                                                        @{
+                                                            var hasMetaText = false;
+                                                            foreach (var segment in metaSegments)
                                                             {
-                                                                @: · 
+                                                                hasMetaText = true;
+                                                                if (segment.Emphasize)
+                                                                {
+                                                                    <strong>@segment.Text</strong>
+                                                                }
+                                                                else
+                                                                {
+                                                                    @segment.Text
+                                                                }
                                                             }
 
-                                                            @occurredLabel
+                                                            if (occurredLabel is not null)
+                                                            {
+                                                                if (hasMetaText)
+                                                                {
+                                                                    @: · 
+                                                                }
+
+                                                                @occurredLabel
+                                                            }
                                                         }
-                                                    }
-                                                </span>
-                                            }
-                                            @if (!string.IsNullOrWhiteSpace(notification.Tag))
-                                            {
-                                                <span class="notification-tag">@notification.Tag</span>
-                                            }
-                                        </a>
-                                        <button
-                                            type="button"
-                                            class="notification-dismiss"
-                                            data-notification-stamp="@notification.Stamp"
-                                            data-notification-category="@notification.Category"
-                                            aria-label="@dismissLabel">
-                                            <span aria-hidden="true">&times;</span>
-                                        </button>
-                                    </li>
-                                }
-                            </ul>
-                        </div>
+                                                    </span>
+                                                }
+
+                                                @if (!string.IsNullOrWhiteSpace(notification.Tag))
+                                                {
+                                                    <span class="notification-tag">@notification.Tag</span>
+                                                }
+                                            </a>
+
+                                            <button
+                                                type="button"
+                                                class="notification-dismiss"
+                                                data-notification-stamp="@notification.Stamp"
+                                                data-notification-category="@notification.Category"
+                                                aria-label="@dismissLabel">
+                                                <span aria-hidden="true">&times;</span>
+                                            </button>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        }
                     }
-                }
+
                 <p class="notification-empty"@(totalNotificationCount > 0 ? " hidden" : string.Empty)>You're all caught up. No notifications right now.</p>
                 @if (footerLinkItems.Count > 0)
                 {
