@@ -488,11 +488,6 @@
         }
 
         .invitation-card {
-            border-radius: 18px;
-            padding: 22px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
             min-height: 0;
         }
 
@@ -634,14 +629,6 @@
             grid-template-columns: 1fr;
             gap: 28px;
             width: min(1040px, 100%);
-        }
-
-        .sisterhood-card {
-            border-radius: 18px;
-            padding: 28px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
         }
 
         .sisterhood-name {
@@ -1649,7 +1636,8 @@
             letter-spacing: 1.5px;
         }
 
-        .badge {
+        .badge,
+        .wine-card__badge {
             display: inline-flex;
             align-items: center;
             padding: 4px 10px;
@@ -1661,12 +1649,14 @@
             color: rgba(244, 241, 234, 0.8);
         }
 
-        .badge.admin {
+        .badge.admin,
+        .wine-card__badge.admin {
             border-color: rgba(126, 216, 182, 0.45);
             color: #c0f5de;
         }
 
-        .badge.you {
+        .badge.you,
+        .wine-card__badge.you {
             border-color: rgba(244, 241, 234, 0.45);
             color: #f4f1ea;
         }
@@ -1828,32 +1818,32 @@
                         };
                         var updatedLocal = invitation.UpdatedAtUtc.ToLocalTime();
                         var createdLocal = invitation.CreatedAtUtc.ToLocalTime();
-                        <article class="invitation-card wine-surface wine-surface-border wine-card-hover" data-invitation-card data-invitation-id="@invitation.Id">
-                            <div class="invitation-card-header">
-                                <h3 class="invitation-card-title">@invitation.SisterhoodName</h3>
-                                <span class="invitation-status @statusClass">@invitation.Status</span>
+                        <article class="invitation-card wine-card wine-surface wine-surface-border wine-card-hover" data-invitation-card data-invitation-id="@invitation.Id">
+                            <div class="invitation-card-header wine-card__header">
+                                <h3 class="invitation-card-title wine-card__title">@invitation.SisterhoodName</h3>
+                                <span class="invitation-status wine-card__badge @statusClass">@invitation.Status</span>
                             </div>
                             @if (!string.IsNullOrWhiteSpace(invitation.SisterhoodDescription))
                             {
-                                <p class="invitation-description">@invitation.SisterhoodDescription</p>
+                                <p class="invitation-description wine-card__description">@invitation.SisterhoodDescription</p>
                             }
-                            <p class="invitation-email">Invited as <strong>@invitation.InviteeEmail</strong></p>
-                            <div class="invitation-tags">
+                            <p class="invitation-email wine-card__meta">Invited as <strong>@invitation.InviteeEmail</strong></p>
+                            <div class="invitation-tags wine-card__tags">
                                 @if (invitation.MatchesUserId)
                                 {
-                                    <span class="invitation-tag account">Linked to your account</span>
+                                    <span class="invitation-tag wine-card__tag account">Linked to your account</span>
                                 }
                                 else if (invitation.MatchesEmail)
                                 {
-                                    <span class="invitation-tag email">Email match</span>
+                                    <span class="invitation-tag wine-card__tag email">Email match</span>
                                 }
                             </div>
-                            <p class="invitation-updated" title="@($"Sent {createdLocal:f}")">Updated @updatedLocal.ToString("g")</p>
+                            <p class="invitation-updated wine-card__meta" title="@($"Sent {createdLocal:f}")">Updated @updatedLocal.ToString("g")</p>
                             @if (!string.IsNullOrEmpty(responseMessage))
                             {
-                                <p class="invitation-response">@responseMessage</p>
+                                <p class="invitation-response wine-card__meta">@responseMessage</p>
                             }
-                            <div class="invitation-card-actions">
+                            <div class="invitation-card-actions wine-card__actions">
                                 @if (isPending)
                                 {
                                     <form method="post" action="@(acceptAction ?? string.Empty)" class="inline-form">
@@ -1883,25 +1873,25 @@
             {
                 foreach (var sisterhood in Model.Sisterhoods)
                 {
-                    <article class="sisterhood-card wine-surface wine-surface-border wine-card-hover" data-sisterhood-card data-sisterhood-id="@sisterhood.Id">
-                        <div class="sisterhood-header">
+                    <article class="sisterhood-card wine-card wine-surface wine-surface-border wine-card-hover" data-sisterhood-card data-sisterhood-id="@sisterhood.Id">
+                        <div class="sisterhood-header wine-card__header">
                             <div>
-                                <h2 class="sisterhood-name">@sisterhood.Name</h2>
-                                <p class="sisterhood-members">
+                                <h2 class="sisterhood-name wine-card__title">@sisterhood.Name</h2>
+                                <p class="sisterhood-members wine-card__subtitle">
                                     @sisterhood.MemberCount @((sisterhood.MemberCount == 1) ? "member" : "members")
                                     @if (sisterhood.PendingInvitations.Count > 0)
                                     {
-                                        <span class="pending-invite-count">· @sisterhood.PendingInvitations.Count pending invite@((sisterhood.PendingInvitations.Count == 1) ? string.Empty : "s")</span>
+                                        <span class="pending-invite-count wine-card__meta">· @sisterhood.PendingInvitations.Count pending invite@((sisterhood.PendingInvitations.Count == 1) ? string.Empty : "s")</span>
                                     }
                                     @if (sisterhood.CanManage)
                                     {
-                                        <span class="badge admin" title="You manage this sisterhood">Admin</span>
+                                        <span class="badge admin wine-card__badge" title="You manage this sisterhood">Admin</span>
                                     }
                                 </p>
                             </div>
                             @if (sisterhood.CanManage)
                             {
-                                <div class="sisterhood-actions">
+                                <div class="sisterhood-actions wine-card__actions">
                                     <button type="button"
                                             class="secondary-button"
                                             data-sisterhood-edit-toggle="@sisterhood.Id"
@@ -1919,7 +1909,7 @@
                         </div>
                         @if (!string.IsNullOrWhiteSpace(sisterhood.Description))
                         {
-                            <p class="sisterhood-description">@sisterhood.Description</p>
+                            <p class="sisterhood-description wine-card__description">@sisterhood.Description</p>
                         }
 
                         @if (sisterhood.CanManage)
@@ -1986,11 +1976,11 @@
                                                         <div class="member-badges">
                                                             @if (member.IsAdmin)
                                                             {
-                                                                <span class="badge admin">Admin</span>
+                                                                <span class="badge admin wine-card__badge">Admin</span>
                                                             }
                                                             @if (member.IsCurrentUser)
                                                             {
-                                                                <span class="badge you">You</span>
+                                                                <span class="badge you wine-card__badge">You</span>
                                                             }
                                                         </div>
                                                     }
