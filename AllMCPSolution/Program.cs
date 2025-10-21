@@ -5,13 +5,11 @@ using AllMCPSolution.Artists;
 using AllMCPSolution.Artworks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Tools;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
-using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -72,36 +70,6 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
-});
-
-builder.Services
-    .AddAuthentication()
-    .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
-    .EnableTokenAcquisitionToCallDownstreamApi()
-    .AddInMemoryTokenCaches();
-
-builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
-{
-    options.SignInScheme = IdentityConstants.ExternalScheme;
-    options.SaveTokens = true;
-    options.Events ??= new OpenIdConnectEvents();
-    var existingRemoteFailure = options.Events.OnRemoteFailure;
-    options.Events.OnRemoteFailure = async context =>
-    {
-        if (existingRemoteFailure != null)
-        {
-            await existingRemoteFailure(context);
-
-            if (context.Result != null && (context.Result.Handled || context.Result.Skipped))
-            {
-                return;
-            }
-        }
-
-        context.HandleResponse();
-        var message = Uri.EscapeDataString(context.Failure?.Message ?? "remote failure");
-        context.Response.Redirect($"/Account/Login?error={message}");
-    };
 });
 
 builder.Services.AddAuthorization();
