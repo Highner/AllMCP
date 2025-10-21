@@ -1049,10 +1049,67 @@ textarea:focus {
     border-bottom: 1px solid hsla(var(--border) / 0.25);
 }
 
-#detail-add-row td {
-    padding-top: 16px;
-    padding-bottom: 20px;
+#detail-add-row {
+    display: block;
+    padding: 16px 20px 20px;
     border-top: 1px solid hsla(var(--border) / 0.35);
+    border-bottom: 1px solid hsla(var(--border) / 0.25);
+}
+
+#detail-add-row .detail-add-grid {
+    display: grid;
+    gap: 16px;
+}
+
+#detail-add-row .detail-add-grid > * {
+    min-width: 0;
+}
+
+@media (min-width: 768px) {
+    #detail-add-row {
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+
+    #detail-add-row .detail-add-grid {
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+        align-items: end;
+    }
+}
+
+#detail-add-row .detail-add-input-label,
+#detail-add-row .detail-add-quantity-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#detail-add-row .detail-add-quantity-label {
+    font-size: 12px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: hsla(var(--muted-foreground) / 0.85);
+}
+
+#detail-add-row .detail-add-quantity-label span {
+    font-size: inherit;
+    letter-spacing: inherit;
+}
+
+#detail-add-row .actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+}
+
+#detail-add-row .actions button {
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    #detail-add-row .actions button {
+        width: auto;
+    }
 }
 
 .crud-table__header-row {
@@ -1467,8 +1524,8 @@ tbody tr:hover {
 }
 
 
-.details-table .add-row input,
-.details-table .add-row select,
+#detail-add-row input,
+#detail-add-row select,
 .notes-table .add-row input,
 .notes-table .add-row select,
 .notes-table .add-row textarea {
@@ -1482,21 +1539,11 @@ tbody tr:hover {
     box-sizing: border-box;
 }
 
-.details-table .add-row .detail-add-quantity-label {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-size: 12px;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-    color: hsla(var(--muted-foreground) / 0.85);
-}
-
-.details-table .add-row .detail-add-quantity-select {
+#detail-add-row .detail-add-quantity-select {
     max-width: 120px;
 }
 
-.details-table .add-row .actions button,
+#detail-add-row .actions button,
 .notes-table .add-row .actions button {
     width: 100%;
 }
