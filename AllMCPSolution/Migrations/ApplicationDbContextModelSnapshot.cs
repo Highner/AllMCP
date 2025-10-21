@@ -377,6 +377,30 @@ namespace AllMCPSolution.Migrations
                     b.ToTable("Sisterhoods");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.SisterhoodMembership", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SisterhoodId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsAdmin")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId", "SisterhoodId");
+
+                    b.HasIndex("SisterhoodId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserSisterhoods", (string)null);
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.SubAppellation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -636,22 +660,6 @@ namespace AllMCPSolution.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("UserSisterhoods", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("SisterhoodId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("UserId", "SisterhoodId");
-
-                    b.HasIndex("SisterhoodId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("UserSisterhoods");
-                });
-
             modelBuilder.Entity("AllMCPSolution.Models.Appellation", b =>
                 {
                     b.HasOne("AllMCPSolution.Models.Region", "Region")
@@ -730,6 +738,25 @@ namespace AllMCPSolution.Migrations
                         .IsRequired();
 
                     b.Navigation("Country");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.SisterhoodMembership", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.Sisterhood", "Sisterhood")
+                        .WithMany("Memberships")
+                        .HasForeignKey("SisterhoodId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AllMCPSolution.Models.ApplicationUser", "User")
+                        .WithMany("SisterhoodMemberships")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Sisterhood");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.SubAppellation", b =>
@@ -846,21 +873,6 @@ namespace AllMCPSolution.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("UserSisterhoods", b =>
-                {
-                    b.HasOne("AllMCPSolution.Models.Sisterhood", null)
-                        .WithMany()
-                        .HasForeignKey("SisterhoodId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AllMCPSolution.Models.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("AllMCPSolution.Models.Appellation", b =>
                 {
                     b.Navigation("SubAppellations");
@@ -871,6 +883,8 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("BottleLocations");
 
                     b.Navigation("Bottles");
+
+                    b.Navigation("SisterhoodMemberships");
 
                     b.Navigation("TastingNotes");
                 });
@@ -898,6 +912,11 @@ namespace AllMCPSolution.Migrations
             modelBuilder.Entity("AllMCPSolution.Models.Region", b =>
                 {
                     b.Navigation("Appellations");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Sisterhood", b =>
+                {
+                    b.Navigation("Memberships");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.SubAppellation", b =>
