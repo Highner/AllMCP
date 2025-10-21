@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AllMCPSolution.Data;
+using AllMCPSolution.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace AllMCPSolution.Repositories;
@@ -151,6 +153,11 @@ public class SipSessionRepository : ISipSessionRepository
             throw new ArgumentNullException(nameof(sipSession));
         }
 
+        if (sipSession.Id == Guid.Empty)
+        {
+            throw new ArgumentException("Sip session ID cannot be empty.", nameof(sipSession));
+        }
+
         if (sipSession.SisterhoodId == Guid.Empty)
         {
             throw new ArgumentException("Sip session must be linked to a sisterhood.", nameof(sipSession));
@@ -161,19 +168,33 @@ public class SipSessionRepository : ISipSessionRepository
             throw new ArgumentException("Sip session name cannot be empty.", nameof(sipSession));
         }
 
-        sipSession.Name = sipSession.Name.Trim();
-        sipSession.Description = string.IsNullOrWhiteSpace(sipSession.Description)
+        var trimmedName = sipSession.Name.Trim();
+        var trimmedDescription = string.IsNullOrWhiteSpace(sipSession.Description)
             ? null
             : sipSession.Description.Trim();
-
-        sipSession.Location = string.IsNullOrWhiteSpace(sipSession.Location)
+        var trimmedLocation = string.IsNullOrWhiteSpace(sipSession.Location)
             ? string.Empty
             : sipSession.Location.Trim();
+        var scheduledAt = sipSession.ScheduledAt;
+        var scheduledDate = sipSession.Date;
+        var updatedAt = DateTime.UtcNow;
 
-        sipSession.UpdatedAt = DateTime.UtcNow;
+        var affected = await _db.SipSessions
+            .Where(session => session.Id == sipSession.Id && session.SisterhoodId == sipSession.SisterhoodId)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(session => session.Name, trimmedName)
+                    .SetProperty(session => session.Description, trimmedDescription)
+                    .SetProperty(session => session.Location, trimmedLocation)
+                    .SetProperty(session => session.ScheduledAt, scheduledAt)
+                    .SetProperty(session => session.Date, scheduledDate)
+                    .SetProperty(session => session.UpdatedAt, updatedAt),
+                ct);
 
-        _db.SipSessions.Update(sipSession);
-        await _db.SaveChangesAsync(ct);
+        if (affected == 0)
+        {
+            throw new ArgumentException("Sip session could not be found.", nameof(sipSession));
+        }
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
