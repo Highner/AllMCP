@@ -72,18 +72,12 @@ public class WineInventoryController : Controller
             .Select(group => new
             {
                 group.Key,
-                Scores = group
-                    .Where(bottle => bottle.IsDrunk)
-                    .SelectMany(bottle => bottle.TastingNotes)
-                    .Select(note => note.Score)
-                    .Where(score => score.HasValue && score.Value > 0)
-                    .Select(score => score.Value)
-                    .ToList()
+                Score = CalculateAverageScore(group)
             })
-            .Where(entry => entry.Scores.Count > 0)
+            .Where(entry => entry.Score.HasValue)
             .ToDictionary(
                 entry => entry.Key,
-                entry => decimal.Round(entry.Scores.Average(), 1, MidpointRounding.AwayFromZero));
+                entry => entry.Score!.Value);
 
         decimal? GetAverageScore(Guid wineVintageId) =>
             averageScores.TryGetValue(wineVintageId, out var avg)
@@ -976,7 +970,6 @@ public class WineInventoryController : Controller
     private static decimal? CalculateAverageScore(IEnumerable<Bottle> bottles)
     {
         var scores = bottles
-            .Where(bottle => bottle.IsDrunk)
             .SelectMany(bottle => bottle.TastingNotes)
             .Select(note => note.Score)
             .Where(score => score.HasValue && score.Value > 0)
