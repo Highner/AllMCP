@@ -963,19 +963,12 @@ window.WineInventoryTables.initialize = function () {
                 row.dataset.bottleId = detail.bottleId ?? detail.BottleId ?? '';
 
                 const formattedDate = formatDateTime(detail.drunkAt ?? detail.DrunkAt);
-                const isDrunk = Boolean(detail.isDrunk ?? detail.IsDrunk);
 
                 row.innerHTML = `
                     <td></td>
                     <td><input type="number" step="0.01" min="0" class="detail-price" value="${detail.price ?? detail.Price ?? ''}" placeholder="0.00" /></td>
                     <td class="detail-average">${formatScore(detail.averageScore ?? detail.AverageScore)}</td>
-                    <td>
-                        <label class="checkbox-row">
-                            <input type="checkbox" class="detail-is-drunk" ${isDrunk ? 'checked' : ''} />
-                            <span>${isDrunk ? 'Yes' : 'No'}</span>
-                        </label>
-                    </td>
-                    <td><input type="datetime-local" class="detail-drunk-at" value="${formattedDate}" ${isDrunk ? '' : 'disabled'} /></td>
+                    <td><input type="datetime-local" class="detail-drunk-at" value="${formattedDate}" /></td>
                     <td class="actions">
                         <button type="button" class="crud-table__action-button save">Save</button>
                         <button type="button" class="crud-table__action-button secondary delete">Remove</button>
@@ -987,39 +980,23 @@ window.WineInventoryTables.initialize = function () {
                 populateLocationSelect(locationSelect, detail.bottleLocationId ?? detail.BottleLocationId ?? '');
                 locationCell.appendChild(locationSelect);
 
-                const drunkCheckbox = row.querySelector('.detail-is-drunk');
-                const drunkLabel = row.querySelector('.detail-is-drunk')?.nextElementSibling;
                 const drunkInput = row.querySelector('.detail-drunk-at');
                 const saveButton = row.querySelector('.save');
                 const deleteButton = row.querySelector('.delete');
-
-                drunkCheckbox?.addEventListener('change', () => {
-                    if (drunkCheckbox.checked) {
-                        drunkInput?.removeAttribute('disabled');
-                        if (drunkLabel) {
-                            drunkLabel.textContent = 'Yes';
-                        }
-                    } else {
-                        drunkInput?.setAttribute('disabled', 'disabled');
-                        if (drunkInput) {
-                            drunkInput.value = '';
-                        }
-                        if (drunkLabel) {
-                            drunkLabel.textContent = 'No';
-                        }
-                    }
-                });
 
                 saveButton?.addEventListener('click', async () => {
                     if (!selectedSummary || loading) {
                         return;
                     }
 
+                    const enjoyedValue = drunkInput?.value ?? '';
+                    const hasEnjoyedDate = enjoyedValue.trim().length > 0;
+
                     const payload = {
                         wineVintageId: selectedSummary.wineVintageId,
                         price: parsePrice(row.querySelector('.detail-price')?.value ?? ''),
-                        isDrunk: drunkCheckbox?.checked ?? false,
-                        drunkAt: parseDateTime(drunkInput?.value ?? ''),
+                        isDrunk: hasEnjoyedDate,
+                        drunkAt: parseDateTime(enjoyedValue),
                         bottleLocationId: locationSelect.value || null,
                         userId: detail.userId ?? detail.UserId ?? null
                     };
