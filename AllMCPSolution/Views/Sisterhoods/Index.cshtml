@@ -2037,6 +2037,22 @@
 
             const checkboxes = Array.from(checkboxNodes);
             const options = Array.from(optionNodes);
+            let lastEnabledCount = checkboxes.filter(box => !box.disabled).length;
+            let lastTriggerButton = null;
+
+            const updateSubmitState = () => {
+                if (!submitButton) {
+                    return;
+                }
+
+                if (lastEnabledCount === 0) {
+                    submitButton.disabled = true;
+                    return;
+                }
+
+                const anyChecked = checkboxes.some(box => !box.disabled && box.checked);
+                submitButton.disabled = !anyChecked;
+            };
 
             const isModalOpen = () => !contributeModal.hasAttribute('hidden');
 
@@ -2054,6 +2070,8 @@
                     box.disabled = false;
                 });
                 options.forEach(option => option.removeAttribute('data-disabled'));
+                lastEnabledCount = checkboxes.length;
+                updateSubmitState();
             };
 
             const applySessionBottleState = (sessionBottleIds) => {
@@ -2083,10 +2101,8 @@
                     }
                 }
 
-                if (submitButton) {
-                    submitButton.disabled = enabledCount === 0;
-                }
-
+                lastEnabledCount = enabledCount;
+                updateSubmitState();
                 return enabledCount;
             };
 
@@ -2141,13 +2157,17 @@
                 if (emptyState && !emptyState.hasAttribute('hidden') && checkboxes.length > 0) {
                     emptyState.setAttribute('hidden', '');
                 }
-                if (submitButton && checkboxes.length > 0) {
-                    submitButton.disabled = false;
+
+                if (lastTriggerButton) {
+                    const trigger = lastTriggerButton;
+                    lastTriggerButton = null;
+                    window.requestAnimationFrame(() => trigger.focus());
                 }
             };
 
             openButtons.forEach(button => {
                 button.addEventListener('click', () => {
+                    lastTriggerButton = button;
                     const sisterhoodId = button.getAttribute('data-sisterhood-id') ?? '';
                     const sessionId = button.getAttribute('data-sip-session-id') ?? '';
                     const rawBottleIds = button.getAttribute('data-session-bottle-ids') ?? '';
@@ -2161,6 +2181,12 @@
                 button.addEventListener('click', closeModal);
             });
 
+            checkboxes.forEach(box => {
+                box.addEventListener('change', () => {
+                    updateSubmitState();
+                });
+            });
+
             contributeModal.addEventListener('click', event => {
                 if (event.target === contributeModal) {
                     closeModal();
@@ -2172,6 +2198,8 @@
                     closeModal();
                 }
             });
+
+            updateSubmitState();
         }
 
         const toggleButton = document.querySelector('[data-sisterhood-create-toggle]');
