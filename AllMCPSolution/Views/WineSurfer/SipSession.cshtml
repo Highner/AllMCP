@@ -1,0 +1,447 @@
+@model AllMCPSolution.Controllers.WineSurferSipSessionDetailViewModel
+@using AllMCPSolution.Controllers
+@{
+    Layout = null;
+}
+
+@functions {
+    private static DateTime NormalizeDateTime(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value.ToLocalTime(),
+            DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Local),
+            _ => value
+        };
+    }
+
+    private static DateTime? NormalizeDateTime(DateTime? value)
+    {
+        return value.HasValue ? NormalizeDateTime(value.Value) : (DateTime?)null;
+    }
+
+    private static string FormatSipSessionSchedule(WineSurferSipSessionSummary session)
+    {
+        var localDateTime = NormalizeDateTime(session.ScheduledAtUtc);
+        if (localDateTime.HasValue)
+        {
+            return localDateTime.Value.ToString("f");
+        }
+
+        var localDate = NormalizeDateTime(session.Date);
+        return localDate?.ToString("D") ?? "Schedule TBD";
+    }
+
+    private static string FormatTimestamp(DateTime value)
+    {
+        return NormalizeDateTime(value).ToString("f");
+    }
+
+    private static string? FormatDrunkAt(DateTime? value)
+    {
+        var local = NormalizeDateTime(value);
+        return local?.ToString("D");
+    }
+
+    private static string FormatScore(decimal? value)
+    {
+        return value.HasValue ? value.Value.ToString("0.0") : "—";
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wine Surfer · Sip Session</title>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(circle at top, rgba(244, 241, 234, 0.08), transparent 60%), #050505;
+            color: #f4f1ea;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .page-content {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .session-main {
+            width: min(960px, 100%);
+            margin: 0 auto;
+            padding: 120px 32px 96px;
+            display: flex;
+            flex-direction: column;
+            gap: 48px;
+        }
+
+        .session-nav {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-decoration: none;
+            color: rgba(244, 241, 234, 0.75);
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+
+        .back-link:hover,
+        .back-link:focus-visible {
+            color: rgba(244, 241, 234, 1);
+            transform: translateX(-2px);
+            outline: none;
+        }
+
+        .session-header {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .session-kicker {
+            margin: 0;
+            font-size: 12px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        .session-title {
+            margin: 0;
+            font-size: clamp(38px, 5vw, 68px);
+            letter-spacing: 10px;
+            text-transform: uppercase;
+        }
+
+        .session-description {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.6;
+            color: rgba(244, 241, 234, 0.78);
+            letter-spacing: 1px;
+        }
+
+        .session-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 24px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .session-meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .session-meta-item dt {
+            margin: 0;
+            font-size: 11px;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .session-meta-item dd {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 1.2px;
+        }
+
+        .session-body {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .session-note {
+            margin: 0;
+            font-size: 14px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .session-updated {
+            margin: 0;
+            font-size: 12px;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.55);
+        }
+
+        .bottle-section {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .bottle-section h2 {
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .bottle-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .bottle-card {
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            border-radius: 18px;
+            padding: 22px 26px;
+            background: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .bottle-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .bottle-name {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .bottle-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            letter-spacing: 1.3px;
+            text-transform: uppercase;
+            background: rgba(244, 241, 234, 0.12);
+            color: rgba(244, 241, 234, 0.9);
+        }
+
+        .pill-owned {
+            background: rgba(249, 107, 112, 0.25);
+            color: #ffe5e5;
+        }
+
+        .pill-status-poured {
+            background: rgba(114, 187, 126, 0.24);
+            color: #a5f4b1;
+        }
+
+        .pill-status-pending {
+            background: rgba(244, 241, 234, 0.08);
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        .bottle-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .bottle-meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .bottle-meta-item dt {
+            margin: 0;
+            font-size: 11px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .bottle-meta-item dd {
+            margin: 0;
+            font-size: 16px;
+            letter-spacing: 1.1px;
+        }
+
+        .bottle-note {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.6;
+            color: rgba(244, 241, 234, 0.75);
+            border-left: 2px solid rgba(244, 241, 234, 0.18);
+            padding-left: 14px;
+        }
+
+        .empty-state {
+            margin: 0;
+            font-size: 14px;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.55);
+        }
+
+        @media (max-width: 720px) {
+            .session-main {
+                padding: 96px 20px 72px;
+                gap: 36px;
+            }
+
+            .session-title {
+                letter-spacing: 6px;
+            }
+
+            .bottle-card {
+                padding: 18px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+</head>
+@{
+    var bodyClass = Model.CurrentUser is null ? "requires-auth" : "is-authenticated";
+    var requestPath = Context.Request.Path.HasValue ? Context.Request.Path.Value : string.Empty;
+    var requestQuery = Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value : string.Empty;
+    var currentLocation = string.Concat(requestPath, requestQuery);
+    var topBarModel = new WineSurferTopBarModel(currentLocation, Model.IncomingInvitations, Model.SentInvitationNotifications);
+    var sisterhoodName = string.IsNullOrWhiteSpace(Model.SisterhoodName) ? "Sisterhood" : Model.SisterhoodName;
+    var scheduleLabel = FormatSipSessionSchedule(Model.Session);
+    var locationLabel = string.IsNullOrWhiteSpace(Model.Session.Location) ? "Location TBD" : Model.Session.Location;
+    var createdLabel = FormatTimestamp(Model.Session.CreatedAtUtc);
+    var updatedLabel = FormatTimestamp(Model.Session.UpdatedAtUtc);
+}
+<body class="session-page @bodyClass">
+    <div class="page-content">
+        @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
+        <main class="session-main">
+            <nav class="session-nav" aria-label="Page breadcrumbs">
+                <a class="back-link" href="/wine-surfer">← Back to Wine Surfer</a>
+            </nav>
+            <header class="session-header">
+                <p class="session-kicker">@sisterhoodName</p>
+                <h1 class="session-title">@Model.Session.Name</h1>
+                @if (!string.IsNullOrWhiteSpace(Model.Session.Description))
+                {
+                    <p class="session-description">@Model.Session.Description</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.SisterhoodDescription))
+                {
+                    <p class="session-note">@Model.SisterhoodDescription</p>
+                }
+                <dl class="session-meta" aria-label="Sip session details">
+                    <div class="session-meta-item">
+                        <dt>Date &amp; time</dt>
+                        <dd>@scheduleLabel</dd>
+                    </div>
+                    <div class="session-meta-item">
+                        <dt>Location</dt>
+                        <dd>@locationLabel</dd>
+                    </div>
+                    <div class="session-meta-item">
+                        <dt>Created</dt>
+                        <dd>@createdLabel</dd>
+                    </div>
+                    <div class="session-meta-item">
+                        <dt>Last updated</dt>
+                        <dd>@updatedLabel</dd>
+                    </div>
+                </dl>
+                <p class="session-updated">Sip session ID · @Model.Session.Id.ToString("D")</p>
+            </header>
+            <section class="bottle-section" aria-label="Pour list">
+                <h2>Pour list</h2>
+                @if (Model.Session.Bottles.Count > 0)
+                {
+                    <ul class="bottle-list">
+                        @foreach (var bottle in Model.Session.Bottles)
+                        {
+                            var statusLabel = bottle.IsDrunk
+                                ? FormatDrunkAt(bottle.DrunkAtUtc) ?? "Enjoyed"
+                                : "Waiting to pour";
+                            var statusClass = bottle.IsDrunk ? "pill-status-poured" : "pill-status-pending";
+                            var statusPrefix = bottle.IsDrunk ? "Poured" : "Cellared";
+                            <li class="bottle-card">
+                                <div class="bottle-header">
+                                    <h3 class="bottle-name">@bottle.Label</h3>
+                                    <div class="bottle-tags" aria-label="Bottle indicators">
+                                        @if (bottle.IsOwnedByCurrentUser)
+                                        {
+                                            <span class="pill pill-owned">Your bottle</span>
+                                        }
+                                        <span class="pill @statusClass">@statusPrefix · @statusLabel</span>
+                                    </div>
+                                </div>
+                                <dl class="bottle-meta" aria-label="Bottle tasting stats">
+                                    <div class="bottle-meta-item">
+                                        <dt>Average score</dt>
+                                        <dd>@FormatScore(bottle.AverageScore)</dd>
+                                    </div>
+                                    @if (bottle.CurrentUserScore.HasValue)
+                                    {
+                                        <div class="bottle-meta-item">
+                                            <dt>Your score</dt>
+                                            <dd>@FormatScore(bottle.CurrentUserScore)</dd>
+                                        </div>
+                                    }
+                                    @if (bottle.DrunkAtUtc.HasValue)
+                                    {
+                                        var pouredLabel = FormatDrunkAt(bottle.DrunkAtUtc);
+                                        if (!string.IsNullOrWhiteSpace(pouredLabel))
+                                        {
+                                            <div class="bottle-meta-item">
+                                                <dt>Poured on</dt>
+                                                <dd>@pouredLabel</dd>
+                                            </div>
+                                        }
+                                    }
+                                </dl>
+                                @if (!string.IsNullOrWhiteSpace(bottle.CurrentUserNote))
+                                {
+                                    <p class="bottle-note">“@bottle.CurrentUserNote”</p>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="empty-state">No bottles have been linked to this sip session yet. Gather your cellar and set the pour list.</p>
+                }
+            </section>
+        </main>
+    </div>
+</body>
+</html>
