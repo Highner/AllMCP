@@ -1598,6 +1598,76 @@ public class WineSurferController : Controller
     }
 
     [Authorize]
+    [HttpPost("sisterhoods/sessions/delete-note")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteSipSessionBottleNote(DeleteSipSessionBottleNoteRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid ||
+            request.SisterhoodId == Guid.Empty ||
+            request.SipSessionId == Guid.Empty ||
+            request.BottleId == Guid.Empty ||
+            request.NoteId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't delete that tasting note.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var membership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (membership is null)
+        {
+            TempData["SisterhoodError"] = "You must be part of this sisterhood to delete a tasting note.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var session = await _sipSessionRepository.GetByIdAsync(request.SipSessionId, cancellationToken);
+        if (session is null || session.SisterhoodId != request.SisterhoodId)
+        {
+            TempData["SisterhoodError"] = "That sip session could not be found.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var bottle = session.Bottles?.FirstOrDefault(b => b.Id == request.BottleId);
+        if (bottle is null)
+        {
+            TempData["SisterhoodError"] = "That bottle is no longer part of the sip session.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var note = bottle.TastingNotes?.FirstOrDefault(n => n.Id == request.NoteId);
+        if (note is null)
+        {
+            TempData["SisterhoodError"] = "That tasting note could not be found.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (note.UserId != currentUserId.Value)
+        {
+            TempData["SisterhoodError"] = "You can only delete your own tasting notes.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var bottleLabel = CreateBottleLabel(bottle);
+
+        try
+        {
+            await _tastingNoteRepository.DeleteAsync(note.Id, cancellationToken);
+            TempData["SisterhoodStatus"] = $"Deleted your tasting note for {bottleLabel}.";
+        }
+        catch (Exception)
+        {
+            TempData["SisterhoodError"] = "We couldn't delete that tasting note right now. Please try again.";
+        }
+
+        return RedirectToAction(nameof(Sisterhoods));
+    }
+
+    [Authorize]
     [HttpPost("sisterhoods/sessions/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteSipSession(DeleteSipSessionRequest request, CancellationToken cancellationToken)
@@ -1972,6 +2042,21 @@ public class WineSurferController : Controller
         public decimal? Score { get; set; }
     }
 
+    public class DeleteSipSessionBottleNoteRequest
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
+
+        [Required]
+        public Guid SipSessionId { get; set; }
+
+        [Required]
+        public Guid BottleId { get; set; }
+
+        [Required]
+        public Guid NoteId { get; set; }
+    }
+
     private static string? NormalizeEmailCandidate(string? email)
     {
         if (string.IsNullOrWhiteSpace(email))
@@ -2111,6 +2196,7 @@ public class WineSurferController : Controller
                     isOwnedByCurrentUser,
                     bottle.IsDrunk,
                     bottle.DrunkAt,
+                    currentUserNote?.Id,
                     currentUserNote?.Note,
                     currentUserNote?.Score,
                     averageScore);
@@ -2221,6 +2307,7 @@ public record WineSurferSipSessionBottle(
     bool IsOwnedByCurrentUser,
     bool IsDrunk,
     DateTime? DrunkAtUtc,
+    Guid? CurrentUserNoteId,
     string? CurrentUserNote,
     decimal? CurrentUserScore,
     decimal? AverageScore);
