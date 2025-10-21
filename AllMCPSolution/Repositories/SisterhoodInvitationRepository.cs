@@ -16,6 +16,7 @@ public interface ISisterhoodInvitationRepository
     Task<SisterhoodInvitation> CreateOrUpdatePendingAsync(Guid sisterhoodId, string email, Guid? inviteeUserId, CancellationToken ct = default);
     Task<SisterhoodInvitation?> UpdateStatusAsync(Guid sisterhoodId, string email, SisterhoodInvitationStatus status, Guid? inviteeUserId = null, CancellationToken ct = default);
     Task<IReadOnlyList<SisterhoodInvitation>> GetForInviteeAsync(Guid? inviteeUserId, string? inviteeEmail, CancellationToken ct = default);
+    Task<IReadOnlyList<SisterhoodInvitation>> GetAcceptedForAdminAsync(Guid adminUserId, DateTime sinceUtc, CancellationToken ct = default);
     Task<SisterhoodInvitation?> GetByIdAsync(Guid invitationId, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid invitationId, CancellationToken ct = default);
 }
@@ -165,6 +166,33 @@ public class SisterhoodInvitationRepository : ISisterhoodInvitationRepository
         return await query
             .OrderBy(invite => invite.Status)
             .ThenBy(invite => invite.CreatedAt)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<SisterhoodInvitation>> GetAcceptedForAdminAsync(Guid adminUserId, DateTime sinceUtc, CancellationToken ct = default)
+    {
+        if (adminUserId == Guid.Empty)
+        {
+            return Array.Empty<SisterhoodInvitation>();
+        }
+
+        var normalizedSinceUtc = sinceUtc.Kind switch
+        {
+            DateTimeKind.Utc => sinceUtc,
+            DateTimeKind.Local => sinceUtc.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(sinceUtc, DateTimeKind.Utc),
+        };
+
+        return await _db.SisterhoodInvitations
+            .AsNoTracking()
+            .Include(invite => invite.Sisterhood)
+                .ThenInclude(sisterhood => sisterhood.Memberships)
+            .Include(invite => invite.InviteeUser)
+            .Where(invite => invite.Status == SisterhoodInvitationStatus.Accepted
+                && invite.UpdatedAt >= normalizedSinceUtc
+                && invite.Sisterhood != null
+                && invite.Sisterhood.Memberships.Any(membership => membership.UserId == adminUserId && membership.IsAdmin))
+            .OrderByDescending(invite => invite.UpdatedAt)
             .ToListAsync(ct);
     }
 
