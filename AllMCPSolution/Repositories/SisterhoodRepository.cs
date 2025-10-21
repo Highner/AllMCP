@@ -230,6 +230,17 @@ public class SisterhoodRepository : ISisterhoodRepository
             return false;
         }
 
+        if (membership.IsAdmin)
+        {
+            var adminCount = await _db.SisterhoodMemberships
+                .CountAsync(m => m.SisterhoodId == sisterhoodId && m.IsAdmin, ct);
+
+            if (adminCount <= 1)
+            {
+                return false;
+            }
+        }
+
         _db.SisterhoodMemberships.Remove(membership);
         await _db.SaveChangesAsync(ct);
         return true;
@@ -272,6 +283,17 @@ public class SisterhoodRepository : ISisterhoodRepository
         if (membership.IsAdmin == isAdmin)
         {
             return true;
+        }
+
+        if (!isAdmin && membership.IsAdmin)
+        {
+            var adminCount = await _db.SisterhoodMemberships
+                .CountAsync(m => m.SisterhoodId == sisterhoodId && m.IsAdmin, ct);
+
+            if (adminCount <= 1)
+            {
+                return false;
+            }
         }
 
         membership.IsAdmin = isAdmin;
