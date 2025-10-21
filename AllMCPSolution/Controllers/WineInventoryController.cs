@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading;
@@ -27,6 +28,7 @@ public class WineInventoryController : Controller
     private readonly IUserRepository _userRepository;
     private readonly ITastingNoteRepository _tastingNoteRepository;
     private readonly IWineSurferTopBarService _topBarService;
+    private readonly IWineImportService _wineImportService;
 
     public WineInventoryController(
         IBottleRepository bottleRepository,
@@ -36,7 +38,8 @@ public class WineInventoryController : Controller
         ISubAppellationRepository subAppellationRepository,
         IUserRepository userRepository,
         ITastingNoteRepository tastingNoteRepository,
-        IWineSurferTopBarService topBarService)
+        IWineSurferTopBarService topBarService,
+        IWineImportService wineImportService)
     {
         _bottleRepository = bottleRepository;
         _bottleLocationRepository = bottleLocationRepository;
@@ -46,6 +49,7 @@ public class WineInventoryController : Controller
         _userRepository = userRepository;
         _tastingNoteRepository = tastingNoteRepository;
         _topBarService = topBarService;
+        _wineImportService = wineImportService;
     }
 
     [HttpGet("")]
@@ -216,6 +220,68 @@ public class WineInventoryController : Controller
 
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", viewModel);
+    }
+
+    [HttpGet("import")]
+    public async Task<IActionResult> Import(CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out _))
+        {
+            return Challenge();
+        }
+
+        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
+        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
+
+        var viewModel = new WineImportPageViewModel();
+        return View("Import", viewModel);
+    }
+
+    [HttpPost("import")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Import(IFormFile? file, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out _))
+        {
+            return Challenge();
+        }
+
+        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
+        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
+
+        var viewModel = new WineImportPageViewModel();
+
+        if (file is null || file.Length == 0)
+        {
+            viewModel.Errors = new[] { "Please select an Excel file to upload." };
+            return View("Import", viewModel);
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+        if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(extension, ".xls", StringComparison.OrdinalIgnoreCase))
+        {
+            viewModel.Errors = new[] { "Unsupported file type. Please upload an .xlsx or .xls file." };
+            return View("Import", viewModel);
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var result = await _wineImportService.ImportAsync(stream, cancellationToken);
+            viewModel.Result = result;
+            viewModel.UploadedFileName = file.FileName;
+        }
+        catch (InvalidDataException ex)
+        {
+            viewModel.Errors = new[] { ex.Message };
+        }
+        catch (Exception ex)
+        {
+            viewModel.Errors = new[] { $"An unexpected error occurred while importing wines: {ex.Message}" };
+        }
+
+        return View("Import", viewModel);
     }
 
     [HttpGet("bottles/{wineVintageId:guid}")]
@@ -1196,6 +1262,15 @@ public class WineInventoryWineOption
     public string? Country { get; set; }
     public string Color { get; set; } = string.Empty;
     public IReadOnlyList<int> Vintages { get; set; } = Array.Empty<int>();
+}
+
+public class WineImportPageViewModel
+{
+    public string? UploadedFileName { get; set; }
+    public WineImportResult? Result { get; set; }
+    public IReadOnlyList<string> Errors { get; set; } = Array.Empty<string>();
+    public bool HasErrors => Errors.Count > 0;
+    public bool HasResult => Result is not null;
 }
 
 public class BottleNotesResponse

@@ -1,0 +1,98 @@
+@model AllMCPSolution.Controllers.WineImportPageViewModel
+@using AllMCPSolution.Controllers
+@using AllMCPSolution.Services
+@{
+    Layout = null;
+    var pageModel = Model ?? new WineImportPageViewModel();
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+    var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
+        ?? WineSurferTopBarModel.Empty(currentPath);
+    var hasErrors = pageModel.HasErrors;
+    var hasResult = pageModel.HasResult;
+    var result = pageModel.Result;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import Wines</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+</head>
+<body class="wine-app">
+    @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
+    <main class="inventory-shell">
+        @await Html.PartialAsync("_WineSurferPageHeader", new WineSurferPageHeaderModel("Import Wines"))
+        <section class="wine-surface wine-surface-border wine-card-hover import-panel">
+            <form action="/wine-manager/import" method="post" enctype="multipart/form-data" class="wine-import-form">
+                @Html.AntiForgeryToken()
+                <div class="form-field">
+                    <label for="file">Excel File</label>
+                    <input type="file" id="file" name="file" accept=".xlsx,.xls" />
+                    <p class="field-description">
+                        Upload a spreadsheet with columns <strong>Name</strong>, <strong>Country</strong>, <strong>Region</strong>,
+                        <strong>Color</strong>, <strong>Appellation</strong>, and <strong>SubAppellation</strong>.
+                    </p>
+                </div>
+                <button type="submit" class="submit-button">Upload and Import</button>
+            </form>
+
+            @if (hasErrors)
+            {
+                <div class="import-errors wine-surface wine-surface-border">
+                    <h3>Upload Issues</h3>
+                    <ul>
+                        @foreach (var error in pageModel.Errors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            @if (hasResult && result is not null)
+            {
+                <div class="import-summary wine-surface wine-surface-border">
+                    <h3>Import Summary@if (!string.IsNullOrWhiteSpace(pageModel.UploadedFileName)) {<text> for @pageModel.UploadedFileName</text>}</h3>
+                    <dl class="summary-list">
+                        <div><dt>Total rows processed</dt><dd>@result.TotalRows</dd></div>
+                        <div><dt>Rows imported</dt><dd>@result.ImportedRows</dd></div>
+                        <div><dt>Countries created</dt><dd>@result.CreatedCountries</dd></div>
+                        <div><dt>Regions created</dt><dd>@result.CreatedRegions</dd></div>
+                        <div><dt>Appellations created</dt><dd>@result.CreatedAppellations</dd></div>
+                        <div><dt>Sub-appellations created</dt><dd>@result.CreatedSubAppellations</dd></div>
+                        <div><dt>Wines created</dt><dd>@result.CreatedWines</dd></div>
+                        <div><dt>Wines updated</dt><dd>@result.UpdatedWines</dd></div>
+                    </dl>
+                </div>
+
+                @if (result.HasRowErrors)
+                {
+                    <div class="row-errors wine-surface wine-surface-border">
+                        <h3>Rows Skipped</h3>
+                        <table class="row-errors__table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Row</th>
+                                    <th scope="col">Issue</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var error in result.RowErrors)
+                                {
+                                    <tr>
+                                        <td>@error.RowNumber</td>
+                                        <td>@error.Message</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+        </section>
+    </main>
+</body>
+</html>
