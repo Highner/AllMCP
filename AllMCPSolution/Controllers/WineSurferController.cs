@@ -761,9 +761,10 @@ public class WineSurferController : Controller
         if (invitee is null && !string.IsNullOrEmpty(inviteeEmail))
         {
             var subject = $"Join {sisterhood.Name} on Wine Surfer";
-            var signupLink = Url.ActionLink("Register", "Account")
-                ?? Url.Action("Register", "Account")
-                ?? "/account/register";
+            var registerRouteValues = new { email = inviteeEmail };
+            var signupLink = Url.ActionLink("Register", "Account", registerRouteValues)
+                ?? Url.Action("Register", "Account", registerRouteValues)
+                ?? $"/account/register?email={Uri.EscapeDataString(inviteeEmail)}";
             var body = $"We'd love to have you in the {sisterhood.Name} sisterhood on Wine Surfer. Sign up at {signupLink} using this email address and accept the invite we just sent.";
             mailtoLink = $"mailto:{inviteeEmail}?subject={Uri.EscapeDataString(subject)}&body={Uri.EscapeDataString(body)}";
         }

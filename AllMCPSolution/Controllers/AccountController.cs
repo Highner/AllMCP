@@ -97,16 +97,21 @@ public class AccountController : Controller
 
     [AllowAnonymous]
     [HttpGet("register")]
-    public async Task<IActionResult> Register([FromQuery] string? returnUrl = null)
+    public async Task<IActionResult> Register([FromQuery] string? returnUrl = null, [FromQuery] string? email = null)
     {
         if (User?.Identity?.IsAuthenticated == true)
         {
             return LocalRedirect(ResolveReturnUrl(returnUrl));
         }
 
+        var prefilledEmail = string.IsNullOrWhiteSpace(email)
+            ? string.Empty
+            : email.Trim();
+
         var model = new RegisterViewModel
         {
             ReturnUrl = ResolveReturnUrl(returnUrl),
+            Email = prefilledEmail,
             ExternalLogins = await GetExternalLoginOptionsAsync()
         };
 
