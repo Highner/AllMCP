@@ -43,10 +43,22 @@
         return localDate?.ToString("D") ?? "Schedule TBD";
     }
 
-    private static string FormatSipSessionInputValue(AllMCPSolution.Controllers.WineSurferSipSessionSummary session)
+    private static string FormatSipSessionDateValue(AllMCPSolution.Controllers.WineSurferSipSessionSummary session)
     {
         var localDateTime = NormalizeDateTime(session.ScheduledAtUtc);
-        return localDateTime.HasValue ? localDateTime.Value.ToString("yyyy-MM-ddTHH:mm") : string.Empty;
+        if (localDateTime.HasValue)
+        {
+            return localDateTime.Value.ToString("yyyy-MM-dd");
+        }
+
+        var localDate = NormalizeDateTime(session.Date);
+        return localDate?.ToString("yyyy-MM-dd") ?? string.Empty;
+    }
+
+    private static string FormatSipSessionTimeValue(AllMCPSolution.Controllers.WineSurferSipSessionSummary session)
+    {
+        var localDateTime = NormalizeDateTime(session.ScheduledAtUtc);
+        return localDateTime.HasValue ? localDateTime.Value.ToString("HH:mm") : string.Empty;
     }
 
 }
@@ -1080,7 +1092,8 @@
         }
 
         .sip-session-form input[type="text"],
-        .sip-session-form input[type="datetime-local"],
+        .sip-session-form input[type="date"],
+        .sip-session-form input[type="time"],
         .sip-session-form textarea {
             width: 100%;
             padding: 10px 12px;
@@ -1097,7 +1110,8 @@
         }
 
         .sip-session-form input[type="text"]:focus,
-        .sip-session-form input[type="datetime-local"]:focus,
+        .sip-session-form input[type="date"]:focus,
+        .sip-session-form input[type="time"]:focus,
         .sip-session-form textarea:focus {
             outline: none;
             border-color: rgba(244, 241, 234, 0.3);
@@ -1956,7 +1970,8 @@
                                         var editContainerId = $"sip-session-edit-container-{session.Id}";
                                         var scheduleLabel = FormatSipSessionSchedule(session);
                                         var locationLabel = string.IsNullOrWhiteSpace(session.Location) ? "Location TBD" : session.Location;
-                                        var scheduledValue = FormatSipSessionInputValue(session);
+                                        var scheduledDateValue = FormatSipSessionDateValue(session);
+                                        var scheduledTimeValue = FormatSipSessionTimeValue(session);
                                         var hostLabel = string.IsNullOrWhiteSpace(sisterhood.Name) ? null : sisterhood.Name;
                                         var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Id })
                                             ?? $"/wine-surfer/sessions/{session.Id:D}";
@@ -1992,11 +2007,16 @@
                                                                    value="@session.Name"
                                                                    maxlength="256"
                                                                    required />
-                                                            <label for="sip-session-schedule-@session.Id">Scheduled for</label>
-                                                            <input id="sip-session-schedule-@session.Id"
-                                                                   name="ScheduledAt"
-                                                                   type="datetime-local"
-                                                                   value="@scheduledValue" />
+                                                            <label for="sip-session-schedule-date-@session.Id">Scheduled date</label>
+                                                            <input id="sip-session-schedule-date-@session.Id"
+                                                                   name="ScheduledDate"
+                                                                   type="date"
+                                                                   value="@scheduledDateValue" />
+                                                            <label for="sip-session-schedule-time-@session.Id">Scheduled time (optional)</label>
+                                                            <input id="sip-session-schedule-time-@session.Id"
+                                                                   name="ScheduledTime"
+                                                                   type="time"
+                                                                   value="@scheduledTimeValue" />
                                                             <label for="sip-session-location-@session.Id">Location</label>
                                                             <input id="sip-session-location-@session.Id"
                                                                    name="Location"
@@ -2045,10 +2065,14 @@
                                                    type="text"
                                                    maxlength="256"
                                                    required />
-                                            <label for="sip-session-create-schedule-@sisterhood.Id">Scheduled for</label>
-                                            <input id="sip-session-create-schedule-@sisterhood.Id"
-                                                   name="ScheduledAt"
-                                                   type="datetime-local" />
+                                            <label for="sip-session-create-schedule-date-@sisterhood.Id">Scheduled date</label>
+                                            <input id="sip-session-create-schedule-date-@sisterhood.Id"
+                                                   name="ScheduledDate"
+                                                   type="date" />
+                                            <label for="sip-session-create-schedule-time-@sisterhood.Id">Scheduled time (optional)</label>
+                                            <input id="sip-session-create-schedule-time-@sisterhood.Id"
+                                                   name="ScheduledTime"
+                                                   type="time" />
                                             <label for="sip-session-create-location-@sisterhood.Id">Location</label>
                                             <input id="sip-session-create-location-@sisterhood.Id"
                                                    name="Location"

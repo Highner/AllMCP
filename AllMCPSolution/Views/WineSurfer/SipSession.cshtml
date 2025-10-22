@@ -36,10 +36,22 @@
         return localDate?.ToString("D") ?? "Schedule TBD";
     }
 
-    private static string FormatSipSessionInputValue(WineSurferSipSessionSummary session)
+    private static string FormatSipSessionDateValue(WineSurferSipSessionSummary session)
     {
         var localDateTime = NormalizeDateTime(session.ScheduledAtUtc);
-        return localDateTime.HasValue ? localDateTime.Value.ToString("yyyy-MM-ddTHH:mm") : string.Empty;
+        if (localDateTime.HasValue)
+        {
+            return localDateTime.Value.ToString("yyyy-MM-dd");
+        }
+
+        var localDate = NormalizeDateTime(session.Date);
+        return localDate?.ToString("yyyy-MM-dd") ?? string.Empty;
+    }
+
+    private static string FormatSipSessionTimeValue(WineSurferSipSessionSummary session)
+    {
+        var localDateTime = NormalizeDateTime(session.ScheduledAtUtc);
+        return localDateTime.HasValue ? localDateTime.Value.ToString("HH:mm") : string.Empty;
     }
 
 }
@@ -382,7 +394,8 @@
         }
 
         .sip-session-form input[type="text"],
-        .sip-session-form input[type="datetime-local"],
+        .sip-session-form input[type="date"],
+        .sip-session-form input[type="time"],
         .sip-session-form textarea {
             width: 100%;
             padding: 10px 12px;
@@ -399,7 +412,8 @@
         }
 
         .sip-session-form input[type="text"]:focus,
-        .sip-session-form input[type="datetime-local"]:focus,
+        .sip-session-form input[type="date"]:focus,
+        .sip-session-form input[type="time"]:focus,
         .sip-session-form textarea:focus {
             outline: none;
             border-color: rgba(244, 241, 234, 0.3);
@@ -571,9 +585,11 @@
                     </div>
                     @if (isCreateMode)
                     {
-                        var scheduledValue = FormatSipSessionInputValue(Model.Session);
+                        var scheduledDateValue = FormatSipSessionDateValue(Model.Session);
+                        var scheduledTimeValue = FormatSipSessionTimeValue(Model.Session);
                         const string createNameId = "sip-session-create-name";
-                        const string createScheduleId = "sip-session-create-schedule";
+                        const string createScheduleDateId = "sip-session-create-schedule-date";
+                        const string createScheduleTimeId = "sip-session-create-schedule-time";
                         const string createLocationId = "sip-session-create-location";
                         const string createDescriptionId = "sip-session-create-description";
                         const string createSisterhoodId = "sip-session-create-sisterhood";
@@ -628,11 +644,17 @@
                                            maxlength="256"
                                            required
                                            @(hasManageableSisterhoods ? null : "disabled") />
-                                    <label for="@createScheduleId">Scheduled for</label>
-                                    <input id="@createScheduleId"
-                                           name="ScheduledAt"
-                                           type="datetime-local"
-                                           value="@scheduledValue"
+                                    <label for="@createScheduleDateId">Scheduled date</label>
+                                    <input id="@createScheduleDateId"
+                                           name="ScheduledDate"
+                                           type="date"
+                                           value="@scheduledDateValue"
+                                           @(hasManageableSisterhoods ? null : "disabled") />
+                                    <label for="@createScheduleTimeId">Scheduled time (optional)</label>
+                                    <input id="@createScheduleTimeId"
+                                           name="ScheduledTime"
+                                           type="time"
+                                           value="@scheduledTimeValue"
                                            @(hasManageableSisterhoods ? null : "disabled") />
                                     <label for="@createLocationId">Location</label>
                                     <input id="@createLocationId"
@@ -664,9 +686,11 @@
                     {
                         var sessionReturnUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = Model.Session.Id })
                             ?? string.Concat(requestPath, requestQuery);
-                        var scheduledValue = FormatSipSessionInputValue(Model.Session);
+                        var scheduledDateValue = FormatSipSessionDateValue(Model.Session);
+                        var scheduledTimeValue = FormatSipSessionTimeValue(Model.Session);
                         var nameInputId = $"sip-session-name-{Model.Session.Id}";
-                        var scheduleInputId = $"sip-session-schedule-{Model.Session.Id}";
+                        var scheduleDateInputId = $"sip-session-schedule-date-{Model.Session.Id}";
+                        var scheduleTimeInputId = $"sip-session-schedule-time-{Model.Session.Id}";
                         var locationInputId = $"sip-session-location-{Model.Session.Id}";
                         var descriptionInputId = $"sip-session-description-{Model.Session.Id}";
                         <div class="session-overview-actions">
@@ -697,11 +721,16 @@
                                            value="@Model.Session.Name"
                                            maxlength="256"
                                            required />
-                                    <label for="@scheduleInputId">Scheduled for</label>
-                                    <input id="@scheduleInputId"
-                                           name="ScheduledAt"
-                                           type="datetime-local"
-                                           value="@scheduledValue" />
+                                    <label for="@scheduleDateInputId">Scheduled date</label>
+                                    <input id="@scheduleDateInputId"
+                                           name="ScheduledDate"
+                                           type="date"
+                                           value="@scheduledDateValue" />
+                                    <label for="@scheduleTimeInputId">Scheduled time (optional)</label>
+                                    <input id="@scheduleTimeInputId"
+                                           name="ScheduledTime"
+                                           type="time"
+                                           value="@scheduledTimeValue" />
                                     <label for="@locationInputId">Location</label>
                                     <input id="@locationInputId"
                                            name="Location"
