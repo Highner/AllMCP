@@ -655,6 +655,9 @@ namespace AllMCPSolution.Migrations
                     b.Property<decimal>("Score")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("WineVintageId")
                         .HasColumnType("uniqueidentifier");
 
@@ -663,7 +666,9 @@ namespace AllMCPSolution.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("WineVintageId", "Year")
+                    b.HasIndex("WineVintageId");
+
+                    b.HasIndex("UserId", "WineVintageId", "Year")
                         .IsUnique();
 
                     b.ToTable("WineVintageEvolutionScores");
@@ -1012,11 +1017,19 @@ namespace AllMCPSolution.Migrations
 
             modelBuilder.Entity("AllMCPSolution.Models.WineVintageEvolutionScore", b =>
                 {
+                    b.HasOne("AllMCPSolution.Models.ApplicationUser", "User")
+                        .WithMany("WineVintageEvolutionScores")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("AllMCPSolution.Models.WineVintage", "WineVintage")
                         .WithMany("EvolutionScores")
                         .HasForeignKey("WineVintageId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("User");
 
                     b.Navigation("WineVintage");
                 });
@@ -1090,6 +1103,8 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("SisterhoodMemberships");
 
                     b.Navigation("TastingNotes");
+
+                    b.Navigation("WineVintageEvolutionScores");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Artist", b =>
