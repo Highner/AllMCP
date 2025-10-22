@@ -305,7 +305,21 @@
             gap: 18px;
         }
 
-        .bottle-section h2 {
+        .bottle-section__header {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .bottle-section__actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: auto;
+        }
+
+        .bottle-section__title {
             margin: 0;
             font-size: 20px;
             letter-spacing: 4px;
@@ -732,6 +746,7 @@
     var availableBottles = Model.AvailableBottles ?? Array.Empty<WineSurferSipSessionBottle>();
     var contributableBottleCount = availableBottles.Count(bottle => !sessionBottleIds.Contains(bottle.Id));
     var hasContributableBottles = contributableBottleCount > 0;
+    var showContributeButton = !isCreateMode && Model.CurrentUser is not null;
     const string contributeModalId = "sip-session-contribute-modal";
     var contributeModalTitleId = $"{contributeModalId}-title";
     ViewData["WineSurferPageTitle"] = sessionTitle;
@@ -861,40 +876,21 @@
                     else
                     {
                         var showEditButton = Model.CanManageSession;
-                        var showContributeButton = Model.CurrentUser is not null;
-
-                        if (showEditButton || showContributeButton)
-                        {
-                            <div class="session-overview-actions">
-                                @if (showContributeButton)
-                                {
-                                    <button type="button"
-                                            class="sisterhood-button sisterhood-button--primary"
-                                            data-contribute-trigger
-                                            aria-controls="@contributeModalId"
-                                            aria-expanded="false"
-                                            title="@(hasContributableBottles ? "Select undrunk bottles to contribute." : "No undrunk bottles available to contribute right now.")">
-                                        Contribute bottle
-                                    </button>
-                                }
-
-                                @if (showEditButton)
-                                {
-                                    <button type="button"
-                                            class="sisterhood-button"
-                                            data-sip-session-edit-toggle
-                                            data-session-title="@sessionTitle"
-                                            data-close-label="Close edit"
-                                            aria-expanded="false"
-                                            aria-controls="sip-session-edit-modal">
-                                        Edit sip session
-                                    </button>
-                                }
-                            </div>
-                        }
 
                         if (showEditButton)
                         {
+                            <div class="session-overview-actions">
+                                <button type="button"
+                                        class="sisterhood-button"
+                                        data-sip-session-edit-toggle
+                                        data-session-title="@sessionTitle"
+                                        data-close-label="Close edit"
+                                        aria-expanded="false"
+                                        aria-controls="sip-session-edit-modal">
+                                    Edit sip session
+                                </button>
+                            </div>
+
                             var sessionReturnUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = Model.Session.Id })
                                 ?? string.Concat(requestPath, requestQuery);
                             var scheduledDateValue = FormatSipSessionDateValue(Model.Session);
@@ -973,7 +969,22 @@
                 </dl>
             </section>
             <section class="bottle-section" aria-label="Bottle list">
-                <h2>Bottle list</h2>
+                <div class="bottle-section__header">
+                    <h2 class="bottle-section__title">Bottle list</h2>
+                    @if (showContributeButton)
+                    {
+                        <div class="bottle-section__actions">
+                            <button type="button"
+                                    class="sisterhood-button sisterhood-button--primary"
+                                    data-contribute-trigger
+                                    aria-controls="@contributeModalId"
+                                    aria-expanded="false"
+                                    title="@(hasContributableBottles ? "Select undrunk bottles to contribute." : "No undrunk bottles available to contribute right now.")">
+                                Contribute bottle
+                            </button>
+                        </div>
+                    }
+                </div>
                 @if (isCreateMode)
                 {
                     <p class="empty-state">Add bottles after you create this sip session.</p>
