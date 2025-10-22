@@ -80,7 +80,6 @@
     var headerAttributeString = BuildAttributeString(headerAttributes);
     var bodyAttributeString = BuildAttributeString(bodyAttributes);
     var closeAttributeString = BuildAttributeString(closeAttributes);
-    var bodyContent = Model.BodyContent;
 }
 <div class="@backdropClasses"@Html.Raw(backdropAttributeString)>
     <div class="@dialogClasses" role="dialog" aria-modal="true"@Html.Raw(dialogAttributeString)>
@@ -100,9 +99,9 @@
             </header>
         }
         <div class="@bodyClasses"@Html.Raw(bodyAttributeString)>
-            @if (bodyContent is not null)
+            @if (Model.BodyContent is not null)
             {
-                @bodyContent
+                @Model.BodyContent(null)
             }
         </div>
     </div>

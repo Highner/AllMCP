@@ -76,6 +76,14 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU2hhcmVkL19Ecmlua0JvdHRsZU1vZGFsLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
+[/Users/johann/RiderProjects/AllMCP/AllMCPSolution/Views/Shared/_InventoryAddModal.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU2hhcmVkL19JbnZlbnRvcnlBZGRNb2RhbC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/johann/RiderProjects/AllMCP/AllMCPSolution/Views/Shared/_WineSurferModalShell.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU2hhcmVkL19XaW5lU3VyZmVyTW9kYWxTaGVsbC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
 [/Users/johann/RiderProjects/AllMCP/AllMCPSolution/Views/Shared/_WineSurferPageHeader.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU2hhcmVkL19XaW5lU3VyZmVyUGFnZUhlYWRlci5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 

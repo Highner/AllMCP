@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Html;
 
@@ -32,5 +33,6 @@ public record WineSurferModalShell
     public string BodyCssClass { get; init; } = "wine-surfer-modal__body";
     public IDictionary<string, string?>? BodyAttributes { get; init; }
         = new Dictionary<string, string?>(System.StringComparer.OrdinalIgnoreCase);
-    public IHtmlContent? BodyContent { get; init; }
+    // Accept Razor inline templates: @<...> compiles to Func<object?, IHtmlContent>
+    public Func<object?, IHtmlContent>? BodyContent { get; init; }
 }

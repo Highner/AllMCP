@@ -2261,7 +2261,7 @@
             {
                 ["data-sip-session-edit-modal-body"] = null
             },
-            BodyContent = HtmlString.Empty
+            BodyContent = _ => HtmlString.Empty
         }; }
     @await Html.PartialAsync("_WineSurferModalShell", editModal)
     @{ var contributeModal = new WineSurferModalShell
