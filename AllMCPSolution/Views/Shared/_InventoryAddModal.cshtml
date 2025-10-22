@@ -1,0 +1,25 @@
+<div class="inventory-add-overlay" id="inventory-add-overlay" hidden>
+    <div class="inventory-add-popover" id="inventory-add-popover" role="dialog" aria-modal="true" aria-labelledby="inventory-add-title">
+        <h3 id="inventory-add-title">Add Wine to Inventory</h3>
+        <p class="inventory-add-intro">Choose an existing wine and vintage to add a bottle to your cellar.</p>
+        <form class="inventory-add-form">
+            <label class="inventory-add-field">
+                <span class="inventory-add-label">Wine</span>
+                <select class="inventory-add-wine" aria-label="Wine">
+                    <option value="">Select a wine</option>
+                </select>
+            </label>
+            <p class="inventory-add-summary" aria-live="polite">Select a wine to see its appellation and color.</p>
+            <label class="inventory-add-field">
+                <span class="inventory-add-label">Vintage</span>
+                <input type="number" class="inventory-add-vintage" min="1900" max="2100" placeholder="Year" aria-label="Vintage" />
+            </label>
+            <p class="inventory-add-vintage-hint" aria-live="polite">Pick a wine to view existing vintages.</p>
+            <p class="inventory-add-error" role="alert" aria-hidden="true"></p>
+            <div class="inventory-add-actions">
+                <button type="button" class="crud-table__action-button secondary inventory-add-cancel">Cancel</button>
+                <button type="submit" class="crud-table__action-button inventory-add-submit">Add Wine</button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -3,6 +3,7 @@
 @using System.Linq
 @using System.Text.Json
 @using System.Text.Json.Serialization
+@using System.Globalization
 @{ 
     Layout = null;
 }
@@ -33,6 +34,13 @@
 
         var localDate = NormalizeDateTime(session.Date);
         return localDate?.ToString("D") ?? "Schedule TBD";
+    }
+
+    private static string FormatScore(decimal? value)
+    {
+        return value.HasValue
+            ? value.Value.ToString("0.0", CultureInfo.InvariantCulture)
+            : "—";
     }
 }
 <!DOCTYPE html>
@@ -745,7 +753,108 @@
             width: min(100%, var(--wine-surfer-card-max-width));
         }
 
+        .favorite-wines {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            margin: 48px 0;
+            width: min(100%, var(--wine-surfer-card-max-width));
+        }
 
+        .favorite-wines-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .favorite-wines-message {
+            margin: 0;
+            font-size: 12px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .favorite-wines-message[hidden] {
+            display: none;
+        }
+
+        .favorite-wines-message[data-state="success"] {
+            color: #9bd39b;
+        }
+
+        .favorite-wines-message[data-state="error"] {
+            color: #f96b70;
+        }
+
+        .favorite-wines-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+        }
+
+        .favorite-wine-card {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 20px;
+        }
+
+        .favorite-wine-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .favorite-wine-name {
+            margin: 0;
+        }
+
+        .favorite-wine-vintage {
+            margin: 0;
+        }
+
+        .favorite-wine-stats {
+            margin: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+        }
+
+        .favorite-wine-stat dt {
+            margin: 0;
+            font-size: 11px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .favorite-wine-stat dd {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        .favorite-wine-status {
+            margin: 0;
+            font-size: 11px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .favorite-wines-empty {
+            margin: 0;
+            font-size: 14px;
+            letter-spacing: 1.4px;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        
         @@media (max-width: 768px) {
             .top-bar {
                 padding: 18px 20px;
@@ -798,6 +907,7 @@
     ViewData["WineSurferPageTitle"] = "Wine Surfer";
     var manageableSisterhoods = Model.ManageableSisterhoods ?? Array.Empty<WineSurferSisterhoodOption>();
     var canCreateSipSession = manageableSisterhoods.Count > 0;
+    var isAuthenticated = Model.CurrentUser is not null;
     var createSipSessionUrl = Url.Action("PlanSipSession", "WineSurfer") ?? "/wine-surfer/sessions/create";
 }
 <body class="wine-app @bodyClass">
@@ -847,9 +957,64 @@
                     <p class="sip-session-empty" role="status">No upcoming sip sessions on the calendar yet. Check back soon or gather your sisterhood to plan the next tasting.</p>
                 }
             </section>
+            <section class="favorite-wines" aria-label="Favourite wines">
+                <div class="favorite-wines-header">
+                    <h2 class="section-title">Favourite wines</h2>
+                    @if (isAuthenticated)
+                    {
+                        <button type="button" class="sisterhood-button sisterhood-button--primary inventory-add-trigger" data-add-wine-trigger="favorites">Add wine</button>
+                    }
+                </div>
+                <p class="favorite-wines-message" data-favorite-message hidden role="status"></p>
+                @if (!isAuthenticated)
+                {
+                    <p class="favorite-wines-empty" role="status">Sign in to rate bottles and see your top picks here.</p>
+                }
+                else if (Model.FavoriteBottles.Count > 0)
+                {
+                    <div class="favorite-wines-grid" role="list">
+                        @foreach (var bottle in Model.FavoriteBottles)
+                        {
+                            var enjoyedAt = NormalizeDateTime(bottle.DrunkAtUtc);
+                            var statusLabel = bottle.IsDrunk
+                                ? (enjoyedAt.HasValue ? $"Enjoyed on {enjoyedAt.Value:MMM d, yyyy}" : "Enjoyed")
+                                : "Cellared";
+                            <article class="favorite-wine-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" role="listitem">
+                                <header class="favorite-wine-header wine-card__header">
+                                    <h3 class="favorite-wine-name wine-card__title">@bottle.WineName</h3>
+                                    @if (bottle.Vintage.HasValue && bottle.Vintage.Value > 0)
+                                    {
+                                        <span class="favorite-wine-vintage wine-card__subtitle">@bottle.Vintage.Value</span>
+                                    }
+                                </header>
+                                <dl class="favorite-wine-stats wine-card__stats" aria-label="Tasting stats for @bottle.Label">
+                                    <div class="favorite-wine-stat wine-card__stat">
+                                        <dt>Your score</dt>
+                                        <dd>@FormatScore(bottle.CurrentUserScore)</dd>
+                                    </div>
+                                    <div class="favorite-wine-stat wine-card__stat">
+                                        <dt>Average score</dt>
+                                        <dd>@FormatScore(bottle.AverageScore)</dd>
+                                    </div>
+                                </dl>
+                                <p class="favorite-wine-status">@statusLabel</p>
+                            </article>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="favorite-wines-empty" role="status">Rate a few bottles to light up your favourites.</p>
+                }
+            </section>
+            @if (isAuthenticated)
+            {
+                @await Html.PartialAsync("_InventoryAddModal")
+            }
             <section class="map-shell" aria-label="World map highlighting wine regions">
                 <div id="map" class="world-map" role="img" aria-hidden="true"></div>
             </section>
+            <script src="/js/wine-surfer-favorites.js"></script>
             <script id="wineHighlightData" type="application/json">
                 @Html.Raw(JsonSerializer.Serialize(Model.HighlightPoints
                     .Select((point, index) => new
