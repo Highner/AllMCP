@@ -150,10 +150,14 @@
 
     var bottleDetailsTable = new CrudTableTemplateModel
     {
-        Title = "Bottles",
         DataTableKey = "details",
+        TitleContent = @<text>
+            <h2 id="details-title" class="crud-table__title">Bottle Details</h2>
+            <p id="details-subtitle" class="crud-table__description">Select a wine group to view individual bottles.</p>
+        </text>,
         HeaderContent = _ => bottleHeaderContent,
         BodyContent = @<text>
+            <div id="details-message" class="details-message" role="status"></div>
             <table class="details-table crud-table__table" id="details-table">
                 <thead>
                     <tr class="header-row crud-table__header-row">
@@ -221,7 +225,7 @@
 
         @if (!hasBottles)
         {
-        <div class="no-results wine-card-hover wine-card-hover--prominent">No bottles match the current filters.</div>
+            <div class="no-results wine-card-hover wine-card-hover--prominent">No bottles match the current filters.</div>
         }
 
         @await Html.PartialAsync("_CrudTableTemplate", yourCellarTable)
@@ -277,65 +281,7 @@
             </div>
         </div>
 
-        <section class="details-panel" aria-live="polite">
-            <header>
-                <h2 id="details-title">Bottle Details</h2>
-                <p id="details-subtitle">Select a wine group to view individual bottles.</p>
-            </header>
-            <div id="details-message" class="details-message" role="status"></div>
-            <div class="details-layout">
-                <div class="details-main">
-                    @await Html.PartialAsync("_CrudTableTemplate", bottleDetailsTable)
-                </div>
-                <aside class="notes-panel" id="notes-panel" aria-hidden="true">
-                    <header class="notes-header">
-                        <div class="notes-heading">
-                            <h3 id="notes-title">Consumption Notes</h3>
-                            <p id="notes-subtitle">Select a bottle to view consumption notes.</p>
-                        </div>
-                        <button type="button" id="notes-close" class="notes-close">Close</button>
-                    </header>
-                    <div id="notes-message" class="notes-message" role="status"></div>
-                    <section class="crud-table wine-surface wine-surface-border wine-card-hover" data-crud-table="notes">
-                        <header class="crud-table__header">
-                            <h4 class="crud-table__title">Tasting Notes</h4>
-                            <p class="crud-table__description">Track scores and notes for the selected bottle.</p>
-                        </header>
-                        <div class="crud-table__body wine-surface wine-surface-border">
-                            <table class="notes-table crud-table__table" id="notes-table">
-                                <thead>
-                                    <tr class="crud-table__add-row add-row" id="note-add-row">
-                                        <td class="note-add-user-cell">
-                                            <span class="note-add-user-name" aria-label="Note author">—</span>
-                                        </td>
-                                        <td>
-                                            <input type="number" class="note-add-score" step="0.1" min="0" max="10" placeholder="0-10" aria-label="Score" />
-                                        </td>
-                                        <td>
-                                            <textarea class="note-add-text" rows="3" placeholder="Tasting note" aria-label="Tasting note"></textarea>
-                                        </td>
-                                        <td class="actions">
-                                            <button type="button" class="note-add-submit crud-table__action-button">Add Note</button>
-                                        </td>
-                                    </tr>
-                                    <tr class="header-row crud-table__header-row">
-                                        <th scope="col">User</th>
-                                        <th scope="col">Score</th>
-                                        <th scope="col">Note</th>
-                                        <th scope="col">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr class="empty-row">
-                                        <td colspan="4">Select a bottle to view consumption notes.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
-                </aside>
-            </div>
-        </section>
+        @await Html.PartialAsync("_CrudTableTemplate", bottleDetailsTable)
     </main>
     <script src="/js/wine-inventory-tables.js"></script>
 </body>

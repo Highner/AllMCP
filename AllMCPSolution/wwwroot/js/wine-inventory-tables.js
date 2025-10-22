@@ -14,7 +14,7 @@ window.WineInventoryTables.initialize = function () {
             const detailsTitle = document.getElementById('details-title');
             const detailsSubtitle = document.getElementById('details-subtitle');
             const messageBanner = document.getElementById('details-message');
-            const detailsPanel = document.querySelector('.details-panel');
+            const detailsPanel = document.querySelector('.details-panel') ?? document.querySelector('[data-crud-table="details"]');
             const notesPanel = document.getElementById('notes-panel');
             const notesTable = document.getElementById('notes-table');
             const notesBody = notesTable?.querySelector('tbody');
@@ -28,8 +28,9 @@ window.WineInventoryTables.initialize = function () {
             const notesTitle = document.getElementById('notes-title');
             const notesSubtitle = document.getElementById('notes-subtitle');
             const notesCloseButton = document.getElementById('notes-close');
+            const notesEnabled = Boolean(notesPanel && notesTable && notesBody && notesAddRow && notesEmptyRow && notesAddUserDisplay && notesAddScore && notesAddText && notesAddButton && notesMessage && notesTitle && notesSubtitle && notesCloseButton);
 
-            if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner || !detailsPanel || !notesPanel || !notesTable || !notesBody || !notesAddRow || !notesEmptyRow || !notesAddUserDisplay || !notesAddScore || !notesAddText || !notesAddButton || !notesMessage || !notesTitle || !notesSubtitle || !notesCloseButton) {
+            if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner) {
                 return;
             }
 
@@ -86,7 +87,9 @@ window.WineInventoryTables.initialize = function () {
             bindAddWinePopover();
             bindDetailAddRow();
             bindDrinkBottleModal();
-            bindNotesPanel();
+            if (notesEnabled) {
+                bindNotesPanel();
+            }
 
             function initializeSummaryRows() {
                 const rows = Array.from(inventoryTable.querySelectorAll('tbody tr.group-row'));
@@ -478,9 +481,13 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function bindNotesPanel() {
+                if (!notesEnabled) {
+                    return;
+                }
+
                 initializeNotesPanel();
-                notesCloseButton.addEventListener('click', closeNotesPanel);
-                notesAddButton.addEventListener('click', handleAddNote);
+                notesCloseButton?.addEventListener('click', closeNotesPanel);
+                notesAddButton?.addEventListener('click', handleAddNote);
             }
 
             function openDrinkBottleModal(detail, summary) {
@@ -1424,18 +1431,20 @@ window.WineInventoryTables.initialize = function () {
                     }
                 });
 
-                row.addEventListener('click', async (event) => {
-                    if (shouldIgnoreDetailRowClick(event)) {
-                        return;
-                    }
+                if (notesEnabled) {
+                    row.addEventListener('click', async (event) => {
+                        if (shouldIgnoreDetailRowClick(event)) {
+                            return;
+                        }
 
-                    event.preventDefault();
-                    try {
-                        await handleDetailRowSelection(row, detail, summary);
-                    } catch (error) {
-                        showNotesMessage(error?.message ?? String(error), 'error');
-                    }
-                });
+                        event.preventDefault();
+                        try {
+                            await handleDetailRowSelection(row, detail, summary);
+                        } catch (error) {
+                            showNotesMessage(error?.message ?? String(error), 'error');
+                        }
+                    });
+                }
 
                 return row;
             }
@@ -1639,7 +1648,7 @@ window.WineInventoryTables.initialize = function () {
             }
 
             async function handleDetailRowSelection(row, detail, summary) {
-                if (!row || !detail) {
+                if (!notesEnabled || !row || !detail) {
                     return;
                 }
 
@@ -1648,6 +1657,10 @@ window.WineInventoryTables.initialize = function () {
             }
 
             async function openNotesPanel(row, detail, summary) {
+                if (!notesEnabled || !detailsPanel || !notesPanel) {
+                    return;
+                }
+
                 const bottleId = detail?.bottleId ?? detail?.BottleId ?? row?.dataset?.bottleId;
                 if (!bottleId) {
                     return;
@@ -1684,7 +1697,7 @@ window.WineInventoryTables.initialize = function () {
             }
 
             async function loadNotesForBottle(bottleId) {
-                if (!notesBody) {
+                if (!notesEnabled || !notesBody) {
                     return;
                 }
 
@@ -1711,7 +1724,7 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function renderNotes(data) {
-                if (!notesBody) {
+                if (!notesEnabled || !notesBody) {
                     return;
                 }
 
@@ -1880,7 +1893,7 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function closeNotesPanel() {
-                if (!detailsPanel || !notesPanel) {
+                if (!notesEnabled || !detailsPanel || !notesPanel) {
                     return;
                 }
 
@@ -1908,7 +1921,7 @@ window.WineInventoryTables.initialize = function () {
             }
 
             async function handleAddNote() {
-                if (!notesSelectedBottleId || notesLoading) {
+                if (!notesEnabled || !notesSelectedBottleId || notesLoading) {
                     return;
                 }
 
