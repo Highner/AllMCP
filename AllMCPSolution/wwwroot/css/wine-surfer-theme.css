@@ -300,3 +300,9 @@ a.wine-card:focus {
         font-size: 14px;
     }
 }
+
+
+/* Ensure elements with the hidden attribute are not displayed */
+[hidden] {
+    display: none !important;
+}

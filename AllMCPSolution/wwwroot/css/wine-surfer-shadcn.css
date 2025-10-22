@@ -1425,6 +1425,13 @@ tbody tr:hover {
     gap: 24px;
 }
 
+/* Strong guarantees that only one panel is visible */
+#details-view[hidden],
+#details-view[aria-hidden="true"],
+#inventory-view[aria-hidden="true"] {
+    display: none !important;
+}
+
 .details-panel header {
     display: flex;
     flex-direction: column;

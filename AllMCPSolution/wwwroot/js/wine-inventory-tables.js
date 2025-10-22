@@ -65,6 +65,15 @@ window.WineInventoryTables.initialize = function () {
             const detailsSection = document.getElementById('details-view');
             const detailsCloseButton = document.getElementById('details-close-button');
 
+            // Enforce initial state to avoid any flash of the details panel
+            if (inventorySection) {
+                inventorySection.hidden = false;
+                inventorySection.setAttribute('aria-hidden', 'false');
+            }
+            if (detailsSection) {
+                detailsSection.hidden = true;
+                detailsSection.setAttribute('aria-hidden', 'true');
+            }
             showInventoryView();
 
             let selectedGroupId = null;
