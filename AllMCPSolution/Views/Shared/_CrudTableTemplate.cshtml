@@ -1,0 +1,41 @@
+@model AllMCPSolution.Models.CrudTableTemplateModel
+@{
+    var dataCrudTable = string.IsNullOrWhiteSpace(Model.DataTableKey) ? null : Model.DataTableKey;
+    var backgroundClass = string.IsNullOrWhiteSpace(Model.BackgroundCssClass)
+        ? "crud-table wine-surface wine-surface-border wine-card-hover"
+        : Model.BackgroundCssClass;
+    var bodyClass = string.IsNullOrWhiteSpace(Model.BodyCssClass)
+        ? "crud-table__body wine-surface wine-surface-border"
+        : Model.BodyCssClass;
+}
+<section class="@backgroundClass" data-crud-table="@dataCrudTable">
+    @if (!string.IsNullOrWhiteSpace(Model.Title) || Model.TitleContent is not null || Model.HeaderContent is not null || !string.IsNullOrWhiteSpace(Model.Description))
+    {
+        <header class="crud-table__header">
+            <div class="crud-table__header-content">
+                @if (Model.TitleContent is not null)
+                {
+                    @Model.TitleContent(null)
+                }
+                else if (!string.IsNullOrWhiteSpace(Model.Title))
+                {
+                    <h2 class="crud-table__title">@Model.Title</h2>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Description))
+                {
+                    <p class="crud-table__description">@Model.Description</p>
+                }
+            </div>
+            @if (Model.HeaderContent is not null)
+            {
+                @Model.HeaderContent(null)
+            }
+        </header>
+    }
+    <div class="@bodyClass">
+        @if (Model.BodyContent is not null)
+        {
+            @Model.BodyContent(null)
+        }
+    </div>
+</section>
