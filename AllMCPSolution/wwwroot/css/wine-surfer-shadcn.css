@@ -1050,8 +1050,10 @@ textarea:focus {
 }
 
 #detail-add-row {
-    display: grid;
+    display: flex;
+    flex-wrap: wrap;
     gap: 16px;
+    align-items: flex-end;
     padding: 16px 20px;
     border-radius: calc(var(--radius) - 0.25rem);
     background: hsla(var(--accent) / 0.18);
@@ -1060,11 +1062,18 @@ textarea:focus {
 
 @media (min-width: 768px) {
     #detail-add-row {
-        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
-        align-items: end;
         padding-left: 24px;
         padding-right: 24px;
     }
+}
+
+#detail-add-row .detail-add-inputs {
+    display: flex;
+    flex: 1 1 240px;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+    min-width: 0;
 }
 
 #detail-add-row .detail-add-input-label,
@@ -1073,6 +1082,7 @@ textarea:focus {
     flex-direction: column;
     gap: 6px;
     min-width: 0;
+    flex: 1 1 180px;
 }
 
 #detail-add-row .detail-add-quantity-label {
@@ -1080,6 +1090,7 @@ textarea:focus {
     letter-spacing: 0.6px;
     text-transform: uppercase;
     color: hsla(var(--muted-foreground) / 0.85);
+    flex: 0 1 120px;
 }
 
 #detail-add-row .detail-add-quantity-label span {
@@ -1088,15 +1099,9 @@ textarea:focus {
 }
 
 #detail-add-row .crud-table__action-button {
-    width: 100%;
-    justify-self: stretch;
-}
-
-@media (min-width: 768px) {
-    #detail-add-row .crud-table__action-button {
-        width: auto;
-        justify-self: end;
-    }
+    flex: 0 0 auto;
+    align-self: flex-end;
+    margin-left: auto;
 }
 
 .crud-table__header-row {
