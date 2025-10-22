@@ -221,6 +221,20 @@ a.wine-card:focus {
     outline-offset: 3px;
 }
 
+.sip-session-edit-modal__header {
+    position: relative;
+    justify-content: center;
+    gap: 0;
+    padding-right: 64px;
+    text-align: center;
+}
+
+.sip-session-edit-modal__close {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+}
+
 .wine-surfer-modal__body {
     padding: 18px 24px 24px;
     display: flex;

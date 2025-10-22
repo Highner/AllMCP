@@ -1301,9 +1301,17 @@
             padding: 20px 24px 16px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 12px;
+            justify-content: center;
+            position: relative;
+            gap: 0;
+            padding-right: 64px;
             border-bottom: 1px solid rgba(244, 241, 234, 0.12);
+        }
+
+        .sip-session-edit-modal__close {
+            position: absolute;
+            top: 16px;
+            right: 20px;
         }
 
         .sip-session-edit-modal__title {
@@ -2213,7 +2221,12 @@
         <div class="sip-session-edit-modal" role="dialog" aria-modal="true" aria-labelledby="sip-session-edit-modal-title">
             <header class="sip-session-edit-modal__header">
                 <h2 class="sip-session-edit-modal__title" id="sip-session-edit-modal-title" data-sip-session-edit-modal-title>Edit sip session</h2>
-                <button type="button" class="sisterhood-button sisterhood-button--ghost" data-sip-session-edit-close aria-label="Close edit sip session dialog">Close</button>
+                <button type="button"
+                        class="wine-surfer-modal__close sip-session-edit-modal__close"
+                        data-sip-session-edit-close
+                        aria-label="Close edit sip session dialog">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </header>
             <div class="sip-session-edit-modal__body" data-sip-session-edit-modal-body></div>
         </div>
