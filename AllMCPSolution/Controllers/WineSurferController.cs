@@ -107,6 +107,9 @@ public class WineSurferController : Controller
     private readonly IAppellationRepository _appellationRepository;
     private readonly ISubAppellationRepository _subAppellationRepository;
     private static readonly TimeSpan SentInvitationNotificationWindow = TimeSpan.FromDays(7);
+    private const int TasteProfileMaxLength = 2048;
+    private const string TasteProfileStatusTempDataKey = "WineSurfer.TasteProfile.Status";
+    private const string TasteProfileErrorTempDataKey = "WineSurfer.TasteProfile.Error";
 
     public WineSurferController(
         IWineRepository wineRepository,
@@ -310,6 +313,173 @@ public class WineSurferController : Controller
             favoriteBottles);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
+    }
+
+    [Authorize]
+    [HttpGet("taste-profile")]
+    public async Task<IActionResult> TasteProfile(CancellationToken cancellationToken)
+    {
+        Response.ContentType = "text/html; charset=utf-8";
+
+        var now = DateTime.UtcNow;
+        WineSurferCurrentUser? currentUser = null;
+        IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
+        IReadOnlyList<WineSurferSentInvitationNotification> sentInvitationNotifications = Array.Empty<WineSurferSentInvitationNotification>();
+        Guid? currentUserId = null;
+        string? normalizedEmail = null;
+        ApplicationUser? domainUser = null;
+        var isAdmin = false;
+
+        if (User?.Identity?.IsAuthenticated == true)
+        {
+            var identityName = User.Identity?.Name;
+            var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
+            normalizedEmail = NormalizeEmailCandidate(email);
+            currentUserId = GetCurrentUserId();
+
+            if (currentUserId.HasValue)
+            {
+                domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
+            }
+
+            if (domainUser is null && !string.IsNullOrWhiteSpace(identityName))
+            {
+                domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
+            }
+
+            var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
+
+            if (domainUser is not null)
+            {
+                currentUserId = domainUser.Id;
+                normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
+                isAdmin = domainUser.IsAdmin;
+            }
+
+            if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
+            {
+                normalizedEmail = NormalizeEmailCandidate(displayName);
+            }
+
+            if (!string.IsNullOrWhiteSpace(displayName) || !string.IsNullOrWhiteSpace(email) || domainUser is not null)
+            {
+                currentUser = new WineSurferCurrentUser(
+                    domainUser?.Id,
+                    displayName ?? email ?? string.Empty,
+                    email,
+                    domainUser?.TasteProfile,
+                    isAdmin);
+            }
+
+            if (currentUserId.HasValue || normalizedEmail is not null)
+            {
+                incomingInvitations = (await _sisterhoodInvitationRepository.GetForInviteeAsync(currentUserId, normalizedEmail, cancellationToken))
+                    .Where(invitation => invitation.Status == SisterhoodInvitationStatus.Pending)
+                    .Select(invitation =>
+                    {
+                        var matchesUserId = currentUserId.HasValue && invitation.InviteeUserId == currentUserId.Value;
+                        var matchesEmail = normalizedEmail is not null && string.Equals(invitation.InviteeEmail, normalizedEmail, StringComparison.Ordinal);
+
+                        return new
+                        {
+                            Invitation = invitation,
+                            MatchesUserId = matchesUserId,
+                            MatchesEmail = matchesEmail,
+                        };
+                    })
+                    .Where(entry => entry.MatchesUserId || entry.MatchesEmail)
+                    .Select(entry => new WineSurferIncomingSisterhoodInvitation(
+                        entry.Invitation.Id,
+                        entry.Invitation.SisterhoodId,
+                        entry.Invitation.Sisterhood?.Name ?? "Sisterhood",
+                        entry.Invitation.Sisterhood?.Description,
+                        entry.Invitation.InviteeEmail,
+                        entry.Invitation.Status,
+                        entry.Invitation.CreatedAt,
+                        entry.Invitation.UpdatedAt,
+                        entry.Invitation.InviteeUserId,
+                        entry.MatchesUserId,
+                        entry.MatchesEmail))
+                    .ToList();
+            }
+        }
+
+        if (currentUserId.HasValue && isAdmin)
+        {
+            var acceptedInvitations = await _sisterhoodInvitationRepository.GetAcceptedForAdminAsync(
+                currentUserId.Value,
+                now - SentInvitationNotificationWindow,
+                cancellationToken);
+
+            sentInvitationNotifications = CreateSentInvitationNotifications(acceptedInvitations);
+        }
+
+        var statusMessage = TempData.ContainsKey(TasteProfileStatusTempDataKey)
+            ? TempData[TasteProfileStatusTempDataKey] as string
+            : null;
+        var errorMessage = TempData.ContainsKey(TasteProfileErrorTempDataKey)
+            ? TempData[TasteProfileErrorTempDataKey] as string
+            : null;
+
+        var tasteProfile = domainUser?.TasteProfile ?? currentUser?.TasteProfile ?? string.Empty;
+
+        var viewModel = new WineSurferTasteProfileViewModel(
+            currentUser,
+            incomingInvitations,
+            sentInvitationNotifications,
+            tasteProfile,
+            TasteProfileMaxLength,
+            statusMessage,
+            errorMessage);
+
+        return View("TasteProfile", viewModel);
+    }
+
+    [Authorize]
+    [HttpPost("taste-profile")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateTasteProfile([FromForm] UpdateTasteProfileRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            TempData[TasteProfileErrorTempDataKey] = $"Taste profile must be {TasteProfileMaxLength} characters or fewer.";
+            return RedirectToAction(nameof(TasteProfile));
+        }
+
+        var userId = GetCurrentUserId();
+        if (!userId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        var trimmedTasteProfile = string.IsNullOrWhiteSpace(request.TasteProfile)
+            ? string.Empty
+            : request.TasteProfile.Trim();
+
+        if (trimmedTasteProfile.Length > TasteProfileMaxLength)
+        {
+            TempData[TasteProfileErrorTempDataKey] = $"Taste profile must be {TasteProfileMaxLength} characters or fewer.";
+            return RedirectToAction(nameof(TasteProfile));
+        }
+
+        try
+        {
+            var updatedUser = await _userRepository.UpdateTasteProfileAsync(userId.Value, trimmedTasteProfile, cancellationToken);
+            if (updatedUser is null)
+            {
+                TempData[TasteProfileErrorTempDataKey] = "We couldn't update your taste profile. Please try again.";
+                return RedirectToAction(nameof(TasteProfile));
+            }
+
+            TempData.Remove(TasteProfileErrorTempDataKey);
+            TempData[TasteProfileStatusTempDataKey] = "Your taste profile was updated.";
+        }
+        catch (Exception)
+        {
+            TempData[TasteProfileErrorTempDataKey] = "We couldn't update your taste profile. Please try again.";
+        }
+
+        return RedirectToAction(nameof(TasteProfile));
     }
 
     [Authorize]
@@ -3312,6 +3482,12 @@ public class WineSurferController : Controller
         return new RegionInventoryMetrics(cellared, consumed, averageScore, userAverageScores);
     }
 
+    public sealed class UpdateTasteProfileRequest
+    {
+        [StringLength(TasteProfileMaxLength)]
+        public string? TasteProfile { get; set; }
+    }
+
     public sealed class CreateRegionRequest
     {
         [Required]
@@ -3924,6 +4100,15 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
         return null;
     }
 }
+
+public record WineSurferTasteProfileViewModel(
+    WineSurferCurrentUser? CurrentUser,
+    IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
+    IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
+    string TasteProfile,
+    int MaxLength,
+    string? StatusMessage,
+    string? ErrorMessage);
 
 public record WineSurferTerroirManagementViewModel(
     WineSurferCurrentUser? CurrentUser,

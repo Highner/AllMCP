@@ -1,0 +1,275 @@
+@model AllMCPSolution.Controllers.WineSurferTasteProfileViewModel
+@using AllMCPSolution.Controllers
+@{
+    Layout = null;
+    var requestPath = Context.Request.Path.HasValue ? Context.Request.Path.Value : string.Empty;
+    var requestQuery = Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value : string.Empty;
+    var currentLocation = string.Concat(requestPath, requestQuery);
+    var topBarModel = WineSurferTopBarModel.CreateFromSisterhoodData(
+        currentLocation,
+        Model.IncomingInvitations,
+        Model.SentInvitationNotifications,
+        displayName: Model.CurrentUser?.DisplayName,
+        isAdmin: Model.CurrentUser?.IsAdmin == true);
+    var tasteProfile = Model.TasteProfile ?? string.Empty;
+    var statusMessage = Model.StatusMessage;
+    var errorMessage = Model.ErrorMessage;
+    var maxLength = Model.MaxLength;
+    ViewData["WineSurferPageTitle"] = "Taste Profile";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wine Surfer • Taste Profile</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--wine-app-background);
+            color: hsl(var(--foreground));
+            font-family: var(--font-sans);
+        }
+
+        .taste-profile-main {
+            width: min(900px, 100%);
+            margin: 0 auto;
+            padding: 64px 24px 96px;
+            display: flex;
+            flex-direction: column;
+            gap: 48px;
+        }
+
+        .taste-profile-card {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            padding: 40px;
+            border-radius: calc(var(--radius) * 1.1);
+            border: 1px solid hsla(var(--border) / 0.55);
+            background: hsla(var(--card) / 0.8);
+            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.35);
+        }
+
+        .taste-profile-header {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .taste-profile-title {
+            margin: 0;
+            font-size: clamp(32px, 5vw, 52px);
+            letter-spacing: 12px;
+            text-transform: uppercase;
+        }
+
+        .taste-profile-description {
+            margin: 0;
+            max-width: 48ch;
+            color: hsla(var(--muted-foreground) / 0.9);
+            font-size: 14px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .taste-profile-banner {
+            padding: 16px 20px;
+            border-radius: calc(var(--radius) * 0.9);
+            border: 1px solid transparent;
+            font-size: 13px;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+        }
+
+        .taste-profile-banner--success {
+            background: hsla(var(--primary) / 0.2);
+            border-color: hsla(var(--primary) / 0.6);
+            color: hsl(var(--primary-foreground));
+        }
+
+        .taste-profile-banner--error {
+            background: hsla(var(--destructive) / 0.2);
+            border-color: hsla(var(--destructive) / 0.65);
+            color: hsl(var(--destructive-foreground));
+        }
+
+        .taste-profile-form {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .taste-profile-field {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .taste-profile-label {
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .taste-profile-textarea {
+            width: 100%;
+            min-height: 220px;
+            padding: 18px 20px;
+            border-radius: calc(var(--radius) * 1.05);
+            border: 1px solid hsla(var(--border) / 0.55);
+            background: hsla(var(--accent) / 0.2);
+            color: inherit;
+            resize: vertical;
+            line-height: 1.6;
+            font-size: 15px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .taste-profile-textarea:focus {
+            outline: none;
+            border-color: hsla(var(--ring) / 0.9);
+            box-shadow: 0 0 0 3px hsla(var(--ring) / 0.25);
+        }
+
+        .taste-profile-help {
+            margin: 0;
+            font-size: 13px;
+            color: hsla(var(--muted-foreground) / 0.85);
+        }
+
+        .taste-profile-footer {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .taste-profile-counter {
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: hsla(var(--muted-foreground) / 0.9);
+        }
+
+        .taste-profile-submit {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 26px;
+            border-radius: 999px;
+            border: 1px solid hsla(var(--border) / 0.6);
+            background: linear-gradient(135deg, rgba(219, 56, 56, 0.95), rgba(166, 25, 46, 0.85));
+            color: #f4f1ea;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .taste-profile-submit:hover,
+        .taste-profile-submit:focus-visible {
+            transform: translateY(-1px);
+            border-color: hsla(var(--primary) / 0.7);
+            box-shadow: 0 18px 30px rgba(166, 25, 46, 0.35);
+        }
+
+        .taste-profile-submit:focus-visible {
+            outline: 2px solid hsla(var(--ring) / 0.8);
+            outline-offset: 4px;
+        }
+
+        @media (max-width: 640px) {
+            .taste-profile-card {
+                padding: 28px;
+            }
+
+            .taste-profile-main {
+                padding: 48px 18px 72px;
+            }
+
+            .taste-profile-footer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .taste-profile-submit {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-content">
+        @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
+        <main class="taste-profile-main">
+            <section class="taste-profile-card" aria-labelledby="tasteProfileHeading">
+                <header class="taste-profile-header">
+                    <h1 id="tasteProfileHeading" class="taste-profile-title">Taste Profile</h1>
+                    <p class="taste-profile-description">Capture the styles, regions, and bottles you love so Wine Surfer can tailor future picks.</p>
+                </header>
+                @if (!string.IsNullOrWhiteSpace(statusMessage))
+                {
+                    <div class="taste-profile-banner taste-profile-banner--success" role="status">@statusMessage</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    <div class="taste-profile-banner taste-profile-banner--error" role="alert">@errorMessage</div>
+                }
+                <form method="post" action="@Url.Action("UpdateTasteProfile", "WineSurfer")" class="taste-profile-form" novalidate>
+                    @Html.AntiForgeryToken()
+                    <div class="taste-profile-field">
+                        <label class="taste-profile-label" for="tasteProfileInput">Your taste profile</label>
+                        <textarea
+                            id="tasteProfileInput"
+                            name="TasteProfile"
+                            class="taste-profile-textarea"
+                            maxlength="@maxLength"
+                            data-max-length="@maxLength"
+                            spellcheck="true"
+                            rows="8">@tasteProfile</textarea>
+                        <p class="taste-profile-help">We recommend highlighting grape varieties, favorite producers, and moments you savor. Update it anytime your palate evolves.</p>
+                    </div>
+                    <div class="taste-profile-footer">
+                        <span class="taste-profile-counter" data-char-count data-max-length="@maxLength">
+                            @($"{tasteProfile.Length} / {maxLength} characters")
+                        </span>
+                        <button type="submit" class="taste-profile-submit">Save profile</button>
+                    </div>
+                </form>
+            </section>
+        </main>
+    </div>
+    <script>
+        (function () {
+            const textarea = document.getElementById('tasteProfileInput');
+            const counter = document.querySelector('[data-char-count]');
+            if (!textarea || !counter) {
+                return;
+            }
+
+            const maxLength = parseInt(counter.dataset.maxLength || textarea.getAttribute('maxlength') || '@maxLength', 10);
+            const formatCount = (value) => `${value} / ${maxLength} characters`;
+
+            const updateCount = () => {
+                const valueLength = textarea.value.length;
+                counter.textContent = formatCount(valueLength);
+            };
+
+            textarea.addEventListener('input', updateCount, { passive: true });
+            updateCount();
+        })();
+    </script>
+</body>
+</html>
