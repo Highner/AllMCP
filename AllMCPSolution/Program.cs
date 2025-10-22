@@ -63,6 +63,7 @@ builder.Services.AddScoped<IWineSurferNotificationDismissalRepository, WineSurfe
 builder.Services.AddScoped<InventoryIntakeService>();
 builder.Services.AddScoped<IWineSurferTopBarService, WineSurferTopBarService>();
 builder.Services.AddScoped<IWineImportService, WineImportService>();
+builder.Services.AddScoped<IChatGptService, ChatGptService>();
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
