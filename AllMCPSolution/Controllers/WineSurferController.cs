@@ -1,13 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Linq;
+using System.Net.Http;
 using System.Net.Mail;
 using System.Security.Claims;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
+using AllMCPSolution.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -106,11 +111,22 @@ public class WineSurferController : Controller
     private readonly IRegionRepository _regionRepository;
     private readonly IAppellationRepository _appellationRepository;
     private readonly ISubAppellationRepository _subAppellationRepository;
+    private readonly IChatGptService _chatGptService;
     private static readonly TimeSpan SentInvitationNotificationWindow = TimeSpan.FromDays(7);
     private const int TasteProfileMaxLength = 4096;
     private const int TasteProfileSummaryMaxLength = 512;
     private const string TasteProfileStatusTempDataKey = "WineSurfer.TasteProfile.Status";
     private const string TasteProfileErrorTempDataKey = "WineSurfer.TasteProfile.Error";
+    private const string TasteProfileGenerationSystemPrompt =
+        "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\"summary\":\"...\",\"profile\":\"...\"}. " +
+        "The summary must be 200 characters or fewer and offer a concise descriptor of the user's palate. " +
+        "The profile must be 3-5 sentences, 1500 characters or fewer, written in the second person, and describe styles, structure, and flavor preferences without recommending specific new wines. " +
+        "Do not include markdown, bullet lists, code fences, or any explanatory text outside the JSON object.";
+    private static readonly JsonDocumentOptions TasteProfileJsonDocumentOptions = new()
+    {
+        AllowTrailingCommas = true,
+        CommentHandling = JsonCommentHandling.Skip
+    };
 
     public WineSurferController(
         IWineRepository wineRepository,
@@ -123,7 +139,8 @@ public class WineSurferController : Controller
         ICountryRepository countryRepository,
         IRegionRepository regionRepository,
         IAppellationRepository appellationRepository,
-        ISubAppellationRepository subAppellationRepository)
+        ISubAppellationRepository subAppellationRepository,
+        IChatGptService chatGptService)
     {
         _wineRepository = wineRepository;
         _userRepository = userRepository;
@@ -136,6 +153,7 @@ public class WineSurferController : Controller
         _regionRepository = regionRepository;
         _appellationRepository = appellationRepository;
         _subAppellationRepository = subAppellationRepository;
+        _chatGptService = chatGptService;
     }
 
     [HttpGet("")]
@@ -511,6 +529,80 @@ public class WineSurferController : Controller
         }
 
         return RedirectToAction(nameof(TasteProfile));
+    }
+
+    [Authorize]
+    [HttpPost("taste-profile/generate")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GenerateTasteProfile(CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (!userId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        var bottles = await _bottleRepository.GetForUserAsync(userId.Value, cancellationToken);
+        var scoredBottles = bottles
+            .Select(bottle =>
+            {
+                var note = bottle.TastingNotes?
+                    .FirstOrDefault(tn => tn.UserId == userId.Value && tn.Score.HasValue);
+                return (Bottle: bottle, Note: note);
+            })
+            .Where(entry => entry.Note is not null)
+            .Select(entry => (Bottle: entry.Bottle, Note: entry.Note!))
+            .OrderByDescending(entry => entry.Note.Score!.Value)
+            .Take(25)
+            .ToList();
+
+        if (scoredBottles.Count == 0)
+        {
+            return BadRequest(new GenerateTasteProfileError("Add scores to a few bottles before generating a taste profile."));
+        }
+
+        var prompt = BuildTasteProfilePrompt(scoredBottles);
+
+        ChatGptResponse completion;
+        try
+        {
+            completion = await _chatGptService.GetChatCompletionAsync(
+                new[]
+                {
+                    new ChatGptMessage { Role = "system", Content = TasteProfileGenerationSystemPrompt },
+                    new ChatGptMessage { Role = "user", Content = prompt }
+                },
+                temperature: 0.6,
+                ct: cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new GenerateTasteProfileError("We couldn't reach the taste profile assistant. Please try again."));
+        }
+        catch (Exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new GenerateTasteProfileError("We couldn't generate a taste profile right now. Please try again."));
+        }
+
+        var content = completion.Choices?.FirstOrDefault()?.Message?.Content;
+        if (!TryParseGeneratedTasteProfile(content, out var generatedProfile))
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new GenerateTasteProfileError("We couldn't understand the taste profile assistant's response. Please try again."));
+        }
+
+        var profile = NormalizeGeneratedText(generatedProfile.Profile, TasteProfileMaxLength);
+        if (string.IsNullOrWhiteSpace(profile))
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new GenerateTasteProfileError("We couldn't generate a taste profile right now. Please try again."));
+        }
+
+        var summary = NormalizeGeneratedText(generatedProfile.Summary, TasteProfileSummaryMaxLength);
+        if (string.IsNullOrWhiteSpace(summary))
+        {
+            summary = BuildSummaryFallback(profile, TasteProfileSummaryMaxLength);
+        }
+
+        return Json(new GenerateTasteProfileResponse(summary, profile));
     }
 
     [Authorize]
@@ -3999,6 +4091,313 @@ public class WineSurferController : Controller
         return labelBase;
     }
 
+    private static string BuildTasteProfilePrompt(IReadOnlyList<(Bottle Bottle, TastingNote Note)> scoredBottles)
+    {
+        if (scoredBottles is null || scoredBottles.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("Create a cohesive wine taste profile for the user based on the scored bottles listed below.");
+        builder.AppendLine("Each entry follows: Name (Vintage) — Origin | Attributes | Score | Notes.");
+        builder.AppendLine();
+
+        for (var index = 0; index < scoredBottles.Count; index++)
+        {
+            var (bottle, note) = scoredBottles[index];
+            var wineVintage = bottle?.WineVintage;
+            var wine = wineVintage?.Wine;
+
+            var displayName = BuildWineDisplayName(wineVintage, wine);
+            var origin = BuildWineOrigin(wine);
+            var attributes = BuildWineAttributes(wine);
+            var score = note.Score!.Value.ToString("0.##", CultureInfo.InvariantCulture);
+            var noteText = PrepareNoteText(note.Note);
+
+            builder.Append(index + 1);
+            builder.Append(". ");
+            builder.Append(displayName);
+
+            if (!string.IsNullOrEmpty(origin))
+            {
+                builder.Append(" — ");
+                builder.Append(origin);
+            }
+
+            if (!string.IsNullOrEmpty(attributes))
+            {
+                builder.Append(" | ");
+                builder.Append(attributes);
+            }
+
+            builder.Append(" | Score: ");
+            builder.Append(score);
+
+            if (!string.IsNullOrEmpty(noteText))
+            {
+                builder.Append(" | Notes: ");
+                builder.Append(noteText);
+            }
+
+            builder.AppendLine();
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("Identify consistent stylistic preferences, texture, structure, and favored regions or grapes.");
+        builder.AppendLine("Use only the provided information and avoid recommending specific new bottles.");
+        builder.AppendLine("Write the taste profile in the second person.");
+        builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\"}. No markdown or commentary.");
+
+        return builder.ToString();
+    }
+
+    private static string BuildWineDisplayName(WineVintage? wineVintage, Wine? wine)
+    {
+        var name = wine?.Name;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            name = "Unknown wine";
+        }
+        else
+        {
+            name = name.Trim();
+        }
+
+        if (wineVintage is not null && wineVintage.Vintage > 0)
+        {
+            return $"{name} {wineVintage.Vintage}";
+        }
+
+        return name;
+    }
+
+    private static string BuildWineOrigin(Wine? wine)
+    {
+        if (wine?.SubAppellation is null)
+        {
+            return string.Empty;
+        }
+
+        var parts = new List<string>();
+        AddDistinctPart(parts, wine.SubAppellation.Name);
+        var appellation = wine.SubAppellation.Appellation;
+        if (appellation is not null)
+        {
+            AddDistinctPart(parts, appellation.Name);
+            var region = appellation.Region;
+            if (region is not null)
+            {
+                AddDistinctPart(parts, region.Name);
+                AddDistinctPart(parts, region.Country?.Name);
+            }
+        }
+
+        return parts.Count == 0 ? string.Empty : string.Join(", ", parts);
+    }
+
+    private static string BuildWineAttributes(Wine? wine)
+    {
+        if (wine is null)
+        {
+            return string.Empty;
+        }
+
+        var attributes = new List<string>();
+        if (!string.IsNullOrWhiteSpace(wine.GrapeVariety))
+        {
+            attributes.Add(wine.GrapeVariety.Trim());
+        }
+
+        var color = wine.Color switch
+        {
+            WineColor.Rose => "Rosé",
+            WineColor.White => "White",
+            WineColor.Red => "Red",
+            _ => null
+        };
+
+        if (!string.IsNullOrWhiteSpace(color))
+        {
+            attributes.Add(color);
+        }
+
+        return attributes.Count == 0 ? string.Empty : string.Join(" • ", attributes);
+    }
+
+    private static string PrepareNoteText(string? note)
+    {
+        if (string.IsNullOrWhiteSpace(note))
+        {
+            return string.Empty;
+        }
+
+        var normalized = note.ReplaceLineEndings(" ").Trim();
+        if (normalized.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (normalized.Length > 240)
+        {
+            normalized = normalized[..Math.Min(240, normalized.Length)].TrimEnd();
+            if (!normalized.EndsWith("…", StringComparison.Ordinal))
+            {
+                normalized = $"{normalized}…";
+            }
+        }
+
+        return normalized;
+    }
+
+    private static void AddDistinctPart(List<string> parts, string? value)
+    {
+        if (parts is null || string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.Length == 0)
+        {
+            return;
+        }
+
+        if (parts.Exists(existing => string.Equals(existing, trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        parts.Add(trimmed);
+    }
+
+    private static string NormalizeGeneratedText(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.Length <= maxLength)
+        {
+            return trimmed;
+        }
+
+        var truncated = trimmed[..maxLength].TrimEnd();
+        return truncated;
+    }
+
+    private static string BuildSummaryFallback(string profile, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(profile))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = profile.Trim();
+        if (trimmed.Length <= maxLength)
+        {
+            return trimmed;
+        }
+
+        var limit = Math.Min(maxLength, trimmed.Length);
+        var sentenceEnd = -1;
+        for (var index = 0; index < limit; index++)
+        {
+            var character = trimmed[index];
+            if (character == '.' || character == '!' || character == '?')
+            {
+                sentenceEnd = index;
+                break;
+            }
+        }
+
+        if (sentenceEnd >= 0)
+        {
+            return trimmed[..(sentenceEnd + 1)].Trim();
+        }
+
+        var lastSpace = trimmed.LastIndexOf(' ', limit - 1);
+        if (lastSpace > 0)
+        {
+            return trimmed[..lastSpace].TrimEnd();
+        }
+
+        return trimmed[..limit].TrimEnd();
+    }
+
+    private static bool TryParseGeneratedTasteProfile(string? content, out GeneratedTasteProfile result)
+    {
+        result = default!;
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return false;
+        }
+
+        var segment = ExtractJsonSegment(content);
+
+        try
+        {
+            using var document = JsonDocument.Parse(segment, TasteProfileJsonDocumentOptions);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            string? summary = null;
+            if (root.TryGetProperty("summary", out var summaryElement) && summaryElement.ValueKind == JsonValueKind.String)
+            {
+                summary = summaryElement.GetString();
+            }
+
+            if (!root.TryGetProperty("profile", out var profileElement) || profileElement.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
+
+            var profile = profileElement.GetString();
+            if (string.IsNullOrWhiteSpace(profile))
+            {
+                return false;
+            }
+
+            result = new GeneratedTasteProfile(summary, profile);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static string ExtractJsonSegment(string content)
+    {
+        var trimmed = content.Trim();
+
+        if (trimmed.StartsWith("```", StringComparison.Ordinal))
+        {
+            var firstNewLine = trimmed.IndexOf('\n');
+            var closingFence = trimmed.LastIndexOf("```", StringComparison.Ordinal);
+            if (firstNewLine >= 0 && closingFence > firstNewLine)
+            {
+                trimmed = trimmed.Substring(firstNewLine + 1, closingFence - firstNewLine - 1);
+            }
+        }
+
+        var firstBrace = trimmed.IndexOf('{');
+        var lastBrace = trimmed.LastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace >= firstBrace)
+        {
+            trimmed = trimmed.Substring(firstBrace, lastBrace - firstBrace + 1);
+        }
+
+        return trimmed.Trim();
+    }
+
+    private sealed record GeneratedTasteProfile(string? Summary, string Profile);
+
 private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(
     IEnumerable<SipSessionBottle>? sessionBottles,
     Guid? currentUserId = null,
@@ -4165,6 +4564,10 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
         return null;
     }
 }
+
+public record GenerateTasteProfileResponse(string Summary, string Profile);
+
+public record GenerateTasteProfileError(string Error);
 
 public record WineSurferTasteProfileViewModel(
     WineSurferCurrentUser? CurrentUser,

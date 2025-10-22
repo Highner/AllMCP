@@ -182,6 +182,21 @@
             gap: 16px;
         }
 
+        .taste-profile-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .taste-profile-actions .sisterhood-button {
+            white-space: nowrap;
+        }
+
+        .taste-profile-generate-button[disabled] {
+            cursor: progress;
+        }
+
         .taste-profile-counter {
             font-size: 12px;
             letter-spacing: 2px;
@@ -206,9 +221,17 @@
             .taste-profile-footer {
                 flex-direction: column;
                 align-items: stretch;
+                gap: 20px;
             }
 
-            .taste-profile-footer .sisterhood-button {
+            .taste-profile-actions {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 16px;
+            }
+
+            .taste-profile-actions .sisterhood-button {
                 width: 100%;
             }
         }
@@ -231,6 +254,7 @@
                 {
                     <div class="taste-profile-banner taste-profile-banner--error" role="alert">@errorMessage</div>
                 }
+                <div id="tasteProfileGeneratorMessage" class="taste-profile-banner" hidden aria-live="polite"></div>
                 <form method="post" action="@Url.Action("UpdateTasteProfile", "WineSurfer")" class="taste-profile-form" novalidate>
                     @Html.AntiForgeryToken()
                     <div class="taste-profile-field">
@@ -267,7 +291,16 @@
                         <span class="taste-profile-counter" data-char-count data-for="tasteProfileInput" data-max-length="@maxLength">
                             @($"{tasteProfile.Length} / {maxLength} characters")
                         </span>
-                        <button type="submit" class="sisterhood-button">Save profile</button>
+                        <div class="taste-profile-actions">
+                            <button
+                                type="button"
+                                class="sisterhood-button taste-profile-generate-button"
+                                data-generate-taste-profile
+                                data-generate-url="@Url.Action("GenerateTasteProfile", "WineSurfer")">
+                                Generate profile
+                            </button>
+                            <button type="submit" class="sisterhood-button">Save profile</button>
+                        </div>
                     </div>
                 </form>
             </section>
@@ -276,30 +309,134 @@
     <script>
         (function () {
             const counters = document.querySelectorAll('[data-char-count]');
-            if (!counters || counters.length === 0) {
+            if (counters && counters.length > 0) {
+                counters.forEach((counter) => {
+                    const targetId = counter.getAttribute('data-for');
+                    if (!targetId) {
+                        return;
+                    }
+
+                    const field = document.getElementById(targetId);
+                    if (!field) {
+                        return;
+                    }
+
+                    const maxLength = parseInt(counter.dataset.maxLength || field.getAttribute('maxlength') || '0', 10);
+                    const formatCount = (value) => `${value} / ${maxLength} characters`;
+
+                    const updateCount = () => {
+                        counter.textContent = formatCount(field.value.length);
+                    };
+
+                    field.addEventListener('input', updateCount, { passive: true });
+                    updateCount();
+                });
+            }
+
+            const generatorButton = document.querySelector('[data-generate-taste-profile]');
+            if (!generatorButton || typeof window.fetch !== 'function') {
                 return;
             }
 
-            counters.forEach((counter) => {
-                const targetId = counter.getAttribute('data-for');
-                if (!targetId) {
+            const generatorUrl = generatorButton.getAttribute('data-generate-url');
+            if (!generatorUrl) {
+                return;
+            }
+
+            const profileField = document.getElementById('tasteProfileInput');
+            const summaryField = document.getElementById('tasteProfileSummaryInput');
+            if (!profileField || !summaryField) {
+                return;
+            }
+
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            const messageNode = document.getElementById('tasteProfileGeneratorMessage');
+
+            const setGeneratorMessage = (kind, text) => {
+                if (!messageNode) {
                     return;
                 }
 
-                const field = document.getElementById(targetId);
-                if (!field) {
+                messageNode.textContent = text || '';
+                messageNode.hidden = !text;
+                messageNode.classList.remove('taste-profile-banner--success', 'taste-profile-banner--error');
+
+                if (!text) {
+                    messageNode.removeAttribute('role');
                     return;
                 }
 
-                const maxLength = parseInt(counter.dataset.maxLength || field.getAttribute('maxlength') || '0', 10);
-                const formatCount = (value) => `${value} / ${maxLength} characters`;
+                if (kind === 'success') {
+                    messageNode.classList.add('taste-profile-banner--success');
+                    messageNode.setAttribute('role', 'status');
+                } else if (kind === 'error') {
+                    messageNode.classList.add('taste-profile-banner--error');
+                    messageNode.setAttribute('role', 'alert');
+                } else {
+                    messageNode.removeAttribute('role');
+                }
+            };
 
-                const updateCount = () => {
-                    counter.textContent = formatCount(field.value.length);
-                };
+            generatorButton.addEventListener('click', async () => {
+                if (generatorButton.disabled) {
+                    return;
+                }
 
-                field.addEventListener('input', updateCount, { passive: true });
-                updateCount();
+                setGeneratorMessage(null, '');
+                const originalLabel = (generatorButton.textContent || '').trim() || 'Generate profile';
+                generatorButton.disabled = true;
+                generatorButton.textContent = 'Generating…';
+
+                try {
+                    const headers = { 'Content-Type': 'application/json' };
+                    const tokenValue = tokenInput ? tokenInput.value : null;
+                    if (tokenValue) {
+                        headers['RequestVerificationToken'] = tokenValue;
+                    }
+
+                    const response = await fetch(generatorUrl, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({}),
+                        credentials: 'same-origin'
+                    });
+
+                    const responseText = await response.text();
+                    let payload = null;
+
+                    if (responseText) {
+                        try {
+                            payload = JSON.parse(responseText);
+                        } catch (error) {
+                            payload = null;
+                        }
+                    }
+
+                    if (!response.ok || !payload) {
+                        const errorMessage = payload && typeof payload.error === 'string'
+                            ? payload.error
+                            : 'We couldn’t generate a taste profile right now. Please try again.';
+                        setGeneratorMessage('error', errorMessage);
+                        return;
+                    }
+
+                    if (typeof payload.summary === 'string') {
+                        summaryField.value = payload.summary;
+                        summaryField.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+
+                    if (typeof payload.profile === 'string') {
+                        profileField.value = payload.profile;
+                        profileField.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+
+                    setGeneratorMessage('success', 'We generated a new taste profile. Review and save it when you’re ready.');
+                } catch (error) {
+                    setGeneratorMessage('error', 'We couldn’t generate a taste profile right now. Please try again.');
+                } finally {
+                    generatorButton.disabled = false;
+                    generatorButton.textContent = originalLabel;
+                }
             });
         })();
     </script>
