@@ -498,16 +498,6 @@
             text-align: center;
         }
 
-        .tagline {
-            font-size: 18px;
-            max-width: 680px;
-            text-align: center;
-            line-height: 1.7;
-            color: rgba(244, 241, 234, 0.75);
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-
         .auth-callout {
             margin: 0;
             padding: 14px 18px;
@@ -745,11 +735,43 @@
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main>
-            <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
             @if (Model.CurrentUser is null)
             {
                 <p class="auth-callout" role="status">Sign in from the menu to view your tasting history and personalize region scores.</p>
             }
+            <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
+                <h2 class="section-title">Upcoming sip sessions</h2>
+                @if (Model.UpcomingSipSessions.Count > 0)
+                {
+                    foreach (var session in Model.UpcomingSipSessions)
+                    {
+                        var scheduleLabel = FormatSipSessionSchedule(session.Session);
+                        var locationLabel = string.IsNullOrWhiteSpace(session.Session.Location)
+                            ? "Location TBD"
+                            : session.Session.Location;
+                        var hostLabel = string.IsNullOrWhiteSpace(session.SisterhoodName)
+                            ? null
+                            : session.SisterhoodName;
+
+                        var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Session.Id })
+                            ?? $"/wine-surfer/sessions/{session.Session.Id:D}";
+                        var ariaLabel = $"Upcoming sip session: {session.Session.Name}";
+                        var cardModel = new WineSurferSipSessionCardModel(
+                            session.Session,
+                            scheduleLabel,
+                            locationLabel,
+                            sessionUrl,
+                            ariaLabel,
+                            hostLabel);
+
+                        @await Html.PartialAsync("_WineSurferSipSessionCard", cardModel)
+                    }
+                }
+                else
+                {
+                    <p class="sip-session-empty" role="status">No upcoming sip sessions on the calendar yet. Check back soon or gather your sisterhood to plan the next tasting.</p>
+                }
+            </section>
             <section class="map-shell" aria-label="World map highlighting wine regions">
                 <div id="map" class="world-map" role="img" aria-hidden="true"></div>
             </section>
@@ -800,40 +822,6 @@
                         <span class="label wine-card__title">No wine regions available yet</span>
                         <span class="country wine-card__subtitle">Add bottles to your inventory to light up the map.</span>
                     </article>
-                }
-            </section>
-            <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
-                <h2 class="section-title">Upcoming sip sessions</h2>
-               @if (Model.UpcomingSipSessions.Count > 0)
-                {
-                    foreach (var session in Model.UpcomingSipSessions)
-                    {
-                        var scheduleLabel = FormatSipSessionSchedule(session.Session);
-                        var locationLabel = string.IsNullOrWhiteSpace(session.Session.Location)
-                            ? "Location TBD"
-                            : session.Session.Location;
-                        var hostLabel = string.IsNullOrWhiteSpace(session.SisterhoodName)
-                            ? null
-                            : session.SisterhoodName;
-
-                        var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Session.Id })
-                            ?? $"/wine-surfer/sessions/{session.Session.Id:D}";
-                        var ariaLabel = $"Upcoming sip session: {session.Session.Name}";
-                        var cardModel = new WineSurferSipSessionCardModel(
-                            session.Session,
-                            scheduleLabel,
-                            locationLabel,
-                            sessionUrl,
-                            ariaLabel,
-                            hostLabel);
-
-                        @await Html.PartialAsync("_WineSurferSipSessionCard", cardModel)
-                    }
-                }
-
-                else
-                {
-                    <p class="sip-session-empty" role="status">No upcoming sip sessions on the calendar yet. Check back soon or gather your sisterhood to plan the next tasting.</p>
                 }
             </section>
         </main>
