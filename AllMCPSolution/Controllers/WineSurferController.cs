@@ -1626,14 +1626,46 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RateSipSessionBottle(RateSipSessionBottleRequest request, CancellationToken cancellationToken)
     {
+        var expectsJson = Request.Headers["Accept"].Any(h => h.Contains("application/json", StringComparison.OrdinalIgnoreCase))
+            || Request.Headers["X-Requested-With"].Any(h => string.Equals(h, "XMLHttpRequest", StringComparison.OrdinalIgnoreCase));
+
+        IActionResult Error(string message, int statusCode = StatusCodes.Status400BadRequest)
+        {
+            if (expectsJson)
+            {
+                return StatusCode(statusCode, new { success = false, message });
+            }
+
+            TempData["SisterhoodError"] = message;
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        IActionResult Success(string message, Guid noteId, string note, decimal? scoreValue, decimal? averageScore)
+        {
+            if (expectsJson)
+            {
+                return Ok(new
+                {
+                    success = true,
+                    message,
+                    noteId,
+                    note,
+                    score = scoreValue,
+                    averageScore
+                });
+            }
+
+            TempData["SisterhoodStatus"] = message;
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
         if (!ModelState.IsValid ||
             request is null ||
             request.SisterhoodId == Guid.Empty ||
             request.SipSessionId == Guid.Empty ||
             request.BottleId == Guid.Empty)
         {
-            TempData["SisterhoodError"] = "We couldn't save that tasting note.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("We couldn't save that tasting note.");
         }
 
         var currentUserId = GetCurrentUserId();
@@ -1645,29 +1677,25 @@ public class WineSurferController : Controller
         var membership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
         if (membership is null)
         {
-            TempData["SisterhoodError"] = "You must be part of this sisterhood to leave a tasting note.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("You must be part of this sisterhood to leave a tasting note.", StatusCodes.Status403Forbidden);
         }
 
         var session = await _sipSessionRepository.GetByIdAsync(request.SipSessionId, cancellationToken);
         if (session is null || session.SisterhoodId != request.SisterhoodId)
         {
-            TempData["SisterhoodError"] = "That sip session could not be found.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("That sip session could not be found.", StatusCodes.Status404NotFound);
         }
 
         var bottle = session.Bottles?.FirstOrDefault(b => b.Id == request.BottleId);
         if (bottle is null)
         {
-            TempData["SisterhoodError"] = "That bottle is no longer part of the sip session.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("That bottle is no longer part of the sip session.", StatusCodes.Status404NotFound);
         }
 
         var noteText = request.Note?.Trim();
         if (string.IsNullOrWhiteSpace(noteText))
         {
-            TempData["SisterhoodError"] = "Please share a tasting note before saving.";
-            return RedirectToAction(nameof(Sisterhoods));
+            return Error("Please share a tasting note before saving.");
         }
 
         decimal? score = null;
@@ -1681,14 +1709,17 @@ public class WineSurferController : Controller
         try
         {
             var existingNotes = await _tastingNoteRepository.GetByBottleIdAsync(request.BottleId, cancellationToken);
-            var existing = existingNotes.FirstOrDefault(note => note.UserId == currentUserId.Value);
+            var noteList = existingNotes.ToList();
+            var existing = noteList.FirstOrDefault(note => note.UserId == currentUserId.Value);
+
+            string message;
 
             if (existing is not null)
             {
                 existing.Note = noteText;
                 existing.Score = score;
                 await _tastingNoteRepository.UpdateAsync(existing, cancellationToken);
-                TempData["SisterhoodStatus"] = $"Updated your tasting note for {bottleLabel}.";
+                message = $"Updated your tasting note for {bottleLabel}.";
             }
             else
             {
@@ -1701,17 +1732,31 @@ public class WineSurferController : Controller
                 };
 
                 await _tastingNoteRepository.AddAsync(entity, cancellationToken);
-                TempData["SisterhoodStatus"] = $"Saved a tasting note for {bottleLabel}.";
+                noteList.Add(entity);
+                existing = entity;
+                message = $"Saved a tasting note for {bottleLabel}.";
             }
+
+            var noteId = existing.Id;
+
+            decimal? averageScore = null;
+            var scoreValues = noteList
+                .Where(n => n.Score.HasValue)
+                .Select(n => n.Score!.Value)
+                .ToList();
+
+            if (scoreValues.Count > 0)
+            {
+                averageScore = Math.Round(scoreValues.Average(), 1, MidpointRounding.AwayFromZero);
+            }
+
+            return Success(message, noteId, existing.Note ?? string.Empty, existing.Score, averageScore);
         }
         catch (Exception)
         {
-            TempData["SisterhoodError"] = "We couldn't save that tasting note right now. Please try again.";
+            return Error("We couldn't save that tasting note right now. Please try again.", StatusCodes.Status500InternalServerError);
         }
-
-        return RedirectToAction(nameof(Sisterhoods));
     }
-
     [Authorize]
     [HttpPost("sisterhoods/sessions/delete-note")]
     [ValidateAntiForgeryToken]

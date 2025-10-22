@@ -1,0 +1,84 @@
+@model AllMCPSolution.Models.DrinkBottleModalViewModel
+@using System.Text.Encodings.Web
+@{
+    var options = Model ?? AllMCPSolution.Models.DrinkBottleModalViewModel.Default;
+    var overlayId = string.IsNullOrWhiteSpace(options.OverlayId)
+        ? AllMCPSolution.Models.DrinkBottleModalViewModel.Default.OverlayId
+        : options.OverlayId;
+    var popoverId = string.IsNullOrWhiteSpace(options.PopoverId)
+        ? AllMCPSolution.Models.DrinkBottleModalViewModel.Default.PopoverId
+        : options.PopoverId;
+    var titleId = string.IsNullOrWhiteSpace(options.TitleElementId)
+        ? AllMCPSolution.Models.DrinkBottleModalViewModel.Default.TitleElementId
+        : options.TitleElementId;
+    var formMethod = string.IsNullOrWhiteSpace(options.FormMethod) ? "post" : options.FormMethod;
+    var formAction = string.IsNullOrWhiteSpace(options.FormAction) ? null : options.FormAction;
+    var encoder = HtmlEncoder.Default;
+    var formAttributes = options.FormAttributes ?? new Dictionary<string, string>();
+    var attributeString = formAttributes.Count > 0
+        ? " " + string.Join(" ", formAttributes.Select(attr => $"{attr.Key}=\"{encoder.Encode(attr.Value)}\""))
+        : string.Empty;
+    var hiddenFields = options.HiddenFields ?? Array.Empty<AllMCPSolution.Models.DrinkBottleModalHiddenField>();
+    var introText = options.Intro ?? string.Empty;
+    var submitLabel = string.IsNullOrWhiteSpace(options.SubmitLabel)
+        ? AllMCPSolution.Models.DrinkBottleModalViewModel.Default.SubmitLabel
+        : options.SubmitLabel;
+    var cancelLabel = string.IsNullOrWhiteSpace(options.CancelLabel)
+        ? AllMCPSolution.Models.DrinkBottleModalViewModel.Default.CancelLabel
+        : options.CancelLabel;
+    var noteRows = options.NoteRows > 0 ? options.NoteRows : AllMCPSolution.Models.DrinkBottleModalViewModel.Default.NoteRows;
+}
+<div class="inventory-add-overlay" id="@overlayId" hidden>
+    <div class="inventory-add-popover drink-bottle-popover" id="@popoverId" role="dialog" aria-modal="true" aria-labelledby="@titleId">
+        <h3 id="@titleId" class="drink-bottle-title">@options.Title</h3>
+        @if (!string.IsNullOrWhiteSpace(introText))
+        {
+            <p class="inventory-add-intro drink-bottle-intro">@introText</p>
+        }
+        <form class="@options.FormCssClass" method="@formMethod"@((formAction is null ? string.Empty : $" action=\"{encoder.Encode(formAction)}\""))@Html.Raw(attributeString)>
+            @if (options.IncludeAntiForgeryToken)
+            {
+                @Html.AntiForgeryToken()
+            }
+            @foreach (var hidden in hiddenFields)
+            {
+                var hiddenAttributes = hidden.Attributes ?? new Dictionary<string, string>();
+                var hiddenAttributeString = hiddenAttributes.Count > 0
+                    ? " " + string.Join(" ", hiddenAttributes.Select(attr => $"{attr.Key}=\"{encoder.Encode(attr.Value)}\""))
+                    : string.Empty;
+                <input type="hidden" name="@hidden.Name" value="@(hidden.Value ?? string.Empty)"@Html.Raw(hiddenAttributeString) />
+            }
+            @if (options.ShowDate)
+            {
+                <label class="inventory-add-field">
+                    <span class="inventory-add-label">@options.DateLabel</span>
+                    <input type="date" class="drink-bottle-date" aria-label="@options.DateInputAriaLabel" @(options.RequireDate ? "required" : null) />
+                </label>
+            }
+            else
+            {
+                <input type="hidden" class="drink-bottle-date" />
+            }
+            @if (options.ShowScore)
+            {
+                <label class="inventory-add-field">
+                    <span class="inventory-add-label">@options.ScoreLabel</span>
+                    <input type="number" class="drink-bottle-score" min="0" max="10" step="0.1" placeholder="0-10" aria-label="@options.ScoreInputAriaLabel" />
+                </label>
+            }
+            else
+            {
+                <input type="hidden" class="drink-bottle-score" />
+            }
+            <label class="inventory-add-field">
+                <span class="inventory-add-label">@options.NoteLabel</span>
+                <textarea class="drink-bottle-note" rows="@noteRows" aria-label="@options.NoteInputAriaLabel" @(options.RequireNote ? "required" : null)></textarea>
+            </label>
+            <p class="inventory-add-error drink-bottle-error" role="alert" aria-hidden="true"></p>
+            <div class="inventory-add-actions drink-bottle-actions">
+                <button type="button" class="@options.CancelButtonCssClass">@cancelLabel</button>
+                <button type="submit" class="@options.SubmitButtonCssClass">@submitLabel</button>
+            </div>
+        </form>
+    </div>
+</div>

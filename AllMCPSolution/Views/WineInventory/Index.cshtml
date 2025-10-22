@@ -255,31 +255,7 @@
             </div>
         </div>
 
-        <div class="inventory-add-overlay" id="drink-bottle-overlay" hidden>
-            <div class="inventory-add-popover drink-bottle-popover" id="drink-bottle-popover" role="dialog" aria-modal="true" aria-labelledby="drink-bottle-title">
-                <h3 id="drink-bottle-title" class="drink-bottle-title">Drink Bottle</h3>
-                <p class="inventory-add-intro drink-bottle-intro">Record when and how you enjoyed this bottle.</p>
-                <form class="drink-bottle-form">
-                    <label class="inventory-add-field">
-                        <span class="inventory-add-label">Date</span>
-                        <input type="date" class="drink-bottle-date" aria-label="Drinking date" required />
-                    </label>
-                    <label class="inventory-add-field">
-                        <span class="inventory-add-label">Score</span>
-                        <input type="number" class="drink-bottle-score" min="0" max="10" step="0.1" placeholder="0-10" aria-label="Score" />
-                    </label>
-                    <label class="inventory-add-field">
-                        <span class="inventory-add-label">Tasting Note</span>
-                        <textarea class="drink-bottle-note" rows="4" aria-label="Tasting note" required></textarea>
-                    </label>
-                    <p class="inventory-add-error drink-bottle-error" role="alert" aria-hidden="true"></p>
-                    <div class="inventory-add-actions drink-bottle-actions">
-                        <button type="button" class="crud-table__action-button secondary drink-bottle-cancel">Cancel</button>
-                        <button type="submit" class="crud-table__action-button drink-bottle-submit">Drink Bottle</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+        @await Html.PartialAsync("_DrinkBottleModal")
 
         @await Html.PartialAsync("_CrudTableTemplate", bottleDetailsTable)
     </main>

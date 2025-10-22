@@ -7,7 +7,37 @@
     }
 }
 
-<article class="bottle-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card">
+@{
+    var isInteractive = ViewData["IsAuthenticated"] as bool? ?? false;
+    var label = string.IsNullOrWhiteSpace(Model.Label) ? Model.WineName : Model.Label;
+    var trimmedLabel = string.IsNullOrWhiteSpace(label) ? "Bottle" : label.Trim();
+    var normalizedNote = string.IsNullOrWhiteSpace(Model.CurrentUserNote) ? string.Empty : Model.CurrentUserNote!.Trim();
+    var noteDisplay = string.IsNullOrEmpty(normalizedNote)
+        ? (isInteractive ? "No tasting note yet." : "Sign in to add your tasting note.")
+        : normalizedNote;
+    var noteCssClass = string.IsNullOrEmpty(normalizedNote) ? "bottle-note bottle-note--empty" : "bottle-note";
+    var promptText = isInteractive
+        ? (string.IsNullOrEmpty(normalizedNote) ? "Click to add your tasting note." : "Click to update your tasting note.")
+        : null;
+    var ariaLabel = isInteractive
+        ? $"Open tasting note modal for {trimmedLabel}"
+        : $"Bottle details for {trimmedLabel}";
+    var bottleScoreAttribute = Model.CurrentUserScore.HasValue
+        ? Model.CurrentUserScore.Value.ToString("0.0")
+        : string.Empty;
+    var noteIdAttribute = Model.CurrentUserNoteId.HasValue ? Model.CurrentUserNoteId.Value.ToString() : string.Empty;
+}
+<article class="bottle-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card"
+         data-sip-session-bottle-card
+         data-bottle-id="@Model.Id"
+         data-bottle-label="@trimmedLabel"
+         data-bottle-note="@normalizedNote"
+         data-bottle-score="@bottleScoreAttribute"
+         data-bottle-note-id="@noteIdAttribute"
+         data-bottle-average="@FormatScore(Model.AverageScore)"
+         aria-label="@ariaLabel"
+         @(isInteractive ? "role=\"button\"" : null)
+         @(isInteractive ? "tabindex=\"0\"" : null)>
     <header class="bottle-card-header wine-card__header">
         <h3 class="bottle-name wine-card__title">@Model.WineName</h3>
         @if (Model.Vintage.HasValue && Model.Vintage.Value > 0)
@@ -18,11 +48,16 @@
     <dl class="bottle-meta wine-card__stats" aria-label="Bottle tasting stats">
         <div class="bottle-meta-item wine-card__stat">
             <dt>Average score</dt>
-            <dd>@FormatScore(Model.AverageScore)</dd>
+            <dd data-bottle-average-display>@FormatScore(Model.AverageScore)</dd>
         </div>
         <div class="bottle-meta-item wine-card__stat">
             <dt>Your score</dt>
-            <dd>@FormatScore(Model.CurrentUserScore)</dd>
+            <dd data-bottle-score-display>@FormatScore(Model.CurrentUserScore)</dd>
         </div>
     </dl>
+    <p class="@noteCssClass" data-bottle-note-display>@noteDisplay</p>
+    @if (!string.IsNullOrEmpty(promptText))
+    {
+        <p class="bottle-prompt" data-bottle-prompt>@promptText</p>
+    }
 </article>

@@ -1,5 +1,8 @@
 @model AllMCPSolution.Controllers.WineSurferSipSessionDetailViewModel
 @using AllMCPSolution.Controllers
+@using AllMCPSolution.Models
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@using System.Collections.Generic
 @{
     Layout = null;
 }
@@ -176,6 +179,31 @@
 
         .bottle-card {
             backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            padding: 28px;
+            position: relative;
+            transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+
+        .session-page.is-authenticated .bottle-card {
+            cursor: pointer;
+        }
+
+        .session-page.requires-auth .bottle-card {
+            cursor: default;
+        }
+
+        .session-page.is-authenticated .bottle-card:hover,
+        .session-page.is-authenticated .bottle-card:focus-visible {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+        }
+
+        .bottle-card:focus-visible {
+            outline: 2px solid rgba(244, 241, 234, 0.85);
+            outline-offset: 4px;
         }
 
         .bottle-name {
@@ -204,7 +232,7 @@
             display: flex;
             flex-wrap: wrap;
             gap: 24px;
-            margin: 0;
+            margin: 0 0 8px;
             padding: 0;
             list-style: none;
         }
@@ -227,6 +255,32 @@
             margin: 0;
             font-size: 16px;
             letter-spacing: 1.1px;
+        }
+
+        .bottle-note {
+            margin: 8px 0 0;
+            font-size: 15px;
+            letter-spacing: 0.8px;
+            line-height: 1.6;
+            color: rgba(244, 241, 234, 0.82);
+            white-space: pre-wrap;
+        }
+
+        .bottle-note--empty {
+            color: rgba(244, 241, 234, 0.55);
+            font-style: italic;
+        }
+
+        .bottle-prompt {
+            margin: 6px 0 0;
+            font-size: 11px;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.55);
+        }
+
+        .drink-bottle-error.is-success {
+            color: #4ade80;
         }
 
         .empty-state {
@@ -302,7 +356,10 @@
                         @foreach (var bottle in Model.Session.Bottles)
                         {
                             <li>
-                                @await Html.PartialAsync("_BottleCard", bottle)
+                                @await Html.PartialAsync("_BottleCard", bottle, new ViewDataDictionary(ViewData)
+                                {
+                                    { "IsAuthenticated", Model.CurrentUser is not null }
+                                })
                             </li>
                         }
                     </ul>
@@ -313,6 +370,34 @@
                 }
             </section>
         </main>
+        @if (Model.CurrentUser is not null)
+        {
+            var drinkModalOptions = new DrinkBottleModalViewModel
+            {
+                Intro = "Capture how this bottle showed during the session.",
+                SubmitLabel = "Drink Bottle",
+                FormAction = Url.Action("RateSipSessionBottle", "WineSurfer"),
+                IncludeAntiForgeryToken = true,
+                ShowDate = false,
+                RequireNote = true,
+                NoteRows = 5,
+                ScoreLabel = "Score (0-10)",
+                FormAttributes = new Dictionary<string, string>
+                {
+                    { "data-sip-session-drink-form", "true" }
+                },
+                HiddenFields = new List<DrinkBottleModalHiddenField>
+                {
+                    new DrinkBottleModalHiddenField("SisterhoodId", Model.SisterhoodId.ToString()),
+                    new DrinkBottleModalHiddenField("SipSessionId", Model.Session.Id.ToString()),
+                    new DrinkBottleModalHiddenField("BottleId"),
+                    new DrinkBottleModalHiddenField("NoteId")
+                }
+            };
+
+            @await Html.PartialAsync("_DrinkBottleModal", drinkModalOptions)
+        }
     </div>
+    <script src="/js/sip-session.js"></script>
 </body>
 </html>
