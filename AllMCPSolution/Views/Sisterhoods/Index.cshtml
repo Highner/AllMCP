@@ -1998,13 +1998,9 @@
                                         var scheduleLabel = FormatSipSessionSchedule(session);
                                         var locationLabel = string.IsNullOrWhiteSpace(session.Location) ? "Location TBD" : session.Location;
                                         var scheduledValue = FormatSipSessionInputValue(session);
-                                        var bottleSummaries = session.Bottles;
-                                        var contributedBottleIds = string.Join(",", bottleSummaries.Select(bottle => bottle.Id));
                                         var hostLabel = string.IsNullOrWhiteSpace(sisterhood.Name) ? null : sisterhood.Name;
                                         var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Id })
                                             ?? $"/wine-surfer/sessions/{session.Id:D}";
-                                        // use isCurrentUserMember from outer scope
-                                        var hasToolbar = isCurrentUserMember || sisterhood.CanManage;
                                         var ariaLabel = $"Sip session: {session.Name}";
                                         var cardModel = new WineSurferSipSessionCardModel(
                                             session,
@@ -2014,45 +2010,6 @@
                                             ariaLabel,
                                             hostLabel);
                                         <li data-sip-session-item id="sip-session-@session.Id">
-                                            @if (hasToolbar)
-                                            {
-                                                <div class="sip-session-item-header">
-                                                    @if (isCurrentUserMember)
-                                                    {
-                                                        <div class="sip-session-contribute">
-                                                            <button type="button"
-                                                                    class="secondary-button"
-                                                                    data-contribute-trigger
-                                                                    data-sisterhood-id="@sisterhood.Id"
-                                                                    data-sip-session-id="@session.Id"
-                                                                    data-session-bottle-ids="@contributedBottleIds">
-                                                                Contribute bottle
-                                                            </button>
-                                                        </div>
-                                                    }
-                                                    @if (sisterhood.CanManage)
-                                                    {
-                                                        <div class="sip-session-actions">
-                                                            <button type="button"
-                                                                    class="secondary-button"
-                                                                    data-sip-session-edit-toggle
-                                                                    aria-expanded="false"
-                                                                    aria-controls="@editContainerId">
-                                                                Edit
-                                                            </button>
-                                                            <form method="post"
-                                                                  action="@Url.Action("DeleteSipSession", "WineSurfer")"
-                                                                  class="inline-form"
-                                                                  onsubmit="return confirm('Delete this sip session?');">
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
-                                                                <input type="hidden" name="SipSessionId" value="@session.Id" />
-                                                                <button type="submit" class="ghost-danger-button">Delete</button>
-                                                            </form>
-                                                        </div>
-                                                    }
-                                                </div>
-                                            }
                                             @await Html.PartialAsync("_WineSurferSipSessionCard", cardModel)
                                             @if (sisterhood.CanManage)
                                             {
