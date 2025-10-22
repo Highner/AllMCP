@@ -1874,6 +1874,14 @@
             {
                 foreach (var sisterhood in Model.Sisterhoods)
                 {
+                    var isCurrentUserMember = Model.CurrentUserId.HasValue && sisterhood.Members.Any(member => member.IsCurrentUser);
+                    var leaveConfirmName = isCurrentUserMember
+                        ? (string.IsNullOrWhiteSpace(sisterhood.Name)
+                            ? "this sisterhood"
+                            : sisterhood.Name.Replace("'", "\\'"))
+                        : null;
+                    var hasActions = sisterhood.CanManage || isCurrentUserMember;
+
                     <article class="sisterhood-card wine-card wine-surface wine-surface-border wine-card-hover" data-sisterhood-card data-sisterhood-id="@sisterhood.Id">
                         <div class="sisterhood-header wine-card__header">
                             <div>
@@ -1890,21 +1898,36 @@
                                     }
                                 </p>
                             </div>
-                            @if (sisterhood.CanManage)
+                            @if (hasActions)
                             {
                                 <div class="sisterhood-actions wine-card__actions">
-                                    <button type="button"
-                                            class="secondary-button"
-                                            data-sisterhood-edit-toggle="@sisterhood.Id"
-                                            aria-expanded="false"
-                                            aria-controls="edit-sisterhood-form-@sisterhood.Id">
-                                        Edit
-                                    </button>
-                                    <form method="post" action="@Url.Action("DeleteSisterhood", "WineSurfer")" class="inline-form" onsubmit="return confirm('Delete this sisterhood? This cannot be undone.');">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
-                                        <button type="submit" class="danger-button">Delete</button>
-                                    </form>
+                                    @if (sisterhood.CanManage)
+                                    {
+                                        <button type="button"
+                                                class="secondary-button"
+                                                data-sisterhood-edit-toggle="@sisterhood.Id"
+                                                aria-expanded="false"
+                                                aria-controls="edit-sisterhood-form-@sisterhood.Id">
+                                            Edit
+                                        </button>
+                                        <form method="post" action="@Url.Action("DeleteSisterhood", "WineSurfer")" class="inline-form" onsubmit="return confirm('Delete this sisterhood? This cannot be undone.');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                            <button type="submit" class="danger-button">Delete</button>
+                                        </form>
+                                    }
+                                    @if (isCurrentUserMember && leaveConfirmName is not null)
+                                    {
+                                        <form method="post"
+                                              action="@Url.Action("RemoveSisterhoodMember", "WineSurfer")"
+                                              class="inline-form"
+                                              onsubmit="return confirm('Leave @leaveConfirmName?');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                            <input type="hidden" name="UserId" value="@Model.CurrentUserId" />
+                                            <button type="submit" class="ghost-danger-button">Leave sisterhood</button>
+                                        </form>
+                                    }
                                 </div>
                             }
                         </div>
@@ -2012,25 +2035,6 @@
                                 }
                             </ul>
                         }
-
-                        @if (Model.CurrentUserId.HasValue && sisterhood.Members.Any(member => member.IsCurrentUser))
-                        {
-                            var leaveConfirmName = string.IsNullOrWhiteSpace(sisterhood.Name)
-                                ? "this sisterhood"
-                                : sisterhood.Name.Replace("'", "\\'");
-
-                            <footer>
-                                <form method="post" action="@Url.Action("RemoveSisterhoodMember", "WineSurfer")"
-                                      class="inline-form"
-                                      onsubmit="return confirm('Leave @leaveConfirmName?');">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
-                                    <input type="hidden" name="UserId" value="@Model.CurrentUserId" />
-                                    <button type="submit" class="ghost-danger-button">Leave sisterhood</button>
-                                </form>
-                            </footer>
-                        }
-
 
                         <section class="sip-session-section">
                             @{ var createContainerId = $"sip-session-create-container-{sisterhood.Id}"; }
