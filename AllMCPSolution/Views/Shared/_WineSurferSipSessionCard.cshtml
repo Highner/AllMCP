@@ -1,0 +1,41 @@
+@model AllMCPSolution.Controllers.WineSurferSipSessionCardModel
+
+@{
+    var session = Model.Session;
+    var hostLabel = string.IsNullOrWhiteSpace(Model.HostLabel) ? null : Model.HostLabel;
+    var hasDescription = !string.IsNullOrWhiteSpace(session.Description);
+    var bottleSummaries = session.Bottles ?? System.Array.Empty<AllMCPSolution.Controllers.WineSurferSipSessionBottle>();
+    var hasBottles = bottleSummaries.Count > 0;
+}
+
+<a class="sip-session-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card"
+   href="@Model.SessionUrl"
+   aria-label="@Model.AriaLabel">
+    <div class="sip-session-header wine-card__header">
+        <h3 class="sip-session-name wine-card__title">@session.Name</h3>
+        @if (!string.IsNullOrWhiteSpace(hostLabel))
+        {
+            <span class="sip-session-host wine-card__subtitle">Hosted by @hostLabel</span>
+        }
+    </div>
+    <div class="sip-session-meta">
+        <span class="wine-card__meta">📅 @Model.ScheduleLabel</span>
+        <span class="wine-card__meta">📍 @Model.LocationLabel</span>
+    </div>
+    @if (hasDescription)
+    {
+        <p class="sip-session-description wine-card__description">@session.Description</p>
+    }
+    @if (hasBottles)
+    {
+        <div class="sip-session-bottles" aria-label="Bottles planned for this sip session">
+            <span class="sip-session-bottle-title">Wine list</span>
+            <ul class="sip-session-bottle-list">
+                @foreach (var bottle in bottleSummaries)
+                {
+                    <li>@bottle.Label</li>
+                }
+            </ul>
+        </div>
+    }
+</a>

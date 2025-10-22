@@ -689,109 +689,6 @@
             width: min(100%, var(--wine-surfer-card-max-width));
         }
 
-        .sip-session-card {
-            backdrop-filter: blur(4px);
-            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-            color: #f4f1ea;
-            text-decoration: none;
-        }
-
-        .sip-session-card:hover,
-        .sip-session-card:focus-within,
-        .sip-session-card:focus-visible {
-            transform: translateY(-4px);
-            border-color: rgba(244, 241, 234, 0.35);
-            box-shadow: 0 0 24px rgba(244, 241, 234, 0.12);
-            outline: none;
-            text-decoration: none;
-        }
-
-        .sip-session-header {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .sip-session-name {
-            margin: 0;
-            font-size: 26px;
-            letter-spacing: 4px;
-            text-transform: uppercase;
-        }
-
-        .sip-session-host {
-            font-size: 12px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.65);
-        }
-
-        .sip-session-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px 24px;
-            font-size: 13px;
-            letter-spacing: 1.6px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.75);
-        }
-
-        .sip-session-meta span {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .sip-session-description {
-            margin: 0;
-            font-size: 15px;
-            line-height: 1.7;
-            color: rgba(244, 241, 234, 0.78);
-        }
-
-        .sip-session-bottles {
-            margin: 8px 0 0;
-            padding: 12px 16px;
-            border-radius: 12px;
-            border: 1px solid rgba(244, 241, 234, 0.08);
-            background: rgba(244, 241, 234, 0.05);
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .sip-session-bottle-title {
-            font-size: 12px;
-            letter-spacing: 1.6px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.62);
-        }
-
-        .sip-session-bottle-list {
-            margin: 0;
-            padding-left: 18px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            color: rgba(244, 241, 234, 0.85);
-        }
-
-        .sip-session-bottle-list li {
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        .sip-session-empty {
-            margin: 0;
-            padding: 18px 22px;
-            border-radius: 18px;
-            border: 1px dashed rgba(244, 241, 234, 0.25);
-            background: rgba(12, 12, 12, 0.6);
-            font-size: 13px;
-            letter-spacing: 1.6px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.68);
-        }
 
         @@media (max-width: 768px) {
             .top-bar {
@@ -814,24 +711,6 @@
             .section-title {
                 font-size: 18px;
                 letter-spacing: 4px;
-            }
-
-            .sip-session-card {
-                padding: 18px 20px;
-            }
-
-            .sip-session-name {
-                font-size: 22px;
-            }
-
-            .sip-session-meta {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
-            }
-
-            .sip-session-description {
-                font-size: 14px;
             }
 
             .highlight-label {
@@ -939,37 +818,16 @@
 
                         var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Session.Id })
                             ?? $"/wine-surfer/sessions/{session.Session.Id:D}";
+                        var ariaLabel = $"Upcoming sip session: {session.Session.Name}";
+                        var cardModel = new WineSurferSipSessionCardModel(
+                            session.Session,
+                            scheduleLabel,
+                            locationLabel,
+                            sessionUrl,
+                            ariaLabel,
+                            hostLabel);
 
-                        <a class="sip-session-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" href="@sessionUrl" aria-label="Upcoming sip session: @session.Session.Name">
-                            <div class="sip-session-header wine-card__header">
-                                <h3 class="sip-session-name wine-card__title">@session.Session.Name</h3>
-                                @if (!string.IsNullOrWhiteSpace(hostLabel))
-                                {
-                                    <span class="sip-session-host wine-card__subtitle">Hosted by @hostLabel</span>
-                                }
-                            </div>
-                            <div class="sip-session-meta">
-                                <span class="wine-card__meta">📅 @scheduleLabel</span>
-                                <span class="wine-card__meta">📍 @locationLabel</span>
-                            </div>
-                            @if (!string.IsNullOrWhiteSpace(session.Session.Description))
-                            {
-                                <p class="sip-session-description wine-card__description">@session.Session.Description</p>
-                            }
-                            @{ var bottleSummaries = session.Session.Bottles; }
-                            @if (bottleSummaries.Count > 0)
-                            {
-                                <div class="sip-session-bottles" aria-label="Bottles planned for this sip session">
-                                    <span class="sip-session-bottle-title">Wine list</span>
-                                    <ul class="sip-session-bottle-list">
-                                        @foreach (var bottle in bottleSummaries)
-                                        {
-                                            <li>@bottle.Label</li>
-                                        }
-                                    </ul>
-                                </div>
-                            }
-                        </a>
+                        @await Html.PartialAsync("_WineSurferSipSessionCard", cardModel)
                     }
                 }
 

@@ -2406,6 +2406,14 @@ public record WineSurferUpcomingSipSession(
     string? SisterhoodDescription,
     WineSurferSipSessionSummary Session);
 
+public record WineSurferSipSessionCardModel(
+    WineSurferSipSessionSummary Session,
+    string ScheduleLabel,
+    string LocationLabel,
+    string SessionUrl,
+    string AriaLabel,
+    string? HostLabel);
+
 public record WineSurferSipSessionDetailViewModel(
     WineSurferSipSessionSummary Session,
     Guid SisterhoodId,
