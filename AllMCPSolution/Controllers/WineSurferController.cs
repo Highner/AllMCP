@@ -1594,13 +1594,15 @@ public class WineSurferController : Controller
             return RedirectToAction(nameof(Sisterhoods));
         }
 
+        var (scheduledAtLocal, scheduledDateLocal) = ResolveSchedule(request);
+
         var sipSession = new SipSession
         {
             SisterhoodId = request.SisterhoodId,
             Name = request.Name,
             Description = request.Description,
-            ScheduledAt = NormalizeToUtc(request.ScheduledAt),
-            Date = request.ScheduledAt?.Date,
+            ScheduledAt = NormalizeToUtc(scheduledAtLocal),
+            Date = scheduledDateLocal?.Date,
             Location = request.Location ?? string.Empty
         };
 
@@ -1608,7 +1610,7 @@ public class WineSurferController : Controller
         {
             await _sipSessionRepository.AddAsync(sipSession, cancellationToken);
 
-            var scheduledDisplay = request.ScheduledAt?.ToString("f");
+            var scheduledDisplay = scheduledAtLocal?.ToString("f") ?? scheduledDateLocal?.ToString("D");
             TempData["SisterhoodStatus"] = scheduledDisplay is null
                 ? $"Planned '{sipSession.Name}'."
                 : $"Planned '{sipSession.Name}' for {scheduledDisplay}.";
@@ -1663,17 +1665,19 @@ public class WineSurferController : Controller
             return RedirectToAction(nameof(Sisterhoods));
         }
 
+        var (scheduledAtLocal, scheduledDateLocal) = ResolveSchedule(request);
+
         session.Name = request.Name;
         session.Description = request.Description;
         session.Location = request.Location ?? string.Empty;
-        session.ScheduledAt = NormalizeToUtc(request.ScheduledAt);
-        session.Date = request.ScheduledAt?.Date;
+        session.ScheduledAt = NormalizeToUtc(scheduledAtLocal);
+        session.Date = scheduledDateLocal?.Date;
 
         try
         {
             await _sipSessionRepository.UpdateAsync(session, cancellationToken);
 
-            var scheduledDisplay = request.ScheduledAt?.ToString("f");
+            var scheduledDisplay = scheduledAtLocal?.ToString("f") ?? scheduledDateLocal?.ToString("D");
             TempData["SisterhoodStatus"] = scheduledDisplay is null
                 ? $"Updated '{session.Name}'."
                 : $"Updated '{session.Name}' for {scheduledDisplay}.";
@@ -2155,6 +2159,62 @@ public class WineSurferController : Controller
         return DateTime.UtcNow;
     }
 
+    private static (DateTime? ScheduledAtLocal, DateTime? ScheduledDateLocal) ResolveSchedule(SipSessionRequestBase request)
+    {
+        if (request is null)
+        {
+            return (null, null);
+        }
+
+        DateTime? scheduledDateLocal = null;
+        DateTime? scheduledAtLocal = null;
+
+        if (request.ScheduledDate.HasValue)
+        {
+            var normalizedDate = NormalizeToLocal(request.ScheduledDate.Value).Date;
+            scheduledDateLocal = DateTime.SpecifyKind(normalizedDate, DateTimeKind.Local);
+
+            if (request.ScheduledTime.HasValue)
+            {
+                var combined = scheduledDateLocal.Value.Add(request.ScheduledTime.Value);
+                scheduledAtLocal = DateTime.SpecifyKind(combined, DateTimeKind.Local);
+            }
+            else if (request.ScheduledAt.HasValue)
+            {
+                var existingLocal = NormalizeToLocal(request.ScheduledAt.Value);
+                var combined = scheduledDateLocal.Value.Add(existingLocal.TimeOfDay);
+                scheduledAtLocal = DateTime.SpecifyKind(combined, DateTimeKind.Local);
+            }
+        }
+        else if (request.ScheduledAt.HasValue)
+        {
+            var existingLocal = NormalizeToLocal(request.ScheduledAt.Value);
+            scheduledDateLocal = DateTime.SpecifyKind(existingLocal.Date, DateTimeKind.Local);
+
+            if (request.ScheduledTime.HasValue)
+            {
+                var combined = scheduledDateLocal.Value.Add(request.ScheduledTime.Value);
+                scheduledAtLocal = DateTime.SpecifyKind(combined, DateTimeKind.Local);
+            }
+            else
+            {
+                scheduledAtLocal = DateTime.SpecifyKind(existingLocal, DateTimeKind.Local);
+            }
+        }
+
+        return (scheduledAtLocal, scheduledDateLocal);
+    }
+
+    private static DateTime NormalizeToLocal(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value.ToLocalTime(),
+            DateTimeKind.Local => value,
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Local)
+        };
+    }
+
     private static DateTime? NormalizeToUtc(DateTime? value)
     {
         if (!value.HasValue)
@@ -2393,6 +2453,12 @@ public class WineSurferController : Controller
         public string? Location { get; set; }
 
         public DateTime? ScheduledAt { get; set; }
+
+        [DataType(DataType.Date)]
+        public DateTime? ScheduledDate { get; set; }
+
+        [DataType(DataType.Time)]
+        public TimeSpan? ScheduledTime { get; set; }
     }
 
     public class CreateSipSessionRequest : SipSessionRequestBase
