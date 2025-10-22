@@ -1136,6 +1136,84 @@ public class WineSurferController : Controller
     }
 
     [Authorize]
+    [HttpPost("sisterhoods/invitations/remove")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemovePendingSisterhoodInvitation(RemovePendingSisterhoodInvitationRequest request, CancellationToken cancellationToken)
+    {
+        var expectsJson = Request.Headers["Accept"].Any(h => h.Contains("application/json", StringComparison.OrdinalIgnoreCase))
+            || Request.Headers["X-Requested-With"].Any(h => string.Equals(h, "XMLHttpRequest", StringComparison.OrdinalIgnoreCase));
+
+        IActionResult Error(string message, int statusCode = StatusCodes.Status400BadRequest)
+        {
+            if (expectsJson)
+            {
+                return StatusCode(statusCode, new { success = false, message });
+            }
+
+            TempData["SisterhoodError"] = message;
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        IActionResult Success(string message)
+        {
+            if (expectsJson)
+            {
+                return Ok(new
+                {
+                    success = true,
+                    message,
+                    request.InvitationId,
+                    request.SisterhoodId
+                });
+            }
+
+            TempData["SisterhoodStatus"] = message;
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        if (!ModelState.IsValid || request.SisterhoodId == Guid.Empty || request.InvitationId == Guid.Empty)
+        {
+            return Error("We couldn't process that invitation.");
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            if (expectsJson)
+            {
+                return Unauthorized(new { success = false, message = "You need to sign in before managing invitations." });
+            }
+
+            return Challenge();
+        }
+
+        var isAdmin = await _sisterhoodRepository.IsAdminAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (!isAdmin)
+        {
+            return Error("Only sisterhood admins can remove invitations.", StatusCodes.Status403Forbidden);
+        }
+
+        var invitation = await _sisterhoodInvitationRepository.GetByIdAsync(request.InvitationId, cancellationToken);
+        if (invitation is null || invitation.SisterhoodId != request.SisterhoodId)
+        {
+            return Error("That invitation is no longer available.", StatusCodes.Status404NotFound);
+        }
+
+        if (invitation.Status != SisterhoodInvitationStatus.Pending)
+        {
+            return Error("That invitation is no longer pending.", StatusCodes.Status409Conflict);
+        }
+
+        var deleted = await _sisterhoodInvitationRepository.DeleteAsync(request.InvitationId, cancellationToken);
+        if (!deleted)
+        {
+            return Error("We couldn't remove that invitation right now.", StatusCodes.Status500InternalServerError);
+        }
+
+        return Success("Invitation removed.");
+    }
+
+    [Authorize]
     [HttpPost("sisterhoods/remove-member")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveSisterhoodMember(ModifySisterhoodMemberRequest request, CancellationToken cancellationToken)
@@ -2108,6 +2186,15 @@ public class WineSurferController : Controller
 
     public class ManageSisterhoodInvitationRequest
     {
+        [Required]
+        public Guid InvitationId { get; set; }
+    }
+
+    public class RemovePendingSisterhoodInvitationRequest
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
+
         [Required]
         public Guid InvitationId { get; set; }
     }
