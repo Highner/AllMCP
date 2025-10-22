@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Mvc.ViewFeatures
 @using System
 @using System.Collections.Generic
+@using System.Linq
 @{
     Layout = null;
 }
@@ -413,6 +414,128 @@
             gap: 10px;
         }
 
+        .contribute-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 5, 5, 0.72);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            z-index: 65;
+            backdrop-filter: blur(6px);
+        }
+
+        .contribute-modal-backdrop[hidden] {
+            display: none;
+        }
+
+        .contribute-modal {
+            background: rgba(12, 12, 12, 0.96);
+            border-radius: 16px;
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            width: min(520px, 100%);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+        }
+
+        .contribute-modal__header {
+            padding: 20px 24px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .contribute-modal__title {
+            margin: 0;
+            font-size: 16px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .contribute-modal__form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 0 24px 24px;
+            flex: 1;
+        }
+
+        .contribute-modal__hint {
+            margin: 0;
+            font-size: 13px;
+            color: rgba(244, 241, 234, 0.75);
+        }
+
+        .contribute-modal__list {
+            flex: 1;
+            overflow-y: auto;
+            border-radius: 12px;
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            background: rgba(244, 241, 234, 0.04);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .contribute-modal__list ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .contribute-modal__option label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            transition: background 0.2s ease;
+            cursor: pointer;
+        }
+
+        .contribute-modal__option label:hover,
+        .contribute-modal__option label:focus-within {
+            background: rgba(244, 241, 234, 0.08);
+        }
+
+        .contribute-modal__option input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #c086f2;
+        }
+
+        .contribute-modal__option[data-disabled] label {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .contribute-modal__option[data-disabled] label:hover,
+        .contribute-modal__option[data-disabled] label:focus-within {
+            background: transparent;
+        }
+
+        .contribute-modal__empty {
+            margin: 0;
+            font-size: 13px;
+            color: rgba(244, 241, 234, 0.72);
+        }
+
+        .contribute-modal__actions {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+            padding-top: 8px;
+        }
+
         .sip-session-edit-modal-backdrop {
             position: fixed;
             inset: 0;
@@ -557,6 +680,13 @@
     var sessionTitle = isCreateMode
         ? "Plan a new sip session"
         : (string.IsNullOrWhiteSpace(Model.Session.Name) ? "Sip Session" : Model.Session.Name.Trim());
+    var sessionBottles = Model.Session.Bottles ?? Array.Empty<WineSurferSipSessionBottle>();
+    var sessionBottleIds = new HashSet<Guid>(sessionBottles.Select(bottle => bottle.Id));
+    var availableBottles = Model.AvailableBottles ?? Array.Empty<WineSurferSipSessionBottle>();
+    var contributableBottleCount = availableBottles.Count(bottle => !sessionBottleIds.Contains(bottle.Id));
+    var hasContributableBottles = contributableBottleCount > 0;
+    const string contributeModalId = "sip-session-contribute-modal";
+    var contributeModalTitleId = $"{contributeModalId}-title";
     ViewData["WineSurferPageTitle"] = sessionTitle;
 }
 <body class="wine-app session-page @bodyClass">
@@ -660,67 +790,92 @@
                             </template>
                         </div>
                     }
-                    else if (Model.CanManageSession)
+                    else
                     {
-                        var sessionReturnUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = Model.Session.Id })
-                            ?? string.Concat(requestPath, requestQuery);
-                        var scheduledValue = FormatSipSessionInputValue(Model.Session);
-                        var nameInputId = $"sip-session-name-{Model.Session.Id}";
-                        var scheduleInputId = $"sip-session-schedule-{Model.Session.Id}";
-                        var locationInputId = $"sip-session-location-{Model.Session.Id}";
-                        var descriptionInputId = $"sip-session-description-{Model.Session.Id}";
-                        <div class="session-overview-actions">
-                            <button type="button"
-                                    class="sisterhood-button"
-                                    data-sip-session-edit-toggle
-                                    data-session-title="@sessionTitle"
-                                    data-close-label="Close edit"
-                                    aria-expanded="false"
-                                    aria-controls="sip-session-edit-modal">
-                                Edit sip session
-                            </button>
-                        </div>
-                        <div class="sip-session-edit-region" data-sip-session-edit-region hidden>
-                            <template data-sip-session-edit-template>
-                                <form method="post"
-                                      action="@Url.Action("UpdateSipSession", "WineSurfer")"
-                                      class="sip-session-form"
-                                      data-sip-session-edit-form>
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
-                                    <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
-                                    <input type="hidden" name="ReturnUrl" value="@sessionReturnUrl" />
-                                    <label for="@nameInputId">Session name</label>
-                                    <input id="@nameInputId"
-                                           name="Name"
-                                           type="text"
-                                           value="@Model.Session.Name"
-                                           maxlength="256"
-                                           required />
-                                    <label for="@scheduleInputId">Scheduled for</label>
-                                    <input id="@scheduleInputId"
-                                           name="ScheduledAt"
-                                           type="datetime-local"
-                                           value="@scheduledValue" />
-                                    <label for="@locationInputId">Location</label>
-                                    <input id="@locationInputId"
-                                           name="Location"
-                                           type="text"
-                                           value="@(Model.Session.Location ?? string.Empty)"
-                                           maxlength="256" />
-                                    <label for="@descriptionInputId">Description</label>
-                                    <textarea id="@descriptionInputId"
-                                              name="Description"
-                                              maxlength="2048">@(Model.Session.Description ?? string.Empty)</textarea>
-                                    <div class="sip-session-form-actions">
-                                        <button type="submit" class="sisterhood-button">Save changes</button>
-                                        <button type="button"
-                                                class="sisterhood-button sisterhood-button--ghost"
-                                                data-sip-session-edit-cancel>Cancel</button>
-                                    </div>
-                                </form>
-                            </template>
-                        </div>
+                        var showEditButton = Model.CanManageSession;
+                        var showContributeButton = Model.CurrentUser is not null;
+
+                        if (showEditButton || showContributeButton)
+                        {
+                            <div class="session-overview-actions">
+                                @if (showContributeButton)
+                                {
+                                    <button type="button"
+                                            class="sisterhood-button sisterhood-button--primary"
+                                            data-contribute-trigger
+                                            aria-controls="@contributeModalId"
+                                            aria-expanded="false"
+                                            title="@(hasContributableBottles ? "Select undrunk bottles to contribute." : "No undrunk bottles available to contribute right now.")">
+                                        Contribute bottle
+                                    </button>
+                                }
+
+                                @if (showEditButton)
+                                {
+                                    <button type="button"
+                                            class="sisterhood-button"
+                                            data-sip-session-edit-toggle
+                                            data-session-title="@sessionTitle"
+                                            data-close-label="Close edit"
+                                            aria-expanded="false"
+                                            aria-controls="sip-session-edit-modal">
+                                        Edit sip session
+                                    </button>
+                                }
+                            </div>
+                        }
+
+                        if (showEditButton)
+                        {
+                            var sessionReturnUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = Model.Session.Id })
+                                ?? string.Concat(requestPath, requestQuery);
+                            var scheduledValue = FormatSipSessionInputValue(Model.Session);
+                            var nameInputId = $"sip-session-name-{Model.Session.Id}";
+                            var scheduleInputId = $"sip-session-schedule-{Model.Session.Id}";
+                            var locationInputId = $"sip-session-location-{Model.Session.Id}";
+                            var descriptionInputId = $"sip-session-description-{Model.Session.Id}";
+                            <div class="sip-session-edit-region" data-sip-session-edit-region hidden>
+                                <template data-sip-session-edit-template>
+                                    <form method="post"
+                                          action="@Url.Action("UpdateSipSession", "WineSurfer")"
+                                          class="sip-session-form"
+                                          data-sip-session-edit-form>
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+                                        <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                        <input type="hidden" name="ReturnUrl" value="@sessionReturnUrl" />
+                                        <label for="@nameInputId">Session name</label>
+                                        <input id="@nameInputId"
+                                               name="Name"
+                                               type="text"
+                                               value="@Model.Session.Name"
+                                               maxlength="256"
+                                               required />
+                                        <label for="@scheduleInputId">Scheduled for</label>
+                                        <input id="@scheduleInputId"
+                                               name="ScheduledAt"
+                                               type="datetime-local"
+                                               value="@scheduledValue" />
+                                        <label for="@locationInputId">Location</label>
+                                        <input id="@locationInputId"
+                                               name="Location"
+                                               type="text"
+                                               value="@(Model.Session.Location ?? string.Empty)"
+                                               maxlength="256" />
+                                        <label for="@descriptionInputId">Description</label>
+                                        <textarea id="@descriptionInputId"
+                                                  name="Description"
+                                                  maxlength="2048">@(Model.Session.Description ?? string.Empty)</textarea>
+                                        <div class="sip-session-form-actions">
+                                            <button type="submit" class="sisterhood-button">Save changes</button>
+                                            <button type="button"
+                                                    class="sisterhood-button sisterhood-button--ghost"
+                                                    data-sip-session-edit-cancel>Cancel</button>
+                                        </div>
+                                    </form>
+                                </template>
+                            </div>
+                        }
                     }
                 </div>
                 @if (isCreateMode)
@@ -982,6 +1137,203 @@
                             });
                         });
                     });
+                });
+            </script>
+        }
+        @if (!isCreateMode && Model.CurrentUser is not null)
+        {
+            <div class="contribute-modal-backdrop"
+                 id="@contributeModalId"
+                 data-contribute-modal
+                 hidden
+                 aria-hidden="true">
+                <div class="contribute-modal" role="dialog" aria-modal="true" aria-labelledby="@contributeModalTitleId">
+                    <header class="contribute-modal__header">
+                        <h2 class="contribute-modal__title" id="@contributeModalTitleId">Contribute bottles</h2>
+                        <button type="button"
+                                class="sisterhood-button sisterhood-button--ghost"
+                                data-contribute-close
+                                aria-label="Close contribute bottles dialog">Close</button>
+                    </header>
+                    <form method="post"
+                          action="@Url.Action("ContributeSipSessionBottles", "WineSurfer")"
+                          class="contribute-modal__form"
+                          data-contribute-form>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+                        <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                        <p class="contribute-modal__hint">Select the bottles you'd like to add to this sip session.</p>
+                        <div class="contribute-modal__list" role="group" aria-labelledby="@contributeModalTitleId">
+                            <p class="contribute-modal__empty" data-contribute-empty @(hasContributableBottles ? "hidden" : null)>No bottles available to contribute right now.</p>
+                            @if (availableBottles.Count > 0)
+                            {
+                                <ul>
+                                    @foreach (var bottle in availableBottles)
+                                    {
+                                        var inputId = $"contribute-bottle-{bottle.Id:N}";
+                                        var isInSession = sessionBottleIds.Contains(bottle.Id);
+                                        <li class="contribute-modal__option" data-bottle-option @(isInSession ? "data-disabled=\"true\"" : null)>
+                                            <label for="@inputId">
+                                                <input id="@inputId"
+                                                       type="checkbox"
+                                                       name="BottleIds"
+                                                       value="@bottle.Id"
+                                                       @(isInSession ? "disabled" : null) />
+                                                <span>@bottle.Label</span>
+                                            </label>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                        <div class="contribute-modal__actions">
+                            <button type="submit"
+                                    class="sisterhood-button"
+                                    data-contribute-submit
+                                    disabled>
+                                Add to sip session
+                            </button>
+                            <button type="button"
+                                    class="sisterhood-button sisterhood-button--ghost"
+                                    data-contribute-close>
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    const modal = document.getElementById('@contributeModalId');
+                    if (!modal) {
+                        return;
+                    }
+
+                    const form = modal.querySelector('[data-contribute-form]');
+                    const submitButton = form?.querySelector('[data-contribute-submit]');
+                    const closeButtons = modal.querySelectorAll('[data-contribute-close]');
+                    const openButtons = document.querySelectorAll('[data-contribute-trigger]');
+                    const emptyState = modal.querySelector('[data-contribute-empty]');
+                    const checkboxNodes = form?.querySelectorAll('input[type="checkbox"][name="BottleIds"]') ?? [];
+                    const checkboxes = Array.from(checkboxNodes);
+                    let lastTrigger = null;
+
+                    const getEnabledCount = () => checkboxes.filter(box => !box.disabled).length;
+
+                    const updateEmptyState = () => {
+                        if (!emptyState) {
+                            return;
+                        }
+
+                        const enabledCount = getEnabledCount();
+                        if (enabledCount === 0) {
+                            emptyState.removeAttribute('hidden');
+                        } else {
+                            emptyState.setAttribute('hidden', '');
+                        }
+                    };
+
+                    const updateSubmitState = () => {
+                        if (!submitButton) {
+                            return;
+                        }
+
+                        const anyChecked = checkboxes.some(box => !box.disabled && box.checked);
+                        submitButton.disabled = !anyChecked;
+                    };
+
+                    const focusInitialControl = () => {
+                        const firstEnabled = checkboxes.find(box => !box.disabled);
+                        if (firstEnabled) {
+                            window.requestAnimationFrame(() => firstEnabled.focus());
+                            return;
+                        }
+
+                        const fallback = closeButtons[0] ?? submitButton;
+                        if (fallback instanceof HTMLElement) {
+                            window.requestAnimationFrame(() => fallback.focus());
+                        }
+                    };
+
+                    const openModal = (trigger) => {
+                        if (!form) {
+                            return;
+                        }
+
+                        lastTrigger = trigger instanceof HTMLElement ? trigger : null;
+                        modal.removeAttribute('hidden');
+                        modal.setAttribute('aria-hidden', 'false');
+                        if (lastTrigger) {
+                            lastTrigger.setAttribute('aria-expanded', 'true');
+                        }
+                        document.body.style.overflow = 'hidden';
+                        form.reset();
+                        updateEmptyState();
+                        updateSubmitState();
+                        focusInitialControl();
+                    };
+
+                    const closeModal = () => {
+                        if (!form) {
+                            return;
+                        }
+
+                        modal.setAttribute('hidden', '');
+                        modal.setAttribute('aria-hidden', 'true');
+                        document.body.style.overflow = '';
+                        form.reset();
+                        updateSubmitState();
+
+                        const triggerToFocus = lastTrigger;
+                        if (triggerToFocus) {
+                            triggerToFocus.setAttribute('aria-expanded', 'false');
+                            lastTrigger = null;
+                            window.requestAnimationFrame(() => triggerToFocus.focus());
+                        }
+                    };
+
+                    const isModalOpen = () => !modal.hasAttribute('hidden');
+
+                    openButtons.forEach((button) => {
+                        button.addEventListener('click', () => {
+                            openModal(button instanceof HTMLElement ? button : null);
+                        });
+                    });
+
+                    closeButtons.forEach((button) => {
+                        button.addEventListener('click', () => {
+                            closeModal();
+                        });
+                    });
+
+                    checkboxes.forEach((box) => {
+                        box.addEventListener('change', () => {
+                            updateSubmitState();
+                        });
+                    });
+
+                    modal.addEventListener('click', (event) => {
+                        if (event.target === modal) {
+                            closeModal();
+                        }
+                    });
+
+                    document.addEventListener('keydown', (event) => {
+                        if (event.key === 'Escape' && isModalOpen()) {
+                            closeModal();
+                        }
+                    });
+
+                    form?.addEventListener('submit', (event) => {
+                        const anyChecked = checkboxes.some(box => !box.disabled && box.checked);
+                        if (!anyChecked) {
+                            event.preventDefault();
+                            updateSubmitState();
+                        }
+                    });
+
+                    updateEmptyState();
+                    updateSubmitState();
                 });
             </script>
         }
