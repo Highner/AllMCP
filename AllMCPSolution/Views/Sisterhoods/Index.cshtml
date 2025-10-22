@@ -577,39 +577,77 @@
             gap: 12px;
         }
 
-        .ghost-button,
-        .ghost-danger-button {
+        .sisterhood-button {
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            gap: 6px;
             padding: 8px 16px;
             border-radius: 999px;
+            border: 1px solid rgba(244, 241, 234, 0.18);
             background: transparent;
+            color: #f4f1ea;
             font-size: 12px;
             letter-spacing: 2px;
             text-transform: uppercase;
             cursor: pointer;
-            transition: background 0.2s ease, opacity 0.2s ease;
+            transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
         }
 
-        .ghost-button {
-            border: 1px solid rgba(244, 241, 234, 0.18);
-            color: rgba(244, 241, 234, 0.85);
-        }
-
-        .ghost-button:hover,
-        .ghost-button:focus-visible {
+        .sisterhood-button:hover,
+        .sisterhood-button:focus-visible {
             background: rgba(244, 241, 234, 0.12);
             color: #f4f1ea;
         }
 
-        .ghost-danger-button {
-            border: 1px solid rgba(214, 104, 86, 0.45);
+        .sisterhood-button:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.25);
+        }
+
+        .sisterhood-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .sisterhood-button--primary {
+            border-color: rgba(244, 241, 234, 0.28);
+            background: rgba(244, 241, 234, 0.12);
+        }
+
+        .sisterhood-button--primary:hover,
+        .sisterhood-button--primary:focus-visible {
+            background: rgba(244, 241, 234, 0.18);
+            transform: translateY(-1px);
+        }
+
+        .sisterhood-button--danger {
+            border-color: rgba(181, 65, 65, 0.45);
+            color: #f6dcdc;
+        }
+
+        .sisterhood-button--danger:hover,
+        .sisterhood-button--danger:focus-visible {
+            background: rgba(181, 65, 65, 0.25);
+            color: #ffe3e3;
+        }
+
+        .sisterhood-button--ghost {
+            color: rgba(244, 241, 234, 0.85);
+        }
+
+        .sisterhood-button--ghost:hover,
+        .sisterhood-button--ghost:focus-visible {
+            color: #f4f1ea;
+        }
+
+        .sisterhood-button--ghost-danger {
+            border-color: rgba(214, 104, 86, 0.45);
             color: #f3b0a3;
         }
 
-        .ghost-danger-button:hover,
-        .ghost-danger-button:focus-visible {
+        .sisterhood-button--ghost-danger:hover,
+        .sisterhood-button--ghost-danger:focus-visible {
             background: rgba(214, 104, 86, 0.15);
             color: #ffd6cc;
         }
@@ -676,27 +714,6 @@
             margin-top: 24px;
             display: flex;
             justify-content: center;
-        }
-
-        .primary-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px 24px;
-            border-radius: 999px;
-            border: 1px solid rgba(244, 241, 234, 0.28);
-            background: rgba(244, 241, 234, 0.12);
-            color: #f4f1ea;
-            font-size: 13px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: background 0.2s ease, transform 0.2s ease;
-        }
-
-        .primary-button:hover {
-            background: rgba(244, 241, 234, 0.18);
-            transform: translateY(-1px);
         }
 
         .status-banner {
@@ -789,38 +806,6 @@
             display: flex;
             justify-content: flex-end;
             gap: 12px;
-        }
-
-        .secondary-button,
-        .danger-button,
-        .inline-form button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 8px 16px;
-            border-radius: 999px;
-            border: 1px solid rgba(244, 241, 234, 0.18);
-            background: transparent;
-            color: #f4f1ea;
-            font-size: 12px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: background 0.2s ease, opacity 0.2s ease;
-        }
-
-        .secondary-button:hover,
-        .inline-form button:hover {
-            background: rgba(244, 241, 234, 0.12);
-        }
-
-        .danger-button {
-            border-color: rgba(181, 65, 65, 0.45);
-            color: #f6dcdc;
-        }
-
-        .danger-button:hover {
-            background: rgba(181, 65, 65, 0.25);
         }
 
         .sisterhood-header {
@@ -1068,7 +1053,7 @@
             justify-content: flex-end;
         }
 
-        .sip-session-contribute .secondary-button {
+        .sip-session-contribute .sisterhood-button {
             width: auto;
         }
 
@@ -1123,27 +1108,6 @@
             align-items: center;
             flex-wrap: wrap;
             gap: 10px;
-        }
-
-        .ghost-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 18px;
-            border-radius: 999px;
-            border: 1px solid rgba(244, 241, 234, 0.18);
-            background: transparent;
-            color: #f4f1ea;
-            font-size: 12px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: background 0.2s ease, opacity 0.2s ease;
-        }
-
-        .ghost-button:hover,
-        .ghost-button:focus-visible {
-            background: rgba(244, 241, 234, 0.12);
         }
 
         .contribute-modal-backdrop {
@@ -1524,11 +1488,8 @@
             margin-top: 4px;
         }
 
-        .pending-invite-actions .secondary-button {
+        .pending-invite-actions .sisterhood-button {
             justify-self: start;
-            padding: 6px 12px;
-            font-size: 11px;
-            letter-spacing: 1.5px;
         }
 
         .pending-invite-actions .invite-feedback {
@@ -1565,12 +1526,7 @@
 
         .inline-form {
             margin: 0;
-        }
-
-        .inline-form button {
-            padding: 6px 12px;
-            font-size: 11px;
-            letter-spacing: 1.5px;
+            display: inline;
         }
 
         .badge,
@@ -1708,7 +1664,7 @@
             @if (Model.IsAuthenticated)
             {
                 <div class="action-bar">
-                    <button type="button" class="primary-button" data-sisterhood-create-toggle>Create Sisterhood</button>
+                    <button type="button" class="sisterhood-button sisterhood-button--primary" data-sisterhood-create-toggle>Create Sisterhood</button>
                 </div>
                 <form method="post" action="@Url.Action("CreateSisterhood", "WineSurfer")" class="create-sisterhood-form@(Model.ErrorMessage != null ? " open" : string.Empty)" data-sisterhood-create-form>
                     @Html.AntiForgeryToken()
@@ -1723,7 +1679,7 @@
                         </div>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="secondary-button">Create</button>
+                        <button type="submit" class="sisterhood-button">Create</button>
                     </div>
                 </form>
             }
@@ -1787,18 +1743,18 @@
                                     <form method="post" action="@(acceptAction ?? string.Empty)" class="inline-form">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="InvitationId" value="@invitation.Id" />
-                                        <button type="submit" class="primary-button">Accept</button>
+                                        <button type="submit" class="sisterhood-button sisterhood-button--primary">Accept</button>
                                     </form>
                                     <form method="post" action="@(declineAction ?? string.Empty)" class="inline-form">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="InvitationId" value="@invitation.Id" />
-                                        <button type="submit" class="secondary-button">Decline</button>
+                                        <button type="submit" class="sisterhood-button">Decline</button>
                                     </form>
                                 }
                                 <form method="post" action="@(deleteAction ?? string.Empty)" class="inline-form" onsubmit="return confirm('Remove this invitation?');">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="InvitationId" value="@invitation.Id" />
-                                    <button type="submit" class="ghost-danger-button">Delete invitation</button>
+                                    <button type="submit" class="sisterhood-button sisterhood-button--ghost-danger">Delete invitation</button>
                                 </form>
                             </div>
                         </article>
@@ -1841,7 +1797,7 @@
                                     @if (sisterhood.CanManage)
                                     {
                                         <button type="button"
-                                                class="secondary-button"
+                                                class="sisterhood-button"
                                                 data-sisterhood-edit-toggle="@sisterhood.Id"
                                                 aria-expanded="false"
                                                 aria-controls="edit-sisterhood-form-@sisterhood.Id">
@@ -1850,7 +1806,7 @@
                                         <form method="post" action="@Url.Action("DeleteSisterhood", "WineSurfer")" class="inline-form" onsubmit="return confirm('Delete this sisterhood? This cannot be undone.');">
                                             @Html.AntiForgeryToken()
                                             <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
-                                            <button type="submit" class="danger-button">Delete</button>
+                                            <button type="submit" class="sisterhood-button sisterhood-button--danger">Delete</button>
                                         </form>
                                     }
                                     @if (isCurrentUserMember && leaveConfirmName is not null)
@@ -1862,7 +1818,7 @@
                                             @Html.AntiForgeryToken()
                                             <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
                                             <input type="hidden" name="UserId" value="@Model.CurrentUserId" />
-                                            <button type="submit" class="ghost-danger-button">Leave sisterhood</button>
+                                            <button type="submit" class="sisterhood-button sisterhood-button--ghost-danger">Leave sisterhood</button>
                                         </form>
                                     }
                                 </div>
@@ -1902,8 +1858,8 @@
                                     </div>
                                 </div>
                                 <div class="form-actions">
-                                    <button type="submit" class="secondary-button">Save changes</button>
-                                    <button type="button" class="ghost-button" data-sisterhood-edit-cancel data-sisterhood-id="@sisterhood.Id">Cancel</button>
+                                    <button type="submit" class="sisterhood-button">Save changes</button>
+                                    <button type="button" class="sisterhood-button sisterhood-button--ghost" data-sisterhood-edit-cancel data-sisterhood-id="@sisterhood.Id">Cancel</button>
                                 </div>
                             </form>
                         }
@@ -1955,7 +1911,7 @@
                                                     <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
                                                     <input type="hidden" name="UserId" value="@member.Id" />
                                                     <input type="hidden" name="MakeAdmin" value="@(member.IsAdmin ? "false" : "true")" />
-                                                    <button type="submit" class="secondary-button">@(member.IsAdmin ? "Remove Admin" : "Make Admin")</button>
+                                                    <button type="submit" class="sisterhood-button">@(member.IsAdmin ? "Remove Admin" : "Make Admin")</button>
                                                 </form>
                                                 @if (!member.IsAdmin)
                                                 {
@@ -1963,7 +1919,7 @@
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
                                                         <input type="hidden" name="UserId" value="@member.Id" />
-                                                        <button type="submit" class="danger-button">Remove</button>
+                                                        <button type="submit" class="sisterhood-button sisterhood-button--danger">Remove</button>
                                                     </form>
                                                 }
                                             </div>
@@ -1980,7 +1936,7 @@
                                 @if (sisterhood.CanManage)
                                 {
                                     <button type="button"
-                                            class="secondary-button"
+                                            class="sisterhood-button"
                                             data-sip-session-create-toggle
                                             aria-expanded="false"
                                             aria-controls="@createContainerId">
@@ -2049,9 +2005,9 @@
                                                                       name="Description"
                                                                       maxlength="2048">@session.Description</textarea>
                                                             <div class="sip-session-form-actions">
-                                                                <button type="submit" class="secondary-button">Save changes</button>
+                                                                <button type="submit" class="sisterhood-button">Save changes</button>
                                                                 <button type="button"
-                                                                        class="ghost-button"
+                                                                        class="sisterhood-button sisterhood-button--ghost"
                                                                         data-sip-session-edit-cancel>Cancel</button>
                                                             </div>
                                                         </form>
@@ -2100,9 +2056,9 @@
                                                       name="Description"
                                                       maxlength="2048"></textarea>
                                             <div class="sip-session-form-actions">
-                                                <button type="submit" class="secondary-button">Create session</button>
+                                                <button type="submit" class="sisterhood-button">Create session</button>
                                                 <button type="button"
-                                                        class="ghost-button"
+                                                        class="sisterhood-button sisterhood-button--ghost"
                                                         data-sip-session-edit-cancel>Cancel</button>
                                             </div>
                                         </form>
@@ -2133,7 +2089,7 @@
                                             <span class="pending-invite-updated" data-pending-invite-updated>Updated @invitation.UpdatedAtUtc.ToLocalTime().ToString("g")</span>
                                             <div class="pending-invite-actions">
                                                 <button type="button"
-                                                        class="secondary-button"
+                                                        class="sisterhood-button"
                                                         data-resend-invite-button
                                                         data-endpoint="@(resendEndpoint ?? string.Empty)"
                                                         data-sisterhood-id="@sisterhood.Id"
@@ -2159,7 +2115,7 @@
                                 <label for="invite-member-@sisterhood.Id">Invite a Wine Surfer</label>
                                 <input id="invite-member-@sisterhood.Id" name="MemberName" type="text" list="sisterhood-user-options" placeholder="Start typing a name or email" autocomplete="off" />
                             <div class="invite-actions">
-                                <button type="submit" class="secondary-button">Invite</button>
+                                <button type="submit" class="sisterhood-button">Invite</button>
                             </div>
                             <p class="invite-feedback" data-sisterhood-invite-feedback aria-live="polite" hidden></p>
                         </form>
@@ -2185,7 +2141,7 @@
         <div class="sip-session-edit-modal" role="dialog" aria-modal="true" aria-labelledby="sip-session-edit-modal-title">
             <header class="sip-session-edit-modal__header">
                 <h2 class="sip-session-edit-modal__title" id="sip-session-edit-modal-title" data-sip-session-edit-modal-title>Edit sip session</h2>
-                <button type="button" class="ghost-button" data-sip-session-edit-close aria-label="Close edit sip session dialog">Close</button>
+                <button type="button" class="sisterhood-button sisterhood-button--ghost" data-sip-session-edit-close aria-label="Close edit sip session dialog">Close</button>
             </header>
             <div class="sip-session-edit-modal__body" data-sip-session-edit-modal-body></div>
         </div>
@@ -2194,7 +2150,7 @@
         <div class="contribute-modal" role="dialog" aria-modal="true" aria-labelledby="contribute-modal-title">
             <header class="contribute-modal__header">
                 <h2 class="contribute-modal__title" id="contribute-modal-title">Contribute bottles</h2>
-                <button type="button" class="ghost-button" data-contribute-close aria-label="Close contribute bottles dialog">Close</button>
+                <button type="button" class="sisterhood-button sisterhood-button--ghost" data-contribute-close aria-label="Close contribute bottles dialog">Close</button>
             </header>
             <form method="post"
                   action="@Url.Action("ContributeSipSessionBottles", "WineSurfer")"
@@ -2223,8 +2179,8 @@
                     }
                 </div>
                 <div class="contribute-modal__actions">
-                    <button type="submit" class="secondary-button" data-contribute-submit @(Model.AvailableBottles.Count == 0 ? "disabled" : null)>Add to sip session</button>
-                    <button type="button" class="ghost-button" data-contribute-close>Cancel</button>
+                    <button type="submit" class="sisterhood-button" data-contribute-submit @(Model.AvailableBottles.Count == 0 ? "disabled" : null)>Add to sip session</button>
+                    <button type="button" class="sisterhood-button sisterhood-button--ghost" data-contribute-close>Cancel</button>
                 </div>
             </form>
         </div>
@@ -2262,9 +2218,9 @@
                        inputmode="decimal" />
                 <p class="sip-session-rate-modal__footnote">Score is optional—leave it blank to skip.</p>
                 <div class="sip-session-rate-modal__actions">
-                    <button type="submit" class="secondary-button" data-rate-submit>Save note</button>
+                    <button type="submit" class="sisterhood-button" data-rate-submit>Save note</button>
                     <button type="submit"
-                            class="ghost-danger-button"
+                            class="sisterhood-button sisterhood-button--ghost-danger"
                             data-rate-delete
                             formaction="@Url.Action("DeleteSipSessionBottleNote", "WineSurfer")"
                             formmethod="post"
@@ -2273,7 +2229,7 @@
                             disabled>
                         Delete tasting note
                     </button>
-                    <button type="button" class="ghost-button" data-sip-session-rate-close>Cancel</button>
+                    <button type="button" class="sisterhood-button sisterhood-button--ghost" data-sip-session-rate-close>Cancel</button>
                 </div>
             </form>
         </div>
