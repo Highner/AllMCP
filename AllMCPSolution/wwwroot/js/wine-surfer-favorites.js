@@ -117,6 +117,7 @@
         const form = popover.querySelector('.inventory-add-form');
         const select = popover.querySelector('.inventory-add-wine');
         const vintage = popover.querySelector('.inventory-add-vintage');
+        const quantity = popover.querySelector('.inventory-add-quantity');
         const summary = popover.querySelector('.inventory-add-summary');
         const hint = popover.querySelector('.inventory-add-vintage-hint');
         const error = popover.querySelector('.inventory-add-error');
@@ -193,6 +194,9 @@
             if (vintage) {
                 vintage.disabled = state;
             }
+            if (quantity) {
+                quantity.disabled = state;
+            }
         }
 
         async function openModal() {
@@ -208,6 +212,9 @@
                 populateSelect();
                 if (vintage) {
                     vintage.value = '';
+                }
+                if (quantity) {
+                    quantity.value = '1';
                 }
                 updateSummary();
                 updateHint();
@@ -234,6 +241,9 @@
             if (vintage) {
                 vintage.value = '';
             }
+            if (quantity) {
+                quantity.value = '1';
+            }
             updateSummary();
             updateHint();
         }
@@ -246,6 +256,7 @@
 
             const wineId = select?.value ?? '';
             const vintageValue = Number(vintage?.value ?? '');
+            const quantityValue = Number(quantity?.value ?? '1');
 
             if (!wineId) {
                 showError('Select a wine to add to your inventory.');
@@ -259,16 +270,25 @@
                 return;
             }
 
+            if (!Number.isInteger(quantityValue) || quantityValue < 1 || quantityValue > 12) {
+                showError('Select how many bottles to add.');
+                quantity?.focus();
+                return;
+            }
+
             showError('');
 
             try {
                 setModalLoading(true);
                 await sendJson('/wine-manager/inventory', {
                     method: 'POST',
-                    body: JSON.stringify({ wineId, vintage: vintageValue })
+                    body: JSON.stringify({ wineId, vintage: vintageValue, quantity: quantityValue })
                 });
                 closeModal();
-                showStatus('Bottle added to your inventory.', 'success');
+                const message = quantityValue === 1
+                    ? 'Bottle added to your inventory.'
+                    : `${quantityValue} bottles added to your inventory.`;
+                showStatus(message, 'success');
             } catch (error) {
                 showError(error?.message ?? 'Unable to add wine to your inventory.');
             } finally {
