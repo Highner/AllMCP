@@ -14,6 +14,7 @@ public interface ISisterhoodRepository
     Task<Sisterhood?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Sisterhood?> FindByNameAsync(string name, CancellationToken ct = default);
     Task<IReadOnlyList<Sisterhood>> GetForUserAsync(Guid userId, CancellationToken ct = default);
+    Task<IReadOnlyList<Sisterhood>> GetAdminForUserAsync(Guid userId, CancellationToken ct = default);
     Task<Sisterhood> CreateWithAdminAsync(string name, string? description, Guid adminUserId, CancellationToken ct = default);
     Task UpdateAsync(Sisterhood sisterhood, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
@@ -127,6 +128,26 @@ public class SisterhoodRepository : ISisterhoodRepository
                 .ThenInclude(invitation => invitation.InviteeUser)
             .Where(s => s.Memberships.Any(membership => membership.UserId == userId))
             .OrderBy(s => s.Name)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Sisterhood>> GetAdminForUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return Array.Empty<Sisterhood>();
+        }
+
+        return await _db.Sisterhoods
+            .AsNoTracking()
+            .Where(s => s.Memberships.Any(membership => membership.UserId == userId && membership.IsAdmin))
+            .OrderBy(s => s.Name)
+            .Select(s => new Sisterhood
+            {
+                Id = s.Id,
+                Name = s.Name,
+                Description = s.Description,
+            })
             .ToListAsync(ct);
     }
 
