@@ -18,12 +18,14 @@ public interface IUserRepository
     Task AddAsync(ApplicationUser user, CancellationToken ct = default);
     Task UpdateAsync(ApplicationUser user, CancellationToken ct = default);
     Task<ApplicationUser?> UpdateDisplayNameAsync(Guid id, string displayName, CancellationToken ct = default);
+    Task<ApplicationUser?> UpdateTasteProfileAsync(Guid id, string tasteProfile, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 }
 
 public class UserRepository : IUserRepository
 {
     private readonly UserManager<ApplicationUser> _userManager;
+    private const int TasteProfileMaxLength = 2048;
 
     public UserRepository(UserManager<ApplicationUser> userManager)
     {
@@ -199,6 +201,47 @@ public class UserRepository : IUserRepository
         }
 
         user.TasteProfile = user.TasteProfile?.Trim() ?? string.Empty;
+
+        var result = await _userManager.UpdateAsync(user);
+        EnsureSucceeded(result, $"Failed to update user '{user.Id}'.");
+
+        return await _userManager.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == id, ct);
+    }
+
+    public async Task<ApplicationUser?> UpdateTasteProfileAsync(Guid id, string tasteProfile, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var user = await _userManager.Users
+            .FirstOrDefaultAsync(u => u.Id == id, ct);
+
+        if (user is null)
+        {
+            return null;
+        }
+
+        var trimmedTasteProfile = string.IsNullOrWhiteSpace(tasteProfile)
+            ? string.Empty
+            : tasteProfile.Trim();
+
+        if (trimmedTasteProfile.Length > TasteProfileMaxLength)
+        {
+            trimmedTasteProfile = trimmedTasteProfile[..TasteProfileMaxLength];
+        }
+
+        user.TasteProfile = trimmedTasteProfile;
+
+        if (!string.IsNullOrWhiteSpace(user.Name))
+        {
+            user.Name = user.Name.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(user.UserName))
+        {
+            user.UserName = user.UserName.Trim();
+        }
 
         var result = await _userManager.UpdateAsync(user);
         EnsureSucceeded(result, $"Failed to update user '{user.Id}'.");

@@ -9,6 +9,7 @@
 
 @{ 
     var isAdmin = Model?.IsAdmin ?? false;
+    var isAuthenticatedUser = User?.Identity?.IsAuthenticated == true;
 
     var navItems = new List<(string Href, string Label)>
     {
@@ -17,6 +18,11 @@
         ("/wine-surfer/sisterhoods", "Sisterhoods"),
         ("/wine-manager", "Wine Inventory")
     };
+
+    if (isAuthenticatedUser)
+    {
+        navItems.Insert(3, ("/wine-surfer/taste-profile", "Taste Profile"));
+    }
 
     if (!isAdmin)
     {
@@ -144,7 +150,7 @@
     var dismissedStampJson = JsonSerializer.Serialize(dismissedStampSet.ToArray());
     var dismissedStampMapJson = JsonSerializer.Serialize(dismissedMap);
     var dismissalEndpointJson = JsonSerializer.Serialize(dismissalEndpoint);
-    var isAuthenticated = User?.Identity?.IsAuthenticated == true;
+    var isAuthenticated = isAuthenticatedUser;
     var isAuthenticatedJson = JsonSerializer.Serialize(isAuthenticated);
 
     var rawPageTitle = ViewData["WineSurferPageTitle"] as string;
