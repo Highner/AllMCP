@@ -9,6 +9,7 @@ internal static class UserResponseMapper
         {
             id = user.Id,
             name = user.Name,
+            tasteProfileSummary = user.TasteProfileSummary,
             tasteProfile = user.TasteProfile
         };
 }

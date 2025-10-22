@@ -68,15 +68,16 @@ public sealed class DeleteUserTool : UserToolBase
 
         await UserRepository.DeleteAsync(user.Id, ct);
 
-        return Success("delete",
-            "User deleted.",
-            new
-            {
-                id = user.Id,
-                name = user.Name,
-                tasteProfile = user.TasteProfile
-            });
-    }
+            return Success("delete",
+                "User deleted.",
+                new
+                {
+                    id = user.Id,
+                    name = user.Name,
+                    tasteProfileSummary = user.TasteProfileSummary,
+                    tasteProfile = user.TasteProfile
+                });
+        }
 
     protected override JsonObject BuildInputSchema()
     {

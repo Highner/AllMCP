@@ -43,7 +43,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .HasMaxLength(256);
 
             entity.Property(u => u.TasteProfile)
-                .HasMaxLength(2048);
+                .HasMaxLength(4096);
+
+            entity.Property(u => u.TasteProfileSummary)
+                .HasMaxLength(512);
 
             entity.Property(u => u.IsAdmin)
                 .HasDefaultValue(false);

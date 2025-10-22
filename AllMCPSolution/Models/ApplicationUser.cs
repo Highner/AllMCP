@@ -6,6 +6,7 @@ public class ApplicationUser : IdentityUser<Guid>
 {
     public string Name { get; set; } = string.Empty;
     public string TasteProfile { get; set; } = string.Empty;
+    public string TasteProfileSummary { get; set; } = string.Empty;
 
     public bool IsAdmin { get; set; }
 

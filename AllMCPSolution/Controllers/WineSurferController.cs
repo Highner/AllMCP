@@ -107,7 +107,8 @@ public class WineSurferController : Controller
     private readonly IAppellationRepository _appellationRepository;
     private readonly ISubAppellationRepository _subAppellationRepository;
     private static readonly TimeSpan SentInvitationNotificationWindow = TimeSpan.FromDays(7);
-    private const int TasteProfileMaxLength = 2048;
+    private const int TasteProfileMaxLength = 4096;
+    private const int TasteProfileSummaryMaxLength = 512;
     private const string TasteProfileStatusTempDataKey = "WineSurfer.TasteProfile.Status";
     private const string TasteProfileErrorTempDataKey = "WineSurfer.TasteProfile.Error";
 
@@ -205,6 +206,7 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
+                    domainUser?.TasteProfileSummary,
                     domainUser?.TasteProfile,
                     domainUser?.IsAdmin == true);
             }
@@ -367,6 +369,7 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
+                    domainUser?.TasteProfileSummary,
                     domainUser?.TasteProfile,
                     isAdmin);
             }
@@ -421,12 +424,15 @@ public class WineSurferController : Controller
             ? TempData[TasteProfileErrorTempDataKey] as string
             : null;
 
+        var tasteProfileSummary = domainUser?.TasteProfileSummary ?? currentUser?.TasteProfileSummary ?? string.Empty;
         var tasteProfile = domainUser?.TasteProfile ?? currentUser?.TasteProfile ?? string.Empty;
 
         var viewModel = new WineSurferTasteProfileViewModel(
             currentUser,
             incomingInvitations,
             sentInvitationNotifications,
+            tasteProfileSummary,
+            TasteProfileSummaryMaxLength,
             tasteProfile,
             TasteProfileMaxLength,
             statusMessage,
@@ -442,7 +448,18 @@ public class WineSurferController : Controller
     {
         if (!ModelState.IsValid)
         {
-            TempData[TasteProfileErrorTempDataKey] = $"Taste profile must be {TasteProfileMaxLength} characters or fewer.";
+            var summaryErrors = ModelState.TryGetValue(nameof(UpdateTasteProfileRequest.TasteProfileSummary), out var summaryEntry)
+                && summaryEntry.Errors.Count > 0;
+            var profileErrors = ModelState.TryGetValue(nameof(UpdateTasteProfileRequest.TasteProfile), out var profileEntry)
+                && profileEntry.Errors.Count > 0;
+
+            string errorMessage = profileErrors && summaryErrors
+                ? $"Taste profile must be {TasteProfileMaxLength} characters or fewer and summary must be {TasteProfileSummaryMaxLength} characters or fewer."
+                : summaryErrors
+                    ? $"Taste profile summary must be {TasteProfileSummaryMaxLength} characters or fewer."
+                    : $"Taste profile must be {TasteProfileMaxLength} characters or fewer.";
+
+            TempData[TasteProfileErrorTempDataKey] = errorMessage;
             return RedirectToAction(nameof(TasteProfile));
         }
 
@@ -456,15 +473,29 @@ public class WineSurferController : Controller
             ? string.Empty
             : request.TasteProfile.Trim();
 
+        var trimmedSummary = string.IsNullOrWhiteSpace(request.TasteProfileSummary)
+            ? string.Empty
+            : request.TasteProfileSummary.Trim();
+
         if (trimmedTasteProfile.Length > TasteProfileMaxLength)
         {
             TempData[TasteProfileErrorTempDataKey] = $"Taste profile must be {TasteProfileMaxLength} characters or fewer.";
             return RedirectToAction(nameof(TasteProfile));
         }
 
+        if (trimmedSummary.Length > TasteProfileSummaryMaxLength)
+        {
+            TempData[TasteProfileErrorTempDataKey] = $"Taste profile summary must be {TasteProfileSummaryMaxLength} characters or fewer.";
+            return RedirectToAction(nameof(TasteProfile));
+        }
+
         try
         {
-            var updatedUser = await _userRepository.UpdateTasteProfileAsync(userId.Value, trimmedTasteProfile, cancellationToken);
+            var updatedUser = await _userRepository.UpdateTasteProfileAsync(
+                userId.Value,
+                trimmedTasteProfile,
+                trimmedSummary,
+                cancellationToken);
             if (updatedUser is null)
             {
                 TempData[TasteProfileErrorTempDataKey] = "We couldn't update your taste profile. Please try again.";
@@ -534,6 +565,7 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
+                    domainUser?.TasteProfileSummary,
                     domainUser?.TasteProfile,
                     isAdmin);
             }
@@ -1185,6 +1217,7 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
+                    domainUser?.TasteProfileSummary,
                     domainUser?.TasteProfile,
                     domainUser?.IsAdmin == true);
             }
@@ -1347,6 +1380,7 @@ public class WineSurferController : Controller
                 domainUser?.Id,
                 displayName ?? email ?? string.Empty,
                 email,
+                domainUser?.TasteProfileSummary,
                 domainUser?.TasteProfile,
                 domainUser?.IsAdmin == true);
         }
@@ -1641,7 +1675,11 @@ public class WineSurferController : Controller
         var response = users
             .Where(u => !string.IsNullOrWhiteSpace(u.Name))
             .OrderBy(u => u.Name)
-            .Select(u => new WineSurferUserSummary(u.Id, u.Name, u.TasteProfile ?? string.Empty))
+            .Select(u => new WineSurferUserSummary(
+                u.Id,
+                u.Name,
+                u.TasteProfileSummary ?? string.Empty,
+                u.TasteProfile ?? string.Empty))
             .ToList();
 
         return Json(response);
@@ -3484,6 +3522,9 @@ public class WineSurferController : Controller
 
     public sealed class UpdateTasteProfileRequest
     {
+        [StringLength(TasteProfileSummaryMaxLength)]
+        public string? TasteProfileSummary { get; set; }
+
         [StringLength(TasteProfileMaxLength)]
         public string? TasteProfile { get; set; }
     }
@@ -4105,6 +4146,8 @@ public record WineSurferTasteProfileViewModel(
     WineSurferCurrentUser? CurrentUser,
     IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
     IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
+    string TasteProfileSummary,
+    int SummaryMaxLength,
     string TasteProfile,
     int MaxLength,
     string? StatusMessage,
@@ -4519,5 +4562,5 @@ public record RegionInventoryMetrics(
 
 public record RegionUserAverageScore(Guid UserId, decimal AverageScore);
 
-public record WineSurferUserSummary(Guid Id, string Name, string TasteProfile);
-public record WineSurferCurrentUser(Guid? DomainUserId, string DisplayName, string? Email, string? TasteProfile, bool IsAdmin);
+public record WineSurferUserSummary(Guid Id, string Name, string TasteProfileSummary, string TasteProfile);
+public record WineSurferCurrentUser(Guid? DomainUserId, string DisplayName, string? Email, string? TasteProfileSummary, string? TasteProfile, bool IsAdmin);

@@ -50,6 +50,7 @@ internal static class TastingNoteResponseMapper
                 {
                     id = user.Id,
                     name = user.Name,
+                    tasteProfileSummary = user.TasteProfileSummary,
                     tasteProfile = user.TasteProfile
                 }
         };

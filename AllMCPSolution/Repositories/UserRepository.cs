@@ -14,18 +14,19 @@ public interface IUserRepository
     Task<ApplicationUser?> FindByEmailAsync(string email, CancellationToken ct = default);
     Task<IReadOnlyList<ApplicationUser>> SearchByApproximateNameAsync(string name, int maxResults = 5, CancellationToken ct = default);
     Task<IReadOnlyList<ApplicationUser>> SearchByNameOrEmailAsync(string query, int maxResults = 10, CancellationToken ct = default);
-    Task<ApplicationUser> GetOrCreateAsync(string name, string tasteProfile, CancellationToken ct = default);
+    Task<ApplicationUser> GetOrCreateAsync(string name, string tasteProfile, string? tasteProfileSummary = null, CancellationToken ct = default);
     Task AddAsync(ApplicationUser user, CancellationToken ct = default);
     Task UpdateAsync(ApplicationUser user, CancellationToken ct = default);
     Task<ApplicationUser?> UpdateDisplayNameAsync(Guid id, string displayName, CancellationToken ct = default);
-    Task<ApplicationUser?> UpdateTasteProfileAsync(Guid id, string tasteProfile, CancellationToken ct = default);
+    Task<ApplicationUser?> UpdateTasteProfileAsync(Guid id, string tasteProfile, string? tasteProfileSummary, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 }
 
 public class UserRepository : IUserRepository
 {
     private readonly UserManager<ApplicationUser> _userManager;
-    private const int TasteProfileMaxLength = 2048;
+    private const int TasteProfileMaxLength = 4096;
+    private const int TasteProfileSummaryMaxLength = 512;
 
     public UserRepository(UserManager<ApplicationUser> userManager)
     {
@@ -114,7 +115,7 @@ public class UserRepository : IUserRepository
             .ToListAsync(ct);
     }
 
-    public async Task<ApplicationUser> GetOrCreateAsync(string name, string tasteProfile, CancellationToken ct = default)
+    public async Task<ApplicationUser> GetOrCreateAsync(string name, string tasteProfile, string? tasteProfileSummary = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -128,12 +129,31 @@ public class UserRepository : IUserRepository
             return existing;
         }
 
+        var normalizedTasteProfile = string.IsNullOrWhiteSpace(tasteProfile)
+            ? string.Empty
+            : tasteProfile.Trim();
+
+        if (normalizedTasteProfile.Length > TasteProfileMaxLength)
+        {
+            normalizedTasteProfile = normalizedTasteProfile[..TasteProfileMaxLength];
+        }
+
+        var normalizedSummary = string.IsNullOrWhiteSpace(tasteProfileSummary)
+            ? string.Empty
+            : tasteProfileSummary.Trim();
+
+        if (normalizedSummary.Length > TasteProfileSummaryMaxLength)
+        {
+            normalizedSummary = normalizedSummary[..TasteProfileSummaryMaxLength];
+        }
+
         var entity = new ApplicationUser
         {
             Id = Guid.NewGuid(),
             Name = trimmedName,
             UserName = trimmedName,
-            TasteProfile = tasteProfile?.Trim() ?? string.Empty
+            TasteProfile = normalizedTasteProfile,
+            TasteProfileSummary = normalizedSummary
         };
 
         await AddAsync(entity, ct);
@@ -201,6 +221,16 @@ public class UserRepository : IUserRepository
         }
 
         user.TasteProfile = user.TasteProfile?.Trim() ?? string.Empty;
+        if (user.TasteProfile.Length > TasteProfileMaxLength)
+        {
+            user.TasteProfile = user.TasteProfile[..TasteProfileMaxLength];
+        }
+
+        user.TasteProfileSummary = user.TasteProfileSummary?.Trim() ?? string.Empty;
+        if (user.TasteProfileSummary.Length > TasteProfileSummaryMaxLength)
+        {
+            user.TasteProfileSummary = user.TasteProfileSummary[..TasteProfileSummaryMaxLength];
+        }
 
         var result = await _userManager.UpdateAsync(user);
         EnsureSucceeded(result, $"Failed to update user '{user.Id}'.");
@@ -210,7 +240,7 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.Id == id, ct);
     }
 
-    public async Task<ApplicationUser?> UpdateTasteProfileAsync(Guid id, string tasteProfile, CancellationToken ct = default)
+    public async Task<ApplicationUser?> UpdateTasteProfileAsync(Guid id, string tasteProfile, string? tasteProfileSummary, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -232,6 +262,17 @@ public class UserRepository : IUserRepository
         }
 
         user.TasteProfile = trimmedTasteProfile;
+
+        var trimmedSummary = string.IsNullOrWhiteSpace(tasteProfileSummary)
+            ? string.Empty
+            : tasteProfileSummary.Trim();
+
+        if (trimmedSummary.Length > TasteProfileSummaryMaxLength)
+        {
+            trimmedSummary = trimmedSummary[..TasteProfileSummaryMaxLength];
+        }
+
+        user.TasteProfileSummary = trimmedSummary;
 
         if (!string.IsNullOrWhiteSpace(user.Name))
         {
@@ -275,6 +316,16 @@ public class UserRepository : IUserRepository
         }
 
         user.TasteProfile = user.TasteProfile?.Trim() ?? string.Empty;
+        if (user.TasteProfile.Length > TasteProfileMaxLength)
+        {
+            user.TasteProfile = user.TasteProfile[..TasteProfileMaxLength];
+        }
+
+        user.TasteProfileSummary = user.TasteProfileSummary?.Trim() ?? string.Empty;
+        if (user.TasteProfileSummary.Length > TasteProfileSummaryMaxLength)
+        {
+            user.TasteProfileSummary = user.TasteProfileSummary[..TasteProfileSummaryMaxLength];
+        }
     }
 
     private static void EnsureSucceeded(IdentityResult result, string message)
