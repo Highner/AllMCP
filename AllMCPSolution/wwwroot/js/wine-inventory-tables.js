@@ -71,6 +71,7 @@ window.WineInventoryTables.initialize = function () {
             let modalLoading = false;
             let drinkModalLoading = false;
             let drinkTarget = null;
+            const DETAIL_ROW_DATA_KEY = '__wineInventoryDetail';
 
             const referenceData = {
                 subAppellations: [],
@@ -497,12 +498,30 @@ window.WineInventoryTables.initialize = function () {
                 const vintage = summary?.vintage ?? summary?.Vintage ?? selectedSummary?.vintage ?? '';
                 const rawDrunkAt = detail?.drunkAt ?? detail?.DrunkAt ?? null;
                 const normalizedDrunkAt = normalizeIsoDate(rawDrunkAt);
+                const existingNoteIdValue = detail?.currentUserNoteId ?? detail?.CurrentUserNoteId ?? null;
+                const existingNoteTextValue = detail?.currentUserNote ?? detail?.CurrentUserNote ?? '';
+                const existingScoreValue = detail?.currentUserScore ?? detail?.CurrentUserScore ?? null;
+                const normalizedNoteId = existingNoteIdValue ? String(existingNoteIdValue) : null;
+                const normalizedNoteText = typeof existingNoteTextValue === 'string'
+                    ? existingNoteTextValue
+                    : existingNoteTextValue != null
+                        ? String(existingNoteTextValue)
+                        : '';
+                const normalizedScore = (() => {
+                    if (existingScoreValue == null || existingScoreValue === '') {
+                        return null;
+                    }
+
+                    const parsed = Number(existingScoreValue);
+                    return Number.isFinite(parsed) ? parsed : null;
+                })();
 
                 drinkTarget = {
                     bottleId: String(bottleId),
                     userId: detail?.userId ? String(detail.userId) : detail?.UserId ? String(detail.UserId) : null,
                     drunkAt: normalizedDrunkAt || null,
-                    isDrunk: Boolean(detail?.isDrunk ?? detail?.IsDrunk)
+                    isDrunk: Boolean(detail?.isDrunk ?? detail?.IsDrunk),
+                    noteId: normalizedNoteId
                 };
 
                 if (drinkTitle) {
@@ -521,10 +540,10 @@ window.WineInventoryTables.initialize = function () {
                     drinkDateInput.value = defaultDate;
                 }
                 if (drinkScoreInput) {
-                    drinkScoreInput.value = '';
+                    drinkScoreInput.value = normalizedScore != null ? String(normalizedScore) : '';
                 }
                 if (drinkNoteInput) {
-                    drinkNoteInput.value = '';
+                    drinkNoteInput.value = normalizedNoteText;
                 }
 
                 showDrinkError('');
@@ -644,26 +663,55 @@ window.WineInventoryTables.initialize = function () {
                     showMessage('Bottle marked as drunk.', 'success');
 
                     const notePayload = {
-                        bottleId,
                         note: noteValue,
                         score: parsedScore
                     };
+                    let noteUrl = '/wine-manager/notes';
+                    let noteMethod = 'POST';
+
+                    if (drinkTarget.noteId) {
+                        noteUrl = `/wine-manager/notes/${drinkTarget.noteId}`;
+                        noteMethod = 'PUT';
+                    } else {
+                        notePayload.bottleId = bottleId;
+                    }
 
                     try {
-                        const notesResponse = await sendJson('/wine-manager/notes', {
-                            method: 'POST',
+                        const notesResponse = await sendJson(noteUrl, {
+                            method: noteMethod,
                             body: JSON.stringify(notePayload)
                         });
+
+                        const summary = normalizeBottleNoteSummary(notesResponse?.bottle ?? notesResponse?.Bottle);
+                        const ownerUserId = drinkTarget.userId
+                            || summary?.userId
+                            || summary?.UserId
+                            || '';
+                        const ownerNote = extractUserNoteFromNotesResponse(notesResponse, ownerUserId ? String(ownerUserId) : '');
+                        const noteIdFromResponse = ownerNote?.id ?? ownerNote?.Id ?? drinkTarget.noteId ?? null;
+                        const noteTextFromResponse = ownerNote?.note ?? ownerNote?.Note ?? noteValue;
+                        const noteScoreFromResponse = (() => {
+                            const value = ownerNote?.score ?? ownerNote?.Score;
+                            if (value == null || value === '') {
+                                return parsedScore;
+                            }
+
+                            const parsedOwnerScore = Number(value);
+                            return Number.isFinite(parsedOwnerScore) ? parsedOwnerScore : parsedScore;
+                        })();
+
+                        updateDetailRowNote(bottleId, noteIdFromResponse, noteTextFromResponse, noteScoreFromResponse);
+
+                        if (noteIdFromResponse) {
+                            drinkTarget.noteId = String(noteIdFromResponse);
+                        }
 
                         const currentBottleId = notesSelectedBottleId ?? '';
                         if (currentBottleId && currentBottleId === bottleId) {
                             renderNotes(notesResponse);
-                            showNotesMessage('Note added.', 'success');
-                        } else {
-                            const summary = normalizeBottleNoteSummary(notesResponse?.bottle ?? notesResponse?.Bottle);
-                            if (summary) {
-                                updateScoresFromNotesSummary(summary);
-                            }
+                            showNotesMessage('Note saved.', 'success');
+                        } else if (summary) {
+                            updateScoresFromNotesSummary(summary);
                         }
 
                         showMessage('Bottle marked as drunk and tasting note saved.', 'success');
@@ -1227,17 +1275,62 @@ window.WineInventoryTables.initialize = function () {
             function buildDetailRow(detail, summary) {
                 const row = document.createElement('tr');
                 row.className = 'detail-row';
-                row.dataset.bottleId = detail.bottleId ?? detail.BottleId ?? '';
-
+                const normalizedBottleId = detail.bottleId
+                    ? String(detail.bottleId)
+                    : detail.BottleId
+                        ? String(detail.BottleId)
+                        : '';
                 const rawDrunkAt = detail.drunkAt ?? detail.DrunkAt ?? null;
                 const normalizedDrunkAt = normalizeIsoDate(rawDrunkAt);
                 const isDrunk = Boolean(detail.isDrunk ?? detail.IsDrunk);
+                const rawUserId = detail.userId ?? detail.UserId ?? '';
+                const normalizedUserId = rawUserId ? String(rawUserId) : '';
+                const rawNoteId = detail.currentUserNoteId ?? detail.CurrentUserNoteId ?? null;
+                const rawNoteText = detail.currentUserNote ?? detail.CurrentUserNote ?? '';
+                const rawNoteScore = detail.currentUserScore ?? detail.CurrentUserScore ?? null;
+                const normalizedNoteId = rawNoteId ? String(rawNoteId) : '';
+                const normalizedNoteText = typeof rawNoteText === 'string'
+                    ? rawNoteText
+                    : rawNoteText != null
+                        ? String(rawNoteText)
+                        : '';
+                const normalizedNoteScoreNumber = (() => {
+                    if (rawNoteScore == null || rawNoteScore === '') {
+                        return null;
+                    }
+
+                    const parsed = Number(rawNoteScore);
+                    return Number.isFinite(parsed) ? parsed : null;
+                })();
+                const normalizedNoteScoreString = normalizedNoteScoreNumber != null
+                    ? String(normalizedNoteScoreNumber)
+                    : '';
+
+                const normalizedDetail = {
+                    ...detail,
+                    bottleId: normalizedBottleId,
+                    userId: normalizedUserId,
+                    currentUserNoteId: normalizedNoteId ? normalizedNoteId : null,
+                    currentUserNote: normalizedNoteText,
+                    currentUserScore: normalizedNoteScoreNumber
+                };
+
+                detail = normalizedDetail;
+                row[DETAIL_ROW_DATA_KEY] = detail;
+                row.dataset.bottleId = normalizedBottleId;
+
                 const enjoyedAtDisplay = normalizedDrunkAt ? formatDateDisplay(normalizedDrunkAt) : '—';
                 const drinkButtonLabel = isDrunk ? 'Update Drink Details' : 'Drink Bottle';
 
                 row.dataset.drunkAt = normalizedDrunkAt;
                 row.dataset.isDrunk = isDrunk ? 'true' : 'false';
-                row.dataset.userId = detail.userId ? String(detail.userId) : detail.UserId ? String(detail.UserId) : '';
+                row.dataset.userId = normalizedUserId;
+                row.dataset.noteId = normalizedNoteId;
+                if (normalizedNoteScoreString) {
+                    row.dataset.noteScore = normalizedNoteScoreString;
+                } else {
+                    delete row.dataset.noteScore;
+                }
 
                 row.innerHTML = `
                     <td></td>
@@ -1265,7 +1358,8 @@ window.WineInventoryTables.initialize = function () {
                     event.stopPropagation();
 
                     try {
-                        openDrinkBottleModal(detail, summary);
+                        const detailContext = row[DETAIL_ROW_DATA_KEY] ?? detail;
+                        openDrinkBottleModal(detailContext, summary);
                     } catch (error) {
                         showMessage(error?.message ?? String(error), 'error');
                     }
@@ -1277,8 +1371,9 @@ window.WineInventoryTables.initialize = function () {
                     }
 
                     const rowUserId = row.dataset.userId ? row.dataset.userId : '';
+                    const detailContext = row[DETAIL_ROW_DATA_KEY] ?? detail;
                     const normalizedUserId = rowUserId
-                        || (detail.userId ? String(detail.userId) : detail.UserId ? String(detail.UserId) : '');
+                        || (detailContext?.userId ? String(detailContext.userId) : detailContext?.UserId ? String(detailContext.UserId) : '');
                     const payloadUserId = normalizedUserId ? normalizedUserId : null;
 
                     const payload = {
@@ -1292,7 +1387,7 @@ window.WineInventoryTables.initialize = function () {
 
                     try {
                         setRowLoading(row, true);
-                        const response = await sendJson(`/wine-manager/bottles/${detail.bottleId ?? detail.BottleId}`, {
+                        const response = await sendJson(`/wine-manager/bottles/${detailContext?.bottleId ?? detailContext?.BottleId ?? detail.bottleId ?? detail.BottleId}`, {
                             method: 'PUT',
                             body: JSON.stringify(payload)
                         });
@@ -1842,7 +1937,7 @@ window.WineInventoryTables.initialize = function () {
                         body: JSON.stringify(payload)
                     });
                     renderNotes(response);
-                    showNotesMessage('Note added.', 'success');
+                    showNotesMessage('Note saved.', 'success');
                     clearNotesAddInputs();
                 } catch (error) {
                     showNotesMessage(error.message, 'error');
@@ -1918,18 +2013,103 @@ window.WineInventoryTables.initialize = function () {
                 }
             }
 
+            function updateDetailRowNote(bottleId, noteId, noteText, noteScore) {
+                if (!detailsBody) {
+                    return;
+                }
+
+                const row = detailsBody.querySelector(`.detail-row[data-bottle-id="${bottleId}"]`);
+                if (!row) {
+                    return;
+                }
+
+                if (noteId) {
+                    row.dataset.noteId = String(noteId);
+                } else {
+                    delete row.dataset.noteId;
+                }
+
+                if (noteScore !== undefined && noteScore !== null) {
+                    const numericScore = Number(noteScore);
+                    row.dataset.noteScore = Number.isFinite(numericScore) ? String(numericScore) : '';
+                } else {
+                    delete row.dataset.noteScore;
+                }
+
+                const detailContext = row[DETAIL_ROW_DATA_KEY] ?? {};
+                if (!row[DETAIL_ROW_DATA_KEY]) {
+                    row[DETAIL_ROW_DATA_KEY] = detailContext;
+                }
+
+                detailContext.currentUserNoteId = noteId ? String(noteId) : null;
+                detailContext.currentUserNote = typeof noteText === 'string'
+                    ? noteText
+                    : noteText != null
+                        ? String(noteText)
+                        : '';
+
+                if (noteScore === undefined || noteScore === null) {
+                    detailContext.currentUserScore = null;
+                } else {
+                    const parsedScore = Number(noteScore);
+                    detailContext.currentUserScore = Number.isFinite(parsedScore) ? parsedScore : null;
+                }
+
+                if (!detailContext.bottleId) {
+                    detailContext.bottleId = row.dataset.bottleId ?? '';
+                }
+
+                if (!detailContext.userId) {
+                    detailContext.userId = row.dataset.userId ?? '';
+                }
+            }
+
             function normalizeNote(raw) {
                 if (!raw) {
                     return null;
                 }
 
+                const rawScore = pick(raw, ['score', 'Score']);
+                const normalizedScore = (() => {
+                    if (rawScore == null || rawScore === '') {
+                        return null;
+                    }
+
+                    const parsed = Number(rawScore);
+                    return Number.isFinite(parsed) ? parsed : null;
+                })();
+                const rawUserId = pick(raw, ['userId', 'UserId']) ?? '';
+                const normalizedUserId = rawUserId ? String(rawUserId) : '';
+
                 return {
                     id: pick(raw, ['id', 'Id']),
                     note: pick(raw, ['note', 'Note']) ?? '',
-                    score: pick(raw, ['score', 'Score']),
-                    userId: pick(raw, ['userId', 'UserId']) ?? '',
+                    score: normalizedScore,
+                    userId: normalizedUserId,
                     userName: pick(raw, ['userName', 'UserName']) ?? ''
                 };
+            }
+
+            function extractUserNoteFromNotesResponse(data, userId) {
+                const normalizedUserId = userId ? String(userId) : '';
+                const rawNotes = Array.isArray(data?.notes)
+                    ? data.notes
+                    : Array.isArray(data?.Notes)
+                        ? data.Notes
+                        : [];
+                const notes = rawNotes.map(normalizeNote).filter(Boolean);
+
+                if (normalizedUserId) {
+                    const match = notes.find(note => {
+                        const noteUserId = note?.userId ?? note?.UserId ?? '';
+                        return noteUserId && String(noteUserId) === normalizedUserId;
+                    });
+                    if (match) {
+                        return match;
+                    }
+                }
+
+                return notes.length === 1 ? notes[0] : null;
             }
 
             function parsePrice(value) {
@@ -2171,18 +2351,39 @@ window.WineInventoryTables.initialize = function () {
                     return null;
                 }
 
+                const rawBottleId = pick(raw, ['bottleId', 'BottleId']);
+                const rawUserId = pick(raw, ['userId', 'UserId']);
+                const rawNoteId = pick(raw, ['currentUserNoteId', 'CurrentUserNoteId']);
+                const rawNoteText = pick(raw, ['currentUserNote', 'CurrentUserNote']);
+                const rawNoteScore = pick(raw, ['currentUserScore', 'CurrentUserScore']);
+                const normalizedNoteScore = (() => {
+                    if (rawNoteScore == null || rawNoteScore === '') {
+                        return null;
+                    }
+
+                    const parsed = Number(rawNoteScore);
+                    return Number.isFinite(parsed) ? parsed : null;
+                })();
+
                 return {
-                    bottleId: pick(raw, ['bottleId', 'BottleId']),
+                    bottleId: rawBottleId ? String(rawBottleId) : '',
                     price: pick(raw, ['price', 'Price']),
                     isDrunk: Boolean(pick(raw, ['isDrunk', 'IsDrunk'])),
                     drunkAt: pick(raw, ['drunkAt', 'DrunkAt']),
                     bottleLocationId: pick(raw, ['bottleLocationId', 'BottleLocationId']),
                     bottleLocation: pick(raw, ['bottleLocation', 'BottleLocation']),
-                    userId: pick(raw, ['userId', 'UserId']),
+                    userId: rawUserId ? String(rawUserId) : '',
                     userName: pick(raw, ['userName', 'UserName']) ?? '',
                     vintage: pick(raw, ['vintage', 'Vintage']),
                     wineName: pick(raw, ['wineName', 'WineName']),
-                    averageScore: pick(raw, ['averageScore', 'AverageScore'])
+                    averageScore: pick(raw, ['averageScore', 'AverageScore']),
+                    currentUserNoteId: rawNoteId ? String(rawNoteId) : null,
+                    currentUserNote: typeof rawNoteText === 'string'
+                        ? rawNoteText
+                        : rawNoteText != null
+                            ? String(rawNoteText)
+                            : '',
+                    currentUserScore: normalizedNoteScore
                 };
             }
 

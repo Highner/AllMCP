@@ -789,16 +789,37 @@ public class WineInventoryController : Controller
             return Unauthorized("You must be signed in to add tasting notes.");
         }
 
-        var entity = new TastingNote
-        {
-            Id = Guid.NewGuid(),
-            BottleId = bottle.Id,
-            Note = trimmedNote!,
-            Score = request.Score,
-            UserId = currentUser.Id
-        };
+        var existingNote = bottle.TastingNotes
+            .Where(note => note.UserId == currentUserId)
+            .OrderBy(note => note.Id)
+            .LastOrDefault();
 
-        await _tastingNoteRepository.AddAsync(entity, cancellationToken);
+        if (existingNote is not null)
+        {
+            var updatedNote = new TastingNote
+            {
+                Id = existingNote.Id,
+                BottleId = existingNote.BottleId,
+                Note = trimmedNote!,
+                Score = request.Score,
+                UserId = existingNote.UserId
+            };
+
+            await _tastingNoteRepository.UpdateAsync(updatedNote, cancellationToken);
+        }
+        else
+        {
+            var entity = new TastingNote
+            {
+                Id = Guid.NewGuid(),
+                BottleId = bottle.Id,
+                Note = trimmedNote!,
+                Score = request.Score,
+                UserId = currentUser.Id
+            };
+
+            await _tastingNoteRepository.AddAsync(entity, cancellationToken);
+        }
 
         var response = await BuildBottleNotesResponseAsync(bottle.Id, currentUserId, cancellationToken);
         if (response is null)
@@ -940,19 +961,30 @@ public class WineInventoryController : Controller
         var details = ownedBottles
             .OrderBy(b => b.IsDrunk)
             .ThenBy(b => b.DrunkAt ?? DateTime.MaxValue)
-            .Select(b => new WineInventoryBottleDetailViewModel
+            .Select(b =>
             {
-                BottleId = b.Id,
-                Price = b.Price,
-                IsDrunk = b.IsDrunk,
-                DrunkAt = b.DrunkAt,
-                BottleLocationId = b.BottleLocationId,
-                BottleLocation = b.BottleLocation?.Name ?? "—",
-                UserId = b.UserId,
-                UserName = b.User?.Name ?? string.Empty,
-                Vintage = b.WineVintage.Vintage,
-                WineName = b.WineVintage.Wine.Name,
-                AverageScore = CalculateAverageScore(b)
+                var userNote = b.TastingNotes
+                    .Where(note => note.UserId == userId)
+                    .OrderBy(note => note.Id)
+                    .LastOrDefault();
+
+                return new WineInventoryBottleDetailViewModel
+                {
+                    BottleId = b.Id,
+                    Price = b.Price,
+                    IsDrunk = b.IsDrunk,
+                    DrunkAt = b.DrunkAt,
+                    BottleLocationId = b.BottleLocationId,
+                    BottleLocation = b.BottleLocation?.Name ?? "—",
+                    UserId = b.UserId,
+                    UserName = b.User?.Name ?? string.Empty,
+                    Vintage = b.WineVintage.Vintage,
+                    WineName = b.WineVintage.Wine.Name,
+                    AverageScore = CalculateAverageScore(b),
+                    CurrentUserNoteId = userNote?.Id,
+                    CurrentUserNote = userNote?.Note,
+                    CurrentUserScore = userNote?.Score
+                };
             })
             .ToList();
 
@@ -1183,6 +1215,9 @@ public class WineInventoryBottleDetailViewModel
     public int Vintage { get; set; }
     public string WineName { get; set; } = string.Empty;
     public decimal? AverageScore { get; set; }
+    public Guid? CurrentUserNoteId { get; set; }
+    public string? CurrentUserNote { get; set; }
+    public decimal? CurrentUserScore { get; set; }
 }
 
 public class BottleGroupDetailsResponse
