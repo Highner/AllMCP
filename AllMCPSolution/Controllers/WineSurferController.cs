@@ -396,6 +396,36 @@ public class WineSurferController : Controller
                 membership.UserId == currentUserId.Value && membership.IsAdmin);
         }
 
+        IReadOnlyDictionary<Guid, decimal>? sisterhoodAverageScores = null;
+        var sessionBottles = session.Bottles ?? Array.Empty<Bottle>();
+        var sisterhoodMemberIds = session.Sisterhood?.Memberships
+            ?.Select(membership => membership.UserId)
+            .Where(userId => userId != Guid.Empty)
+            .Distinct()
+            .ToList() ?? new List<Guid>();
+
+        if (sessionBottles.Count > 0 && sisterhoodMemberIds.Count > 0)
+        {
+            var wineVintageIds = sessionBottles
+                .Select(bottle => bottle.WineVintageId)
+                .Where(id => id != Guid.Empty)
+                .Distinct()
+                .ToList();
+
+            if (wineVintageIds.Count > 0)
+            {
+                var averages = await _tastingNoteRepository.GetAverageScoresForWineVintagesByUsersAsync(
+                    wineVintageIds,
+                    sisterhoodMemberIds,
+                    cancellationToken);
+
+                if (averages.Count > 0)
+                {
+                    sisterhoodAverageScores = averages;
+                }
+            }
+        }
+
         var summary = new WineSurferSipSessionSummary(
             session.Id,
             session.Name,
@@ -405,7 +435,7 @@ public class WineSurferController : Controller
             session.Location ?? string.Empty,
             session.CreatedAt,
             session.UpdatedAt,
-            CreateBottleSummaries(session.Bottles, currentUserId));
+            CreateBottleSummaries(session.Bottles, currentUserId, sisterhoodAverageScores));
 
         var model = new WineSurferSipSessionDetailViewModel(
             summary,
@@ -1901,7 +1931,13 @@ public class WineSurferController : Controller
             return RedirectToAction(nameof(Sisterhoods));
         }
 
-        IActionResult Success(string message, Guid noteId, string note, decimal? scoreValue, decimal? averageScore)
+        IActionResult Success(
+            string message,
+            Guid noteId,
+            string note,
+            decimal? scoreValue,
+            decimal? averageScore,
+            decimal? sisterhoodAverageScore)
         {
             if (expectsJson)
             {
@@ -1912,7 +1948,8 @@ public class WineSurferController : Controller
                     noteId,
                     note,
                     score = scoreValue,
-                    averageScore
+                    averageScore,
+                    sisterhoodAverageScore
                 });
             }
 
@@ -2011,7 +2048,34 @@ public class WineSurferController : Controller
                 averageScore = Math.Round(scoreValues.Average(), 1, MidpointRounding.AwayFromZero);
             }
 
-            return Success(message, noteId, existing.Note ?? string.Empty, existing.Score, averageScore);
+            decimal? sisterhoodAverageScore = null;
+            var sisterhoodMemberships = session.Sisterhood?.Memberships ?? Array.Empty<SisterhoodMembership>();
+            var memberUserIds = sisterhoodMemberships
+                .Select(membership => membership.UserId)
+                .Where(userId => userId != Guid.Empty)
+                .Distinct()
+                .ToList();
+
+            if (memberUserIds.Count > 0)
+            {
+                var averages = await _tastingNoteRepository.GetAverageScoresForWineVintagesByUsersAsync(
+                    new[] { bottle.WineVintageId },
+                    memberUserIds,
+                    cancellationToken);
+
+                if (averages.TryGetValue(bottle.WineVintageId, out var sisterhoodAverage))
+                {
+                    sisterhoodAverageScore = sisterhoodAverage;
+                }
+            }
+
+            return Success(
+                message,
+                noteId,
+                existing.Note ?? string.Empty,
+                existing.Score,
+                averageScore,
+                sisterhoodAverageScore);
         }
         catch (Exception)
         {
@@ -2673,7 +2737,8 @@ public class WineSurferController : Controller
 
     private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(
         IEnumerable<Bottle>? bottles,
-        Guid? currentUserId = null)
+        Guid? currentUserId = null,
+        IReadOnlyDictionary<Guid, decimal>? sisterhoodAverageScores = null)
     {
         if (bottles is null)
         {
@@ -2711,6 +2776,14 @@ public class WineSurferController : Controller
                     averageScore = scoreValues.Average();
                 }
 
+                decimal? sisterhoodAverageScore = null;
+                var wineVintageId = bottle.WineVintageId;
+                if (wineVintageId != Guid.Empty && sisterhoodAverageScores is not null &&
+                    sisterhoodAverageScores.TryGetValue(wineVintageId, out var average))
+                {
+                    sisterhoodAverageScore = average;
+                }
+
                 return new WineSurferSipSessionBottle(
                     bottle!.Id,
                     wineName,
@@ -2722,7 +2795,8 @@ public class WineSurferController : Controller
                     currentUserNote?.Id,
                     currentUserNote?.Note,
                     currentUserNote?.Score,
-                    averageScore);
+                    averageScore,
+                    sisterhoodAverageScore);
             })
             .OrderBy(summary => summary.Label, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -3067,7 +3141,8 @@ public record WineSurferSipSessionBottle(
     Guid? CurrentUserNoteId,
     string? CurrentUserNote,
     decimal? CurrentUserScore,
-    decimal? AverageScore);
+    decimal? AverageScore,
+    decimal? SisterhoodAverageScore);
 
 public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter);
 

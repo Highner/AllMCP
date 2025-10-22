@@ -38,6 +38,7 @@
          data-bottle-score="@bottleScoreAttribute"
          data-bottle-note-id="@noteIdAttribute"
          data-bottle-average="@FormatScore(Model.AverageScore)"
+         data-bottle-sisterhood-average="@FormatScore(Model.SisterhoodAverageScore)"
          aria-label="@ariaLabel"
          @(isInteractive ? "role=\"button\"" : null)
          @(isInteractive ? "tabindex=\"0\"" : null)>
@@ -52,6 +53,10 @@
         <div class="bottle-meta-item wine-card__stat">
             <dt>Average score</dt>
             <dd data-bottle-average-display>@FormatScore(Model.AverageScore)</dd>
+        </div>
+        <div class="bottle-meta-item wine-card__stat">
+            <dt>Sisterhood avg</dt>
+            <dd data-bottle-sisterhood-average-display>@FormatScore(Model.SisterhoodAverageScore)</dd>
         </div>
         <div class="bottle-meta-item wine-card__stat">
             <dt>Your score</dt>
