@@ -1,0 +1,667 @@
+@model AllMCPSolution.Controllers.WineSurferTerroirManagementViewModel
+@using AllMCPSolution.Controllers
+@using AllMCPSolution.Models
+@{
+    Layout = null;
+    var bodyClass = Model.CurrentUser is null ? "requires-auth" : "is-authenticated";
+    var requestPath = Context.Request.Path.HasValue ? Context.Request.Path.Value : string.Empty;
+    var requestQuery = Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value : string.Empty;
+    var currentLocation = string.Concat(requestPath, requestQuery);
+    var topBarModel = WineSurferTopBarModel.CreateFromSisterhoodData(
+        currentLocation,
+        Model.IncomingInvitations,
+        Model.SentInvitationNotifications,
+        displayName: Model.CurrentUser?.DisplayName);
+    var colors = Enum.GetValues(typeof(WineColor)).Cast<WineColor>().ToList();
+    ViewData["WineSurferPageTitle"] = "Terroir manager";
+    var hasStatus = !string.IsNullOrWhiteSpace(Model.StatusMessage);
+    var hasError = !string.IsNullOrWhiteSpace(Model.ErrorMessage);
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wine Surfer • Terroir manager</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+    <style>
+        .terroir-manager {
+            background: var(--wine-app-background);
+        }
+
+        .terroir-content {
+            width: min(1180px, 100%);
+            margin: 0 auto;
+            padding: 48px 24px 96px;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+
+        .status-banner {
+            padding: 18px 24px;
+            border-radius: 16px;
+            border: 1px solid hsla(var(--border) / 0.5);
+            background: hsla(var(--accent) / 0.3);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status-banner--success {
+            background: hsla(var(--primary) / 0.2);
+            border-color: hsla(var(--primary) / 0.6);
+            color: hsl(var(--primary-foreground));
+        }
+
+        .status-banner--error {
+            background: hsla(var(--destructive) / 0.15);
+            border-color: hsla(var(--destructive) / 0.6);
+            color: hsl(var(--destructive-foreground));
+        }
+
+        .terroir-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 32px;
+            border-radius: calc(var(--radius) * 1.1);
+            border: 1px solid hsla(var(--border) / 0.55);
+            background: hsla(var(--card) / 0.75);
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+        }
+
+        .terroir-section__header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .terroir-section__title {
+            margin: 0;
+            font-size: clamp(26px, 4vw, 36px);
+            text-transform: uppercase;
+            letter-spacing: 8px;
+        }
+
+        .terroir-section__summary {
+            margin: 0;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: hsla(var(--muted-foreground) / 0.85);
+        }
+
+        .create-form {
+            display: grid;
+            gap: 16px;
+            padding: 18px;
+            border-radius: 16px;
+            border: 1px dashed hsla(var(--border) / 0.55);
+            background: hsla(var(--accent) / 0.18);
+        }
+
+        .create-form__fields {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .create-form label {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: hsla(var(--muted-foreground) / 0.9);
+        }
+
+        .create-form input,
+        .create-form select {
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid hsla(var(--border) / 0.6);
+            background: hsla(var(--background) / 0.65);
+            color: inherit;
+        }
+
+        .create-form input:focus,
+        .create-form select:focus {
+            outline: 2px solid hsla(var(--ring) / 0.9);
+            outline-offset: 2px;
+            border-color: hsla(var(--ring) / 0.9);
+        }
+
+        .terroir-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 18px;
+            border-radius: 12px;
+            border: 1px solid hsla(var(--border) / 0.5);
+            background: hsla(var(--accent) / 0.25);
+            color: inherit;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .terroir-button:hover,
+        .terroir-button:focus-visible {
+            transform: translateY(-1px);
+            border-color: hsla(var(--accent) / 0.7);
+            background: hsla(var(--accent) / 0.35);
+        }
+
+        .terroir-button--primary {
+            background: linear-gradient(135deg, rgba(166, 25, 46, 0.95), rgba(219, 56, 56, 0.9));
+            border-color: hsla(var(--primary) / 0.7);
+            color: hsl(var(--primary-foreground));
+        }
+
+        .terroir-button--primary:hover,
+        .terroir-button--primary:focus-visible {
+            background: linear-gradient(135deg, rgba(219, 56, 56, 1), rgba(166, 25, 46, 1));
+        }
+
+        .terroir-button--danger {
+            background: hsla(var(--destructive) / 0.18);
+            border-color: hsla(var(--destructive) / 0.6);
+            color: hsl(var(--destructive-foreground));
+        }
+
+        .terroir-table {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .terroir-table__header,
+        .terroir-table__row {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1.8fr) minmax(0, 1.2fr);
+            gap: 12px;
+            align-items: center;
+        }
+
+        .terroir-table--wines .terroir-table__header,
+        .terroir-table--wines .terroir-table__row {
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.2fr);
+        }
+
+        .terroir-table__header {
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: hsla(var(--muted-foreground) / 0.75);
+            padding: 0 4px;
+        }
+
+        .terroir-table__row {
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid hsla(var(--border) / 0.55);
+            background: hsla(var(--accent) / 0.22);
+        }
+
+        .terroir-row-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terroir-row-field input,
+        .terroir-row-field select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid hsla(var(--border) / 0.5);
+            background: hsla(var(--background) / 0.55);
+            color: inherit;
+        }
+
+        .terroir-row-field input:focus,
+        .terroir-row-field select:focus {
+            outline: 2px solid hsla(var(--ring) / 0.9);
+            outline-offset: 2px;
+            border-color: hsla(var(--ring) / 0.9);
+        }
+
+        .terroir-row-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .terroir-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: hsla(var(--accent) / 0.3);
+            border: 1px solid hsla(var(--border) / 0.4);
+            font-size: 11px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+        }
+
+        .terroir-badge strong {
+            font-weight: 600;
+            color: hsl(var(--foreground));
+        }
+
+        .terroir-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .terroir-empty {
+            margin: 0;
+            padding: 20px;
+            border-radius: 14px;
+            border: 1px dashed hsla(var(--border) / 0.4);
+            text-align: center;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-size: 11px;
+            color: hsla(var(--muted-foreground) / 0.85);
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        @media (max-width: 900px) {
+            .terroir-table__header,
+            .terroir-table__row {
+                grid-template-columns: 1fr;
+            }
+
+            .terroir-actions {
+                justify-content: flex-start;
+            }
+        }
+    </style>
+</head>
+<body class="wine-app terroir-manager @bodyClass">
+    <div class="page-content">
+        @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
+        <main class="terroir-content">
+            <header class="wine-surfer-page-header" aria-label="Terroir management intro">
+                <h1 class="wine-surfer-page-header__title">Terroir manager</h1>
+                <p class="tagline">Curate the regions, appellations, sub-appellations, and wines that power Wine Surfer.</p>
+            </header>
+
+            @if (hasStatus)
+            {
+                <div class="status-banner status-banner--success" role="status">@Model.StatusMessage</div>
+            }
+            @if (hasError)
+            {
+                <div class="status-banner status-banner--error" role="alert">@Model.ErrorMessage</div>
+            }
+
+            <section class="terroir-section" aria-labelledby="regions-title">
+                <div class="terroir-section__header">
+                    <h2 id="regions-title" class="terroir-section__title">Regions</h2>
+                    <p class="terroir-section__summary">@Model.Regions.Count region@(Model.Regions.Count == 1 ? string.Empty : "s")</p>
+                </div>
+                <form class="create-form" method="post" action="@Url.Action("CreateRegion", "WineSurfer")">
+                    @Html.AntiForgeryToken()
+                    <div class="create-form__fields">
+                        <label for="create-region-name">
+                            Region name
+                            <input id="create-region-name" name="Name" type="text" placeholder="e.g. Napa Valley" maxlength="256" required />
+                        </label>
+                        <label for="create-region-country">
+                            Country
+                            <select id="create-region-country" name="CountryId" required>
+                                <option value="">Select country</option>
+                                @foreach (var country in Model.Countries)
+                                {
+                                    <option value="@country.Id">@country.Name</option>
+                                }
+                            </select>
+                        </label>
+                    </div>
+                    <button type="submit" class="terroir-button terroir-button--primary">Create region</button>
+                </form>
+                <div class="terroir-table terroir-table--regions" role="table" aria-label="Existing regions">
+                    <div class="terroir-table__header" role="row">
+                        <span role="columnheader">Region</span>
+                        <span role="columnheader">Country</span>
+                        <span role="columnheader">Stats</span>
+                        <span role="columnheader">Actions</span>
+                    </div>
+                    @foreach (var region in Model.Regions)
+                    {
+                        var updateRegionUrl = Url.Action("UpdateRegion", "WineSurfer", new { id = region.Id });
+                        var deleteRegionUrl = Url.Action("DeleteRegion", "WineSurfer", new { id = region.Id });
+                        var regionNameId = $"region-name-{region.Id:N}";
+                        var regionCountryId = $"region-country-{region.Id:N}";
+                        <form method="post" action="@updateRegionUrl" class="terroir-table__row" role="row">
+                            @Html.AntiForgeryToken()
+                            <div class="terroir-row-field" role="cell">
+                                <label class="sr-only" for="@regionNameId">Region name</label>
+                                <input id="@regionNameId" name="Name" type="text" value="@region.Name" maxlength="256" required />
+                            </div>
+                            <div class="terroir-row-field" role="cell">
+                                <label class="sr-only" for="@regionCountryId">Country</label>
+                                <select id="@regionCountryId" name="CountryId" required>
+                                    @foreach (var country in Model.Countries)
+                                    {
+                                        <option value="@country.Id" @(country.Id == region.CountryId ? "selected" : null)>@country.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="terroir-row-stats" role="cell">
+                                <span class="terroir-badge" title="Appellations"><strong>@region.AppellationCount</strong> Appellations</span>
+                                <span class="terroir-badge" title="Sub-appellations"><strong>@region.SubAppellationCount</strong> Sub-appellations</span>
+                                <span class="terroir-badge" title="Wines"><strong>@region.WineCount</strong> Wines</span>
+                            </div>
+                            <div class="terroir-actions" role="cell">
+                                <button type="submit" class="terroir-button">Save</button>
+                                <button type="submit"
+                                        class="terroir-button terroir-button--danger"
+                                        formaction="@deleteRegionUrl"
+                                        formmethod="post"
+                                        onclick="return confirm('Delete region @region.Name?');">
+                                    Delete
+                                </button>
+                            </div>
+                        </form>
+                    }
+                    @if (!Model.Regions.Any())
+                    {
+                        <div class="terroir-empty" role="row">No regions recorded yet.</div>
+                    }
+                </div>
+            </section>
+
+            <section class="terroir-section" aria-labelledby="appellations-title">
+                <div class="terroir-section__header">
+                    <h2 id="appellations-title" class="terroir-section__title">Appellations</h2>
+                    <p class="terroir-section__summary">@Model.Appellations.Count appellation@(Model.Appellations.Count == 1 ? string.Empty : "s")</p>
+                </div>
+                <form class="create-form" method="post" action="@Url.Action("CreateAppellation", "WineSurfer")">
+                    @Html.AntiForgeryToken()
+                    <div class="create-form__fields">
+                        <label for="create-appellation-name">
+                            Appellation name
+                            <input id="create-appellation-name" name="Name" type="text" placeholder="e.g. Barossa" maxlength="256" required />
+                        </label>
+                        <label for="create-appellation-region">
+                            Region
+                            <select id="create-appellation-region" name="RegionId" required>
+                                <option value="">Select region</option>
+                                @foreach (var region in Model.Regions)
+                                {
+                                    <option value="@region.Id">@region.Name (@(region.CountryName ?? ""))</option>
+                                }
+                            </select>
+                        </label>
+                    </div>
+                    <button type="submit" class="terroir-button terroir-button--primary">Create appellation</button>
+                </form>
+                <div class="terroir-table terroir-table--appellations" role="table" aria-label="Existing appellations">
+                    <div class="terroir-table__header" role="row">
+                        <span role="columnheader">Appellation</span>
+                        <span role="columnheader">Region</span>
+                        <span role="columnheader">Stats</span>
+                        <span role="columnheader">Actions</span>
+                    </div>
+                    @foreach (var appellation in Model.Appellations)
+                    {
+                        var updateAppellationUrl = Url.Action("UpdateAppellation", "WineSurfer", new { id = appellation.Id });
+                        var deleteAppellationUrl = Url.Action("DeleteAppellation", "WineSurfer", new { id = appellation.Id });
+                        var appellationNameId = $"appellation-name-{appellation.Id:N}";
+                        var appellationRegionId = $"appellation-region-{appellation.Id:N}";
+                        <form method="post" action="@updateAppellationUrl" class="terroir-table__row" role="row">
+                            @Html.AntiForgeryToken()
+                            <div class="terroir-row-field" role="cell">
+                                <label class="sr-only" for="@appellationNameId">Appellation name</label>
+                                <input id="@appellationNameId" name="Name" type="text" value="@appellation.Name" maxlength="256" required />
+                            </div>
+                            <div class="terroir-row-field" role="cell">
+                                <label class="sr-only" for="@appellationRegionId">Region</label>
+                                <select id="@appellationRegionId" name="RegionId" required>
+                                    @foreach (var region in Model.Regions)
+                                    {
+                                        <option value="@region.Id" @(region.Id == appellation.RegionId ? "selected" : null)>
+                                            @region.Name (@(region.CountryName ?? string.Empty))
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="terroir-row-stats" role="cell">
+                                <span class="terroir-badge" title="Sub-appellations"><strong>@appellation.SubAppellationCount</strong> Sub-appellations</span>
+                                <span class="terroir-badge" title="Wines"><strong>@appellation.WineCount</strong> Wines</span>
+                            </div>
+                            <div class="terroir-actions" role="cell">
+                                <button type="submit" class="terroir-button">Save</button>
+                                <button type="submit"
+                                        class="terroir-button terroir-button--danger"
+                                        formaction="@deleteAppellationUrl"
+                                        formmethod="post"
+                                        onclick="return confirm('Delete appellation @appellation.Name?');">
+                                    Delete
+                                </button>
+                            </div>
+                        </form>
+                    }
+                    @if (!Model.Appellations.Any())
+                    {
+                        <div class="terroir-empty" role="row">No appellations recorded yet.</div>
+                    }
+                </div>
+            </section>
+
+            <section class="terroir-section" aria-labelledby="subappellations-title">
+                <div class="terroir-section__header">
+                    <h2 id="subappellations-title" class="terroir-section__title">Sub-appellations</h2>
+                    <p class="terroir-section__summary">@Model.SubAppellations.Count sub-appellation@(Model.SubAppellations.Count == 1 ? string.Empty : "s")</p>
+                </div>
+                <form class="create-form" method="post" action="@Url.Action("CreateSubAppellation", "WineSurfer")">
+                    @Html.AntiForgeryToken()
+                    <div class="create-form__fields">
+                        <label for="create-subappellation-name">
+                            Sub-appellation name
+                            <input id="create-subappellation-name" name="Name" type="text" placeholder="Optional" maxlength="256" />
+                        </label>
+                        <label for="create-subappellation-appellation">
+                            Appellation
+                            <select id="create-subappellation-appellation" name="AppellationId" required>
+                                <option value="">Select appellation</option>
+                                @foreach (var appellation in Model.Appellations)
+                                {
+                                    <option value="@appellation.Id">@appellation.Name (@appellation.RegionName)</option>
+                                }
+                            </select>
+                        </label>
+                    </div>
+                    <button type="submit" class="terroir-button terroir-button--primary">Create sub-appellation</button>
+                </form>
+                <div class="terroir-table terroir-table--subappellations" role="table" aria-label="Existing sub-appellations">
+                    <div class="terroir-table__header" role="row">
+                        <span role="columnheader">Sub-appellation</span>
+                        <span role="columnheader">Appellation</span>
+                        <span role="columnheader">Stats</span>
+                        <span role="columnheader">Actions</span>
+                    </div>
+                    @foreach (var subAppellation in Model.SubAppellations)
+                    {
+                        var updateSubUrl = Url.Action("UpdateSubAppellation", "WineSurfer", new { id = subAppellation.Id });
+                        var deleteSubUrl = Url.Action("DeleteSubAppellation", "WineSurfer", new { id = subAppellation.Id });
+                        var subNameId = $"subappellation-name-{subAppellation.Id:N}";
+                        var subAppellationSelectId = $"subappellation-parent-{subAppellation.Id:N}";
+                        var displayName = string.IsNullOrWhiteSpace(subAppellation.Name) ? "" : subAppellation.Name;
+                        <form method="post" action="@updateSubUrl" class="terroir-table__row" role="row">
+                            @Html.AntiForgeryToken()
+                            <div class="terroir-row-field" role="cell">
+                                <label class="sr-only" for="@subNameId">Sub-appellation name</label>
+                                <input id="@subNameId" name="Name" type="text" value="@displayName" maxlength="256" />
+                            </div>
+                            <div class="terroir-row-field" role="cell">
+                                <label class="sr-only" for="@subAppellationSelectId">Appellation</label>
+                                <select id="@subAppellationSelectId" name="AppellationId" required>
+                                    @foreach (var appellation in Model.Appellations)
+                                    {
+                                        <option value="@appellation.Id" @(appellation.Id == subAppellation.AppellationId ? "selected" : null)>
+                                            @appellation.Name (@appellation.RegionName)
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="terroir-row-stats" role="cell">
+                                <span class="terroir-badge" title="Wines"><strong>@subAppellation.WineCount</strong> Wines</span>
+                            </div>
+                            <div class="terroir-actions" role="cell">
+                                <button type="submit" class="terroir-button">Save</button>
+                                <button type="submit"
+                                        class="terroir-button terroir-button--danger"
+                                        formaction="@deleteSubUrl"
+                                        formmethod="post"
+                                        onclick="return confirm('Delete sub-appellation @(string.IsNullOrWhiteSpace(subAppellation.Name) ? "Unknown sub-appellation" : subAppellation.Name)?');">
+                                    Delete
+                                </button>
+                            </div>
+                        </form>
+                    }
+                    @if (!Model.SubAppellations.Any())
+                    {
+                        <div class="terroir-empty" role="row">No sub-appellations recorded yet.</div>
+                    }
+                </div>
+            </section>
+
+            <section class="terroir-section" aria-labelledby="wines-title">
+                <div class="terroir-section__header">
+                    <h2 id="wines-title" class="terroir-section__title">Wines</h2>
+                    <p class="terroir-section__summary">@Model.Wines.Count wine@(Model.Wines.Count == 1 ? string.Empty : "s")</p>
+                </div>
+                <form class="create-form" method="post" action="@Url.Action("CreateWine", "WineSurfer")">
+                    @Html.AntiForgeryToken()
+                    <div class="create-form__fields">
+                        <label for="create-wine-name">
+                            Wine name
+                            <input id="create-wine-name" name="Name" type="text" placeholder="e.g. Penfolds Grange" maxlength="256" required />
+                        </label>
+                        <label for="create-wine-subappellation">
+                            Sub-appellation
+                            <select id="create-wine-subappellation" name="SubAppellationId" required>
+                                <option value="">Select sub-appellation</option>
+                                @foreach (var subAppellation in Model.SubAppellations)
+                                {
+                                    var label = string.IsNullOrWhiteSpace(subAppellation.Name)
+                                        ? $"Unknown ({subAppellation.AppellationName})"
+                                        : $"{subAppellation.Name} ({subAppellation.AppellationName})";
+                                    <option value="@subAppellation.Id">@label</option>
+                                }
+                            </select>
+                        </label>
+                        <label for="create-wine-color">
+                            Color
+                            <select id="create-wine-color" name="Color" required>
+                                @foreach (var color in colors)
+                                {
+                                    <option value="@color">@color</option>
+                                }
+                            </select>
+                        </label>
+                        <label for="create-wine-grape">
+                            Grape variety
+                            <input id="create-wine-grape" name="GrapeVariety" type="text" placeholder="Optional" maxlength="256" />
+                        </label>
+                    </div>
+                    <button type="submit" class="terroir-button terroir-button--primary">Create wine</button>
+                </form>
+                <div class="terroir-table terroir-table--wines" role="table" aria-label="Existing wines">
+                    <div class="terroir-table__header" role="row">
+                        <span role="columnheader">Wine</span>
+                        <span role="columnheader">Sub-appellation</span>
+                        <span role="columnheader">Color</span>
+                        <span role="columnheader">Grape variety</span>
+                        <span role="columnheader">Actions</span>
+                    </div>
+                    @foreach (var wine in Model.Wines)
+                    {
+                        var updateWineUrl = Url.Action("UpdateWine", "WineSurfer", new { id = wine.Id });
+                        var deleteWineUrl = Url.Action("DeleteWine", "WineSurfer", new { id = wine.Id });
+                        var wineNameId = $"wine-name-{wine.Id:N}";
+                        var wineSubId = $"wine-sub-{wine.Id:N}";
+                        var wineColorId = $"wine-color-{wine.Id:N}";
+                        var wineGrapeId = $"wine-grape-{wine.Id:N}";
+                        <form method="post" action="@updateWineUrl" class="terroir-table__row" role="row">
+                            @Html.AntiForgeryToken()
+                            <div class="terroir-row-field" role="cell">
+                                <label class="sr-only" for="@wineNameId">Wine name</label>
+                                <input id="@wineNameId" name="Name" type="text" value="@wine.Name" maxlength="256" required />
+                            </div>
+                            <div class="terroir-row-field" role="cell">
+                                <label class="sr-only" for="@wineSubId">Sub-appellation</label>
+                                <select id="@wineSubId" name="SubAppellationId" required>
+                                    @foreach (var subAppellation in Model.SubAppellations)
+                                    {
+                                        var label = string.IsNullOrWhiteSpace(subAppellation.Name)
+                                            ? $"Unknown ({subAppellation.AppellationName})"
+                                            : $"{subAppellation.Name} ({subAppellation.AppellationName})";
+                                        <option value="@subAppellation.Id" @(subAppellation.Id == wine.SubAppellationId ? "selected" : null)>@label</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="terroir-row-field" role="cell">
+                                <label class="sr-only" for="@wineColorId">Color</label>
+                                <select id="@wineColorId" name="Color" required>
+                                    @foreach (var color in colors)
+                                    {
+                                        <option value="@color" @(color == wine.Color ? "selected" : null)>@color</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="terroir-row-field" role="cell">
+                                <label class="sr-only" for="@wineGrapeId">Grape variety</label>
+                                <input id="@wineGrapeId" name="GrapeVariety" type="text" value="@wine.GrapeVariety" maxlength="256" />
+                            </div>
+                            <div class="terroir-actions" role="cell">
+                                <button type="submit" class="terroir-button">Save</button>
+                                <button type="submit"
+                                        class="terroir-button terroir-button--danger"
+                                        formaction="@deleteWineUrl"
+                                        formmethod="post"
+                                        onclick="return confirm('Delete wine @wine.Name?');">
+                                    Delete
+                                </button>
+                            </div>
+                        </form>
+                    }
+                    @if (!Model.Wines.Any())
+                    {
+                        <div class="terroir-empty" role="row">No wines recorded yet.</div>
+                    }
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

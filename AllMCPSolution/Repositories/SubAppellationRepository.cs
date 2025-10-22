@@ -16,6 +16,10 @@ public interface ISubAppellationRepository
     Task<IReadOnlyList<SubAppellation>> SearchByApproximateNameAsync(string name, Guid appellationId, int maxResults = 5, CancellationToken ct = default);
     Task<SubAppellation> GetOrCreateAsync(string name, Guid appellationId, CancellationToken ct = default);
     Task<SubAppellation> GetOrCreateBlankAsync(Guid appellationId, CancellationToken ct = default);
+    Task<bool> AnyForAppellationAsync(Guid appellationId, CancellationToken ct = default);
+    Task AddAsync(SubAppellation subAppellation, CancellationToken ct = default);
+    Task UpdateAsync(SubAppellation subAppellation, CancellationToken ct = default);
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
 }
 
 public sealed class SubAppellationRepository : ISubAppellationRepository
@@ -47,6 +51,7 @@ public sealed class SubAppellationRepository : ISubAppellationRepository
             .Include(sa => sa.Appellation)
                 .ThenInclude(a => a.Region)
                     .ThenInclude(r => r.Country)
+            .Include(sa => sa.Wines)
             .FirstOrDefaultAsync(sa => sa.Id == id, ct);
     }
 
@@ -148,6 +153,35 @@ public sealed class SubAppellationRepository : ISubAppellationRepository
         await _db.SaveChangesAsync(ct);
 
         return entity;
+    }
+
+    public async Task<bool> AnyForAppellationAsync(Guid appellationId, CancellationToken ct = default)
+    {
+        return await _db.SubAppellations.AnyAsync(sa => sa.AppellationId == appellationId, ct);
+    }
+
+    public async Task AddAsync(SubAppellation subAppellation, CancellationToken ct = default)
+    {
+        _db.SubAppellations.Add(subAppellation);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateAsync(SubAppellation subAppellation, CancellationToken ct = default)
+    {
+        _db.SubAppellations.Update(subAppellation);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        var entity = await _db.SubAppellations.FirstOrDefaultAsync(sa => sa.Id == id, ct);
+        if (entity is null)
+        {
+            return;
+        }
+
+        _db.SubAppellations.Remove(entity);
+        await _db.SaveChangesAsync(ct);
     }
 
     private async Task<SubAppellation?> FindBlankAsync(Guid appellationId, CancellationToken ct)
