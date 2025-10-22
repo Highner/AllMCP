@@ -1035,6 +1035,27 @@ textarea:focus {
     }
 }
 
+[data-crud-table="details"] .crud-table__header {
+    align-items: stretch;
+}
+
+@media (min-width: 768px) {
+    [data-crud-table="details"] .crud-table__header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+
+    [data-crud-table="details"] .crud-table__header-content {
+        flex: none;
+    }
+
+    [data-crud-table="details"] #detail-add-row {
+        width: 100%;
+        align-self: stretch;
+    }
+}
+
 .crud-table__table {
     width: 100%;
     border-collapse: collapse;
