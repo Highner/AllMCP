@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using AllMCPSolution.Data;
 using AllMCPSolution.Models;
@@ -63,8 +64,31 @@ public class TastingNoteRepository : ITastingNoteRepository
 
     public async Task UpdateAsync(TastingNote tastingNote, CancellationToken ct = default)
     {
-        _db.TastingNotes.Update(tastingNote);
-        await _db.SaveChangesAsync(ct);
+        if (tastingNote is null)
+        {
+            throw new ArgumentNullException(nameof(tastingNote));
+        }
+
+        if (tastingNote.Id == Guid.Empty)
+        {
+            throw new ArgumentException("Tasting note ID must be provided.", nameof(tastingNote));
+        }
+
+        var trimmedNote = tastingNote.Note?.Trim() ?? string.Empty;
+        var scoreValue = tastingNote.Score;
+
+        var affected = await _db.TastingNotes
+            .Where(tn => tn.Id == tastingNote.Id)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(tn => tn.Note, trimmedNote)
+                    .SetProperty(tn => tn.Score, scoreValue),
+                ct);
+
+        if (affected == 0)
+        {
+            throw new InvalidOperationException($"Tasting note '{tastingNote.Id}' was not found.");
+        }
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
