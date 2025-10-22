@@ -61,6 +61,71 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
+        .sisterhood-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(244, 241, 234, 0.24);
+            background: rgba(244, 241, 234, 0.08);
+            color: #f4f1ea;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            text-decoration: none;
+            min-width: 0;
+        }
+
+        .sisterhood-button:hover,
+        .sisterhood-button:focus-visible {
+            transform: translateY(-2px);
+            border-color: rgba(244, 241, 234, 0.45);
+            background: rgba(244, 241, 234, 0.12);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        }
+
+        .sisterhood-button:focus-visible {
+            outline: 2px solid rgba(244, 241, 234, 0.5);
+            outline-offset: 2px;
+        }
+
+        .sisterhood-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .sisterhood-button--primary {
+            background: linear-gradient(135deg, rgba(166, 25, 46, 0.95), rgba(219, 56, 56, 0.9));
+            border-color: rgba(244, 241, 234, 0.35);
+            color: #f4f1ea;
+        }
+
+        .sisterhood-button--primary:hover,
+        .sisterhood-button--primary:focus-visible {
+            background: linear-gradient(135deg, rgba(219, 56, 56, 1), rgba(166, 25, 46, 1));
+            border-color: rgba(244, 241, 234, 0.6);
+        }
+
+        .upcoming-sessions-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .upcoming-sessions-header .section-title {
+            margin: 0;
+        }
+
         .wine-surfer-card {
             width: min(100%, var(--wine-surfer-card-max-width));
             max-width: var(--wine-surfer-card-max-width);
@@ -711,7 +776,7 @@
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
 </head>
 
-@{ 
+@{
     var bodyClass = Model.CurrentUser is null ? "requires-auth" : "is-authenticated";
     var currentUserOptions = new JsonSerializerOptions
     {
@@ -730,6 +795,9 @@
         Model.SentInvitationNotifications,
         displayName: Model.CurrentUser?.DisplayName);
     ViewData["WineSurferPageTitle"] = "Wine Surfer";
+    var manageableSisterhoods = Model.ManageableSisterhoods ?? Array.Empty<WineSurferSisterhoodOption>();
+    var canCreateSipSession = manageableSisterhoods.Count > 0;
+    var createSipSessionUrl = Url.Action("PlanSipSession", "WineSurfer") ?? "/wine-surfer/sessions/create";
 }
 <body class="wine-app @bodyClass">
     <div class="page-content">
@@ -740,7 +808,13 @@
                 <p class="auth-callout" role="status">Sign in from the menu to view your tasting history and personalize region scores.</p>
             }
             <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
-                <h2 class="section-title">Upcoming sip sessions</h2>
+                <div class="upcoming-sessions-header">
+                    <h2 class="section-title">Upcoming sip sessions</h2>
+                    @if (canCreateSipSession)
+                    {
+                        <a class="sisterhood-button sisterhood-button--primary" href="@createSipSessionUrl">Create sip session</a>
+                    }
+                </div>
                 @if (Model.UpcomingSipSessions.Count > 0)
                 {
                     foreach (var session in Model.UpcomingSipSessions)

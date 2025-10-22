@@ -264,7 +264,22 @@ public class WineSurferController : Controller
             sentInvitationNotifications = CreateSentInvitationNotifications(acceptedInvitations);
         }
 
-        var model = new WineSurferLandingViewModel(highlightPoints, currentUser, incomingInvitations, upcomingSipSessions, sentInvitationNotifications);
+        IReadOnlyList<WineSurferSisterhoodOption> manageableSisterhoods = Array.Empty<WineSurferSisterhoodOption>();
+        if (currentUserId.HasValue)
+        {
+            var adminSisterhoods = await _sisterhoodRepository.GetAdminForUserAsync(currentUserId.Value, cancellationToken);
+            manageableSisterhoods = adminSisterhoods
+                .Select(s => new WineSurferSisterhoodOption(s.Id, s.Name, s.Description))
+                .ToList();
+        }
+
+        var model = new WineSurferLandingViewModel(
+            highlightPoints,
+            currentUser,
+            incomingInvitations,
+            upcomingSipSessions,
+            sentInvitationNotifications,
+            manageableSisterhoods);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
     }
@@ -394,7 +409,142 @@ public class WineSurferController : Controller
             canManageSession,
             currentUser,
             incomingInvitations,
-            sentInvitationNotifications);
+            sentInvitationNotifications,
+            false,
+            Array.Empty<WineSurferSisterhoodOption>());
+
+        Response.ContentType = "text/html; charset=utf-8";
+        return View("SipSession", model);
+    }
+
+    [Authorize]
+    [HttpGet("sessions/create")]
+    public async Task<IActionResult> PlanSipSession(CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        WineSurferCurrentUser? currentUser = null;
+        IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
+        IReadOnlyList<WineSurferSentInvitationNotification> sentInvitationNotifications = Array.Empty<WineSurferSentInvitationNotification>();
+
+        var identityName = User.Identity?.Name;
+        var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
+        var normalizedEmail = NormalizeEmailCandidate(email);
+        var currentUserId = GetCurrentUserId();
+        ApplicationUser? domainUser = null;
+
+        if (currentUserId.HasValue)
+        {
+            domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
+        }
+
+        if (domainUser is null && !string.IsNullOrWhiteSpace(identityName))
+        {
+            domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
+        }
+
+        var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
+
+        if (domainUser is not null)
+        {
+            currentUserId = domainUser.Id;
+            normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
+        }
+
+        if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
+        {
+            normalizedEmail = NormalizeEmailCandidate(displayName);
+        }
+
+        if (!string.IsNullOrWhiteSpace(displayName) || !string.IsNullOrWhiteSpace(email) || domainUser is not null)
+        {
+            currentUser = new WineSurferCurrentUser(
+                domainUser?.Id,
+                displayName ?? email ?? string.Empty,
+                email,
+                domainUser?.TasteProfile);
+        }
+
+        if (currentUserId.HasValue || normalizedEmail is not null)
+        {
+            incomingInvitations = (await _sisterhoodInvitationRepository.GetForInviteeAsync(currentUserId, normalizedEmail, cancellationToken))
+                .Where(invitation => invitation.Status == SisterhoodInvitationStatus.Pending)
+                .Select(invitation =>
+                {
+                    var matchesUserId = currentUserId.HasValue && invitation.InviteeUserId == currentUserId.Value;
+                    var matchesEmail = normalizedEmail is not null && string.Equals(invitation.InviteeEmail, normalizedEmail, StringComparison.Ordinal);
+
+                    return new
+                    {
+                        Invitation = invitation,
+                        MatchesUserId = matchesUserId,
+                        MatchesEmail = matchesEmail,
+                    };
+                })
+                .Where(entry => entry.MatchesUserId || entry.MatchesEmail)
+                .Select(entry => new WineSurferIncomingSisterhoodInvitation(
+                    entry.Invitation.Id,
+                    entry.Invitation.SisterhoodId,
+                    entry.Invitation.Sisterhood?.Name ?? "Sisterhood",
+                    entry.Invitation.Sisterhood?.Description,
+                    entry.Invitation.InviteeEmail,
+                    entry.Invitation.Status,
+                    entry.Invitation.CreatedAt,
+                    entry.Invitation.UpdatedAt,
+                    entry.Invitation.InviteeUserId,
+                    entry.MatchesUserId,
+                    entry.MatchesEmail))
+                .ToList();
+        }
+
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        if (currentUserId.HasValue)
+        {
+            var acceptedInvitations = await _sisterhoodInvitationRepository.GetAcceptedForAdminAsync(
+                currentUserId.Value,
+                now - SentInvitationNotificationWindow,
+                cancellationToken);
+
+            sentInvitationNotifications = CreateSentInvitationNotifications(acceptedInvitations);
+        }
+
+        var manageableSisterhoods = (await _sisterhoodRepository.GetAdminForUserAsync(currentUserId.Value, cancellationToken))
+            .Select(s => new WineSurferSisterhoodOption(s.Id, s.Name, s.Description))
+            .ToList();
+
+        var selectedSisterhoodId = manageableSisterhoods.Count == 1 ? manageableSisterhoods[0].Id : Guid.Empty;
+        var sisterhoodName = manageableSisterhoods.Count == 1
+            ? manageableSisterhoods[0].Name
+            : "Select a sisterhood";
+        var sisterhoodDescription = manageableSisterhoods.Count == 1
+            ? manageableSisterhoods[0].Description
+            : null;
+
+        var sessionSummary = new WineSurferSipSessionSummary(
+            Guid.Empty,
+            string.Empty,
+            null,
+            null,
+            null,
+            string.Empty,
+            now,
+            now,
+            Array.Empty<WineSurferSipSessionBottle>());
+
+        var model = new WineSurferSipSessionDetailViewModel(
+            sessionSummary,
+            selectedSisterhoodId,
+            sisterhoodName,
+            sisterhoodDescription,
+            manageableSisterhoods.Count > 0,
+            currentUser,
+            incomingInvitations,
+            sentInvitationNotifications,
+            true,
+            manageableSisterhoods);
 
         Response.ContentType = "text/html; charset=utf-8";
         return View("SipSession", model);
@@ -2554,7 +2704,8 @@ public record WineSurferLandingViewModel(
     WineSurferCurrentUser? CurrentUser,
     IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
     IReadOnlyList<WineSurferUpcomingSipSession> UpcomingSipSessions,
-    IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications);
+    IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
+    IReadOnlyList<WineSurferSisterhoodOption> ManageableSisterhoods);
 
 public record WineSurferUpcomingSipSession(
     Guid SisterhoodId,
@@ -2578,7 +2729,11 @@ public record WineSurferSipSessionDetailViewModel(
     bool CanManageSession,
     WineSurferCurrentUser? CurrentUser,
     IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
-    IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications);
+    IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
+    bool IsCreateMode,
+    IReadOnlyList<WineSurferSisterhoodOption> ManageableSisterhoods);
+
+public record WineSurferSisterhoodOption(Guid Id, string Name, string? Description);
 
 public record WineSurferTopBarModel(
     string CurrentPath,

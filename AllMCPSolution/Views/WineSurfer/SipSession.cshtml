@@ -2,6 +2,7 @@
 @using AllMCPSolution.Controllers
 @using AllMCPSolution.Models
 @using Microsoft.AspNetCore.Mvc.ViewFeatures
+@using System
 @using System.Collections.Generic
 @{
     Layout = null;
@@ -531,7 +532,7 @@
     </style>
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
 </head>
-@{
+@{ 
     var bodyClass = Model.CurrentUser is null ? "requires-auth" : "is-authenticated";
     var requestPath = Context.Request.Path.HasValue ? Context.Request.Path.Value : string.Empty;
     var requestQuery = Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value : string.Empty;
@@ -541,10 +542,21 @@
         Model.IncomingInvitations,
         Model.SentInvitationNotifications,
         displayName: Model.CurrentUser?.DisplayName);
-    var sisterhoodName = string.IsNullOrWhiteSpace(Model.SisterhoodName) ? "Sisterhood" : Model.SisterhoodName;
-    var scheduleLabel = FormatSipSessionSchedule(Model.Session);
-    var locationLabel = string.IsNullOrWhiteSpace(Model.Session.Location) ? "Location TBD" : Model.Session.Location;
-    var sessionTitle = string.IsNullOrWhiteSpace(Model.Session.Name) ? "Sip Session" : Model.Session.Name.Trim();
+    var isCreateMode = Model.IsCreateMode;
+    var manageableSisterhoods = Model.ManageableSisterhoods ?? Array.Empty<WineSurferSisterhoodOption>();
+    var hasManageableSisterhoods = manageableSisterhoods.Count > 0;
+    var sisterhoodName = isCreateMode
+        ? (manageableSisterhoods.Count == 1 ? manageableSisterhoods[0].Name : "Select a sisterhood")
+        : (string.IsNullOrWhiteSpace(Model.SisterhoodName) ? "Sisterhood" : Model.SisterhoodName);
+    var scheduleLabel = isCreateMode
+        ? "Schedule TBD"
+        : FormatSipSessionSchedule(Model.Session);
+    var locationLabel = isCreateMode || string.IsNullOrWhiteSpace(Model.Session.Location)
+        ? "Location TBD"
+        : Model.Session.Location;
+    var sessionTitle = isCreateMode
+        ? "Plan a new sip session"
+        : (string.IsNullOrWhiteSpace(Model.Session.Name) ? "Sip Session" : Model.Session.Name.Trim());
     ViewData["WineSurferPageTitle"] = sessionTitle;
 }
 <body class="wine-app session-page @bodyClass">
@@ -557,7 +569,98 @@
                         <p class="session-kicker">@sisterhoodName</p>
                         <h1 class="session-title">@sessionTitle</h1>
                     </div>
-                    @if (Model.CanManageSession)
+                    @if (isCreateMode)
+                    {
+                        var scheduledValue = FormatSipSessionInputValue(Model.Session);
+                        const string createNameId = "sip-session-create-name";
+                        const string createScheduleId = "sip-session-create-schedule";
+                        const string createLocationId = "sip-session-create-location";
+                        const string createDescriptionId = "sip-session-create-description";
+                        const string createSisterhoodId = "sip-session-create-sisterhood";
+                        <div class="session-overview-actions">
+                            @if (hasManageableSisterhoods)
+                            {
+                                <button type="button"
+                                        class="sisterhood-button sisterhood-button--primary"
+                                        data-sip-session-create-toggle
+                                        data-close-label="Cancel"
+                                        data-open-on-load="true"
+                                        aria-expanded="false"
+                                        aria-controls="sip-session-edit-modal">
+                                    Plan sip session
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="button"
+                                        class="sisterhood-button sisterhood-button--primary"
+                                        data-sip-session-create-toggle
+                                        aria-expanded="false"
+                                        aria-controls="sip-session-edit-modal"
+                                        disabled>
+                                    Plan sip session
+                                </button>
+                            }
+                        </div>
+                        <div class="sip-session-edit-region" data-sip-session-create-region hidden>
+                            <template data-sip-session-create-template>
+                                <form method="post"
+                                      action="@Url.Action("CreateSipSession", "WineSurfer")"
+                                      class="sip-session-form"
+                                      data-sip-session-edit-form>
+                                    @Html.AntiForgeryToken()
+                                    <label for="@createSisterhoodId">Sisterhood</label>
+                                    <select id="@createSisterhoodId"
+                                            name="SisterhoodId"
+                                            required
+                                            @(hasManageableSisterhoods ? null : "disabled")>
+                                        <option value="" @(Model.SisterhoodId == Guid.Empty ? "selected" : null)>Select a sisterhood</option>
+                                        @foreach (var option in manageableSisterhoods)
+                                        {
+                                            <option value="@option.Id" @(Model.SisterhoodId == option.Id ? "selected" : null)>@option.Name</option>
+                                        }
+                                    </select>
+                                    <label for="@createNameId">Session name</label>
+                                    <input id="@createNameId"
+                                           name="Name"
+                                           type="text"
+                                           value="@Model.Session.Name"
+                                           maxlength="256"
+                                           required
+                                           @(hasManageableSisterhoods ? null : "disabled") />
+                                    <label for="@createScheduleId">Scheduled for</label>
+                                    <input id="@createScheduleId"
+                                           name="ScheduledAt"
+                                           type="datetime-local"
+                                           value="@scheduledValue"
+                                           @(hasManageableSisterhoods ? null : "disabled") />
+                                    <label for="@createLocationId">Location</label>
+                                    <input id="@createLocationId"
+                                           name="Location"
+                                           type="text"
+                                           value="@(Model.Session.Location ?? string.Empty)"
+                                           maxlength="256"
+                                           @(hasManageableSisterhoods ? null : "disabled") />
+                                    <label for="@createDescriptionId">Description</label>
+                                    <textarea id="@createDescriptionId"
+                                              name="Description"
+                                              maxlength="2048"
+                                              @(hasManageableSisterhoods ? null : "disabled")>@(Model.Session.Description ?? string.Empty)</textarea>
+                                    <div class="sip-session-form-actions">
+                                        <button type="submit" class="sisterhood-button" @(hasManageableSisterhoods ? null : "disabled")>Create session</button>
+                                        <button type="button"
+                                                class="sisterhood-button sisterhood-button--ghost"
+                                                data-sip-session-edit-cancel>Cancel</button>
+                                    </div>
+                                    @if (!hasManageableSisterhoods)
+                                    {
+                                        <p class="empty-state" style="text-transform:none;font-size:13px;letter-spacing:0;">You need to be an admin of a sisterhood to plan a sip session.</p>
+                                    }
+                                </form>
+                            </template>
+                        </div>
+                    }
+                    else if (Model.CanManageSession)
                     {
                         var sessionReturnUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = Model.Session.Id })
                             ?? string.Concat(requestPath, requestQuery);
@@ -620,7 +723,11 @@
                         </div>
                     }
                 </div>
-                @if (!string.IsNullOrWhiteSpace(Model.Session.Description))
+                @if (isCreateMode)
+                {
+                    <p class="session-description">Select a sisterhood and enter the details below to plan your next tasting.</p>
+                }
+                else if (!string.IsNullOrWhiteSpace(Model.Session.Description))
                 {
                     <p class="session-description">@Model.Session.Description</p>
                 }
@@ -637,7 +744,11 @@
             </section>
             <section class="bottle-section" aria-label="Bottle list">
                 <h2>Bottle list</h2>
-                @if (Model.Session.Bottles.Count > 0)
+                @if (isCreateMode)
+                {
+                    <p class="empty-state">Add bottles after you create this sip session.</p>
+                }
+                else if (Model.Session.Bottles.Count > 0)
                 {
                     <ul class="bottle-list">
                         @foreach (var bottle in Model.Session.Bottles)
@@ -657,7 +768,7 @@
                 }
             </section>
         </main>
-        @if (Model.CanManageSession)
+        @if (Model.CanManageSession || isCreateMode)
         {
             <div class="sip-session-edit-modal-backdrop"
                  id="sip-session-edit-modal"
@@ -678,55 +789,78 @@
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
                     const modal = document.querySelector('[data-sip-session-edit-modal]');
-                    const template = document.querySelector('template[data-sip-session-edit-template]');
-                    const trigger = document.querySelector('[data-sip-session-edit-toggle]');
-                    if (!modal || !template || !trigger) {
+                    if (!modal) {
                         return;
                     }
 
                     const modalBody = modal.querySelector('[data-sip-session-edit-modal-body]');
                     const titleElement = modal.querySelector('[data-sip-session-edit-modal-title]');
                     const closeButtons = modal.querySelectorAll('[data-sip-session-edit-close]');
+                    let activeTrigger = null;
                     let activeForm = null;
 
-                    const defaultLabel = trigger.dataset.defaultLabel || trigger.textContent?.trim() || 'Edit sip session';
-                    if (!trigger.dataset.defaultLabel) {
-                        trigger.dataset.defaultLabel = defaultLabel;
-                    }
+                    const isModalOpen = () => !modal.hasAttribute('hidden');
 
-                    const getCloseLabel = () => trigger.dataset.closeLabel?.trim() || 'Close edit';
+                    const setModalButtonState = (button, isOpen, overrides = {}) => {
+                        if (!button) {
+                            return;
+                        }
 
-                    const setTriggerState = (isOpen) => {
+                        if (!button.dataset.originalLabel) {
+                            button.dataset.originalLabel = button.textContent?.trim() ?? '';
+                        }
+
+                        const { closeLabel, defaultLabel } = overrides;
+
+                        if (typeof defaultLabel === 'string') {
+                            button.dataset.originalLabel = defaultLabel;
+                        }
+
+                        if (typeof closeLabel === 'string') {
+                            button.dataset.modalCloseLabel = closeLabel;
+                        }
+
                         if (isOpen) {
-                            trigger.textContent = getCloseLabel();
-                            trigger.setAttribute('aria-expanded', 'true');
+                            const label = (typeof closeLabel === 'string' ? closeLabel : button.dataset.modalCloseLabel) ?? 'Close';
+                            button.textContent = label;
+                            button.setAttribute('aria-expanded', 'true');
                         } else {
-                            trigger.textContent = trigger.dataset.defaultLabel || defaultLabel;
-                            trigger.setAttribute('aria-expanded', 'false');
+                            const original = (typeof defaultLabel === 'string' ? defaultLabel : button.dataset.originalLabel) ?? '';
+                            const fallback = button.dataset.originalLabel ?? '';
+                            button.textContent = original || fallback;
+                            button.setAttribute('aria-expanded', 'false');
                         }
                     };
 
                     const closeModal = ({ restoreFocus = true } = {}) => {
+                        if (!modalBody) {
+                            return;
+                        }
+
                         if (activeForm) {
                             activeForm.reset();
                             activeForm = null;
                         }
 
-                        if (modalBody) {
-                            modalBody.innerHTML = '';
-                        }
+                        modalBody.innerHTML = '';
 
                         modal.setAttribute('hidden', '');
                         modal.setAttribute('aria-hidden', 'true');
-                        setTriggerState(false);
 
-                        if (restoreFocus) {
-                            window.requestAnimationFrame(() => trigger.focus());
+                        if (activeTrigger) {
+                            setModalButtonState(activeTrigger, false);
+                        }
+
+                        const triggerToFocus = activeTrigger;
+                        activeTrigger = null;
+
+                        if (restoreFocus && triggerToFocus) {
+                            window.requestAnimationFrame(() => triggerToFocus.focus());
                         }
                     };
 
-                    const openModal = () => {
-                        if (!modalBody) {
+                    const openModal = (trigger, template, { title, closeLabel, focusSelector } = {}) => {
+                        if (!modalBody || !template) {
                             return;
                         }
 
@@ -751,30 +885,27 @@
                             });
                         }
 
-                        if (titleElement) {
-                            const sessionTitle = trigger.dataset.sessionTitle?.trim();
-                            titleElement.textContent = sessionTitle
-                                ? `Edit sip session · ${sessionTitle}`
-                                : 'Edit sip session';
-                        }
-
                         modal.removeAttribute('hidden');
                         modal.setAttribute('aria-hidden', 'false');
-                        setTriggerState(true);
+
+                        activeTrigger = trigger;
+                        setModalButtonState(trigger, true, { closeLabel });
+
+                        if (titleElement) {
+                            if (title) {
+                                titleElement.textContent = title;
+                            } else {
+                                titleElement.textContent = 'Edit sip session';
+                            }
+                        }
 
                         window.requestAnimationFrame(() => {
-                            const focusTarget = form.querySelector('input[name="Name"]');
+                            const focusTarget = focusSelector
+                                ? form.querySelector(focusSelector)
+                                : form.querySelector('input[name="Name"]');
                             focusTarget?.focus();
                         });
                     };
-
-                    trigger.addEventListener('click', () => {
-                        if (modal.hasAttribute('hidden')) {
-                            openModal();
-                        } else {
-                            closeModal();
-                        }
-                    });
 
                     closeButtons.forEach((button) => {
                         button.addEventListener('click', () => closeModal());
@@ -787,9 +918,67 @@
                     });
 
                     document.addEventListener('keydown', (event) => {
-                        if (event.key === 'Escape' && !modal.hasAttribute('hidden')) {
+                        if (event.key === 'Escape' && isModalOpen()) {
                             closeModal();
                         }
+                    });
+
+                    const createButtons = document.querySelectorAll('[data-sip-session-create-toggle]');
+                    createButtons.forEach((button) => {
+                        button.addEventListener('click', () => {
+                            const region = document.querySelector('[data-sip-session-create-region]');
+                            if (!region) {
+                                return;
+                            }
+
+                            const template = region.querySelector('template[data-sip-session-create-template]');
+                            if (!template) {
+                                return;
+                            }
+
+                            if (isModalOpen() && activeTrigger === button) {
+                                closeModal();
+                                return;
+                            }
+
+                            openModal(button, template, {
+                                title: button.dataset.modalTitle || 'Create sip session',
+                                closeLabel: button.dataset.closeLabel || 'Cancel',
+                                focusSelector: 'select[name="SisterhoodId"]'
+                            });
+                        });
+
+                        if (button.hasAttribute('data-open-on-load') && !button.disabled) {
+                            window.requestAnimationFrame(() => {
+                                button.click();
+                            });
+                        }
+                    });
+
+                    const editButtons = document.querySelectorAll('[data-sip-session-edit-toggle]');
+                    editButtons.forEach((button) => {
+                        button.addEventListener('click', () => {
+                            const region = button.closest('[data-sip-session-edit-region]');
+                            if (!region) {
+                                return;
+                            }
+
+                            const template = region.querySelector('template[data-sip-session-edit-template]');
+                            if (!template) {
+                                return;
+                            }
+
+                            if (isModalOpen() && activeTrigger === button) {
+                                closeModal();
+                                return;
+                            }
+
+                            const sessionTitle = button.dataset.sessionTitle?.trim() ?? '';
+                            openModal(button, template, {
+                                title: sessionTitle ? `Edit sip session · ${sessionTitle}` : 'Edit sip session',
+                                closeLabel: button.dataset.closeLabel || 'Close edit'
+                            });
+                        });
                     });
                 });
             </script>
