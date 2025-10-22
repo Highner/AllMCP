@@ -260,8 +260,8 @@
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/nezrqnk58p-muycvpuwrr.gz
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/v0zgfp0y55-87fc7y1x7t.gz
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/yfc7ypekbg-mlv21k5csn.gz
-/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/xpxpjhh2y4-oqba9tip0w.gz
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/ExcelDataReader.dll
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/ExcelDataReader.DataSet.dll
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/gx6okbfyc1-luw4ygna8b.gz
-/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/1511xmqvm8-1qdarway2t.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/xpxpjhh2y4-lpmvyor9zd.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/1511xmqvm8-2qt5d33u81.gz

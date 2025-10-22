@@ -2003,7 +2003,7 @@
                                         var hostLabel = string.IsNullOrWhiteSpace(sisterhood.Name) ? null : sisterhood.Name;
                                         var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Id })
                                             ?? $"/wine-surfer/sessions/{session.Id:D}";
-                                        var isCurrentUserMember = Model.CurrentUserId.HasValue && sisterhood.Members.Any(member => member.IsCurrentUser);
+                                        // use isCurrentUserMember from outer scope
                                         var hasToolbar = isCurrentUserMember || sisterhood.CanManage;
                                         var ariaLabel = $"Sip session: {session.Name}";
                                         var cardModel = new WineSurferSipSessionCardModel(
