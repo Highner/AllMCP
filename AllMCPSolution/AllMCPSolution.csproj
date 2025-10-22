@@ -1,10 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
         <TargetFramework>net9.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-    </PropertyGroup>
+      <UserSecretsId>30f4d8ee-2bc6-461a-859c-ed19731f32b2</UserSecretsId>
+  </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="ExcelDataReader" Version="3.6.0" />

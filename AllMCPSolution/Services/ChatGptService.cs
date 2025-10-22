@@ -76,11 +76,6 @@ public sealed class ChatGptService : IChatGptService
             client = new ChatClient(model!, _apiKey);
         }
 
-        if (temperature.HasValue)
-        {
-            completionOptions.Temperature = (float?)temperature.Value;
-        }
-
         try
         {
             return await client
