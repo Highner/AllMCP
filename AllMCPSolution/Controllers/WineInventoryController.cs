@@ -494,18 +494,31 @@ public class WineInventoryController : Controller
 
         var wineVintage = await _wineVintageRepository.GetOrCreateAsync(wine.Id, request.Vintage, cancellationToken);
 
-        var bottle = new Bottle
+        var quantity = request.Quantity;
+        if (quantity < 1)
         {
-            Id = Guid.NewGuid(),
-            WineVintageId = wineVintage.Id,
-            Price = null,
-            IsDrunk = false,
-            DrunkAt = null,
-            BottleLocationId = null,
-            UserId = user.Id
-        };
+            quantity = 1;
+        }
+        else if (quantity > 12)
+        {
+            quantity = 12;
+        }
 
-        await _bottleRepository.AddAsync(bottle, cancellationToken);
+        for (var i = 0; i < quantity; i++)
+        {
+            var bottle = new Bottle
+            {
+                Id = Guid.NewGuid(),
+                WineVintageId = wineVintage.Id,
+                Price = null,
+                IsDrunk = false,
+                DrunkAt = null,
+                BottleLocationId = null,
+                UserId = user.Id
+            };
+
+            await _bottleRepository.AddAsync(bottle, cancellationToken);
+        }
 
         var response = await BuildBottleGroupResponseAsync(wineVintage.Id, currentUserId.Value, cancellationToken);
         if (response is null)
@@ -1278,6 +1291,9 @@ public class AddWineToInventoryRequest
 
     [Range(1900, 2100)]
     public int Vintage { get; set; }
+
+    [Range(1, 12)]
+    public int Quantity { get; set; } = 1;
 }
 
 public class InventoryReferenceDataResponse

@@ -40,6 +40,7 @@ window.WineInventoryTables.initialize = function () {
             const addWineForm = addWinePopover?.querySelector('.inventory-add-form');
             const addWineSelect = addWinePopover?.querySelector('.inventory-add-wine');
             const addWineVintage = addWinePopover?.querySelector('.inventory-add-vintage');
+            const addWineQuantity = addWinePopover?.querySelector('.inventory-add-quantity');
             const addWineSummary = addWinePopover?.querySelector('.inventory-add-summary');
             const addWineHint = addWinePopover?.querySelector('.inventory-add-vintage-hint');
             const addWineError = addWinePopover?.querySelector('.inventory-add-error');
@@ -231,6 +232,9 @@ window.WineInventoryTables.initialize = function () {
                     if (addWineVintage) {
                         addWineVintage.value = '';
                     }
+                    if (addWineQuantity) {
+                        addWineQuantity.value = '1';
+                    }
                     updateSelectedWineSummary();
                     updateVintageHint();
                 } catch (error) {
@@ -258,6 +262,9 @@ window.WineInventoryTables.initialize = function () {
                 if (addWineVintage) {
                     addWineVintage.value = '';
                 }
+                if (addWineQuantity) {
+                    addWineQuantity.value = '1';
+                }
                 updateSelectedWineSummary();
                 updateVintageHint();
             }
@@ -271,6 +278,7 @@ window.WineInventoryTables.initialize = function () {
 
                 const wineId = addWineSelect?.value ?? '';
                 const vintageValue = Number(addWineVintage?.value ?? '');
+                const quantityValue = Number(addWineQuantity?.value ?? '1');
 
                 if (!wineId) {
                     showAddWineError('Select a wine to add to your inventory.');
@@ -284,11 +292,18 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
+                if (!Number.isInteger(quantityValue) || quantityValue < 1 || quantityValue > 12) {
+                    showAddWineError('Select how many bottles to add.');
+                    addWineQuantity?.focus();
+                    return;
+                }
+
                 showAddWineError('');
 
                 const payload = {
                     wineId,
-                    vintage: vintageValue
+                    vintage: vintageValue,
+                    quantity: quantityValue
                 };
 
                 try {
@@ -299,7 +314,7 @@ window.WineInventoryTables.initialize = function () {
                         body: JSON.stringify(payload)
                     });
 
-                    await handleInventoryAddition(response);
+                    await handleInventoryAddition(response, quantityValue);
                     closeAddWinePopover();
                 } catch (error) {
                     showAddWineError(error?.message ?? 'Unable to add wine to your inventory.');
@@ -434,7 +449,7 @@ window.WineInventoryTables.initialize = function () {
                 addWineHint.textContent = `Existing vintages: ${vintages.join(', ')}${suffix}`;
             }
 
-            async function handleInventoryAddition(response) {
+            async function handleInventoryAddition(response, quantity = 1) {
                 const summary = normalizeSummary(response?.group ?? response?.Group);
                 if (!summary) {
                     showMessage('Bottle added, but the inventory view could not be refreshed.', 'warning');
@@ -455,7 +470,11 @@ window.WineInventoryTables.initialize = function () {
                     tbody.appendChild(row);
                 }
 
-                showMessage('Bottle added to your inventory.', 'success');
+                const addedCount = Number.isInteger(quantity) && quantity > 0 ? quantity : 1;
+                const message = addedCount === 1
+                    ? 'Bottle added to your inventory.'
+                    : `${addedCount} bottles added to your inventory.`;
+                showMessage(message, 'success');
                 await handleRowSelection(row, { force: true, response });
                 row.focus();
             }
@@ -480,6 +499,9 @@ window.WineInventoryTables.initialize = function () {
                 }
                 if (addWineVintage) {
                     addWineVintage.disabled = state;
+                }
+                if (addWineQuantity) {
+                    addWineQuantity.disabled = state;
                 }
             }
 
