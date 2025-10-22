@@ -57,6 +57,7 @@ window.WineInventoryTables.initialize = function () {
             const drinkCancelButton = drinkPopover?.querySelector('.drink-bottle-cancel');
             const drinkSubmitButton = drinkPopover?.querySelector('.drink-bottle-submit');
             const drinkTitle = drinkPopover?.querySelector('.drink-bottle-title');
+            const drinkHeaderCloseButton = drinkPopover?.querySelector('[data-drink-bottle-close]');
 
             const detailAddLocation = detailAddRow.querySelector('.detail-add-location');
             const detailAddPrice = detailAddRow.querySelector('.detail-add-price');
@@ -521,6 +522,10 @@ window.WineInventoryTables.initialize = function () {
                     closeDrinkBottleModal();
                 });
 
+                drinkHeaderCloseButton?.addEventListener('click', () => {
+                    closeDrinkBottleModal();
+                });
+
                 drinkOverlay.addEventListener('click', (event) => {
                     if (event.target === drinkOverlay) {
                         closeDrinkBottleModal();
@@ -641,6 +646,9 @@ window.WineInventoryTables.initialize = function () {
                 }
                 if (drinkCancelButton) {
                     drinkCancelButton.disabled = false;
+                }
+                if (drinkHeaderCloseButton) {
+                    drinkHeaderCloseButton.disabled = false;
                 }
             }
 
@@ -816,6 +824,9 @@ window.WineInventoryTables.initialize = function () {
                 }
                 if (drinkCancelButton) {
                     drinkCancelButton.disabled = state;
+                }
+                if (drinkHeaderCloseButton) {
+                    drinkHeaderCloseButton.disabled = state;
                 }
             }
 

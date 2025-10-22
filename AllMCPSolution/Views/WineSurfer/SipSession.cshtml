@@ -476,45 +476,15 @@
         }
 
         .contribute-modal-backdrop {
-            position: fixed;
-            inset: 0;
-            background: rgba(5, 5, 5, 0.72);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-            z-index: 65;
-            backdrop-filter: blur(6px);
-        }
-
-        .contribute-modal-backdrop[hidden] {
-            display: none;
+            z-index: 70;
         }
 
         .contribute-modal {
-            background: rgba(12, 12, 12, 0.96);
-            border-radius: 16px;
-            border: 1px solid rgba(244, 241, 234, 0.12);
             width: min(520px, 100%);
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
-        }
-
-        .contribute-modal__header {
-            padding: 20px 24px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
         }
 
         .contribute-modal__title {
             margin: 0;
-            font-size: 16px;
-            letter-spacing: 3px;
-            text-transform: uppercase;
         }
 
         .contribute-modal__form {
@@ -598,55 +568,15 @@
         }
 
         .sip-session-edit-modal-backdrop {
-            position: fixed;
-            inset: 0;
-            background: rgba(5, 5, 5, 0.72);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-            z-index: 55;
-            backdrop-filter: blur(6px);
-        }
-
-        .sip-session-edit-modal-backdrop[hidden] {
-            display: none;
+            z-index: 65;
         }
 
         .sip-session-edit-modal {
-            background: rgba(12, 12, 12, 0.96);
-            border-radius: 16px;
-            border: 1px solid rgba(244, 241, 234, 0.12);
-            width: min(540px, 100%);
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
-            overflow: hidden;
-        }
-
-        .sip-session-edit-modal__header {
-            padding: 20px 24px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            border-bottom: 1px solid rgba(244, 241, 234, 0.12);
-        }
-
-        .sip-session-edit-modal__title {
-            margin: 0;
-            font-size: 16px;
-            letter-spacing: 3px;
-            text-transform: uppercase;
+            width: min(560px, 100%);
         }
 
         .sip-session-edit-modal__body {
             padding: 24px;
-            overflow-y: auto;
-            max-height: calc(90vh - 100px);
-            display: flex;
-            flex-direction: column;
             gap: 16px;
         }
 
@@ -1013,20 +943,20 @@
         </main>
         @if (Model.CanManageSession || isCreateMode)
         {
-            <div class="sip-session-edit-modal-backdrop"
+            <div class="wine-surfer-modal-backdrop sip-session-edit-modal-backdrop"
                  id="sip-session-edit-modal"
                  data-sip-session-edit-modal
                  hidden
                  aria-hidden="true">
-                <div class="sip-session-edit-modal" role="dialog" aria-modal="true" aria-labelledby="sip-session-edit-modal-title">
-                    <header class="sip-session-edit-modal__header">
-                        <h2 class="sip-session-edit-modal__title" id="sip-session-edit-modal-title" data-sip-session-edit-modal-title>Edit sip session</h2>
+                <div class="wine-surfer-modal sip-session-edit-modal" role="dialog" aria-modal="true" aria-labelledby="sip-session-edit-modal-title">
+                    <header class="wine-surfer-modal__header sip-session-edit-modal__header">
                         <button type="button"
-                                class="sisterhood-button sisterhood-button--ghost"
+                                class="wine-surfer-modal__close"
                                 data-sip-session-edit-close
-                                aria-label="Close edit sip session dialog">Close</button>
+                                aria-label="Close edit sip session dialog">×</button>
+                        <h2 class="wine-surfer-modal__title sip-session-edit-modal__title" id="sip-session-edit-modal-title" data-sip-session-edit-modal-title>Edit sip session</h2>
                     </header>
-                    <div class="sip-session-edit-modal__body" data-sip-session-edit-modal-body></div>
+                    <div class="wine-surfer-modal__body sip-session-edit-modal__body" data-sip-session-edit-modal-body></div>
                 </div>
             </div>
             <script>
@@ -1230,22 +1160,22 @@
         }
         @if (!isCreateMode && Model.CurrentUser is not null)
         {
-            <div class="contribute-modal-backdrop"
+            <div class="wine-surfer-modal-backdrop contribute-modal-backdrop"
                  id="@contributeModalId"
                  data-contribute-modal
                  hidden
                  aria-hidden="true">
-                <div class="contribute-modal" role="dialog" aria-modal="true" aria-labelledby="@contributeModalTitleId">
-                    <header class="contribute-modal__header">
-                        <h2 class="contribute-modal__title" id="@contributeModalTitleId">Contribute bottles</h2>
+                <div class="wine-surfer-modal contribute-modal" role="dialog" aria-modal="true" aria-labelledby="@contributeModalTitleId">
+                    <header class="wine-surfer-modal__header contribute-modal__header">
                         <button type="button"
-                                class="sisterhood-button sisterhood-button--ghost"
+                                class="wine-surfer-modal__close"
                                 data-contribute-close
-                                aria-label="Close contribute bottles dialog">Close</button>
+                                aria-label="Close contribute bottles dialog">×</button>
+                        <h2 class="wine-surfer-modal__title contribute-modal__title" id="@contributeModalTitleId">Contribute bottles</h2>
                     </header>
                     <form method="post"
                           action="@Url.Action("ContributeSipSessionBottles", "WineSurfer")"
-                          class="contribute-modal__form"
+                          class="wine-surfer-modal__body contribute-modal__form"
                           data-contribute-form>
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
