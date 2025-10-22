@@ -53,6 +53,13 @@ window.WineInventoryTables.initialize = function () {
             const drinkForm = drinkPopover?.querySelector('.drink-bottle-form');
             const drinkDateInput = drinkPopover?.querySelector('.drink-bottle-date');
             const drinkScoreInput = drinkPopover?.querySelector('.drink-bottle-score');
+            const drinkScoreIsRange = (drinkScoreInput?.type ?? '').toLowerCase() === 'range';
+            const drinkScoreDisplay = drinkPopover?.querySelector('.drink-bottle-score-display');
+            const drinkScoreClearButton = drinkPopover?.querySelector('.drink-bottle-score-clear');
+            const drinkScoreDefaultValue = drinkScoreInput?.dataset?.defaultValue
+                ?? drinkScoreInput?.getAttribute('data-default-value')
+                ?? drinkScoreInput?.getAttribute('min')
+                ?? '5';
             const drinkNoteInput = drinkPopover?.querySelector('.drink-bottle-note');
             const drinkError = drinkPopover?.querySelector('.drink-bottle-error');
             const drinkCancelButton = drinkPopover?.querySelector('.drink-bottle-cancel');
@@ -106,6 +113,7 @@ window.WineInventoryTables.initialize = function () {
             bindAddWinePopover();
             bindDetailAddRow();
             bindDrinkBottleModal();
+            initializeDrinkScoreControl();
             bindDetailsCloseButton();
             if (notesEnabled) {
                 bindNotesPanel();
@@ -522,6 +530,85 @@ window.WineInventoryTables.initialize = function () {
                 detailAddButton?.addEventListener('click', handleAddBottle);
             }
 
+            function initializeDrinkScoreControl() {
+                if (!drinkScoreInput || !drinkScoreIsRange) {
+                    if (drinkScoreClearButton) {
+                        drinkScoreClearButton.disabled = true;
+                    }
+                    return;
+                }
+
+                setDrinkScoreValue('');
+
+                drinkScoreInput.addEventListener('input', () => {
+                    drinkScoreInput.dataset.hasValue = 'true';
+                    updateDrinkScoreDisplay();
+                });
+
+                drinkScoreClearButton?.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    setDrinkScoreValue('');
+                    drinkScoreInput.focus();
+                });
+
+                updateDrinkScoreDisplay();
+            }
+
+            function setDrinkScoreValue(value) {
+                if (!drinkScoreInput) {
+                    return;
+                }
+
+                if (!drinkScoreIsRange) {
+                    drinkScoreInput.value = value != null && value !== '' ? String(value) : '';
+                    return;
+                }
+
+                const hasValue = value != null && value !== '';
+                drinkScoreInput.dataset.hasValue = hasValue ? 'true' : 'false';
+
+                const fallback = drinkScoreDefaultValue ?? drinkScoreInput.min ?? '0';
+                drinkScoreInput.value = hasValue ? String(value) : fallback;
+
+                updateDrinkScoreDisplay();
+            }
+
+            function getDrinkScoreRawValue() {
+                if (!drinkScoreInput) {
+                    return '';
+                }
+
+                if (!drinkScoreIsRange) {
+                    return drinkScoreInput.value ?? '';
+                }
+
+                return drinkScoreInput.dataset.hasValue === 'true'
+                    ? (drinkScoreInput.value ?? '')
+                    : '';
+            }
+
+            function updateDrinkScoreDisplay() {
+                if (!drinkScoreDisplay) {
+                    return;
+                }
+
+                if (!drinkScoreInput || drinkScoreInput.dataset.hasValue !== 'true') {
+                    drinkScoreDisplay.textContent = 'Not rated';
+                    drinkScoreInput?.setAttribute('aria-valuetext', 'Not rated');
+                    return;
+                }
+
+                const numeric = Number.parseFloat(drinkScoreInput.value ?? '');
+                if (Number.isFinite(numeric)) {
+                    const formatted = numeric.toFixed(1);
+                    drinkScoreDisplay.textContent = `${formatted} / 10`;
+                    drinkScoreInput.setAttribute('aria-valuetext', `${formatted} out of 10`);
+                } else {
+                    drinkScoreDisplay.textContent = 'Not rated';
+                    drinkScoreInput.setAttribute('aria-valuetext', 'Not rated');
+                }
+            }
+
             function bindDrinkBottleModal() {
                 if (!drinkOverlay || !drinkPopover || !drinkForm) {
                     return;
@@ -617,9 +704,7 @@ window.WineInventoryTables.initialize = function () {
                 if (drinkDateInput) {
                     drinkDateInput.value = defaultDate;
                 }
-                if (drinkScoreInput) {
-                    drinkScoreInput.value = normalizedScore != null ? String(normalizedScore) : '';
-                }
+                setDrinkScoreValue(normalizedScore != null ? normalizedScore : '');
                 if (drinkNoteInput) {
                     drinkNoteInput.value = normalizedNoteText;
                 }
@@ -650,9 +735,7 @@ window.WineInventoryTables.initialize = function () {
                 if (drinkDateInput) {
                     drinkDateInput.value = '';
                 }
-                if (drinkScoreInput) {
-                    drinkScoreInput.value = '';
-                }
+                setDrinkScoreValue('');
                 if (drinkNoteInput) {
                     drinkNoteInput.value = '';
                 }
@@ -701,7 +784,8 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                const parsedScore = parseScore(drinkScoreInput?.value ?? '');
+                const scoreRawValue = getDrinkScoreRawValue();
+                const parsedScore = parseScore(scoreRawValue);
                 if (parsedScore === undefined) {
                     showDrinkError('Score must be between 0 and 10.');
                     drinkScoreInput?.focus();
@@ -830,6 +914,9 @@ window.WineInventoryTables.initialize = function () {
                 }
                 if (drinkScoreInput) {
                     drinkScoreInput.disabled = state;
+                }
+                if (drinkScoreClearButton) {
+                    drinkScoreClearButton.disabled = state;
                 }
                 if (drinkNoteInput) {
                     drinkNoteInput.disabled = state;
