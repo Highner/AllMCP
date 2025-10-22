@@ -17,6 +17,7 @@ public interface IBottleRepository
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task<List<ActiveBottleLocation>> GetActiveBottleLocationsAsync(CancellationToken ct = default);
     Task<IReadOnlyList<Bottle>> GetAvailableForUserAsync(Guid userId, CancellationToken ct = default);
+    Task<IReadOnlyList<Bottle>> GetForUserAsync(Guid userId, CancellationToken ct = default);
     Task<bool> MarkAsDrunkAsync(Guid bottleId, Guid ownerUserId, DateTime? drunkAt, CancellationToken ct = default);
 }
 
@@ -48,6 +49,18 @@ public class BottleRepository : IBottleRepository
 
         return await BuildBottleQuery()
             .Where(b => b.UserId == userId && !b.IsDrunk)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Bottle>> GetForUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return Array.Empty<Bottle>();
+        }
+
+        return await BuildBottleQuery()
+            .Where(b => b.UserId == userId)
             .ToListAsync(ct);
     }
 
