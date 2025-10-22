@@ -245,10 +245,12 @@
             const noteDisplay = card.querySelector('[data-bottle-note-display]');
             const scoreDisplay = card.querySelector('[data-bottle-score-display]');
             const averageDisplay = card.querySelector('[data-bottle-average-display]');
+            const sisterhoodAverageDisplay = card.querySelector('[data-bottle-sisterhood-average-display]');
             const noteText = (payload.note ?? '').toString();
             const trimmedNote = noteText.trim();
             const scoreValue = payload.score ?? null;
             const averageValue = payload.averageScore ?? null;
+            const sisterhoodAverageValue = payload.sisterhoodAverageScore ?? null;
             const noteId = payload.noteId ?? '';
 
             if (noteDisplay) {
@@ -270,9 +272,14 @@
                 averageDisplay.textContent = formatScore(averageValue);
             }
 
+            if (sisterhoodAverageDisplay) {
+                sisterhoodAverageDisplay.textContent = formatScore(sisterhoodAverageValue);
+            }
+
             card.setAttribute('data-bottle-note', trimmedNote);
             card.setAttribute('data-bottle-score', scoreValue != null ? String(scoreValue) : '');
             card.setAttribute('data-bottle-note-id', noteId ? String(noteId) : '');
+            card.setAttribute('data-bottle-sisterhood-average', sisterhoodAverageValue != null ? String(sisterhoodAverageValue) : '');
 
             if (hiddenNoteId) {
                 hiddenNoteId.value = noteId ? String(noteId) : '';

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using AllMCPSolution.Data;
 using AllMCPSolution.Models;
@@ -13,6 +14,10 @@ public interface ITastingNoteRepository
     Task AddAsync(TastingNote tastingNote, CancellationToken ct = default);
     Task UpdateAsync(TastingNote tastingNote, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyDictionary<Guid, decimal>> GetAverageScoresForWineVintagesByUsersAsync(
+        IEnumerable<Guid> wineVintageIds,
+        IEnumerable<Guid> userIds,
+        CancellationToken ct = default);
 }
 
 public class TastingNoteRepository : ITastingNoteRepository
@@ -101,5 +106,54 @@ public class TastingNoteRepository : ITastingNoteRepository
 
         _db.TastingNotes.Remove(existing);
         await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, decimal>> GetAverageScoresForWineVintagesByUsersAsync(
+        IEnumerable<Guid> wineVintageIds,
+        IEnumerable<Guid> userIds,
+        CancellationToken ct = default)
+    {
+        if (wineVintageIds is null || userIds is null)
+        {
+            return new Dictionary<Guid, decimal>();
+        }
+
+        var vintageIds = wineVintageIds
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        var memberUserIds = userIds
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        if (vintageIds.Count == 0 || memberUserIds.Count == 0)
+        {
+            return new Dictionary<Guid, decimal>();
+        }
+
+        var averages = await _db.TastingNotes
+            .AsNoTracking()
+            .Where(note =>
+                note.Score.HasValue &&
+                memberUserIds.Contains(note.UserId) &&
+                vintageIds.Contains(note.Bottle.WineVintageId))
+            .GroupBy(note => note.Bottle.WineVintageId)
+            .Select(group => new
+            {
+                WineVintageId = group.Key,
+                AverageScore = group.Average(note => note.Score!.Value)
+            })
+            .ToListAsync(ct);
+
+        if (averages.Count == 0)
+        {
+            return new Dictionary<Guid, decimal>();
+        }
+
+        return averages.ToDictionary(
+            entry => entry.WineVintageId,
+            entry => Math.Round(entry.AverageScore, 1, MidpointRounding.AwayFromZero));
     }
 }
