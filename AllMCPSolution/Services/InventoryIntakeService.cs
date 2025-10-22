@@ -553,6 +553,7 @@ public sealed class InventoryIntakeService
                     {
                         id = u.Id,
                         name = u.Name,
+                        tasteProfileSummary = u.TasteProfileSummary,
                         tasteProfile = u.TasteProfile
                     })
                     .ToArray();

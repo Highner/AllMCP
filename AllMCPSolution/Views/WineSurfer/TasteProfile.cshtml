@@ -11,6 +11,8 @@
         Model.SentInvitationNotifications,
         displayName: Model.CurrentUser?.DisplayName,
         isAdmin: Model.CurrentUser?.IsAdmin == true);
+    var tasteProfileSummary = Model.TasteProfileSummary ?? string.Empty;
+    var summaryMaxLength = Model.SummaryMaxLength;
     var tasteProfile = Model.TasteProfile ?? string.Empty;
     var statusMessage = Model.StatusMessage;
     var errorMessage = Model.ErrorMessage;
@@ -140,6 +142,32 @@
             box-shadow: 0 0 0 3px hsla(var(--ring) / 0.25);
         }
 
+        .taste-profile-input {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: calc(var(--radius) * 1.05);
+            border: 1px solid hsla(var(--border) / 0.55);
+            background: hsla(var(--accent) / 0.2);
+            color: inherit;
+            font-size: 15px;
+            line-height: 1.4;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .taste-profile-input:focus {
+            outline: none;
+            border-color: hsla(var(--ring) / 0.9);
+            box-shadow: 0 0 0 3px hsla(var(--ring) / 0.25);
+        }
+
+        .taste-profile-help-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
         .taste-profile-help {
             margin: 0;
             font-size: 13px;
@@ -168,6 +196,11 @@
 
             .taste-profile-main {
                 padding: 48px 18px 72px;
+            }
+
+            .taste-profile-help-row {
+                flex-direction: column;
+                align-items: stretch;
             }
 
             .taste-profile-footer {
@@ -201,6 +234,24 @@
                 <form method="post" action="@Url.Action("UpdateTasteProfile", "WineSurfer")" class="taste-profile-form" novalidate>
                     @Html.AntiForgeryToken()
                     <div class="taste-profile-field">
+                        <label class="taste-profile-label" for="tasteProfileSummaryInput">Profile summary</label>
+                        <input
+                            id="tasteProfileSummaryInput"
+                            name="TasteProfileSummary"
+                            type="text"
+                            class="taste-profile-input"
+                            maxlength="@summaryMaxLength"
+                            data-max-length="@summaryMaxLength"
+                            spellcheck="true"
+                            value="@tasteProfileSummary" />
+                        <div class="taste-profile-help-row">
+                            <p class="taste-profile-help">Share a concise, one-line snapshot of your palate—perfect for recommendations and quick intros.</p>
+                            <span class="taste-profile-counter" data-char-count data-for="tasteProfileSummaryInput" data-max-length="@summaryMaxLength">
+                                @($"{tasteProfileSummary.Length} / {summaryMaxLength} characters")
+                            </span>
+                        </div>
+                    </div>
+                    <div class="taste-profile-field">
                         <label class="taste-profile-label" for="tasteProfileInput">Your taste profile</label>
                         <textarea
                             id="tasteProfileInput"
@@ -213,7 +264,7 @@
                         <p class="taste-profile-help">We recommend highlighting grape varieties, favorite producers, and moments you savor. Update it anytime your palate evolves.</p>
                     </div>
                     <div class="taste-profile-footer">
-                        <span class="taste-profile-counter" data-char-count data-max-length="@maxLength">
+                        <span class="taste-profile-counter" data-char-count data-for="tasteProfileInput" data-max-length="@maxLength">
                             @($"{tasteProfile.Length} / {maxLength} characters")
                         </span>
                         <button type="submit" class="sisterhood-button">Save profile</button>
@@ -224,22 +275,32 @@
     </div>
     <script>
         (function () {
-            const textarea = document.getElementById('tasteProfileInput');
-            const counter = document.querySelector('[data-char-count]');
-            if (!textarea || !counter) {
+            const counters = document.querySelectorAll('[data-char-count]');
+            if (!counters || counters.length === 0) {
                 return;
             }
 
-            const maxLength = parseInt(counter.dataset.maxLength || textarea.getAttribute('maxlength') || '@maxLength', 10);
-            const formatCount = (value) => `${value} / ${maxLength} characters`;
+            counters.forEach((counter) => {
+                const targetId = counter.getAttribute('data-for');
+                if (!targetId) {
+                    return;
+                }
 
-            const updateCount = () => {
-                const valueLength = textarea.value.length;
-                counter.textContent = formatCount(valueLength);
-            };
+                const field = document.getElementById(targetId);
+                if (!field) {
+                    return;
+                }
 
-            textarea.addEventListener('input', updateCount, { passive: true });
-            updateCount();
+                const maxLength = parseInt(counter.dataset.maxLength || field.getAttribute('maxlength') || '0', 10);
+                const formatCount = (value) => `${value} / ${maxLength} characters`;
+
+                const updateCount = () => {
+                    counter.textContent = formatCount(field.value.length);
+                };
+
+                field.addEventListener('input', updateCount, { passive: true });
+                updateCount();
+            });
         })();
     </script>
 </body>

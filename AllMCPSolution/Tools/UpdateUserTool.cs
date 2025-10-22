@@ -5,7 +5,7 @@ using AllMCPSolution.Services;
 
 namespace AllMCPSolution.Tools;
 
-[McpTool("update_user", "Updates an existing user's name or taste profile.")]
+[McpTool("update_user", "Updates an existing user's name, taste profile, or summary.")]
 public sealed class UpdateUserTool : UserToolBase
 {
     public UpdateUserTool(IUserRepository userRepository)
@@ -25,6 +25,7 @@ public sealed class UpdateUserTool : UserToolBase
         var name = ParameterHelpers.GetStringParameter(parameters, "name", "name")?.Trim();
         var newName = ParameterHelpers.GetStringParameter(parameters, "newName", "new_name")?.Trim();
         var newTasteProfile = ParameterHelpers.GetStringParameter(parameters, "newTasteProfile", "new_taste_profile")?.Trim();
+        var newTasteProfileSummary = ParameterHelpers.GetStringParameter(parameters, "newTasteProfileSummary", "new_taste_profile_summary")?.Trim();
 
         var errors = new List<string>();
         if (id is null && string.IsNullOrWhiteSpace(name))
@@ -32,9 +33,9 @@ public sealed class UpdateUserTool : UserToolBase
             errors.Add("Either 'id' or 'name' must be provided to locate the user.");
         }
 
-        if (string.IsNullOrWhiteSpace(newName) && string.IsNullOrWhiteSpace(newTasteProfile))
+        if (string.IsNullOrWhiteSpace(newName) && string.IsNullOrWhiteSpace(newTasteProfile) && string.IsNullOrWhiteSpace(newTasteProfileSummary))
         {
-            errors.Add("At least one of 'newName' or 'newTasteProfile' must be provided.");
+            errors.Add("At least one of 'newName', 'newTasteProfile', or 'newTasteProfileSummary' must be provided.");
         }
 
         if (errors.Count > 0)
@@ -100,6 +101,11 @@ public sealed class UpdateUserTool : UserToolBase
             user.TasteProfile = newTasteProfile!;
         }
 
+        if (!string.IsNullOrWhiteSpace(newTasteProfileSummary))
+        {
+            user.TasteProfileSummary = newTasteProfileSummary!;
+        }
+
         await UserRepository.UpdateAsync(user, ct);
         var updated = await UserRepository.GetByIdAsync(user.Id, ct) ?? user;
         return Success("update", "User updated.", UserResponseMapper.MapUser(updated));
@@ -132,6 +138,11 @@ public sealed class UpdateUserTool : UserToolBase
                 {
                     ["type"] = "string",
                     ["description"] = "New taste profile for the user."
+                },
+                ["newTasteProfileSummary"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = "New short summary of the user's palate."
                 }
             },
             ["required"] = new JsonArray()

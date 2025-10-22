@@ -24,6 +24,7 @@ public sealed class CreateUserTool : UserToolBase
     {
         var name = ParameterHelpers.GetStringParameter(parameters, "name", "name")?.Trim();
         var tasteProfile = ParameterHelpers.GetStringParameter(parameters, "tasteProfile", "taste_profile")?.Trim();
+        var tasteProfileSummary = ParameterHelpers.GetStringParameter(parameters, "tasteProfileSummary", "taste_profile_summary")?.Trim();
 
         var errors = new List<string>();
         if (string.IsNullOrWhiteSpace(name))
@@ -59,7 +60,8 @@ public sealed class CreateUserTool : UserToolBase
             Id = Guid.NewGuid(),
             Name = name!,
             UserName = name!,
-            TasteProfile = tasteProfile!
+            TasteProfile = tasteProfile!,
+            TasteProfileSummary = tasteProfileSummary ?? string.Empty
         };
 
         await UserRepository.AddAsync(user, ct);
@@ -83,6 +85,11 @@ public sealed class CreateUserTool : UserToolBase
                 {
                     ["type"] = "string",
                     ["description"] = "Taste profile description for personalization."
+                },
+                ["tasteProfileSummary"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = "Optional short summary of the user's palate."
                 }
             },
             ["required"] = new JsonArray("name", "tasteProfile")
