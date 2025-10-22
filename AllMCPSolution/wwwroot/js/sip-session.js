@@ -390,19 +390,43 @@
             showFeedback('');
 
             try {
-                const response = await fetch(form.getAttribute('action') ?? window.location.href, requestOptions);
+                const action = form.getAttribute('action');
+                let endpoint = window.location.href;
+
+                if (action) {
+                    try {
+                        endpoint = new URL(action, window.location.origin).toString();
+                    } catch (error) {
+                        endpoint = action;
+                    }
+                }
+
+                const response = await fetch(endpoint, requestOptions);
+                const contentType = response.headers.get('content-type') ?? '';
+                const rawBody = await response.text();
+                let payload = null;
+
+                if (rawBody && contentType.includes('application/json')) {
+                    try {
+                        payload = JSON.parse(rawBody);
+                    } catch (error) {
+                        payload = null;
+                    }
+                }
+
                 if (!response.ok) {
-                    const text = await response.text();
-                    throw new Error(text || 'Unable to save tasting note.');
+                    const message = (payload && typeof payload.message === 'string')
+                        ? payload.message
+                        : (rawBody || 'Unable to save tasting note.');
+                    throw new Error(message);
                 }
 
-                const result = await response.json();
-                if (!result || result.success !== true) {
-                    throw new Error(result?.message ?? 'Unable to save tasting note.');
+                if (!payload || payload.success !== true) {
+                    throw new Error(payload?.message ?? 'Unable to save tasting note.');
                 }
 
-                updateCardFromResponse(activeCard, result);
-                showFeedback(result.message ?? 'Tasting note saved.', 'success');
+                updateCardFromResponse(activeCard, payload);
+                showFeedback(payload.message ?? 'Tasting note saved.', 'success');
 
                 closeTimerId = window.setTimeout(() => {
                     closeModal();
