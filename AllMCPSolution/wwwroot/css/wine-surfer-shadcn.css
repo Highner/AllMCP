@@ -1050,30 +1050,20 @@ textarea:focus {
 }
 
 #detail-add-row {
-    display: block;
-    padding: 16px 20px 20px;
-    border-top: 1px solid hsla(var(--border) / 0.35);
-    border-bottom: 1px solid hsla(var(--border) / 0.25);
-}
-
-#detail-add-row .detail-add-grid {
     display: grid;
     gap: 16px;
-}
-
-#detail-add-row .detail-add-grid > * {
-    min-width: 0;
+    padding: 16px 20px;
+    border-radius: calc(var(--radius) - 0.25rem);
+    background: hsla(var(--accent) / 0.18);
+    border: 1px solid hsla(var(--border) / 0.25);
 }
 
 @media (min-width: 768px) {
     #detail-add-row {
-        padding-left: 24px;
-        padding-right: 24px;
-    }
-
-    #detail-add-row .detail-add-grid {
         grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
         align-items: end;
+        padding-left: 24px;
+        padding-right: 24px;
     }
 }
 
@@ -1082,6 +1072,7 @@ textarea:focus {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    min-width: 0;
 }
 
 #detail-add-row .detail-add-quantity-label {
@@ -1096,19 +1087,15 @@ textarea:focus {
     letter-spacing: inherit;
 }
 
-#detail-add-row .actions {
-    display: flex;
-    justify-content: flex-end;
-    align-items: flex-end;
-}
-
-#detail-add-row .actions button {
+#detail-add-row .crud-table__action-button {
     width: 100%;
+    justify-self: stretch;
 }
 
 @media (min-width: 768px) {
-    #detail-add-row .actions button {
+    #detail-add-row .crud-table__action-button {
         width: auto;
+        justify-self: end;
     }
 }
 

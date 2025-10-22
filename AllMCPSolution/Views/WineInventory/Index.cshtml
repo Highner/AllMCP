@@ -1,5 +1,6 @@
 @model AllMCPSolution.Controllers.WineInventoryViewModel
 @using AllMCPSolution.Controllers
+@using AllMCPSolution.Models
 @using Microsoft.AspNetCore.WebUtilities
 @using System.Collections.Generic
 @using System.Linq
@@ -44,6 +45,133 @@
     var hasBottles = Model.Bottles.Any();
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
         ?? WineSurferTopBarModel.Empty(currentPath);
+    var bottleHeaderContent = await Html.PartialAsync("_BottleDetailsHeaderControls");
+
+    var yourCellarTable = new CrudTableTemplateModel
+    {
+        Title = "Your Cellar",
+        DataTableKey = "summary",
+        HeaderContent = @<text>
+            <button type="button" class="crud-table__action-button inventory-add-trigger">Add Wine</button>
+        </text>,
+        BodyContent = @<text>
+            <table id="inventory-table" class="inventory-table crud-table__table">
+                <thead>
+                    <tr class="header-row crud-table__header-row">
+                        <th>
+                            <a class="sort-header @SortStateClass("wine")" href="@BuildSortUrl("wine")">
+                                <span class="header-text">Wine</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
+                        <th>
+                            <a class="sort-header @SortStateClass("appellation")" href="@BuildSortUrl("appellation")">
+                                <span class="header-text">Appellation</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
+                        <th>
+                            <a class="sort-header @SortStateClass("vintage")" href="@BuildSortUrl("vintage")">
+                                <span class="header-text">Vintage</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
+                        <th>
+                            <span class="header-text">Bottles</span>
+                        </th>
+                        <th>
+                            <a class="sort-header @SortStateClass("color")" href="@BuildSortUrl("color")">
+                                <span class="header-text">Color</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
+                        <th>
+                            <a class="sort-header @SortStateClass("status")" href="@BuildSortUrl("status")">
+                                <span class="header-text">Status</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
+                        <th>
+                            <a class="sort-header @SortStateClass("score")" href="@BuildSortUrl("score")">
+                                <span class="header-text">Score</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (hasBottles)
+                    {
+                        foreach (var bottle in Model.Bottles)
+                        {
+                            var subAppellation = string.IsNullOrWhiteSpace(bottle.SubAppellation) ? null : bottle.SubAppellation;
+                            var appellation = string.IsNullOrWhiteSpace(bottle.Appellation) ? null : bottle.Appellation;
+                            var display = "—";
+                            if (!string.IsNullOrEmpty(subAppellation) && !string.IsNullOrEmpty(appellation) && !string.Equals(subAppellation, appellation, StringComparison.OrdinalIgnoreCase))
+                            {
+                                display = $"{subAppellation} ({appellation})";
+                            }
+                            else if (!string.IsNullOrEmpty(subAppellation))
+                            {
+                                display = subAppellation;
+                            }
+                            else if (!string.IsNullOrEmpty(appellation))
+                            {
+                                display = appellation;
+                            }
+                            <tr class="group-row"
+                                data-group-id="@bottle.WineVintageId"
+                                data-wine-id="@bottle.WineId"
+                                data-sub-appellation-id="@(bottle.SubAppellationId?.ToString() ?? string.Empty)"
+                                data-appellation-id="@(bottle.AppellationId?.ToString() ?? string.Empty)"
+                                tabindex="0"
+                                role="button"
+                                aria-controls="details-table">
+                                <td class="summary-wine">@bottle.WineName</td>
+                                <td class="summary-appellation">@display</td>
+                                <td class="summary-vintage">@bottle.Vintage</td>
+                                <td class="summary-bottles" data-field="bottle-count">@bottle.BottleCount</td>
+                                <td class="summary-color">@bottle.Color</td>
+                                <td class="summary-status"><span class="status-pill @bottle.StatusCssClass" data-field="status">@bottle.StatusLabel</span></td>
+                                <td class="summary-score" data-field="score">@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr class="crud-table__empty-row empty-row">
+                            <td colspan="7">No bottles yet. Add your first wine above to get started.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </text>
+    };
+
+    var bottleDetailsTable = new CrudTableTemplateModel
+    {
+        Title = "Bottles",
+        DataTableKey = "details",
+        HeaderContent = _ => bottleHeaderContent,
+        BodyContent = @<text>
+            <table class="details-table crud-table__table" id="details-table">
+                <thead>
+                    <tr class="header-row crud-table__header-row">
+                        <th scope="col">Bottle Location</th>
+                        <th scope="col">Price</th>
+                        <th scope="col">Avg Score</th>
+                        <th scope="col">Enjoyed at</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="details-table-body">
+                    <tr class="empty-row">
+                        <td colspan="5">Select a wine group to see its bottles.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </text>
+    };
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -96,106 +224,7 @@
         <div class="no-results wine-card-hover wine-card-hover--prominent">No bottles match the current filters.</div>
         }
 
-        <section class="crud-table wine-surface wine-surface-border wine-card-hover" data-crud-table="summary">
-            <header class="crud-table__header">
-                <div class="crud-table__header-content">
-                    <h2 class="crud-table__title">Your Cellar</h2>
-                </div>
-                <button type="button" class="crud-table__action-button inventory-add-trigger">Add Wine</button>
-            </header>
-            <div class="crud-table__body wine-surface wine-surface-border">
-                <table id="inventory-table" class="inventory-table crud-table__table">
-                    <thead>
-                        <tr class="header-row crud-table__header-row">
-                            <th>
-                                <a class="sort-header @SortStateClass("wine")" href="@BuildSortUrl("wine")">
-                                    <span class="header-text">Wine</span>
-                                    <span class="sort-icon" aria-hidden="true"></span>
-                                </a>
-                            </th>
-                            <th>
-                                <a class="sort-header @SortStateClass("appellation")" href="@BuildSortUrl("appellation")">
-                                    <span class="header-text">Appellation</span>
-                                    <span class="sort-icon" aria-hidden="true"></span>
-                                </a>
-                            </th>
-                            <th>
-                                <a class="sort-header @SortStateClass("vintage")" href="@BuildSortUrl("vintage")">
-                                    <span class="header-text">Vintage</span>
-                                    <span class="sort-icon" aria-hidden="true"></span>
-                                </a>
-                            </th>
-                            <th>
-                                <span class="header-text">Bottles</span>
-                            </th>
-                            <th>
-                                <a class="sort-header @SortStateClass("color")" href="@BuildSortUrl("color")">
-                                    <span class="header-text">Color</span>
-                                    <span class="sort-icon" aria-hidden="true"></span>
-                                </a>
-                            </th>
-                            <th>
-                                <a class="sort-header @SortStateClass("status")" href="@BuildSortUrl("status")">
-                                    <span class="header-text">Status</span>
-                                    <span class="sort-icon" aria-hidden="true"></span>
-                                </a>
-                            </th>
-                            <th>
-                                <a class="sort-header @SortStateClass("score")" href="@BuildSortUrl("score")">
-                                    <span class="header-text">Score</span>
-                                    <span class="sort-icon" aria-hidden="true"></span>
-                                </a>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (hasBottles)
-                        {
-                            foreach (var bottle in Model.Bottles)
-                            {
-                                var subAppellation = string.IsNullOrWhiteSpace(bottle.SubAppellation) ? null : bottle.SubAppellation;
-                                var appellation = string.IsNullOrWhiteSpace(bottle.Appellation) ? null : bottle.Appellation;
-                                var display = "—";
-                                if (!string.IsNullOrEmpty(subAppellation) && !string.IsNullOrEmpty(appellation) && !string.Equals(subAppellation, appellation, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    display = $"{subAppellation} ({appellation})";
-                                }
-                                else if (!string.IsNullOrEmpty(subAppellation))
-                                {
-                                    display = subAppellation;
-                                }
-                                else if (!string.IsNullOrEmpty(appellation))
-                                {
-                                    display = appellation;
-                                }
-                                <tr class="group-row"
-                                    data-group-id="@bottle.WineVintageId"
-                                    data-wine-id="@bottle.WineId"
-                                    data-sub-appellation-id="@(bottle.SubAppellationId?.ToString() ?? string.Empty)"
-                                    data-appellation-id="@(bottle.AppellationId?.ToString() ?? string.Empty)"
-                                    tabindex="0"
-                                    role="button"
-                                    aria-controls="details-table">
-                                    <td class="summary-wine">@bottle.WineName</td>
-                                    <td class="summary-appellation">@display</td>
-                                    <td class="summary-vintage">@bottle.Vintage</td>
-                                    <td class="summary-bottles" data-field="bottle-count">@bottle.BottleCount</td>
-                                    <td class="summary-color">@bottle.Color</td>
-                                    <td class="summary-status"><span class="status-pill @bottle.StatusCssClass" data-field="status">@bottle.StatusLabel</span></td>
-                                    <td class="summary-score" data-field="score">@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
-                                </tr>
-                            }
-                        }
-                        else
-                        {
-                            <tr class="crud-table__empty-row empty-row">
-                                <td colspan="7">No bottles yet. Add your first wine above to get started.</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </section>
+        @await Html.PartialAsync("_CrudTableTemplate", yourCellarTable)
         <div class="inventory-add-overlay" id="inventory-add-overlay" hidden>
             <div class="inventory-add-popover" id="inventory-add-popover" role="dialog" aria-modal="true" aria-labelledby="inventory-add-title">
                 <h3 id="inventory-add-title">Add Wine to Inventory</h3>
@@ -256,52 +285,7 @@
             <div id="details-message" class="details-message" role="status"></div>
             <div class="details-layout">
                 <div class="details-main">
-                    <section class="crud-table wine-surface wine-surface-border wine-card-hover" data-crud-table="details">
-                        <div class="crud-table__body wine-surface wine-surface-border">
-                            <div id="detail-add-row" class="crud-table__add-row add-row detail-add-row" hidden>
-                                <div class="detail-add-grid">
-                                    <label class="detail-add-input-label">
-                                        <span>Location</span>
-                                        <select class="detail-add-location" aria-label="Bottle location">
-                                            <option value="">No location</option>
-                                        </select>
-                                    </label>
-                                    <label class="detail-add-input-label">
-                                        <span>Price</span>
-                                        <input type="number" class="detail-add-price" step="0.01" min="0" placeholder="0.00" aria-label="Price" />
-                                    </label>
-                                    <label class="detail-add-quantity-label">
-                                        <span>Quantity</span>
-                                        <select class="detail-add-quantity-select" aria-label="Bottle quantity">
-                                            @for (var quantity = 1; quantity <= 12; quantity++)
-                                            {
-                                                <option value="@quantity">@quantity</option>
-                                            }
-                                        </select>
-                                    </label>
-                                    <div class="actions">
-                                        <button type="button" class="detail-add-submit crud-table__action-button">Add Bottles</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <table class="details-table crud-table__table" id="details-table">
-                                <thead>
-                                    <tr class="header-row crud-table__header-row">
-                                        <th scope="col">Bottle Location</th>
-                                        <th scope="col">Price</th>
-                                        <th scope="col">Avg Score</th>
-                                        <th scope="col">Enjoyed at</th>
-                                        <th scope="col">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="details-table-body">
-                                    <tr class="empty-row">
-                                        <td colspan="5">Select a wine group to see its bottles.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
+                    @await Html.PartialAsync("_CrudTableTemplate", bottleDetailsTable)
                 </div>
                 <aside class="notes-panel" id="notes-panel" aria-hidden="true">
                     <header class="notes-header">
