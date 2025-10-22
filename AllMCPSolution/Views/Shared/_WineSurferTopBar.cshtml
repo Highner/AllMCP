@@ -8,13 +8,22 @@
 @model WineSurferTopBarModel?
 
 @{ 
-    var navItems = new (string Href, string Label)[]
+    var isAdmin = Model?.IsAdmin ?? false;
+
+    var navItems = new List<(string Href, string Label)>
     {
         ("/wine-surfer", "Home"),
         ("/wine-surfer/terroir", "Terroir"),
         ("/wine-surfer/sisterhoods", "Sisterhoods"),
         ("/wine-manager", "Wine Inventory")
     };
+
+    if (!isAdmin)
+    {
+        navItems = navItems
+            .Where(item => !string.Equals(item.Href, "/wine-surfer/terroir", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
 
     var rawPath = Model?.CurrentPath;
     var currentPath = string.IsNullOrWhiteSpace(rawPath)

@@ -44,6 +44,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
             entity.Property(u => u.TasteProfile)
                 .HasMaxLength(2048);
+
+            entity.Property(u => u.IsAdmin)
+                .HasDefaultValue(false);
         });
 
         foreach (var property in modelBuilder.Model

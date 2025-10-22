@@ -11,7 +11,8 @@
         currentLocation,
         Model.IncomingInvitations,
         Model.SentInvitationNotifications,
-        displayName: Model.CurrentUser?.DisplayName);
+        displayName: Model.CurrentUser?.DisplayName,
+        isAdmin: Model.CurrentUser?.IsAdmin == true);
     var colors = Enum.GetValues(typeof(WineColor)).Cast<WineColor>().ToList();
     ViewData["WineSurferPageTitle"] = "Terroir manager";
     var hasStatus = !string.IsNullOrWhiteSpace(Model.StatusMessage);
