@@ -46,6 +46,7 @@ window.WineInventoryTables.initialize = function () {
             const addWineError = addWinePopover?.querySelector('.inventory-add-error');
             const addWineSubmit = addWinePopover?.querySelector('.inventory-add-submit');
             const addWineCancel = addWinePopover?.querySelector('.inventory-add-cancel');
+            const addWineClose = addWinePopover?.querySelector('[data-add-wine-close]');
 
             const drinkOverlay = document.getElementById('drink-bottle-overlay');
             const drinkPopover = document.getElementById('drink-bottle-popover');
@@ -190,9 +191,18 @@ window.WineInventoryTables.initialize = function () {
                     openAddWinePopover().catch(error => showMessage(error?.message ?? String(error), 'error'));
                 });
 
-                addWineCancel?.addEventListener('click', () => {
-                    closeAddWinePopover();
-                });
+                const bindAddWineClose = (element) => {
+                    if (!element) {
+                        return;
+                    }
+
+                    element.addEventListener('click', () => {
+                        closeAddWinePopover();
+                    });
+                };
+
+                bindAddWineClose(addWineCancel);
+                bindAddWineClose(addWineClose);
 
                 addWineOverlay.addEventListener('click', (event) => {
                     if (event.target === addWineOverlay) {
@@ -221,6 +231,7 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 addWineOverlay.hidden = false;
+                addWineOverlay.setAttribute('aria-hidden', 'false');
                 addWineOverlay.classList.add('is-open');
                 document.body.style.overflow = 'hidden';
                 showAddWineError('');
@@ -254,6 +265,7 @@ window.WineInventoryTables.initialize = function () {
 
                 setModalLoading(false);
                 addWineOverlay.classList.remove('is-open');
+                addWineOverlay.setAttribute('aria-hidden', 'true');
                 addWineOverlay.hidden = true;
                 document.body.style.overflow = '';
                 showAddWineError('');

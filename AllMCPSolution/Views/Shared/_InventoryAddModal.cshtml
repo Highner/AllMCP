@@ -1,8 +1,35 @@
-<div class="inventory-add-overlay" id="inventory-add-overlay" hidden>
-    <div class="inventory-add-popover" id="inventory-add-popover" role="dialog" aria-modal="true" aria-labelledby="inventory-add-title">
-        <h3 id="inventory-add-title">Add Wine to Inventory</h3>
-        <p class="inventory-add-intro">Choose an existing wine and vintage to add a bottle to your cellar.</p>
-        <form class="inventory-add-form">
+@using System.Collections.Generic
+@using Microsoft.AspNetCore.Html
+@using AllMCPSolution.Models
+@{
+    var modal = new WineSurferModalShell
+    {
+        BackdropId = "inventory-add-overlay",
+        BackdropCssClass = "inventory-add-overlay wine-surfer-modal-backdrop",
+        BackdropAttributes = new Dictionary<string, string?>
+        {
+            ["hidden"] = null,
+            ["aria-hidden"] = "true"
+        },
+        DialogId = "inventory-add-popover",
+        DialogCssClass = "inventory-add-popover wine-surfer-modal",
+        DialogAttributes = new Dictionary<string, string?>
+        {
+            ["aria-labelledby"] = "inventory-add-title"
+        },
+        HeaderCssClass = "wine-surfer-modal__header inventory-add-header",
+        Title = "Add Wine to Inventory",
+        TitleCssClass = "wine-surfer-modal__title inventory-add-title",
+        TitleElementId = "inventory-add-title",
+        BodyCssClass = "wine-surfer-modal__body inventory-add-body",
+        CloseButtonCssClass = "wine-surfer-modal__close inventory-add-close",
+        CloseButtonLabel = "Close add wine dialog",
+        CloseButtonAttributes = new Dictionary<string, string?>
+        {
+            ["data-add-wine-close"] = null
+        },
+        BodyContent = @<form class="inventory-add-form">
+            <p class="inventory-add-intro">Choose an existing wine and vintage to add a bottle to your cellar.</p>
             <label class="inventory-add-field">
                 <span class="inventory-add-label">Wine</span>
                 <select class="inventory-add-wine" aria-label="Wine">
@@ -38,5 +65,6 @@
                 <button type="submit" class="crud-table__action-button inventory-add-submit">Add Wine</button>
             </div>
         </form>
-    </div>
-</div>
+    };
+}
+@await Html.PartialAsync("_WineSurferModalShell", modal)

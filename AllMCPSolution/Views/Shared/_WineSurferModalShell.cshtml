@@ -1,0 +1,162 @@
+@model AllMCPSolution.Models.WineSurferModalShell
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using System.Text.Encodings.Web
+@{
+    var backdropAttributes = NormalizeAttributes(Model.BackdropAttributes);
+    var dialogAttributes = NormalizeAttributes(Model.DialogAttributes);
+    var headerAttributes = NormalizeAttributes(Model.HeaderAttributes);
+    var titleAttributes = NormalizeAttributes(Model.TitleAttributes);
+    var bodyAttributes = NormalizeAttributes(Model.BodyAttributes);
+    var closeAttributes = NormalizeAttributes(Model.CloseButtonAttributes);
+
+    if (!string.IsNullOrEmpty(Model.BackdropId))
+    {
+        backdropAttributes["id"] = Model.BackdropId;
+    }
+
+    if (!string.IsNullOrEmpty(Model.DialogId))
+    {
+        dialogAttributes["id"] = Model.DialogId;
+    }
+
+    var closeLabel = string.IsNullOrWhiteSpace(Model.CloseButtonLabel)
+        ? "Close dialog"
+        : Model.CloseButtonLabel;
+
+    if (Model.RenderCloseButton && !closeAttributes.ContainsKey("aria-label"))
+    {
+        closeAttributes["aria-label"] = closeLabel;
+    }
+
+    var backdropClasses = string.IsNullOrWhiteSpace(Model.BackdropCssClass)
+        ? "wine-surfer-modal-backdrop"
+        : Model.BackdropCssClass;
+    var dialogClasses = string.IsNullOrWhiteSpace(Model.DialogCssClass)
+        ? "wine-surfer-modal"
+        : Model.DialogCssClass;
+    var headerClasses = string.IsNullOrWhiteSpace(Model.HeaderCssClass)
+        ? "wine-surfer-modal__header"
+        : Model.HeaderCssClass;
+    var titleClasses = string.IsNullOrWhiteSpace(Model.TitleCssClass)
+        ? "wine-surfer-modal__title"
+        : Model.TitleCssClass;
+    var closeClasses = string.IsNullOrWhiteSpace(Model.CloseButtonCssClass)
+        ? "wine-surfer-modal__close"
+        : Model.CloseButtonCssClass;
+    var bodyClasses = string.IsNullOrWhiteSpace(Model.BodyCssClass)
+        ? "wine-surfer-modal__body"
+        : Model.BodyCssClass;
+
+    var titleTagName = string.IsNullOrWhiteSpace(Model.TitleTagName)
+        ? "h2"
+        : Model.TitleTagName;
+    var allowedTitleTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "h1", "h2", "h3", "h4", "h5", "h6", "p", "div", "span"
+    };
+    if (!allowedTitleTags.Contains(titleTagName))
+    {
+        titleTagName = "h2";
+    }
+
+    TagBuilder? titleTag = null;
+    if (Model.RenderHeader && !string.IsNullOrEmpty(Model.Title))
+    {
+        titleTag = new TagBuilder(titleTagName);
+        if (!string.IsNullOrWhiteSpace(titleClasses))
+        {
+            titleTag.AddCssClass(titleClasses);
+        }
+        if (!string.IsNullOrWhiteSpace(Model.TitleElementId))
+        {
+            titleTag.Attributes["id"] = Model.TitleElementId!;
+        }
+        ApplyAttributes(titleTag, titleAttributes);
+        titleTag.InnerHtml.Append(Model.Title);
+    }
+
+    var backdropAttributeString = BuildAttributeString(backdropAttributes);
+    var dialogAttributeString = BuildAttributeString(dialogAttributes);
+    var headerAttributeString = BuildAttributeString(headerAttributes);
+    var bodyAttributeString = BuildAttributeString(bodyAttributes);
+    var closeAttributeString = BuildAttributeString(closeAttributes);
+    var bodyContent = Model.BodyContent;
+}
+<div class="@backdropClasses"@Html.Raw(backdropAttributeString)>
+    <div class="@dialogClasses" role="dialog" aria-modal="true"@Html.Raw(dialogAttributeString)>
+        @if (Model.RenderHeader)
+        {
+            <header class="@headerClasses"@Html.Raw(headerAttributeString)>
+                @if (titleTag is not null)
+                {
+                    @titleTag
+                }
+                @if (Model.RenderCloseButton)
+                {
+                    <button type="button" class="@closeClasses"@Html.Raw(closeAttributeString)>
+                        <span aria-hidden="true">@Model.CloseButtonContent</span>
+                    </button>
+                }
+            </header>
+        }
+        <div class="@bodyClasses"@Html.Raw(bodyAttributeString)>
+            @if (bodyContent is not null)
+            {
+                @bodyContent
+            }
+        </div>
+    </div>
+</div>
+
+@functions {
+    private static IDictionary<string, string?> NormalizeAttributes(IDictionary<string, string?>? source)
+    {
+        return source is null
+            ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string?>(source, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string BuildAttributeString(IDictionary<string, string?> attributes)
+    {
+        if (attributes.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var encoder = HtmlEncoder.Default;
+        var builder = new System.Text.StringBuilder();
+
+        foreach (var attribute in attributes)
+        {
+            if (string.IsNullOrWhiteSpace(attribute.Key))
+            {
+                continue;
+            }
+
+            builder.Append(' ');
+            builder.Append(encoder.Encode(attribute.Key));
+            if (!string.IsNullOrEmpty(attribute.Value))
+            {
+                builder.Append("=");
+                builder.Append('"');
+                builder.Append(encoder.Encode(attribute.Value));
+                builder.Append('"');
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static void ApplyAttributes(TagBuilder builder, IDictionary<string, string?> attributes)
+    {
+        foreach (var attribute in attributes)
+        {
+            if (string.IsNullOrWhiteSpace(attribute.Key))
+            {
+                continue;
+            }
+
+            builder.Attributes[attribute.Key] = attribute.Value ?? string.Empty;
+        }
+    }
+}

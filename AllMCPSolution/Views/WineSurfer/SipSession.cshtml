@@ -5,6 +5,7 @@
 @using System
 @using System.Collections.Generic
 @using System.Linq
+@using Microsoft.AspNetCore.Html
 @{
     Layout = null;
     var statusMessage = TempData["SisterhoodStatus"] as string;
@@ -505,15 +506,24 @@
             width: min(520px, 100%);
         }
 
+        .contribute-modal__header {
+            justify-content: space-between;
+            align-items: center;
+        }
+
         .contribute-modal__title {
             margin: 0;
+        }
+
+        .contribute-modal__body {
+            padding: 0;
         }
 
         .contribute-modal__form {
             display: flex;
             flex-direction: column;
             gap: 16px;
-            padding: 0 24px 24px;
+            padding: 24px;
             flex: 1;
         }
 
@@ -978,24 +988,43 @@
         </main>
         @if (Model.CanManageSession || isCreateMode)
         {
-            <div class="wine-surfer-modal-backdrop sip-session-edit-modal-backdrop"
-                 id="sip-session-edit-modal"
-                 data-sip-session-edit-modal
-                 hidden
-                 aria-hidden="true">
-                <div class="wine-surfer-modal sip-session-edit-modal" role="dialog" aria-modal="true" aria-labelledby="sip-session-edit-modal-title">
-                    <header class="wine-surfer-modal__header sip-session-edit-modal__header">
-                        <h2 class="wine-surfer-modal__title sip-session-edit-modal__title" id="sip-session-edit-modal-title" data-sip-session-edit-modal-title>Edit sip session</h2>
-                        <button type="button"
-                                class="wine-surfer-modal__close sip-session-edit-modal__close"
-                                data-sip-session-edit-close
-                                aria-label="Close edit sip session dialog">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </header>
-                    <div class="wine-surfer-modal__body sip-session-edit-modal__body" data-sip-session-edit-modal-body></div>
-                </div>
-            </div>
+            var editModal = new WineSurferModalShell
+            {
+                BackdropId = "sip-session-edit-modal",
+                BackdropCssClass = "wine-surfer-modal-backdrop sip-session-edit-modal-backdrop",
+                BackdropAttributes = new Dictionary<string, string?>
+                {
+                    ["data-sip-session-edit-modal"] = null,
+                    ["hidden"] = null,
+                    ["aria-hidden"] = "true"
+                },
+                DialogCssClass = "wine-surfer-modal sip-session-edit-modal",
+                DialogAttributes = new Dictionary<string, string?>
+                {
+                    ["aria-labelledby"] = "sip-session-edit-modal-title"
+                },
+                HeaderCssClass = "wine-surfer-modal__header sip-session-edit-modal__header",
+                Title = "Edit sip session",
+                TitleCssClass = "wine-surfer-modal__title sip-session-edit-modal__title",
+                TitleElementId = "sip-session-edit-modal-title",
+                TitleAttributes = new Dictionary<string, string?>
+                {
+                    ["data-sip-session-edit-modal-title"] = null
+                },
+                CloseButtonCssClass = "wine-surfer-modal__close sip-session-edit-modal__close",
+                CloseButtonLabel = "Close edit sip session dialog",
+                CloseButtonAttributes = new Dictionary<string, string?>
+                {
+                    ["data-sip-session-edit-close"] = null
+                },
+                BodyCssClass = "wine-surfer-modal__body sip-session-edit-modal__body",
+                BodyAttributes = new Dictionary<string, string?>
+                {
+                    ["data-sip-session-edit-modal-body"] = null
+                },
+                BodyContent = HtmlString.Empty
+            };
+            @await Html.PartialAsync("_WineSurferModalShell", editModal)
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
                     const modal = document.querySelector('[data-sip-session-edit-modal]');
@@ -1197,66 +1226,79 @@
         }
         @if (!isCreateMode && Model.CurrentUser is not null)
         {
-            <div class="wine-surfer-modal-backdrop contribute-modal-backdrop"
-                 id="@contributeModalId"
-                 data-contribute-modal
-                 hidden
-                 aria-hidden="true">
-                <div class="wine-surfer-modal contribute-modal" role="dialog" aria-modal="true" aria-labelledby="@contributeModalTitleId">
-                    <header class="wine-surfer-modal__header contribute-modal__header">
+            var contributeModal = new WineSurferModalShell
+            {
+                BackdropId = contributeModalId,
+                BackdropCssClass = "wine-surfer-modal-backdrop contribute-modal-backdrop",
+                BackdropAttributes = new Dictionary<string, string?>
+                {
+                    ["data-contribute-modal"] = null,
+                    ["hidden"] = null,
+                    ["aria-hidden"] = "true"
+                },
+                DialogCssClass = "wine-surfer-modal contribute-modal",
+                DialogAttributes = new Dictionary<string, string?>
+                {
+                    ["aria-labelledby"] = contributeModalTitleId
+                },
+                HeaderCssClass = "wine-surfer-modal__header contribute-modal__header",
+                Title = "Contribute bottles",
+                TitleCssClass = "wine-surfer-modal__title contribute-modal__title",
+                TitleElementId = contributeModalTitleId,
+                CloseButtonCssClass = "wine-surfer-modal__close contribute-modal__close",
+                CloseButtonLabel = "Close contribute bottles dialog",
+                CloseButtonAttributes = new Dictionary<string, string?>
+                {
+                    ["data-contribute-close"] = null
+                },
+                BodyCssClass = "wine-surfer-modal__body contribute-modal__body",
+                BodyContent = @<form method="post"
+                      action="@Url.Action("ContributeSipSessionBottles", "WineSurfer")"
+                      class="contribute-modal__form"
+                      data-contribute-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+                    <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                    <p class="contribute-modal__hint">Select the bottles you'd like to add to this sip session.</p>
+                    <div class="contribute-modal__list" role="group" aria-labelledby="@contributeModalTitleId">
+                        <p class="contribute-modal__empty" data-contribute-empty @(hasContributableBottles ? "hidden" : null)>No bottles available to contribute right now.</p>
+                        @if (availableBottles.Count > 0)
+                        {
+                            <ul>
+                                @foreach (var bottle in availableBottles)
+                                {
+                                    var inputId = $"contribute-bottle-{bottle.Id:N}";
+                                    var isInSession = sessionBottleIds.Contains(bottle.Id);
+                                    <li class="contribute-modal__option" data-bottle-option @(isInSession ? "data-disabled=\"true\"" : null)>
+                                        <label for="@inputId">
+                                            <input id="@inputId"
+                                                   type="checkbox"
+                                                   name="BottleIds"
+                                                   value="@bottle.Id"
+                                                   @(isInSession ? "disabled" : null) />
+                                            <span>@bottle.Label</span>
+                                        </label>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                    <div class="contribute-modal__actions">
+                        <button type="submit"
+                                class="sisterhood-button"
+                                data-contribute-submit
+                                disabled>
+                            Add to sip session
+                        </button>
                         <button type="button"
-                                class="wine-surfer-modal__close"
-                                data-contribute-close
-                                aria-label="Close contribute bottles dialog">×</button>
-                        <h2 class="wine-surfer-modal__title contribute-modal__title" id="@contributeModalTitleId">Contribute bottles</h2>
-                    </header>
-                    <form method="post"
-                          action="@Url.Action("ContributeSipSessionBottles", "WineSurfer")"
-                          class="wine-surfer-modal__body contribute-modal__form"
-                          data-contribute-form>
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
-                        <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
-                        <p class="contribute-modal__hint">Select the bottles you'd like to add to this sip session.</p>
-                        <div class="contribute-modal__list" role="group" aria-labelledby="@contributeModalTitleId">
-                            <p class="contribute-modal__empty" data-contribute-empty @(hasContributableBottles ? "hidden" : null)>No bottles available to contribute right now.</p>
-                            @if (availableBottles.Count > 0)
-                            {
-                                <ul>
-                                    @foreach (var bottle in availableBottles)
-                                    {
-                                        var inputId = $"contribute-bottle-{bottle.Id:N}";
-                                        var isInSession = sessionBottleIds.Contains(bottle.Id);
-                                        <li class="contribute-modal__option" data-bottle-option @(isInSession ? "data-disabled=\"true\"" : null)>
-                                            <label for="@inputId">
-                                                <input id="@inputId"
-                                                       type="checkbox"
-                                                       name="BottleIds"
-                                                       value="@bottle.Id"
-                                                       @(isInSession ? "disabled" : null) />
-                                                <span>@bottle.Label</span>
-                                            </label>
-                                        </li>
-                                    }
-                                </ul>
-                            }
-                        </div>
-                        <div class="contribute-modal__actions">
-                            <button type="submit"
-                                    class="sisterhood-button"
-                                    data-contribute-submit
-                                    disabled>
-                                Add to sip session
-                            </button>
-                            <button type="button"
-                                    class="sisterhood-button sisterhood-button--ghost"
-                                    data-contribute-close>
-                                Cancel
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+                                class="sisterhood-button sisterhood-button--ghost"
+                                data-contribute-close>
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            };
+            @await Html.PartialAsync("_WineSurferModalShell", contributeModal)
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
                     const modal = document.getElementById('@contributeModalId');

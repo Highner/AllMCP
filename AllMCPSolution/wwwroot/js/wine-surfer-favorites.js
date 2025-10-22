@@ -123,6 +123,7 @@
         const error = popover.querySelector('.inventory-add-error');
         const submit = popover.querySelector('.inventory-add-submit');
         const cancel = popover.querySelector('.inventory-add-cancel');
+        const headerClose = popover.querySelector('[data-add-wine-close]');
         const statusMessage = document.querySelector('[data-favorite-message]');
 
         let wineOptions = [];
@@ -138,9 +139,18 @@
             });
         });
 
-        cancel?.addEventListener('click', () => {
-            closeModal();
-        });
+        const bindClose = (element) => {
+            if (!element) {
+                return;
+            }
+
+            element.addEventListener('click', () => {
+                closeModal();
+            });
+        };
+
+        bindClose(cancel);
+        bindClose(headerClose);
 
         overlay.addEventListener('click', event => {
             if (event.target === overlay) {
@@ -203,6 +213,7 @@
             showError('');
             showStatus('', 'info');
             overlay.hidden = false;
+            overlay.setAttribute('aria-hidden', 'false');
             overlay.classList.add('is-open');
             document.body.style.overflow = 'hidden';
 
@@ -232,6 +243,7 @@
         function closeModal() {
             setModalLoading(false);
             overlay.classList.remove('is-open');
+            overlay.setAttribute('aria-hidden', 'true');
             overlay.hidden = true;
             document.body.style.overflow = '';
             showError('');
