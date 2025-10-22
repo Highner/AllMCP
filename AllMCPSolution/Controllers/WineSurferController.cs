@@ -367,6 +367,14 @@ public class WineSurferController : Controller
             sentInvitationNotifications = CreateSentInvitationNotifications(acceptedInvitations);
         }
 
+        var canManageSession = false;
+        if (currentUserId.HasValue)
+        {
+            var memberships = session.Sisterhood?.Memberships ?? Array.Empty<SisterhoodMembership>();
+            canManageSession = memberships.Any(membership =>
+                membership.UserId == currentUserId.Value && membership.IsAdmin);
+        }
+
         var summary = new WineSurferSipSessionSummary(
             session.Id,
             session.Name,
@@ -383,6 +391,7 @@ public class WineSurferController : Controller
             session.SisterhoodId,
             session.Sisterhood?.Name ?? "Sisterhood",
             session.Sisterhood?.Description,
+            canManageSession,
             currentUser,
             incomingInvitations,
             sentInvitationNotifications);
@@ -1435,6 +1444,11 @@ public class WineSurferController : Controller
             TempData["SisterhoodError"] = "We couldn't update that sip session right now. Please try again.";
         }
 
+        if (!string.IsNullOrWhiteSpace(request.ReturnUrl) && Url.IsLocalUrl(request.ReturnUrl))
+        {
+            return Redirect(request.ReturnUrl);
+        }
+
         return RedirectToAction(nameof(Sisterhoods));
     }
 
@@ -2137,6 +2151,9 @@ public class WineSurferController : Controller
     {
         [Required]
         public Guid SipSessionId { get; set; }
+
+        [StringLength(512)]
+        public string? ReturnUrl { get; set; }
     }
 
     public class DeleteSipSessionRequest
@@ -2464,6 +2481,7 @@ public record WineSurferSipSessionDetailViewModel(
     Guid SisterhoodId,
     string SisterhoodName,
     string? SisterhoodDescription,
+    bool CanManageSession,
     WineSurferCurrentUser? CurrentUser,
     IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
     IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications);

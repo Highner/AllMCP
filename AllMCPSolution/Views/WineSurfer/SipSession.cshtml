@@ -35,6 +35,12 @@
         return localDate?.ToString("D") ?? "Schedule TBD";
     }
 
+    private static string FormatSipSessionInputValue(WineSurferSipSessionSummary session)
+    {
+        var localDateTime = NormalizeDateTime(session.ScheduledAtUtc);
+        return localDateTime.HasValue ? localDateTime.Value.ToString("yyyy-MM-ddTHH:mm") : string.Empty;
+    }
+
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -92,12 +98,115 @@
             gap: 18px;
         }
 
+        .session-overview-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .session-overview-header-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .session-title {
+            margin: 0;
+            font-size: 32px;
+            letter-spacing: 2px;
+            line-height: 1.2;
+        }
+
+        .session-overview-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
         .session-kicker {
             margin: 0;
             font-size: 12px;
             letter-spacing: 3px;
             text-transform: uppercase;
             color: rgba(244, 241, 234, 0.7);
+        }
+
+        .sisterhood-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(244, 241, 234, 0.18);
+            background: transparent;
+            color: #f4f1ea;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .sisterhood-button:hover,
+        .sisterhood-button:focus-visible {
+            background: rgba(244, 241, 234, 0.12);
+            color: #f4f1ea;
+        }
+
+        .sisterhood-button:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.25);
+        }
+
+        .sisterhood-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .sisterhood-button--primary {
+            border-color: rgba(244, 241, 234, 0.28);
+            background: rgba(244, 241, 234, 0.12);
+        }
+
+        .sisterhood-button--primary:hover,
+        .sisterhood-button--primary:focus-visible {
+            background: rgba(244, 241, 234, 0.18);
+            transform: translateY(-1px);
+        }
+
+        .sisterhood-button--danger {
+            border-color: rgba(181, 65, 65, 0.45);
+            color: #f6dcdc;
+        }
+
+        .sisterhood-button--danger:hover,
+        .sisterhood-button--danger:focus-visible {
+            background: rgba(181, 65, 65, 0.25);
+            color: #ffe3e3;
+        }
+
+        .sisterhood-button--ghost {
+            color: rgba(244, 241, 234, 0.85);
+        }
+
+        .sisterhood-button--ghost:hover,
+        .sisterhood-button--ghost:focus-visible {
+            color: #f4f1ea;
+        }
+
+        .sisterhood-button--ghost-danger {
+            border-color: rgba(214, 104, 86, 0.45);
+            color: #f3b0a3;
+        }
+
+        .sisterhood-button--ghost-danger:hover,
+        .sisterhood-button--ghost-danger:focus-visible {
+            background: rgba(214, 104, 86, 0.15);
+            color: #ffd6cc;
         }
 
         .session-description {
@@ -250,6 +359,123 @@
             letter-spacing: 1.1px;
         }
 
+        .sip-session-edit-region {
+            margin-top: 16px;
+        }
+
+        .sip-session-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border-radius: 14px;
+            border: 1px dashed rgba(244, 241, 234, 0.18);
+            background: rgba(244, 241, 234, 0.03);
+            padding: 16px;
+        }
+
+        .sip-session-form label {
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        .sip-session-form input[type="text"],
+        .sip-session-form input[type="datetime-local"],
+        .sip-session-form textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(244, 241, 234, 0.16);
+            background: rgba(244, 241, 234, 0.06);
+            color: #f4f1ea;
+            font-size: 14px;
+        }
+
+        .sip-session-form textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .sip-session-form input[type="text"]:focus,
+        .sip-session-form input[type="datetime-local"]:focus,
+        .sip-session-form textarea:focus {
+            outline: none;
+            border-color: rgba(244, 241, 234, 0.3);
+            background: rgba(244, 241, 234, 0.12);
+        }
+
+        .sip-session-form-actions {
+            display: inline-flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .sip-session-edit-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 5, 5, 0.72);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            z-index: 55;
+            backdrop-filter: blur(6px);
+        }
+
+        .sip-session-edit-modal-backdrop[hidden] {
+            display: none;
+        }
+
+        .sip-session-edit-modal {
+            background: rgba(12, 12, 12, 0.96);
+            border-radius: 16px;
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            width: min(540px, 100%);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+            overflow: hidden;
+        }
+
+        .sip-session-edit-modal__header {
+            padding: 20px 24px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 1px solid rgba(244, 241, 234, 0.12);
+        }
+
+        .sip-session-edit-modal__title {
+            margin: 0;
+            font-size: 16px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .sip-session-edit-modal__body {
+            padding: 24px;
+            overflow-y: auto;
+            max-height: calc(90vh - 100px);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sip-session-edit-modal__body .sip-session-form {
+            border: none;
+            padding: 0;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .sip-session-edit-modal__body .sip-session-form .sip-session-form-actions {
+            justify-content: flex-end;
+        }
+
         .bottle-note {
             margin: 8px 0 0;
             font-size: 15px;
@@ -326,16 +552,79 @@
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="session-main">
             <section class="session-overview" aria-label="Sip session details">
-                <p class="session-kicker">@sisterhoodName</p>
+                <div class="session-overview-header">
+                    <div class="session-overview-header-info">
+                        <p class="session-kicker">@sisterhoodName</p>
+                        <h1 class="session-title">@sessionTitle</h1>
+                    </div>
+                    @if (Model.CanManageSession)
+                    {
+                        var sessionReturnUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = Model.Session.Id })
+                            ?? string.Concat(requestPath, requestQuery);
+                        var scheduledValue = FormatSipSessionInputValue(Model.Session);
+                        var nameInputId = $"sip-session-name-{Model.Session.Id}";
+                        var scheduleInputId = $"sip-session-schedule-{Model.Session.Id}";
+                        var locationInputId = $"sip-session-location-{Model.Session.Id}";
+                        var descriptionInputId = $"sip-session-description-{Model.Session.Id}";
+                        <div class="session-overview-actions">
+                            <button type="button"
+                                    class="sisterhood-button"
+                                    data-sip-session-edit-toggle
+                                    data-session-title="@sessionTitle"
+                                    data-close-label="Close edit"
+                                    aria-expanded="false"
+                                    aria-controls="sip-session-edit-modal">
+                                Edit sip session
+                            </button>
+                        </div>
+                        <div class="sip-session-edit-region" data-sip-session-edit-region hidden>
+                            <template data-sip-session-edit-template>
+                                <form method="post"
+                                      action="@Url.Action("UpdateSipSession", "WineSurfer")"
+                                      class="sip-session-form"
+                                      data-sip-session-edit-form>
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+                                    <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                    <input type="hidden" name="ReturnUrl" value="@sessionReturnUrl" />
+                                    <label for="@nameInputId">Session name</label>
+                                    <input id="@nameInputId"
+                                           name="Name"
+                                           type="text"
+                                           value="@Model.Session.Name"
+                                           maxlength="256"
+                                           required />
+                                    <label for="@scheduleInputId">Scheduled for</label>
+                                    <input id="@scheduleInputId"
+                                           name="ScheduledAt"
+                                           type="datetime-local"
+                                           value="@scheduledValue" />
+                                    <label for="@locationInputId">Location</label>
+                                    <input id="@locationInputId"
+                                           name="Location"
+                                           type="text"
+                                           value="@(Model.Session.Location ?? string.Empty)"
+                                           maxlength="256" />
+                                    <label for="@descriptionInputId">Description</label>
+                                    <textarea id="@descriptionInputId"
+                                              name="Description"
+                                              maxlength="2048">@(Model.Session.Description ?? string.Empty)</textarea>
+                                    <div class="sip-session-form-actions">
+                                        <button type="submit" class="sisterhood-button">Save changes</button>
+                                        <button type="button"
+                                                class="sisterhood-button sisterhood-button--ghost"
+                                                data-sip-session-edit-cancel>Cancel</button>
+                                    </div>
+                                </form>
+                            </template>
+                        </div>
+                    }
+                </div>
                 @if (!string.IsNullOrWhiteSpace(Model.Session.Description))
                 {
                     <p class="session-description">@Model.Session.Description</p>
                 }
                 <dl class="session-meta">
-                    <div class="session-meta-item">
-                        <dt>Session</dt>
-                        <dd>@sessionTitle</dd>
-                    </div>
                     <div class="session-meta-item">
                         <dt>Date &amp; time</dt>
                         <dd>@scheduleLabel</dd>
@@ -368,6 +657,143 @@
                 }
             </section>
         </main>
+        @if (Model.CanManageSession)
+        {
+            <div class="sip-session-edit-modal-backdrop"
+                 id="sip-session-edit-modal"
+                 data-sip-session-edit-modal
+                 hidden
+                 aria-hidden="true">
+                <div class="sip-session-edit-modal" role="dialog" aria-modal="true" aria-labelledby="sip-session-edit-modal-title">
+                    <header class="sip-session-edit-modal__header">
+                        <h2 class="sip-session-edit-modal__title" id="sip-session-edit-modal-title" data-sip-session-edit-modal-title>Edit sip session</h2>
+                        <button type="button"
+                                class="sisterhood-button sisterhood-button--ghost"
+                                data-sip-session-edit-close
+                                aria-label="Close edit sip session dialog">Close</button>
+                    </header>
+                    <div class="sip-session-edit-modal__body" data-sip-session-edit-modal-body></div>
+                </div>
+            </div>
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    const modal = document.querySelector('[data-sip-session-edit-modal]');
+                    const template = document.querySelector('template[data-sip-session-edit-template]');
+                    const trigger = document.querySelector('[data-sip-session-edit-toggle]');
+                    if (!modal || !template || !trigger) {
+                        return;
+                    }
+
+                    const modalBody = modal.querySelector('[data-sip-session-edit-modal-body]');
+                    const titleElement = modal.querySelector('[data-sip-session-edit-modal-title]');
+                    const closeButtons = modal.querySelectorAll('[data-sip-session-edit-close]');
+                    let activeForm = null;
+
+                    const defaultLabel = trigger.dataset.defaultLabel || trigger.textContent?.trim() || 'Edit sip session';
+                    if (!trigger.dataset.defaultLabel) {
+                        trigger.dataset.defaultLabel = defaultLabel;
+                    }
+
+                    const getCloseLabel = () => trigger.dataset.closeLabel?.trim() || 'Close edit';
+
+                    const setTriggerState = (isOpen) => {
+                        if (isOpen) {
+                            trigger.textContent = getCloseLabel();
+                            trigger.setAttribute('aria-expanded', 'true');
+                        } else {
+                            trigger.textContent = trigger.dataset.defaultLabel || defaultLabel;
+                            trigger.setAttribute('aria-expanded', 'false');
+                        }
+                    };
+
+                    const closeModal = ({ restoreFocus = true } = {}) => {
+                        if (activeForm) {
+                            activeForm.reset();
+                            activeForm = null;
+                        }
+
+                        if (modalBody) {
+                            modalBody.innerHTML = '';
+                        }
+
+                        modal.setAttribute('hidden', '');
+                        modal.setAttribute('aria-hidden', 'true');
+                        setTriggerState(false);
+
+                        if (restoreFocus) {
+                            window.requestAnimationFrame(() => trigger.focus());
+                        }
+                    };
+
+                    const openModal = () => {
+                        if (!modalBody) {
+                            return;
+                        }
+
+                        modalBody.innerHTML = '';
+                        const fragment = template.content.cloneNode(true);
+                        modalBody.appendChild(fragment);
+
+                        const form = modalBody.querySelector('[data-sip-session-edit-form]');
+                        if (!form) {
+                            modalBody.innerHTML = '';
+                            return;
+                        }
+
+                        activeForm = form;
+
+                        const cancelButton = form.querySelector('[data-sip-session-edit-cancel]');
+                        if (cancelButton) {
+                            cancelButton.addEventListener('click', (event) => {
+                                event.preventDefault();
+                                form.reset();
+                                closeModal();
+                            });
+                        }
+
+                        if (titleElement) {
+                            const sessionTitle = trigger.dataset.sessionTitle?.trim();
+                            titleElement.textContent = sessionTitle
+                                ? `Edit sip session · ${sessionTitle}`
+                                : 'Edit sip session';
+                        }
+
+                        modal.removeAttribute('hidden');
+                        modal.setAttribute('aria-hidden', 'false');
+                        setTriggerState(true);
+
+                        window.requestAnimationFrame(() => {
+                            const focusTarget = form.querySelector('input[name="Name"]');
+                            focusTarget?.focus();
+                        });
+                    };
+
+                    trigger.addEventListener('click', () => {
+                        if (modal.hasAttribute('hidden')) {
+                            openModal();
+                        } else {
+                            closeModal();
+                        }
+                    });
+
+                    closeButtons.forEach((button) => {
+                        button.addEventListener('click', () => closeModal());
+                    });
+
+                    modal.addEventListener('click', (event) => {
+                        if (event.target === modal) {
+                            closeModal();
+                        }
+                    });
+
+                    document.addEventListener('keydown', (event) => {
+                        if (event.key === 'Escape' && !modal.hasAttribute('hidden')) {
+                            closeModal();
+                        }
+                    });
+                });
+            </script>
+        }
         @if (Model.CurrentUser is not null)
         {
             var drinkModalOptions = new DrinkBottleModalViewModel

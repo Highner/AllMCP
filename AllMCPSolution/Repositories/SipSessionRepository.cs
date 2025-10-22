@@ -33,6 +33,7 @@ public class SipSessionRepository : ISipSessionRepository
         return await _db.SipSessions
             .AsNoTracking()
             .Include(session => session.Sisterhood)
+                .ThenInclude(sisterhood => sisterhood!.Memberships)
             .Include(session => session.Bottles)
                 .ThenInclude(bottle => bottle.WineVintage)
                     .ThenInclude(vintage => vintage.Wine)
