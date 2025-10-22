@@ -45,7 +45,7 @@ public sealed class ChatGptService : IChatGptService
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         _defaultModel = string.IsNullOrWhiteSpace(options.DefaultModel)
-            ? ChatGptOptions.DefaultModel
+            ? ChatGptOptions.FallbackModel
             : options.DefaultModel!;
 
         _logger = logger;
@@ -128,7 +128,7 @@ public sealed class ChatGptService : IChatGptService
 public sealed record ChatGptOptions
 {
     public const string ConfigurationSectionName = "OpenAI";
-    public const string DefaultModel = "gpt-4o-mini";
+    public const string FallbackModel = "gpt-4o-mini";
 
     public string? ApiKey { get; init; }
     public string? DefaultModel { get; init; }
@@ -137,7 +137,7 @@ public sealed record ChatGptOptions
 public sealed record ChatGptRequest
 {
     [JsonPropertyName("model")]
-    public string Model { get; init; } = ChatGptOptions.DefaultModel;
+    public string Model { get; init; } = ChatGptOptions.FallbackModel;
 
     [JsonPropertyName("messages")]
     public IReadOnlyList<ChatGptMessage> Messages { get; init; } = Array.Empty<ChatGptMessage>();
