@@ -48,7 +48,7 @@ public record DrinkBottleModalViewModel
 
     public bool ShowScore { get; init; } = true;
 
-    public bool RequireNote { get; init; } = true;
+    public bool RequireNote { get; init; } = false;
 
     public string DateLabel { get; init; } = "Date";
 

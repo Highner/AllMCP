@@ -472,16 +472,16 @@
             }
 
             const noteValue = noteInput?.value?.trim() ?? '';
-            if (!noteValue) {
-                showFeedback('Enter a tasting note.');
-                noteInput?.focus();
-                return;
-            }
-
             const scoreValue = parseScoreInput(getScoreRawValue());
             if (scoreValue === undefined) {
                 showFeedback('Score must be between 0 and 10.');
                 scoreInput?.focus();
+                return;
+            }
+
+            if (!noteValue && scoreValue == null) {
+                showFeedback('Add a tasting note or choose a score.');
+                (noteInput ?? scoreInput)?.focus();
                 return;
             }
 

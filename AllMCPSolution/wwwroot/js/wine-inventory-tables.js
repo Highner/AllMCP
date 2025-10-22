@@ -777,15 +777,16 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
+                const scoreRawValue = getDrinkScoreRawValue();
+                const parsedScore = parseScore(scoreRawValue);
                 const noteValue = drinkNoteInput?.value?.trim() ?? '';
-                if (!noteValue) {
-                    showDrinkError('Enter a tasting note.');
-                    drinkNoteInput?.focus();
+
+                if (!noteValue && parsedScore == null) {
+                    showDrinkError('Add a tasting note or choose a score.');
+                    (drinkNoteInput ?? drinkScoreInput)?.focus();
                     return;
                 }
 
-                const scoreRawValue = getDrinkScoreRawValue();
-                const parsedScore = parseScore(scoreRawValue);
                 if (parsedScore === undefined) {
                     showDrinkError('Score must be between 0 and 10.');
                     drinkScoreInput?.focus();
@@ -879,7 +880,7 @@ window.WineInventoryTables.initialize = function () {
                             updateScoresFromNotesSummary(summary);
                         }
 
-                        showMessage('Bottle marked as drunk and tasting note saved.', 'success');
+                        showMessage('Bottle marked as drunk and details saved.', 'success');
                     } catch (noteError) {
                         showDrinkError(noteError?.message ?? String(noteError));
                         return;
@@ -2050,14 +2051,15 @@ window.WineInventoryTables.initialize = function () {
                         }
 
                         const noteValue = noteTextarea?.value?.trim() ?? '';
-                        if (!noteValue) {
-                            showNotesMessage('Note text is required.', 'error');
-                            return;
-                        }
-
                         const parsedScore = parseScore(scoreInput?.value ?? '');
                         if (parsedScore === undefined) {
                             showNotesMessage('Score must be between 0 and 10.', 'error');
+                            return;
+                        }
+
+                        if (!noteValue && parsedScore == null) {
+                            showNotesMessage('Add a tasting note or choose a score.', 'error');
+                            (noteTextarea ?? scoreInput)?.focus();
                             return;
                         }
 
@@ -2143,14 +2145,15 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 const noteValue = notesAddText?.value?.trim() ?? '';
-                if (!noteValue) {
-                    showNotesMessage('Note text is required.', 'error');
-                    return;
-                }
-
                 const parsedScore = parseScore(notesAddScore?.value ?? '');
                 if (parsedScore === undefined) {
                     showNotesMessage('Score must be between 0 and 10.', 'error');
+                    return;
+                }
+
+                if (!noteValue && parsedScore == null) {
+                    showNotesMessage('Add a tasting note or choose a score.', 'error');
+                    (notesAddText ?? notesAddScore)?.focus();
                     return;
                 }
 
