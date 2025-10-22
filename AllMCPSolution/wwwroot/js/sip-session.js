@@ -42,9 +42,28 @@
         const overlay = document.getElementById('drink-bottle-overlay');
         const popover = document.getElementById('drink-bottle-popover');
         const form = popover?.querySelector('.drink-bottle-form');
-        const cards = Array.from(document.querySelectorAll('[data-sip-session-bottle-card]'));
+        const allCards = Array.from(document.querySelectorAll('[data-sip-session-bottle-card]'));
+        const revealButtons = Array.from(document.querySelectorAll('[data-sip-session-reveal-button]'));
+        const revealForms = Array.from(document.querySelectorAll('[data-sip-session-reveal-form]'));
+        const interactiveCards = allCards.filter(card => card.dataset.bottleInteractive !== 'false');
 
-        if (!overlay || !popover || !form || cards.length === 0) {
+        revealButtons.forEach(button => {
+            button.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
+
+            button.addEventListener('keydown', (event) => {
+                event.stopPropagation();
+            });
+        });
+
+        revealForms.forEach(revealForm => {
+            revealForm.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
+        });
+
+        if (!overlay || !popover || !form || interactiveCards.length === 0) {
             return;
         }
 
@@ -291,6 +310,10 @@
                 return;
             }
 
+            if (card.dataset.bottleInteractive === 'false') {
+                return;
+            }
+
             const sisterhoodId = hiddenSisterhood?.value ?? '';
             const sessionId = hiddenSession?.value ?? '';
 
@@ -302,7 +325,7 @@
             openModal(card);
         };
 
-        cards.forEach(card => {
+        interactiveCards.forEach(card => {
             card.addEventListener('click', () => handleCardActivate(card));
             card.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' || event.key === ' ') {

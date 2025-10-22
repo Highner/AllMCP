@@ -986,7 +986,9 @@
                             <li>
                                 @await Html.PartialAsync("_BottleCard", bottle, new ViewDataDictionary(ViewData)
                                 {
-                                    { "IsAuthenticated", Model.CurrentUser is not null }
+                                    { "IsAuthenticated", Model.CurrentUser is not null },
+                                    { "SisterhoodId", Model.SisterhoodId },
+                                    { "SipSessionId", Model.Session.Id }
                                 })
                             </li>
                         }
