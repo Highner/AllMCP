@@ -112,12 +112,17 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(ev => ev.Score).HasColumnType("decimal(18,2)");
             e.Property(ev => ev.Year).IsRequired();
 
+            e.HasOne(ev => ev.User)
+                .WithMany(u => u.WineVintageEvolutionScores)
+                .HasForeignKey(ev => ev.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             e.HasOne(ev => ev.WineVintage)
                 .WithMany(wv => wv.EvolutionScores)
                 .HasForeignKey(ev => ev.WineVintageId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            e.HasIndex(ev => new { ev.WineVintageId, ev.Year })
+            e.HasIndex(ev => new { ev.UserId, ev.WineVintageId, ev.Year })
                 .IsUnique();
         });
 
