@@ -1056,6 +1056,17 @@ textarea:focus {
     }
 }
 
+.details-header-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    width: 100%;
+}
+
+.details-close-button {
+    margin-left: auto;
+}
+
 .crud-table__table {
     width: 100%;
     border-collapse: collapse;

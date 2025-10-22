@@ -156,7 +156,12 @@
             <h2 id="details-title" class="crud-table__title">Bottles</h2>
             <p id="details-subtitle" class="crud-table__description"></p>
         </text>,
-        HeaderContent = _ => bottleHeaderContent,
+        HeaderContent = @<text>
+            <div class="details-header-actions">
+                <button type="button" id="details-close-button" class="crud-table__action-button secondary details-close-button" aria-label="Close bottle details">Close</button>
+            </div>
+            @bottleHeaderContent
+        </text>,
         BodyContent = @<text>
             <div id="details-message" class="details-message" role="status"></div>
             <table class="details-table crud-table__table" id="details-table">
@@ -228,7 +233,9 @@
             <div class="no-results wine-card-hover wine-card-hover--prominent">No bottles match the current filters.</div>
         }
 
-        @await Html.PartialAsync("_CrudTableTemplate", yourCellarTable)
+        <div id="inventory-view" class="inventory-view">
+            @await Html.PartialAsync("_CrudTableTemplate", yourCellarTable)
+        </div>
         <div class="inventory-add-overlay" id="inventory-add-overlay" hidden>
             <div class="inventory-add-popover" id="inventory-add-popover" role="dialog" aria-modal="true" aria-labelledby="inventory-add-title">
                 <h3 id="inventory-add-title">Add Wine to Inventory</h3>
@@ -257,7 +264,9 @@
 
         @await Html.PartialAsync("_DrinkBottleModal", AllMCPSolution.Models.DrinkBottleModalViewModel.Default)
 
-        @await Html.PartialAsync("_CrudTableTemplate", bottleDetailsTable)
+        <div id="details-view" class="details-panel" hidden>
+            @await Html.PartialAsync("_CrudTableTemplate", bottleDetailsTable)
+        </div>
     </main>
     <script src="/js/wine-inventory-tables.js"></script>
 </body>

@@ -61,6 +61,9 @@ window.WineInventoryTables.initialize = function () {
             const detailAddPrice = detailAddRow.querySelector('.detail-add-price');
             const detailAddQuantity = detailAddRow.querySelector('.detail-add-quantity-select');
             const detailAddButton = detailAddRow.querySelector('.detail-add-submit');
+            const inventorySection = document.getElementById('inventory-view');
+            const detailsSection = document.getElementById('details-view');
+            const detailsCloseButton = document.getElementById('details-close-button');
 
             let selectedGroupId = null;
             let selectedSummary = null;
@@ -87,6 +90,7 @@ window.WineInventoryTables.initialize = function () {
             bindAddWinePopover();
             bindDetailAddRow();
             bindDrinkBottleModal();
+            bindDetailsCloseButton();
             if (notesEnabled) {
                 bindNotesPanel();
             }
@@ -141,6 +145,21 @@ window.WineInventoryTables.initialize = function () {
                     if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         handleRowSelection(row).catch(error => showMessage(error?.message ?? String(error), 'error'));
+                    }
+                });
+            }
+
+            function bindDetailsCloseButton() {
+                if (!detailsCloseButton) {
+                    return;
+                }
+
+                detailsCloseButton.addEventListener('click', () => {
+                    const rowToFocus = selectedRow;
+                    showInventoryView();
+                    resetDetailsView();
+                    if (rowToFocus) {
+                        rowToFocus.focus();
                     }
                 });
             }
@@ -1108,15 +1127,8 @@ window.WineInventoryTables.initialize = function () {
                     await sendJson(`/wine-manager/groups/${groupId}`, { method: 'DELETE' });
 
                     if (selectedRow === row) {
-                        selectedGroupId = null;
-                        selectedSummary = null;
-                        selectedRow = null;
-                        closeNotesPanel();
-                        detailsTitle.textContent = 'Bottle Details';
-                        detailsSubtitle.textContent = 'Select a wine group to view individual bottles.';
-                        detailAddRow.hidden = true;
-                        emptyRow.hidden = false;
-                        detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
+                        showInventoryView();
+                        resetDetailsView();
                     }
 
                     row.remove();
@@ -1149,6 +1161,60 @@ window.WineInventoryTables.initialize = function () {
                 };
             }
 
+            function showDetailsView() {
+                if (inventorySection) {
+                    inventorySection.hidden = true;
+                }
+                if (detailsSection) {
+                    detailsSection.hidden = false;
+                }
+            }
+
+            function showInventoryView() {
+                if (inventorySection) {
+                    inventorySection.hidden = false;
+                }
+                if (detailsSection) {
+                    detailsSection.hidden = true;
+                }
+            }
+
+            function resetDetailsView() {
+                if (selectedRow) {
+                    selectedRow.classList.remove('selected');
+                    selectedRow.setAttribute('aria-expanded', 'false');
+                }
+
+                selectedRow = null;
+                selectedGroupId = null;
+                selectedSummary = null;
+
+                closeNotesPanel();
+                selectedDetailRowElement = null;
+                notesSelectedBottleId = null;
+
+                detailsTitle.textContent = 'Bottle Details';
+                detailsSubtitle.textContent = 'Select a wine group to view individual bottles.';
+                detailAddRow.hidden = true;
+
+                if (detailAddPrice) {
+                    detailAddPrice.value = '';
+                }
+                if (detailAddLocation) {
+                    detailAddLocation.value = '';
+                }
+                if (detailAddQuantity) {
+                    detailAddQuantity.value = '1';
+                }
+                if (detailAddButton) {
+                    detailAddButton.disabled = true;
+                }
+
+                detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
+                emptyRow.hidden = false;
+                showMessage('', 'info');
+            }
+
             async function handleRowSelection(row, options = {}) {
                 if (loading && !options.force) {
                     return;
@@ -1167,6 +1233,8 @@ window.WineInventoryTables.initialize = function () {
                     selectedRow.classList.remove('selected');
                     selectedRow.setAttribute('aria-expanded', 'false');
                 }
+
+                showDetailsView();
 
                 selectedRow = row;
                 selectedGroupId = groupId;
