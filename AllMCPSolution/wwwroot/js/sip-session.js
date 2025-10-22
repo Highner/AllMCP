@@ -428,10 +428,12 @@
             showFeedback('');
 
             try {
-                const action = form.getAttribute('action');
+                const rawAction = form.getAttribute('action');
                 let endpoint = window.location.href;
 
-                if (action) {
+                if (rawAction) {
+                    // Normalize accidental wrapping quotes that may appear in attribute values
+                    const action = rawAction.trim().replace(/^['\"]/,'').replace(/['\"]$/,'');
                     try {
                         endpoint = new URL(action, window.location.origin).toString();
                     } catch (error) {
