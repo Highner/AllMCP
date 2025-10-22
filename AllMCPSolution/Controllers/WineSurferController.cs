@@ -2963,9 +2963,33 @@ public class WineSurferController : Controller
         }
 
         decimal? score = null;
-        if (request.Score.HasValue)
+        var rawScore = request.Score?.Trim();
+        if (!string.IsNullOrEmpty(rawScore))
         {
-            score = Math.Round(request.Score.Value, 1, MidpointRounding.AwayFromZero);
+            if (decimal.TryParse(rawScore, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+            {
+                if (parsed < 0 || parsed > 10)
+                {
+                    return Error("Score must be between 0 and 10.");
+                }
+                score = Math.Round(parsed, 1, MidpointRounding.AwayFromZero);
+            }
+            else
+            {
+                // Try current culture as a fallback (e.g., '8,8')
+                if (decimal.TryParse(rawScore, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.CurrentCulture, out var parsedLocal))
+                {
+                    if (parsedLocal < 0 || parsedLocal > 10)
+                    {
+                        return Error("Score must be between 0 and 10.");
+                    }
+                    score = Math.Round(parsedLocal, 1, MidpointRounding.AwayFromZero);
+                }
+                else
+                {
+                    return Error("Score format is invalid.");
+                }
+            }
         }
 
         var bottleLabel = CreateBottleLabel(bottle);
@@ -3837,8 +3861,8 @@ public class WineSurferController : Controller
         [StringLength(2048, MinimumLength = 1)]
         public string Note { get; set; } = string.Empty;
 
-        [Range(0, 10)]
-        public decimal? Score { get; set; }
+        // Accept as raw string to avoid culture-specific model binding issues; we'll parse manually.
+        public string? Score { get; set; }
     }
 
     public class DeleteSipSessionBottleNoteRequest
