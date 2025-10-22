@@ -202,7 +202,8 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
-                    domainUser?.TasteProfile);
+                    domainUser?.TasteProfile,
+                    domainUser?.IsAdmin == true);
             }
 
             if (currentUserId.HasValue || normalizedEmail is not null)
@@ -323,6 +324,8 @@ public class WineSurferController : Controller
         IReadOnlyList<WineSurferSentInvitationNotification> sentInvitationNotifications = Array.Empty<WineSurferSentInvitationNotification>();
         Guid? currentUserId = null;
         string? normalizedEmail = null;
+        ApplicationUser? domainUser = null;
+        var isAdmin = false;
 
         if (User?.Identity?.IsAuthenticated == true)
         {
@@ -330,7 +333,6 @@ public class WineSurferController : Controller
             var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
             normalizedEmail = NormalizeEmailCandidate(email);
             currentUserId = GetCurrentUserId();
-            ApplicationUser? domainUser = null;
 
             if (currentUserId.HasValue)
             {
@@ -348,6 +350,7 @@ public class WineSurferController : Controller
             {
                 currentUserId = domainUser.Id;
                 normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
+                isAdmin = domainUser.IsAdmin;
             }
 
             if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
@@ -361,7 +364,8 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
-                    domainUser?.TasteProfile);
+                    domainUser?.TasteProfile,
+                    isAdmin);
             }
 
             if (currentUserId.HasValue || normalizedEmail is not null)
@@ -397,6 +401,11 @@ public class WineSurferController : Controller
             }
         }
 
+        if (!isAdmin)
+        {
+            return Forbid();
+        }
+
         if (currentUserId.HasValue)
         {
             var acceptedInvitations = await _sisterhoodInvitationRepository.GetAcceptedForAdminAsync(
@@ -430,6 +439,11 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateRegion([FromForm] CreateRegionRequest request, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             TempData["ErrorMessage"] = "Region name is required.";
@@ -475,6 +489,11 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateRegion(Guid id, [FromForm] UpdateRegionRequest request, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
         var existing = await _regionRepository.GetByIdAsync(id, cancellationToken);
         if (existing is null)
         {
@@ -523,6 +542,11 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteRegion(Guid id, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
         var existing = await _regionRepository.GetByIdAsync(id, cancellationToken);
         if (existing is null)
         {
@@ -547,6 +571,11 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateAppellation([FromForm] CreateAppellationRequest request, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             TempData["ErrorMessage"] = "Appellation name is required.";
@@ -592,6 +621,11 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateAppellation(Guid id, [FromForm] UpdateAppellationRequest request, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
         var existing = await _appellationRepository.GetByIdAsync(id, cancellationToken);
         if (existing is null)
         {
@@ -640,6 +674,11 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteAppellation(Guid id, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
         var existing = await _appellationRepository.GetByIdAsync(id, cancellationToken);
         if (existing is null)
         {
@@ -664,6 +703,11 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateSubAppellation([FromForm] CreateSubAppellationRequest request, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
         if (request.AppellationId == Guid.Empty)
         {
             TempData["ErrorMessage"] = "Please select an appellation.";
@@ -707,6 +751,11 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateSubAppellation(Guid id, [FromForm] UpdateSubAppellationRequest request, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
         var existing = await _subAppellationRepository.GetByIdAsync(id, cancellationToken);
         if (existing is null)
         {
@@ -753,6 +802,11 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteSubAppellation(Guid id, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
         var existing = await _subAppellationRepository.GetByIdAsync(id, cancellationToken);
         if (existing is null)
         {
@@ -779,6 +833,11 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateWine([FromForm] CreateWineRequest request, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             TempData["ErrorMessage"] = "Wine name is required.";
@@ -828,6 +887,11 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateWine(Guid id, [FromForm] UpdateWineRequest request, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
         var existing = await _wineRepository.GetByIdAsync(id, cancellationToken);
         if (existing is null)
         {
@@ -880,6 +944,11 @@ public class WineSurferController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteWine(Guid id, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
         var existing = await _wineRepository.GetByIdAsync(id, cancellationToken);
         if (existing is null)
         {
@@ -946,7 +1015,8 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
-                    domainUser?.TasteProfile);
+                    domainUser?.TasteProfile,
+                    domainUser?.IsAdmin == true);
             }
 
             if (currentUserId.HasValue || normalizedEmail is not null)
@@ -1107,7 +1177,8 @@ public class WineSurferController : Controller
                 domainUser?.Id,
                 displayName ?? email ?? string.Empty,
                 email,
-                domainUser?.TasteProfile);
+                domainUser?.TasteProfile,
+                domainUser?.IsAdmin == true);
         }
 
         if (currentUserId.HasValue || normalizedEmail is not null)
@@ -1209,6 +1280,7 @@ public class WineSurferController : Controller
         var isAuthenticated = User?.Identity?.IsAuthenticated == true;
         string? displayName = null;
         Guid? currentUserId = null;
+        var isAdmin = false;
         IReadOnlyList<WineSurferSisterhoodSummary> sisterhoods = Array.Empty<WineSurferSisterhoodSummary>();
         IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
         IReadOnlyList<WineSurferSipSessionBottle> availableBottles = Array.Empty<WineSurferSipSessionBottle>();
@@ -1239,6 +1311,7 @@ public class WineSurferController : Controller
             {
                 currentUserId = domainUser.Id;
                 normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
+                isAdmin = domainUser.IsAdmin;
             }
 
             if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
@@ -1379,7 +1452,7 @@ public class WineSurferController : Controller
             }
         }
 
-        var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, sisterhoods, currentUserId, statusMessage, errorMessage, incomingInvitations, sentInvitationNotifications, availableBottles);
+        var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, isAdmin, sisterhoods, currentUserId, statusMessage, errorMessage, incomingInvitations, sentInvitationNotifications, availableBottles);
         return View("~/Views/Sisterhoods/Index.cshtml", model);
     }
 
@@ -2987,6 +3060,18 @@ public class WineSurferController : Controller
         };
     }
 
+    private async Task<bool> IsCurrentUserAdminAsync(CancellationToken cancellationToken)
+    {
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return false;
+        }
+
+        var user = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
+        return user?.IsAdmin == true;
+    }
+
     private Guid? GetCurrentUserId()
     {
         var idClaim = User?.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -3937,7 +4022,8 @@ public record WineSurferTopBarModel(
     IReadOnlyList<WineSurferTopBarNotificationSection> Sections,
     IReadOnlyDictionary<string, IReadOnlyCollection<string>> DismissedNotificationStamps,
     IReadOnlyList<WineSurferTopBarLink> FooterLinks,
-    string? DisplayName = null)
+    string? DisplayName = null,
+    bool IsAdmin = false)
 {
     public const string SisterhoodNotificationsUrl = "/wine-surfer/sisterhoods";
     public const string DefaultPanelHeading = "Notifications";
@@ -3948,7 +4034,7 @@ public record WineSurferTopBarModel(
 
     public static IReadOnlyDictionary<string, IReadOnlyCollection<string>> EmptyDismissedNotificationSet => EmptyDismissedMap;
 
-    public static WineSurferTopBarModel Empty(string currentPath)
+    public static WineSurferTopBarModel Empty(string currentPath, bool isAdmin = false)
     {
         return new WineSurferTopBarModel(
             currentPath,
@@ -3956,7 +4042,9 @@ public record WineSurferTopBarModel(
             DefaultPanelAriaLabel,
             Array.Empty<WineSurferTopBarNotificationSection>(),
             EmptyDismissedMap,
-            Array.Empty<WineSurferTopBarLink>());
+            Array.Empty<WineSurferTopBarLink>(),
+            null,
+            isAdmin);
     }
 
     public static IReadOnlyList<WineSurferTopBarNotificationSection> BuildSections(
@@ -4078,7 +4166,8 @@ public record WineSurferTopBarModel(
         IEnumerable<WineSurferSentInvitationNotification> sentInvitationNotifications,
         IReadOnlyDictionary<string, IReadOnlyCollection<string>>? dismissed = null,
         IReadOnlyList<WineSurferTopBarNotificationSection>? precomputedSections = null,
-        string? displayName = null)
+        string? displayName = null,
+        bool isAdmin = false)
     {
         var sections = precomputedSections ?? BuildSections(
             incomingInvitations,
@@ -4115,7 +4204,8 @@ public record WineSurferTopBarModel(
             sections,
             dismissedMap,
             footerLinks,
-            trimmedDisplayName);
+            trimmedDisplayName,
+            isAdmin);
     }
 }
 
@@ -4146,6 +4236,7 @@ public record WineSurferPageHeaderModel(string Title);
 public record WineSurferSisterhoodsViewModel(
     bool IsAuthenticated,
     string? DisplayName,
+    bool IsAdmin,
     IReadOnlyList<WineSurferSisterhoodSummary> Sisterhoods,
     Guid? CurrentUserId,
     string? StatusMessage,
@@ -4244,4 +4335,4 @@ public record RegionInventoryMetrics(
 public record RegionUserAverageScore(Guid UserId, decimal AverageScore);
 
 public record WineSurferUserSummary(Guid Id, string Name, string TasteProfile);
-public record WineSurferCurrentUser(Guid? DomainUserId, string DisplayName, string? Email, string? TasteProfile);
+public record WineSurferCurrentUser(Guid? DomainUserId, string DisplayName, string? Email, string? TasteProfile, bool IsAdmin);

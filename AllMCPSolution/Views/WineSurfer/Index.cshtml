@@ -903,7 +903,8 @@
         currentLocation,
         Model.IncomingInvitations,
         Model.SentInvitationNotifications,
-        displayName: Model.CurrentUser?.DisplayName);
+        displayName: Model.CurrentUser?.DisplayName,
+        isAdmin: Model.CurrentUser?.IsAdmin == true);
     ViewData["WineSurferPageTitle"] = "Wine Surfer";
     var manageableSisterhoods = Model.ManageableSisterhoods ?? Array.Empty<WineSurferSisterhoodOption>();
     var canCreateSipSession = manageableSisterhoods.Count > 0;

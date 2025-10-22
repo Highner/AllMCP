@@ -46,6 +46,7 @@ public class WineSurferTopBarService : IWineSurferTopBarService
         var normalizedEmail = NormalizeEmailCandidate(email);
         var currentUserId = GetCurrentUserId(user);
         ApplicationUser? domainUser = null;
+        var isAdmin = false;
 
         if (currentUserId.HasValue)
         {
@@ -63,6 +64,7 @@ public class WineSurferTopBarService : IWineSurferTopBarService
         {
             currentUserId = domainUser.Id;
             normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
+            isAdmin = domainUser.IsAdmin;
         }
 
         if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
@@ -145,7 +147,8 @@ public class WineSurferTopBarService : IWineSurferTopBarService
             sentInvitationNotifications,
             dismissedStamps,
             sections,
-            displayName);
+            displayName,
+            isAdmin);
     }
 
     private static Guid? GetCurrentUserId(ClaimsPrincipal user)
