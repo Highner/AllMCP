@@ -1759,7 +1759,7 @@ public class WineSurferController : Controller
             TempData["SisterhoodError"] = "We couldn't add those bottles right now. Please try again.";
         }
 
-        return RedirectToAction(nameof(Sisterhoods));
+        return RedirectToAction(nameof(SipSession), new { sipSessionId = request.SipSessionId });
     }
 
     [Authorize]

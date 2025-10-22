@@ -7,6 +7,8 @@
 @using System.Linq
 @{
     Layout = null;
+    var statusMessage = TempData["SisterhoodStatus"] as string;
+    var errorMessage = TempData["SisterhoodError"] as string;
 }
 
 @functions {
@@ -97,6 +99,37 @@
             flex-direction: column;
             gap: 48px;
             --session-content-max-width: min(var(--wine-surfer-card-max-width), 100%);
+        }
+
+        .session-feedback {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .status-banner {
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(244, 241, 234, 0.04);
+            border: 1px solid rgba(244, 241, 234, 0.12);
+        }
+
+        .status-banner.success {
+            color: #d4f4d2;
+            border-color: rgba(68, 160, 82, 0.45);
+            background: rgba(68, 160, 82, 0.18);
+        }
+
+        .status-banner.error {
+            color: #ffe0e0;
+            border-color: rgba(216, 60, 60, 0.5);
+            background: rgba(216, 60, 60, 0.2);
         }
 
         .session-overview,
@@ -707,6 +740,19 @@
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="session-main">
+            @if (!string.IsNullOrWhiteSpace(statusMessage) || !string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <section class="session-feedback" aria-live="polite">
+                    @if (!string.IsNullOrWhiteSpace(statusMessage))
+                    {
+                        <div class="status-banner success" role="status">@statusMessage</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(errorMessage))
+                    {
+                        <div class="status-banner error" role="alert">@errorMessage</div>
+                    }
+                </section>
+            }
             <section class="session-overview" aria-label="Sip session details">
                 <div class="session-overview-header">
                     <div class="session-overview-header-info">
