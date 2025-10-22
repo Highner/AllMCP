@@ -2074,8 +2074,12 @@
                                     <span class="pending-invitations-title">Pending invitations</span>
                                     <span class="pending-invitations-count">@sisterhood.PendingInvitations.Count @((sisterhood.PendingInvitations.Count == 1) ? "invite" : "invites")</span>
                                 </div>
+                                @{
+                                    var resendEndpoint = Url.Action("InviteSisterhoodMember", "WineSurfer");
+                                    var removeEndpoint = Url.Action("RemovePendingSisterhoodInvitation", "WineSurfer");
+                                }
+                                @Html.AntiForgeryToken()
                                 <ul class="pending-invitations-list">
-                                    @{ var resendEndpoint = Url.Action("InviteSisterhoodMember", "WineSurfer"); }
                                     @foreach (var invitation in sisterhood.PendingInvitations)
                                     {
                                         var invitationLabel = string.IsNullOrWhiteSpace(invitation.InviteeName)
@@ -2096,6 +2100,13 @@
                                                         data-invitation-email="@invitation.Email"
                                                         data-invitation-user-id="@(invitation.InviteeUserId?.ToString() ?? string.Empty)"
                                                         data-invitation-name="@(invitation.InviteeName ?? string.Empty)">Resend invitation mail</button>
+                                                <button type="button"
+                                                        class="sisterhood-button sisterhood-button--ghost-danger"
+                                                        data-remove-invite-button
+                                                        data-endpoint="@(removeEndpoint ?? string.Empty)"
+                                                        data-sisterhood-id="@sisterhood.Id"
+                                                        data-invitation-id="@invitation.Id"
+                                                        data-invitation-label="@invitationLabel">Remove invitation</button>
                                                 <p class="invite-feedback pending-invite-feedback" data-resend-invite-feedback aria-live="polite" hidden></p>
                                             </div>
                                         </li>
@@ -2923,8 +2934,9 @@
         }
 
         const resendButtons = document.querySelectorAll('[data-resend-invite-button]');
+        const removeInviteButtons = document.querySelectorAll('[data-remove-invite-button]');
 
-        const setResendFeedback = (element, message, variant) => {
+        const setPendingInviteFeedback = (element, message, variant) => {
             if (!element) {
                 return;
             }
@@ -2959,6 +2971,28 @@
             }
         };
 
+        const formatPendingInviteCount = (count) => {
+            return `${count} invite${count === 1 ? '' : 's'}`;
+        };
+
+        const updatePendingInviteSummary = (card, count) => {
+            if (!card) {
+                return;
+            }
+
+            const summary = card.querySelector('.pending-invite-count');
+            if (!summary) {
+                return;
+            }
+
+            if (count <= 0) {
+                summary.remove();
+                return;
+            }
+
+            summary.textContent = `· ${formatPendingInviteCount(count)}`;
+        };
+
         resendButtons.forEach(button => {
             button.addEventListener('click', async () => {
                 const endpoint = (button.dataset.endpoint ?? '').trim();
@@ -2968,18 +3002,18 @@
                 const updatedLabel = invitationItem?.querySelector('[data-pending-invite-updated]');
 
                 if (!endpoint) {
-                    setResendFeedback(feedback, 'We could not determine where to send that request.', 'error');
+                    setPendingInviteFeedback(feedback, 'We could not determine where to send that request.', 'error');
                     return;
                 }
 
                 if (!sisterhoodId) {
-                    setResendFeedback(feedback, 'We could not determine which sisterhood to update.', 'error');
+                    setPendingInviteFeedback(feedback, 'We could not determine which sisterhood to update.', 'error');
                     return;
                 }
 
                 const token = findVerificationToken(button);
                 if (!token) {
-                    setResendFeedback(feedback, 'We could not verify this request. Refresh and try again.', 'error');
+                    setPendingInviteFeedback(feedback, 'We could not verify this request. Refresh and try again.', 'error');
                     return;
                 }
 
@@ -2998,7 +3032,7 @@
                     formData.append('IsEmail', 'true');
                     formData.append('MemberName', inviteeName || email);
                 } else {
-                    setResendFeedback(feedback, 'We could not determine who should receive that invitation.', 'error');
+                    setPendingInviteFeedback(feedback, 'We could not determine who should receive that invitation.', 'error');
                     return;
                 }
 
@@ -3008,7 +3042,7 @@
 
                 button.disabled = true;
                 button.textContent = 'Resending…';
-                setResendFeedback(feedback, 'Resending invitation…', 'pending');
+                setPendingInviteFeedback(feedback, 'Resending invitation…', 'pending');
 
                 try {
                     const response = await fetch(endpoint, {
@@ -3030,7 +3064,7 @@
                     const payload = await response.json();
                     if (!response.ok || !payload?.success) {
                         const errorMessage = payload?.message ?? 'We could not resend that invitation. Please try again.';
-                        setResendFeedback(feedback, errorMessage, 'error');
+                        setPendingInviteFeedback(feedback, errorMessage, 'error');
                         return;
                     }
 
@@ -3050,7 +3084,7 @@
                         shouldOpenMailClient = true;
                     }
 
-                    setResendFeedback(feedback, finalMessage, variant);
+                    setPendingInviteFeedback(feedback, finalMessage, variant);
 
                     if (updatedLabel) {
                         updatedLabel.textContent = `Updated ${formatUpdatedTimestamp()}`;
@@ -3062,11 +3096,131 @@
                         }, 100);
                     }
                 } catch (error) {
-                    setResendFeedback(feedback, 'We could not resend that invitation. Please try again.', 'error');
+                    setPendingInviteFeedback(feedback, 'We could not resend that invitation. Please try again.', 'error');
                 } finally {
                     button.disabled = false;
                     const originalLabel = button.dataset.originalLabel ?? 'Resend invitation mail';
                     button.textContent = originalLabel || 'Resend invitation mail';
+                }
+            });
+        });
+
+        removeInviteButtons.forEach(button => {
+            button.addEventListener('click', async () => {
+                const endpoint = (button.dataset.endpoint ?? '').trim();
+                const invitationId = (button.dataset.invitationId ?? '').trim();
+                const sisterhoodId = (button.dataset.sisterhoodId ?? '').trim();
+                const invitationItem = button.closest('[data-pending-invitation]');
+                if (!invitationItem) {
+                    return;
+                }
+
+                const feedback = invitationItem.querySelector('[data-resend-invite-feedback]');
+                const pendingContainer = invitationItem.closest('.pending-invitations');
+                const card = button.closest('[data-sisterhood-card]');
+
+                if (!endpoint) {
+                    setPendingInviteFeedback(feedback, 'We could not determine where to send that request.', 'error');
+                    return;
+                }
+
+                if (!invitationId) {
+                    setPendingInviteFeedback(feedback, 'We could not determine which invitation to remove.', 'error');
+                    return;
+                }
+
+                if (!sisterhoodId) {
+                    setPendingInviteFeedback(feedback, 'We could not determine which sisterhood to update.', 'error');
+                    return;
+                }
+
+                const token = findVerificationToken(button);
+                if (!token) {
+                    setPendingInviteFeedback(feedback, 'We could not verify this request. Refresh and try again.', 'error');
+                    return;
+                }
+
+                const invitationLabel = (button.dataset.invitationLabel ?? '').trim();
+                const confirmMessage = invitationLabel
+                    ? `Remove the invitation for ${invitationLabel}?`
+                    : 'Remove this invitation?';
+
+                if (!window.confirm(confirmMessage)) {
+                    return;
+                }
+
+                if (!button.dataset.originalLabel) {
+                    button.dataset.originalLabel = button.textContent?.trim() ?? '';
+                }
+
+                const formData = new FormData();
+                formData.append('__RequestVerificationToken', token);
+                formData.append('SisterhoodId', sisterhoodId);
+                formData.append('InvitationId', invitationId);
+
+                button.disabled = true;
+                button.textContent = 'Removing…';
+                setPendingInviteFeedback(feedback, 'Removing invitation…', 'pending');
+
+                let shouldRestoreButton = true;
+
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    });
+
+                    const contentType = response.headers.get('content-type') ?? '';
+                    if (!contentType.includes('application/json')) {
+                        shouldRestoreButton = false;
+                        window.location.assign(endpoint);
+                        return;
+                    }
+
+                    const payload = await response.json();
+                    if (!response.ok || !payload?.success) {
+                        const errorMessage = payload?.message ?? 'We could not remove that invitation. Please try again.';
+                        setPendingInviteFeedback(feedback, errorMessage, 'error');
+                        return;
+                    }
+
+                    const successMessage = typeof payload.message === 'string'
+                        ? payload.message
+                        : 'Invitation removed.';
+
+                    setPendingInviteFeedback(feedback, successMessage, 'success');
+                    shouldRestoreButton = false;
+
+                    window.setTimeout(() => {
+                        invitationItem.remove();
+
+                        const list = pendingContainer?.querySelector('.pending-invitations-list');
+                        const remaining = list ? list.querySelectorAll('[data-pending-invitation]').length : 0;
+
+                        if (remaining <= 0) {
+                            pendingContainer?.remove();
+                        } else {
+                            const headerCount = pendingContainer?.querySelector('.pending-invitations-count');
+                            if (headerCount) {
+                                headerCount.textContent = formatPendingInviteCount(remaining);
+                            }
+                        }
+
+                        updatePendingInviteSummary(card, remaining);
+                    }, 400);
+                } catch (error) {
+                    setPendingInviteFeedback(feedback, 'We could not remove that invitation. Please try again.', 'error');
+                } finally {
+                    if (shouldRestoreButton) {
+                        button.disabled = false;
+                        const originalLabel = button.dataset.originalLabel ?? 'Remove invitation';
+                        button.textContent = originalLabel || 'Remove invitation';
+                    }
                 }
             });
         });
