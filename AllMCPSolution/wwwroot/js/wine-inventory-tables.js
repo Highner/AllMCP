@@ -88,6 +88,8 @@ window.WineInventoryTables.initialize = function () {
             let wineOptions = [];
             let wineOptionsPromise = null;
 
+            resetDetailsView();
+
             initializeSummaryRows();
             bindAddWinePopover();
             bindDetailAddRow();
@@ -2524,9 +2526,20 @@ window.WineInventoryTables.initialize = function () {
                     .replace(/"/g, '&quot;')
                     .replace(/'/g, '&#39;');
             }
-        
+
+            window.WineInventoryTables.hideDetailsPanel = function () {
+                showInventoryView();
+                resetDetailsView();
+            };
+
 };
 
 window.addEventListener('DOMContentLoaded', () => {
     window.WineInventoryTables.initialize();
+});
+
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        window.WineInventoryTables?.hideDetailsPanel?.();
+    }
 });
