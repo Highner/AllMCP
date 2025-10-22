@@ -1,9 +1,12 @@
 @model AllMCPSolution.Controllers.WineSurferSipSessionBottle
+@using System.Globalization
 
 @functions {
     private static string FormatScore(decimal? value)
     {
-        return value.HasValue ? value.Value.ToString("0.0") : "—";
+        return value.HasValue
+            ? value.Value.ToString("0.0", CultureInfo.InvariantCulture)
+            : "—";
     }
 }
 
@@ -23,7 +26,7 @@
         ? $"Open tasting note modal for {trimmedLabel}"
         : $"Bottle details for {trimmedLabel}";
     var bottleScoreAttribute = Model.CurrentUserScore.HasValue
-        ? Model.CurrentUserScore.Value.ToString("0.0")
+        ? Model.CurrentUserScore.Value.ToString("0.0", CultureInfo.InvariantCulture)
         : string.Empty;
     var noteIdAttribute = Model.CurrentUserNoteId.HasValue ? Model.CurrentUserNoteId.Value.ToString() : string.Empty;
 }
