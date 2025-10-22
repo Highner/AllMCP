@@ -262,6 +262,7 @@
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/yfc7ypekbg-mlv21k5csn.gz
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/ExcelDataReader.dll
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/ExcelDataReader.DataSet.dll
-/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/gx6okbfyc1-luw4ygna8b.gz
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/xpxpjhh2y4-lpmvyor9zd.gz
-/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/1511xmqvm8-2qt5d33u81.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/1511xmqvm8-ibsj63zdgk.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/gx6okbfyc1-2mnmhdypcb.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/htk32py7x6-3rhllsofw9.gz
