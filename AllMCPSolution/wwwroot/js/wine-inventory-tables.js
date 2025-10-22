@@ -65,6 +65,8 @@ window.WineInventoryTables.initialize = function () {
             const detailsSection = document.getElementById('details-view');
             const detailsCloseButton = document.getElementById('details-close-button');
 
+            showInventoryView();
+
             let selectedGroupId = null;
             let selectedSummary = null;
             let selectedRow = null;
@@ -1164,18 +1166,22 @@ window.WineInventoryTables.initialize = function () {
             function showDetailsView() {
                 if (inventorySection) {
                     inventorySection.hidden = true;
+                    inventorySection.setAttribute('aria-hidden', 'true');
                 }
                 if (detailsSection) {
                     detailsSection.hidden = false;
+                    detailsSection.setAttribute('aria-hidden', 'false');
                 }
             }
 
             function showInventoryView() {
                 if (inventorySection) {
                     inventorySection.hidden = false;
+                    inventorySection.setAttribute('aria-hidden', 'false');
                 }
                 if (detailsSection) {
                     detailsSection.hidden = true;
+                    detailsSection.setAttribute('aria-hidden', 'true');
                 }
             }
 
