@@ -15,6 +15,7 @@ public interface IWineRepository
     Task<Wine?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Wine?> FindByNameAsync(string name, string? subAppellation = null, string? appellation = null, CancellationToken ct = default);
     Task<IReadOnlyList<Wine>> FindClosestMatchesAsync(string name, int maxResults = 5, CancellationToken ct = default);
+    Task<bool> AnyBySubAppellationAsync(Guid subAppellationId, CancellationToken ct = default);
     Task AddAsync(Wine wine, CancellationToken ct = default);
     Task UpdateAsync(Wine wine, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
@@ -166,6 +167,11 @@ public class WineRepository : IWineRepository
                     ? $"{w.Name} ({w.SubAppellation.Name})"
                     : $"{w.Name} ({w.SubAppellation.Name}, {w.SubAppellation.Appellation.Name})",
             maxResults);
+    }
+
+    public async Task<bool> AnyBySubAppellationAsync(Guid subAppellationId, CancellationToken ct = default)
+    {
+        return await _db.Wines.AnyAsync(w => w.SubAppellationId == subAppellationId, ct);
     }
 
     public async Task AddAsync(Wine wine, CancellationToken ct = default)
