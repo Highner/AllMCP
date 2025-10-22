@@ -153,13 +153,17 @@
     {
         DataTableKey = "details",
         TitleContent = @<text>
-            <h2 id="details-title" class="crud-table__title">Bottles</h2>
-            <p id="details-subtitle" class="crud-table__description"></p>
+            <div class="details-header-main">
+                <div class="details-header-titles">
+                    <h2 id="details-title" class="crud-table__title">Bottles</h2>
+                    <p id="details-subtitle" class="crud-table__description"></p>
+                </div>
+                <button type="button" id="details-close-button" class="details-close-button" aria-label="Close bottle details">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
         </text>,
         HeaderContent = @<text>
-            <div class="details-header-actions">
-                <button type="button" id="details-close-button" class="crud-table__action-button secondary details-close-button" aria-label="Close bottle details">Close</button>
-            </div>
             @bottleHeaderContent
         </text>,
         BodyContent = @<text>

@@ -1056,15 +1056,46 @@ textarea:focus {
     }
 }
 
-.details-header-actions {
+.details-header-main {
     display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    width: 100%;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.details-header-titles {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .details-close-button {
     margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 1.25rem;
+    line-height: 1;
+    padding: 0.25rem;
+    border-radius: calc(var(--radius) - 0.2rem);
+    cursor: pointer;
+    transition: color 0.15s ease-in-out, transform 0.15s ease-in-out;
+}
+
+.details-close-button:hover {
+    color: hsla(var(--foreground) / 0.7);
+}
+
+.details-close-button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px hsla(var(--ring) / 0.35);
+    color: hsla(var(--foreground) / 0.7);
+}
+
+.details-close-button:active {
+    transform: scale(0.96);
 }
 
 .crud-table__table {
