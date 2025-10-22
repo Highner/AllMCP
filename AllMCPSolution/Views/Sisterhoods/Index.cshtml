@@ -1722,7 +1722,7 @@
             @if (Model.IsAuthenticated)
             {
                 <div class="action-bar">
-                    <button type="button" class="sisterhood-button sisterhood-button--primary" data-sisterhood-create-toggle>Create Sisterhood</button>
+                    <button type="button" class="sisterhood-button" data-sisterhood-create-toggle>Create Sisterhood</button>
                 </div>
                 <form method="post" action="@Url.Action("CreateSisterhood", "WineSurfer")" class="create-sisterhood-form@(Model.ErrorMessage != null ? " open" : string.Empty)" data-sisterhood-create-form>
                     @Html.AntiForgeryToken()
