@@ -1,9 +1,9 @@
 using System;
+using System.ClientModel;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Linq;
-using System.Net.Http;
 using System.Net.Mail;
 using System.Security.Claims;
 using System.Text;
@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.WebUtilities;
+using OpenAI.Chat;
 
 namespace AllMCPSolution.Controllers;
 
@@ -563,19 +564,19 @@ public class WineSurferController : Controller
 
         var prompt = BuildTasteProfilePrompt(scoredBottles);
 
-        ChatGptResponse completion;
+        ChatCompletion completion;
         try
         {
             completion = await _chatGptService.GetChatCompletionAsync(
-                new[]
+                new ChatMessage[]
                 {
-                    new ChatGptMessage { Role = "system", Content = TasteProfileGenerationSystemPrompt },
-                    new ChatGptMessage { Role = "user", Content = prompt }
+                    new SystemChatMessage(TasteProfileGenerationSystemPrompt),
+                    new UserChatMessage(prompt)
                 },
                 temperature: 0.6,
                 ct: cancellationToken);
         }
-        catch (HttpRequestException)
+        catch (ClientResultException)
         {
             return StatusCode(StatusCodes.Status502BadGateway, new GenerateTasteProfileError("We couldn't reach the taste profile assistant. Please try again."));
         }
@@ -584,7 +585,23 @@ public class WineSurferController : Controller
             return StatusCode(StatusCodes.Status500InternalServerError, new GenerateTasteProfileError("We couldn't generate a taste profile right now. Please try again."));
         }
 
-        var content = completion.Choices?.FirstOrDefault()?.Message?.Content;
+        string? content = null;
+        if (completion.Content is { Count: > 0 })
+        {
+            var builder = new StringBuilder();
+            foreach (var part in completion.Content)
+            {
+                if (part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
+                {
+                    builder.Append(part.Text);
+                }
+            }
+
+            if (builder.Length > 0)
+            {
+                content = builder.ToString();
+            }
+        }
         if (!TryParseGeneratedTasteProfile(content, out var generatedProfile))
         {
             return StatusCode(StatusCodes.Status502BadGateway, new GenerateTasteProfileError("We couldn't understand the taste profile assistant's response. Please try again."));
