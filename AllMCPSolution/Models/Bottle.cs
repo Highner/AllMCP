@@ -18,4 +18,6 @@ public class Bottle
     public ApplicationUser? User { get; set; }
 
     public ICollection<TastingNote> TastingNotes { get; set; } = [];
+
+    public ICollection<SipSessionBottle> SipSessions { get; set; } = [];
 }

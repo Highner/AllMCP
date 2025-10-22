@@ -25,7 +25,7 @@ public class SipSession
 
     public DateTime? ScheduledAt { get; set; }
 
-    public ICollection<Bottle> Bottles { get; set; } = [];
+    public ICollection<SipSessionBottle> Bottles { get; set; } = [];
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

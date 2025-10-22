@@ -241,7 +241,7 @@ public class WineSurferController : Controller
                         session.Location ?? string.Empty,
                         session.CreatedAt,
                         session.UpdatedAt,
-                        CreateBottleSummaries(session.Bottles)
+                        CreateBottleSummaries(session.Bottles, currentUserId)
                     );
                     return new WineSurferUpcomingSipSession(
                         session.SisterhoodId,
@@ -397,7 +397,7 @@ public class WineSurferController : Controller
         }
 
         IReadOnlyDictionary<Guid, decimal>? sisterhoodAverageScores = null;
-        var sessionBottles = session.Bottles ?? Array.Empty<Bottle>();
+        var sessionBottles = session.Bottles ?? Array.Empty<SipSessionBottle>();
         var sisterhoodMemberIds = session.Sisterhood?.Memberships
             ?.Select(membership => membership.UserId)
             .Where(userId => userId != Guid.Empty)
@@ -407,7 +407,7 @@ public class WineSurferController : Controller
         if (sessionBottles.Count > 0 && sisterhoodMemberIds.Count > 0)
         {
             var wineVintageIds = sessionBottles
-                .Select(bottle => bottle.WineVintageId)
+                .Select(link => link.Bottle?.WineVintageId ?? Guid.Empty)
                 .Where(id => id != Guid.Empty)
                 .Distinct()
                 .ToList();
@@ -1848,6 +1848,75 @@ public class WineSurferController : Controller
     }
 
     [Authorize]
+    [HttpPost("sisterhoods/sessions/reveal-bottle")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevealSipSessionBottle(RevealSipSessionBottleRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid ||
+            request is null ||
+            request.SisterhoodId == Guid.Empty ||
+            request.SipSessionId == Guid.Empty ||
+            request.BottleId == Guid.Empty)
+        {
+            TempData["SisterhoodError"] = "We couldn't reveal that bottle.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var membership = await _sisterhoodRepository.GetMembershipAsync(request.SisterhoodId, currentUserId.Value, cancellationToken);
+        if (membership is null)
+        {
+            TempData["SisterhoodError"] = "You must be part of this sisterhood to reveal bottles.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var session = await _sipSessionRepository.GetByIdAsync(request.SipSessionId, cancellationToken);
+        if (session is null || session.SisterhoodId != request.SisterhoodId)
+        {
+            TempData["SisterhoodError"] = "That sip session could not be found.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        var sessionBottle = session.Bottles?
+            .FirstOrDefault(link => link.BottleId == request.BottleId);
+        if (sessionBottle?.Bottle is null || sessionBottle.Bottle.UserId != currentUserId.Value)
+        {
+            TempData["SisterhoodError"] = "Only the contributor can reveal this bottle.";
+            return RedirectToAction(nameof(Sisterhoods));
+        }
+
+        try
+        {
+            var revealed = await _sipSessionRepository.RevealBottleInSessionAsync(
+                request.SipSessionId,
+                currentUserId.Value,
+                request.BottleId,
+                cancellationToken);
+
+            if (revealed)
+            {
+                var bottleLabel = CreateBottleLabel(sessionBottle.Bottle);
+                TempData["SisterhoodStatus"] = $"Revealed {bottleLabel} for '{session.Name}'.";
+            }
+            else
+            {
+                TempData["SisterhoodError"] = "We couldn't reveal that bottle.";
+            }
+        }
+        catch (Exception)
+        {
+            TempData["SisterhoodError"] = "We couldn't reveal that bottle right now. Please try again.";
+        }
+
+        return RedirectToAction(nameof(SipSession), new { sipSessionId = request.SipSessionId });
+    }
+
+    [Authorize]
     [HttpPost("sisterhoods/sessions/drink-bottle")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DrinkSipSessionBottle(DrinkSipSessionBottleRequest request, CancellationToken cancellationToken)
@@ -1882,13 +1951,18 @@ public class WineSurferController : Controller
             return RedirectToAction(nameof(Sisterhoods));
         }
 
-        var bottle = session.Bottles?.FirstOrDefault(b => b.Id == request.BottleId && b.UserId == currentUserId.Value);
-        if (bottle is null)
+        var sessionBottle = session.Bottles?
+            .FirstOrDefault(link =>
+                link.BottleId == request.BottleId &&
+                link.Bottle is not null &&
+                link.Bottle.UserId == currentUserId.Value);
+        if (sessionBottle?.Bottle is null)
         {
             TempData["SisterhoodError"] = "Only the bottle contributor can mark it as enjoyed.";
             return RedirectToAction(nameof(Sisterhoods));
         }
 
+        var bottle = sessionBottle.Bottle;
         var drunkAt = DetermineSipSessionDrunkAt(session);
         var bottleLabel = CreateBottleLabel(bottle);
 
@@ -1984,12 +2058,14 @@ public class WineSurferController : Controller
             return Error("That sip session could not be found.", StatusCodes.Status404NotFound);
         }
 
-        var bottle = session.Bottles?.FirstOrDefault(b => b.Id == request.BottleId);
-        if (bottle is null)
+        var sessionBottle = session.Bottles?
+            .FirstOrDefault(link => link.BottleId == request.BottleId);
+        if (sessionBottle?.Bottle is null)
         {
             return Error("That bottle is no longer part of the sip session.", StatusCodes.Status404NotFound);
         }
 
+        var bottle = sessionBottle.Bottle;
         var noteText = request.Note?.Trim();
         if (string.IsNullOrWhiteSpace(noteText))
         {
@@ -2117,13 +2193,15 @@ public class WineSurferController : Controller
             return RedirectToAction(nameof(Sisterhoods));
         }
 
-        var bottle = session.Bottles?.FirstOrDefault(b => b.Id == request.BottleId);
-        if (bottle is null)
+        var sessionBottle = session.Bottles?
+            .FirstOrDefault(link => link.BottleId == request.BottleId);
+        if (sessionBottle?.Bottle is null)
         {
             TempData["SisterhoodError"] = "That bottle is no longer part of the sip session.";
             return RedirectToAction(nameof(Sisterhoods));
         }
 
+        var bottle = sessionBottle.Bottle;
         var note = bottle.TastingNotes?.FirstOrDefault(n => n.Id == request.NoteId);
         if (note is null)
         {
@@ -2570,6 +2648,18 @@ public class WineSurferController : Controller
         public Guid BottleId { get; set; }
     }
 
+    public class RevealSipSessionBottleRequest
+    {
+        [Required]
+        public Guid SisterhoodId { get; set; }
+
+        [Required]
+        public Guid SipSessionId { get; set; }
+
+        [Required]
+        public Guid BottleId { get; set; }
+    }
+
     public class DrinkSipSessionBottleRequest
     {
         [Required]
@@ -2735,79 +2825,134 @@ public class WineSurferController : Controller
         return labelBase;
     }
 
-    private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(
-        IEnumerable<Bottle>? bottles,
-        Guid? currentUserId = null,
-        IReadOnlyDictionary<Guid, decimal>? sisterhoodAverageScores = null)
+private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(
+    IEnumerable<SipSessionBottle>? sessionBottles,
+    Guid? currentUserId = null,
+    IReadOnlyDictionary<Guid, decimal>? sisterhoodAverageScores = null)
+{
+    return CreateBottleSummariesInternal(
+        sessionBottles,
+        link => link?.Bottle,
+        link => link?.IsRevealed ?? false,
+        currentUserId,
+        sisterhoodAverageScores);
+}
+
+private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(
+    IEnumerable<Bottle>? bottles,
+    Guid? currentUserId = null,
+    IReadOnlyDictionary<Guid, decimal>? sisterhoodAverageScores = null)
+{
+    return CreateBottleSummariesInternal(
+        bottles,
+        bottle => bottle,
+        _ => true,
+        currentUserId,
+        sisterhoodAverageScores);
+}
+
+private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesInternal<T>(
+    IEnumerable<T>? source,
+    Func<T, Bottle?> bottleSelector,
+    Func<T, bool> isRevealedSelector,
+    Guid? currentUserId,
+    IReadOnlyDictionary<Guid, decimal>? sisterhoodAverageScores)
+{
+    if (source is null)
     {
-        if (bottles is null)
-        {
-            return Array.Empty<WineSurferSipSessionBottle>();
-        }
-
-        var summaries = bottles
-            .Where(bottle => bottle is not null)
-            .Select(bottle =>
-            {
-                var labelBase = CreateBottleLabel(bottle);
-                var rawWineName = bottle.WineVintage?.Wine?.Name;
-                var wineName = string.IsNullOrWhiteSpace(rawWineName)
-                    ? "Bottle"
-                    : rawWineName!.Trim();
-
-                var vintageValue = bottle.WineVintage?.Vintage;
-                var isOwnedByCurrentUser = currentUserId.HasValue && bottle!.UserId.HasValue && bottle.UserId.Value == currentUserId.Value;
-                TastingNote? currentUserNote = null;
-
-                if (currentUserId.HasValue)
-                {
-                    currentUserNote = bottle!.TastingNotes?
-                        .FirstOrDefault(note => note.UserId == currentUserId.Value);
-                }
-
-                var scoreValues = bottle!.TastingNotes?
-                    .Where(note => note.Score.HasValue)
-                    .Select(note => note.Score!.Value)
-                    .ToList();
-
-                decimal? averageScore = null;
-                if (scoreValues is { Count: > 0 })
-                {
-                    averageScore = scoreValues.Average();
-                }
-
-                decimal? sisterhoodAverageScore = null;
-                var wineVintageId = bottle.WineVintageId;
-                if (wineVintageId != Guid.Empty && sisterhoodAverageScores is not null &&
-                    sisterhoodAverageScores.TryGetValue(wineVintageId, out var average))
-                {
-                    sisterhoodAverageScore = average;
-                }
-
-                return new WineSurferSipSessionBottle(
-                    bottle!.Id,
-                    wineName,
-                    vintageValue,
-                    labelBase,
-                    isOwnedByCurrentUser,
-                    bottle.IsDrunk,
-                    bottle.DrunkAt,
-                    currentUserNote?.Id,
-                    currentUserNote?.Note,
-                    currentUserNote?.Score,
-                    averageScore,
-                    sisterhoodAverageScore);
-            })
-            .OrderBy(summary => summary.Label, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (summaries.Count == 0)
-        {
-            return Array.Empty<WineSurferSipSessionBottle>();
-        }
-
-        return summaries;
+        return Array.Empty<WineSurferSipSessionBottle>();
     }
+
+    var summaries = source
+        .Where(entry => entry is not null)
+        .Select(entry =>
+        {
+            var bottle = bottleSelector(entry!);
+            if (bottle is null)
+            {
+                return null;
+            }
+
+            var actualIsRevealed = isRevealedSelector(entry!);
+            var isOwnedByCurrentUser = currentUserId.HasValue &&
+                bottle.UserId.HasValue &&
+                bottle.UserId.Value == currentUserId.Value;
+
+            var labelBase = CreateBottleLabel(bottle);
+            var rawWineName = bottle.WineVintage?.Wine?.Name;
+            var wineName = string.IsNullOrWhiteSpace(rawWineName)
+                ? "Bottle"
+                : rawWineName!.Trim();
+
+            var vintageValue = bottle.WineVintage?.Vintage;
+
+            if (!actualIsRevealed && !isOwnedByCurrentUser)
+            {
+                wineName = "Mystery bottle";
+                labelBase = "Mystery bottle";
+                vintageValue = null;
+            }
+
+            TastingNote? currentUserNote = null;
+
+            if (currentUserId.HasValue)
+            {
+                currentUserNote = bottle.TastingNotes?
+                    .FirstOrDefault(note => note.UserId == currentUserId.Value);
+            }
+
+            var scoreValues = bottle.TastingNotes?
+                .Where(note => note.Score.HasValue)
+                .Select(note => note.Score!.Value)
+                .ToList();
+
+            decimal? averageScore = null;
+            if (scoreValues is { Count: > 0 })
+            {
+                averageScore = scoreValues.Average();
+            }
+
+            decimal? sisterhoodAverageScore = null;
+            var wineVintageId = bottle.WineVintageId;
+            if (wineVintageId != Guid.Empty && sisterhoodAverageScores is not null &&
+                sisterhoodAverageScores.TryGetValue(wineVintageId, out var average))
+            {
+                sisterhoodAverageScore = average;
+            }
+
+            if (!actualIsRevealed && !isOwnedByCurrentUser)
+            {
+                averageScore = null;
+                sisterhoodAverageScore = null;
+            }
+
+            return new WineSurferSipSessionBottle(
+                bottle.Id,
+                wineName,
+                vintageValue,
+                labelBase,
+                isOwnedByCurrentUser,
+                bottle.IsDrunk,
+                bottle.DrunkAt,
+                currentUserNote?.Id,
+                currentUserNote?.Note,
+                currentUserNote?.Score,
+                averageScore,
+                sisterhoodAverageScore,
+                actualIsRevealed);
+        })
+        .Where(summary => summary is not null)
+        .OrderBy(summary => summary!.Label, StringComparer.OrdinalIgnoreCase)
+        .Select(summary => summary!)
+        .ToList();
+
+    if (summaries.Count == 0)
+    {
+        return Array.Empty<WineSurferSipSessionBottle>();
+    }
+
+    return summaries;
+}
 
     private static MapHighlightPoint? CreateHighlightPoint(
         Region region,
@@ -3142,7 +3287,8 @@ public record WineSurferSipSessionBottle(
     string? CurrentUserNote,
     decimal? CurrentUserScore,
     decimal? AverageScore,
-    decimal? SisterhoodAverageScore);
+    decimal? SisterhoodAverageScore,
+    bool IsRevealed);
 
 public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter);
 

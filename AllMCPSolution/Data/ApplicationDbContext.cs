@@ -30,6 +30,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<SisterhoodMembership> SisterhoodMemberships { get; set; }
     public DbSet<SisterhoodInvitation> SisterhoodInvitations { get; set; }
     public DbSet<SipSession> SipSessions { get; set; }
+    public DbSet<SipSessionBottle> SipSessionBottles { get; set; }
     public DbSet<WineSurferNotificationDismissal> WineSurferNotificationDismissals { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -249,7 +250,31 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasMany(session => session.Bottles)
-                .WithMany();
+                .WithOne(link => link.SipSession)
+                .HasForeignKey(link => link.SipSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SipSessionBottle>(entity =>
+        {
+            entity.ToTable("BottleSipSession");
+
+            entity.HasKey(link => new { link.BottleId, link.SipSessionId });
+
+            entity.Property(link => link.IsRevealed)
+                .HasDefaultValue(false);
+
+            entity.HasIndex(link => link.SipSessionId);
+
+            entity.HasOne(link => link.Bottle)
+                .WithMany(bottle => bottle.SipSessions)
+                .HasForeignKey(link => link.BottleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(link => link.SipSession)
+                .WithMany(session => session.Bottles)
+                .HasForeignKey(link => link.SipSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SisterhoodMembership>(entity =>

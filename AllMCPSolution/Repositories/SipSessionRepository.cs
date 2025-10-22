@@ -17,6 +17,7 @@ public interface ISipSessionRepository
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task<int> AddBottlesToSessionAsync(Guid sessionId, Guid ownerUserId, IReadOnlyCollection<Guid> bottleIds, CancellationToken ct = default);
     Task<bool> RemoveBottleFromSessionAsync(Guid sessionId, Guid ownerUserId, Guid bottleId, CancellationToken ct = default);
+    Task<bool> RevealBottleInSessionAsync(Guid sessionId, Guid ownerUserId, Guid bottleId, CancellationToken ct = default);
 }
 
 public class SipSessionRepository : ISipSessionRepository
@@ -35,10 +36,12 @@ public class SipSessionRepository : ISipSessionRepository
             .Include(session => session.Sisterhood)
                 .ThenInclude(sisterhood => sisterhood!.Memberships)
             .Include(session => session.Bottles)
-                .ThenInclude(bottle => bottle.WineVintage)
-                    .ThenInclude(vintage => vintage.Wine)
+                .ThenInclude(link => link.Bottle)
+                    .ThenInclude(bottle => bottle.WineVintage)
+                        .ThenInclude(vintage => vintage.Wine)
             .Include(session => session.Bottles)
-                .ThenInclude(bottle => bottle.TastingNotes)
+                .ThenInclude(link => link.Bottle)
+                    .ThenInclude(bottle => bottle.TastingNotes)
             .FirstOrDefaultAsync(session => session.Id == id, ct);
     }
 
@@ -54,10 +57,12 @@ public class SipSessionRepository : ISipSessionRepository
             .Where(session => session.SisterhoodId == sisterhoodId)
             .Include(session => session.Sisterhood)
             .Include(session => session.Bottles)
-                .ThenInclude(bottle => bottle.WineVintage)
-                    .ThenInclude(vintage => vintage.Wine)
+                .ThenInclude(link => link.Bottle)
+                    .ThenInclude(bottle => bottle.WineVintage)
+                        .ThenInclude(vintage => vintage.Wine)
             .Include(session => session.Bottles)
-                .ThenInclude(bottle => bottle.TastingNotes)
+                .ThenInclude(link => link.Bottle)
+                    .ThenInclude(bottle => bottle.TastingNotes)
             .OrderBy(session => session.ScheduledAt ?? session.CreatedAt)
             .ThenBy(session => session.Name)
             .ToListAsync(ct);
@@ -82,10 +87,12 @@ public class SipSessionRepository : ISipSessionRepository
             .AsNoTracking()
             .Include(session => session.Sisterhood)
             .Include(session => session.Bottles)
-                .ThenInclude(bottle => bottle.WineVintage)
-                    .ThenInclude(vintage => vintage.Wine)
+                .ThenInclude(link => link.Bottle)
+                    .ThenInclude(bottle => bottle.WineVintage)
+                        .ThenInclude(vintage => vintage.Wine)
             .Include(session => session.Bottles)
-                .ThenInclude(bottle => bottle.TastingNotes)
+                .ThenInclude(link => link.Bottle)
+                    .ThenInclude(bottle => bottle.TastingNotes)
             .Where(session =>
                 (session.ScheduledAt.HasValue && session.ScheduledAt.Value >= utcNow) ||
                 (!session.ScheduledAt.HasValue && session.Date.HasValue && session.Date.Value.Date >= utcDate))
@@ -234,6 +241,7 @@ public class SipSessionRepository : ISipSessionRepository
 
         var session = await _db.SipSessions
             .Include(s => s.Bottles)
+                .ThenInclude(link => link.Bottle)
             .FirstOrDefaultAsync(s => s.Id == sessionId, ct);
 
         if (session is null)
@@ -251,7 +259,7 @@ public class SipSessionRepository : ISipSessionRepository
         }
 
         var existingBottleIds = session.Bottles
-            .Select(b => b.Id)
+            .Select(link => link.BottleId)
             .ToHashSet();
 
         var addedCount = 0;
@@ -260,7 +268,13 @@ public class SipSessionRepository : ISipSessionRepository
         {
             if (existingBottleIds.Add(bottle.Id))
             {
-                session.Bottles.Add(bottle);
+                session.Bottles.Add(new SipSessionBottle
+                {
+                    SipSessionId = sessionId,
+                    BottleId = bottle.Id,
+                    Bottle = bottle,
+                    IsRevealed = false,
+                });
                 addedCount++;
             }
         }
@@ -285,6 +299,7 @@ public class SipSessionRepository : ISipSessionRepository
 
         var session = await _db.SipSessions
             .Include(s => s.Bottles)
+                .ThenInclude(link => link.Bottle)
             .FirstOrDefaultAsync(s => s.Id == sessionId, ct);
 
         if (session is null)
@@ -297,14 +312,52 @@ public class SipSessionRepository : ISipSessionRepository
             return false;
         }
 
-        var bottle = session.Bottles.FirstOrDefault(b => b.Id == bottleId && b.UserId == ownerUserId);
-        if (bottle is null)
+        var link = session.Bottles.FirstOrDefault(bottleLink =>
+            bottleLink.BottleId == bottleId &&
+            bottleLink.Bottle is not null &&
+            bottleLink.Bottle.UserId == ownerUserId);
+        if (link is null)
         {
             return false;
         }
 
-        session.Bottles.Remove(bottle);
+        session.Bottles.Remove(link);
         session.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        return true;
+    }
+
+    public async Task<bool> RevealBottleInSessionAsync(Guid sessionId, Guid ownerUserId, Guid bottleId, CancellationToken ct = default)
+    {
+        if (sessionId == Guid.Empty || ownerUserId == Guid.Empty || bottleId == Guid.Empty)
+        {
+            return false;
+        }
+
+        var link = await _db.SipSessionBottles
+            .Include(sessionBottle => sessionBottle.Bottle)
+            .Include(sessionBottle => sessionBottle.SipSession)
+            .FirstOrDefaultAsync(sessionBottle =>
+                sessionBottle.SipSessionId == sessionId &&
+                sessionBottle.BottleId == bottleId,
+                ct);
+
+        if (link?.Bottle is null || link.Bottle.UserId != ownerUserId)
+        {
+            return false;
+        }
+
+        if (link.IsRevealed)
+        {
+            return true;
+        }
+
+        link.IsRevealed = true;
+        if (link.SipSession is not null)
+        {
+            link.SipSession.UpdatedAt = DateTime.UtcNow;
+        }
         await _db.SaveChangesAsync(ct);
 
         return true;

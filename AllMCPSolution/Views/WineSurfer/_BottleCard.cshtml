@@ -12,6 +12,20 @@
 
 @{
     var isInteractive = ViewData["IsAuthenticated"] as bool? ?? false;
+    Guid? sisterhoodId = ViewData["SisterhoodId"] switch
+    {
+        Guid guid => guid,
+        string guidValue when Guid.TryParse(guidValue, out var parsed) => parsed,
+        _ => null
+    };
+    Guid? sipSessionId = ViewData["SipSessionId"] switch
+    {
+        Guid guid => guid,
+        string guidValue when Guid.TryParse(guidValue, out var parsed) => parsed,
+        _ => null
+    };
+    var isOwnedByCurrentUser = Model.IsOwnedByCurrentUser;
+    var isRevealed = Model.IsRevealed;
     var label = string.IsNullOrWhiteSpace(Model.Label) ? Model.WineName : Model.Label;
     var trimmedLabel = string.IsNullOrWhiteSpace(label) ? "Bottle" : label.Trim();
     var normalizedNote = string.IsNullOrWhiteSpace(Model.CurrentUserNote) ? string.Empty : Model.CurrentUserNote!.Trim();
@@ -22,9 +36,25 @@
     var promptText = isInteractive
         ? (string.IsNullOrEmpty(normalizedNote) ? "Click to add your tasting note." : "Click to update your tasting note.")
         : null;
-    var ariaLabel = isInteractive
-        ? $"Open tasting note modal for {trimmedLabel}"
-        : $"Bottle details for {trimmedLabel}";
+    string? hiddenNotice = null;
+    if (!isRevealed)
+    {
+        hiddenNotice = isOwnedByCurrentUser
+            ? "Only you can see this bottle until you reveal it."
+            : "This bottle will be revealed soon.";
+
+        if (!isOwnedByCurrentUser)
+        {
+            isInteractive = false;
+            noteDisplay = "Bottle details will be revealed soon.";
+            noteCssClass = "bottle-note bottle-note--hidden";
+            promptText = null;
+        }
+    }
+
+    var ariaLabel = (!isRevealed && !isOwnedByCurrentUser)
+        ? "Hidden bottle awaiting reveal"
+        : (isInteractive ? $"Open tasting note modal for {trimmedLabel}" : $"Bottle details for {trimmedLabel}");
     var bottleScoreAttribute = Model.CurrentUserScore.HasValue
         ? Model.CurrentUserScore.Value.ToString("0.0", CultureInfo.InvariantCulture)
         : string.Empty;
@@ -39,6 +69,8 @@
          data-bottle-note-id="@noteIdAttribute"
          data-bottle-average="@FormatScore(Model.AverageScore)"
          data-bottle-sisterhood-average="@FormatScore(Model.SisterhoodAverageScore)"
+         data-bottle-interactive="@(isInteractive ? "true" : "false")"
+         data-bottle-revealed="@(Model.IsRevealed ? "true" : "false")"
          aria-label="@ariaLabel"
          @(isInteractive ? "role=\"button\"" : null)
          @(isInteractive ? "tabindex=\"0\"" : null)>
@@ -49,6 +81,10 @@
             <span class="bottle-vintage wine-card__subtitle">@Model.Vintage.Value</span>
         }
     </header>
+    @if (!string.IsNullOrEmpty(hiddenNotice))
+    {
+        <p class="bottle-hidden-notice">@hiddenNotice</p>
+    }
     <dl class="bottle-meta wine-card__stats" aria-label="Bottle tasting stats">
         <div class="bottle-meta-item wine-card__stat">
             <dt>Average score</dt>
@@ -67,5 +103,24 @@
     @if (!string.IsNullOrEmpty(promptText))
     {
         <p class="bottle-prompt" data-bottle-prompt>@promptText</p>
+    }
+    @if (isOwnedByCurrentUser && !isRevealed && sisterhoodId.HasValue && sipSessionId.HasValue)
+    {
+        <footer class="wine-card__actions bottle-card-actions">
+            <form method="post"
+                  action="@Url.Action("RevealSipSessionBottle", "WineSurfer")"
+                  class="bottle-card-reveal-form"
+                  data-sip-session-reveal-form>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="SisterhoodId" value="@sisterhoodId.Value" />
+                <input type="hidden" name="SipSessionId" value="@sipSessionId.Value" />
+                <input type="hidden" name="BottleId" value="@Model.Id" />
+                <button type="submit"
+                        class="sisterhood-button bottle-reveal-button"
+                        data-sip-session-reveal-button>
+                    Reveal bottle
+                </button>
+            </form>
+        </footer>
     }
 </article>

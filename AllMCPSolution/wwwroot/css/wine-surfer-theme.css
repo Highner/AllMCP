@@ -177,6 +177,33 @@ a.wine-card:focus {
     letter-spacing: 1.1px;
 }
 
+.bottle-hidden-notice {
+    margin: 0;
+    font-size: 12px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: rgba(244, 241, 234, 0.65);
+}
+
+.bottle-note--hidden {
+    color: rgba(244, 241, 234, 0.72);
+}
+
+.bottle-card-actions {
+    margin-top: auto;
+    justify-content: flex-start;
+}
+
+.bottle-card-reveal-form {
+    display: inline-flex;
+}
+
+.bottle-reveal-button {
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
 .sip-session-card {
     backdrop-filter: blur(4px);
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
