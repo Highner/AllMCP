@@ -87,6 +87,7 @@
             border-color: rgba(244, 241, 234, 0.45);
             background: rgba(244, 241, 234, 0.12);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            text-decoration: none;
         }
 
         .sisterhood-button:focus-visible {
@@ -812,7 +813,7 @@
                     <h2 class="section-title">Upcoming sip sessions</h2>
                     @if (canCreateSipSession)
                     {
-                        <a class="sisterhood-button sisterhood-button--primary" href="@createSipSessionUrl">Create sip session</a>
+                        <a class="sisterhood-button" href="@createSipSessionUrl">Create sip session</a>
                     }
                 </div>
                 @if (Model.UpcomingSipSessions.Count > 0)
