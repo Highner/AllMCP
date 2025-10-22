@@ -475,6 +475,28 @@
             gap: 10px;
         }
 
+        .sip-session-delete-section {
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(244, 241, 234, 0.16);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sip-session-delete-hint {
+            margin: 0;
+            font-size: 13px;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .sip-session-delete-form {
+            display: inline-flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
         .contribute-modal-backdrop {
             z-index: 70;
         }
@@ -823,6 +845,7 @@
 
                             var sessionReturnUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = Model.Session.Id })
                                 ?? string.Concat(requestPath, requestQuery);
+                            var deleteReturnUrl = Url.Action("Index", "WineSurfer") ?? "/wine-surfer";
                             var scheduledDateValue = FormatSipSessionDateValue(Model.Session);
                             var scheduledTimeValue = FormatSipSessionTimeValue(Model.Session);
                             var nameInputId = $"sip-session-name-{Model.Session.Id}";
@@ -874,6 +897,18 @@
                                                     data-sip-session-edit-cancel>Cancel</button>
                                         </div>
                                     </form>
+                                    <div class="sip-session-delete-section">
+                                        <p class="sip-session-delete-hint">Deleting this sip session will remove it for everyone in the sisterhood.</p>
+                                        <form method="post"
+                                              action="@Url.Action("DeleteSipSession", "WineSurfer")"
+                                              class="sip-session-delete-form">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+                                            <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                            <input type="hidden" name="ReturnUrl" value="@deleteReturnUrl" />
+                                            <button type="submit" class="sisterhood-button sisterhood-button--danger">Delete sip session</button>
+                                        </form>
+                                    </div>
                                 </template>
                             </div>
                         }
