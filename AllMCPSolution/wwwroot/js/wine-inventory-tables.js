@@ -28,10 +28,9 @@ window.WineInventoryTables.initialize = function () {
             const notesTitle = document.getElementById('notes-title');
             const notesSubtitle = document.getElementById('notes-subtitle');
             const notesCloseButton = document.getElementById('notes-close');
-            const hasDetailsView = Boolean(detailsTable && detailsBody && detailAddRow && emptyRow && detailsTitle && detailsSubtitle && messageBanner);
-            const notesEnabled = hasDetailsView && Boolean(notesPanel && notesTable && notesBody && notesAddRow && notesEmptyRow && notesAddUserDisplay && notesAddScore && notesAddText && notesAddButton && notesMessage && notesTitle && notesSubtitle && notesCloseButton);
+            const notesEnabled = Boolean(notesPanel && notesTable && notesBody && notesAddRow && notesEmptyRow && notesAddUserDisplay && notesAddScore && notesAddText && notesAddButton && notesMessage && notesTitle && notesSubtitle && notesCloseButton);
 
-            if (!inventoryTable) {
+            if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner) {
                 return;
             }
 
@@ -58,10 +57,10 @@ window.WineInventoryTables.initialize = function () {
             const drinkSubmitButton = drinkPopover?.querySelector('.drink-bottle-submit');
             const drinkTitle = drinkPopover?.querySelector('.drink-bottle-title');
 
-            const detailAddLocation = detailAddRow?.querySelector('.detail-add-location');
-            const detailAddPrice = detailAddRow?.querySelector('.detail-add-price');
-            const detailAddQuantity = detailAddRow?.querySelector('.detail-add-quantity-select');
-            const detailAddButton = detailAddRow?.querySelector('.detail-add-submit');
+            const detailAddLocation = detailAddRow.querySelector('.detail-add-location');
+            const detailAddPrice = detailAddRow.querySelector('.detail-add-price');
+            const detailAddQuantity = detailAddRow.querySelector('.detail-add-quantity-select');
+            const detailAddButton = detailAddRow.querySelector('.detail-add-submit');
             const inventorySection = document.getElementById('inventory-view');
             const detailsSection = document.getElementById('details-view');
             const detailsCloseButton = document.getElementById('details-close-button');
@@ -135,19 +134,11 @@ window.WineInventoryTables.initialize = function () {
                         return;
                     }
 
-                    if (!hasDetailsView) {
-                        return;
-                    }
-
                     handleRowSelection(row).catch(error => showMessage(error?.message ?? String(error), 'error'));
                 });
 
                 row.addEventListener('keydown', (event) => {
                     if (row.classList.contains('editing')) {
-                        return;
-                    }
-
-                    if (!hasDetailsView) {
                         return;
                     }
 
@@ -159,7 +150,7 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function bindDetailsCloseButton() {
-                if (!hasDetailsView || !detailsCloseButton) {
+                if (!detailsCloseButton) {
                     return;
                 }
 
@@ -452,9 +443,7 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 showMessage('Bottle added to your inventory.', 'success');
-                if (hasDetailsView) {
-                    await handleRowSelection(row, { force: true, response });
-                }
+                await handleRowSelection(row, { force: true, response });
                 row.focus();
             }
 
@@ -671,7 +660,7 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                const row = detailsBody?.querySelector(`.detail-row[data-bottle-id="${bottleId}"]`);
+                const row = detailsBody.querySelector(`.detail-row[data-bottle-id="${bottleId}"]`);
                 const priceValue = row?.querySelector('.detail-price')?.value ?? '';
                 const locationValue = row?.querySelector('.detail-location')?.value ?? '';
                 const rowUserId = row?.dataset?.userId ? row.dataset.userId : '';
@@ -903,9 +892,7 @@ window.WineInventoryTables.initialize = function () {
                 row.className = 'group-row';
                 row.setAttribute('tabindex', '0');
                 row.setAttribute('role', 'button');
-                if (hasDetailsView) {
-                    row.setAttribute('aria-controls', 'details-table');
-                }
+                row.setAttribute('aria-controls', 'details-table');
                 applySummaryToRow(row, summary, true);
                 return row;
             }
@@ -1175,10 +1162,6 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function showDetailsView() {
-                if (!hasDetailsView) {
-                    return;
-                }
-
                 if (inventorySection) {
                     inventorySection.hidden = true;
                 }
@@ -1191,7 +1174,7 @@ window.WineInventoryTables.initialize = function () {
                 if (inventorySection) {
                     inventorySection.hidden = false;
                 }
-                if (hasDetailsView && detailsSection) {
+                if (detailsSection) {
                     detailsSection.hidden = true;
                 }
             }
@@ -1210,19 +1193,9 @@ window.WineInventoryTables.initialize = function () {
                 selectedDetailRowElement = null;
                 notesSelectedBottleId = null;
 
-                if (!hasDetailsView) {
-                    return;
-                }
-
-                if (detailsTitle) {
-                    detailsTitle.textContent = 'Bottle Details';
-                }
-                if (detailsSubtitle) {
-                    detailsSubtitle.textContent = 'Select a wine group to view individual bottles.';
-                }
-                if (detailAddRow) {
-                    detailAddRow.hidden = true;
-                }
+                detailsTitle.textContent = 'Bottle Details';
+                detailsSubtitle.textContent = 'Select a wine group to view individual bottles.';
+                detailAddRow.hidden = true;
 
                 if (detailAddPrice) {
                     detailAddPrice.value = '';
@@ -1237,20 +1210,12 @@ window.WineInventoryTables.initialize = function () {
                     detailAddButton.disabled = true;
                 }
 
-                if (detailsBody) {
-                    detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
-                }
-                if (emptyRow) {
-                    emptyRow.hidden = false;
-                }
+                detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
+                emptyRow.hidden = false;
                 showMessage('', 'info');
             }
 
             async function handleRowSelection(row, options = {}) {
-                if (!hasDetailsView) {
-                    return;
-                }
-
                 if (loading && !options.force) {
                     return;
                 }
@@ -1285,10 +1250,6 @@ window.WineInventoryTables.initialize = function () {
             }
 
             async function loadDetails(groupId, updateRow) {
-                if (!hasDetailsView || !detailsBody || !emptyRow) {
-                    return;
-                }
-
                 showMessage('Loading bottle details…', 'info');
                 emptyRow.hidden = false;
                 detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
@@ -1306,10 +1267,6 @@ window.WineInventoryTables.initialize = function () {
             }
 
             async function renderDetails(data, shouldUpdateRow) {
-                if (!hasDetailsView || !detailsBody || !emptyRow) {
-                    return;
-                }
-
                 await referenceDataPromise;
 
                 const rawSummary = data?.group ?? data?.Group ?? null;
@@ -1324,36 +1281,20 @@ window.WineInventoryTables.initialize = function () {
                 selectedSummary = summary;
 
                 if (summary) {
-                    if (detailsTitle) {
-                        detailsTitle.textContent = `${summary.wineName ?? ''} • ${summary.vintage ?? ''}`;
-                    }
-                    if (detailsSubtitle) {
-                        detailsSubtitle.textContent = `${summary.bottleCount ?? 0} bottle${summary.bottleCount === 1 ? '' : 's'} · ${summary.statusLabel ?? ''}`;
-                    }
-                    if (detailAddRow) {
-                        detailAddRow.hidden = false;
-                    }
-                    if (detailAddPrice) {
-                        detailAddPrice.value = '';
-                    }
+                    detailsTitle.textContent = `${summary.wineName ?? ''} • ${summary.vintage ?? ''}`;
+                    detailsSubtitle.textContent = `${summary.bottleCount ?? 0} bottle${summary.bottleCount === 1 ? '' : 's'} · ${summary.statusLabel ?? ''}`;
+                    detailAddRow.hidden = false;
+                    detailAddPrice.value = '';
                     populateLocationSelect(detailAddLocation, '');
                     if (detailAddQuantity) {
                         detailAddQuantity.value = '1';
                     }
-                    if (detailAddButton) {
-                        detailAddButton.disabled = loading;
-                    }
+                    detailAddButton.disabled = loading;
                     disableNotesAddRow(notesLoading || !notesSelectedBottleId);
                 } else {
-                    if (detailsTitle) {
-                        detailsTitle.textContent = 'Bottle Details';
-                    }
-                    if (detailsSubtitle) {
-                        detailsSubtitle.textContent = 'No bottles remain for the selected group.';
-                    }
-                    if (detailAddRow) {
-                        detailAddRow.hidden = true;
-                    }
+                    detailsTitle.textContent = 'Bottle Details';
+                    detailsSubtitle.textContent = 'No bottles remain for the selected group.';
+                    detailAddRow.hidden = true;
                     closeNotesPanel();
                 }
 
@@ -1577,7 +1518,7 @@ window.WineInventoryTables.initialize = function () {
             }
 
             async function handleAddBottle() {
-                if (!hasDetailsView || !detailAddPrice || !selectedSummary || loading) {
+                if (!selectedSummary || loading) {
                     return;
                 }
 
@@ -1626,8 +1567,7 @@ window.WineInventoryTables.initialize = function () {
                     addWineButton.disabled = state;
                 }
                 if (detailAddButton) {
-                    const detailRowHidden = detailAddRow ? detailAddRow.hidden : true;
-                    detailAddButton.disabled = state || detailRowHidden;
+                    detailAddButton.disabled = state || detailAddRow.hidden;
                 }
             }
 
@@ -2131,7 +2071,7 @@ window.WineInventoryTables.initialize = function () {
 
                 const bottleId = summary.bottleId ?? summary.BottleId ?? notesSelectedBottleId;
                 const bottleAverage = summary.bottleAverageScore ?? summary.BottleAverageScore ?? null;
-                if (bottleId && detailsBody) {
+                if (bottleId) {
                     const detailRow = detailsBody.querySelector(`.detail-row[data-bottle-id="${bottleId}"]`);
                     const averageCell = detailRow?.querySelector('.detail-average');
                     if (averageCell) {
@@ -2359,10 +2299,6 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function showMessage(text, state) {
-                if (!messageBanner) {
-                    return;
-                }
-
                 if (!text) {
                     messageBanner.style.display = 'none';
                     messageBanner.textContent = '';
