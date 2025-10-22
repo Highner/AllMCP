@@ -2286,6 +2286,11 @@ public class WineSurferController : Controller
             TempData["SisterhoodError"] = "We couldn't remove that sip session right now. Please try again.";
         }
 
+        if (!string.IsNullOrWhiteSpace(request.ReturnUrl) && Url.IsLocalUrl(request.ReturnUrl))
+        {
+            return Redirect(request.ReturnUrl);
+        }
+
         return RedirectToAction(nameof(Sisterhoods));
     }
 
@@ -2638,6 +2643,8 @@ public class WineSurferController : Controller
 
         [Required]
         public Guid SipSessionId { get; set; }
+
+        public string? ReturnUrl { get; set; }
     }
 
     public class ContributeSipSessionBottlesRequest
