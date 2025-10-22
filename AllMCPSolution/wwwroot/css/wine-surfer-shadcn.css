@@ -1260,21 +1260,23 @@ textarea:focus {
 .inventory-add-popover {
     width: min(480px, 100%);
     max-height: calc(100% - 48px);
-    overflow-y: auto;
     background: hsla(var(--popover) / 0.98);
     border: 1px solid hsla(var(--border) / 0.35);
     border-radius: calc(var(--radius) + 0.25rem);
     box-shadow: 0 32px 90px hsla(var(--background) / 0.65);
-    padding: 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
 }
 
-.inventory-add-popover h3 {
-    margin: 0;
+.inventory-add-header {
+    justify-content: space-between;
+}
+
+.inventory-add-title {
     font-size: 1.4rem;
     letter-spacing: 0.6px;
+}
+
+.inventory-add-body {
+    gap: 20px;
 }
 
 .inventory-add-intro {

@@ -1,5 +1,8 @@
 @model AllMCPSolution.Controllers.WineSurferSisterhoodsViewModel
 @using AllMCPSolution.Controllers
+@using AllMCPSolution.Models
+@using Microsoft.AspNetCore.Html
+@using System.Collections.Generic
 @using System.Linq
 @{
     Layout = null;
@@ -1189,11 +1192,15 @@
             text-transform: uppercase;
         }
 
+        .contribute-modal__body {
+            padding: 0;
+        }
+
         .contribute-modal__form {
             display: flex;
             flex-direction: column;
             gap: 16px;
-            padding: 0 24px 24px;
+            padding: 24px;
             flex: 1;
         }
 
@@ -1383,6 +1390,10 @@
             font-size: 16px;
             letter-spacing: 3px;
             text-transform: uppercase;
+        }
+
+        .sip-session-rate-modal__body {
+            padding: 0;
         }
 
         .sip-session-rate-modal__form {
@@ -2217,27 +2228,68 @@
         </section>
         <datalist id="sisterhood-user-options"></datalist>
     </main>
-    <div class="sip-session-edit-modal-backdrop" data-sip-session-edit-modal hidden aria-hidden="true">
-        <div class="sip-session-edit-modal" role="dialog" aria-modal="true" aria-labelledby="sip-session-edit-modal-title">
-            <header class="sip-session-edit-modal__header">
-                <h2 class="sip-session-edit-modal__title" id="sip-session-edit-modal-title" data-sip-session-edit-modal-title>Edit sip session</h2>
-                <button type="button"
-                        class="wine-surfer-modal__close sip-session-edit-modal__close"
-                        data-sip-session-edit-close
-                        aria-label="Close edit sip session dialog">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </header>
-            <div class="sip-session-edit-modal__body" data-sip-session-edit-modal-body></div>
-        </div>
-    </div>
-    <div class="contribute-modal-backdrop" data-contribute-modal hidden aria-hidden="true">
-        <div class="contribute-modal" role="dialog" aria-modal="true" aria-labelledby="contribute-modal-title">
-            <header class="contribute-modal__header">
-                <h2 class="contribute-modal__title" id="contribute-modal-title">Contribute bottles</h2>
-                <button type="button" class="sisterhood-button sisterhood-button--ghost" data-contribute-close aria-label="Close contribute bottles dialog">Close</button>
-            </header>
-            <form method="post"
+    @{ var editModal = new WineSurferModalShell
+        {
+            BackdropCssClass = "sip-session-edit-modal-backdrop wine-surfer-modal-backdrop",
+            BackdropAttributes = new Dictionary<string, string?>
+            {
+                ["data-sip-session-edit-modal"] = null,
+                ["hidden"] = null,
+                ["aria-hidden"] = "true"
+            },
+            DialogCssClass = "sip-session-edit-modal wine-surfer-modal",
+            DialogAttributes = new Dictionary<string, string?>
+            {
+                ["aria-labelledby"] = "sip-session-edit-modal-title"
+            },
+            HeaderCssClass = "sip-session-edit-modal__header wine-surfer-modal__header",
+            Title = "Edit sip session",
+            TitleCssClass = "sip-session-edit-modal__title wine-surfer-modal__title",
+            TitleElementId = "sip-session-edit-modal-title",
+            TitleAttributes = new Dictionary<string, string?>
+            {
+                ["data-sip-session-edit-modal-title"] = null
+            },
+            CloseButtonCssClass = "wine-surfer-modal__close sip-session-edit-modal__close",
+            CloseButtonLabel = "Close edit sip session dialog",
+            CloseButtonAttributes = new Dictionary<string, string?>
+            {
+                ["data-sip-session-edit-close"] = null
+            },
+            BodyCssClass = "sip-session-edit-modal__body wine-surfer-modal__body",
+            BodyAttributes = new Dictionary<string, string?>
+            {
+                ["data-sip-session-edit-modal-body"] = null
+            },
+            BodyContent = HtmlString.Empty
+        }; }
+    @await Html.PartialAsync("_WineSurferModalShell", editModal)
+    @{ var contributeModal = new WineSurferModalShell
+        {
+            BackdropCssClass = "contribute-modal-backdrop wine-surfer-modal-backdrop",
+            BackdropAttributes = new Dictionary<string, string?>
+            {
+                ["data-contribute-modal"] = null,
+                ["hidden"] = null,
+                ["aria-hidden"] = "true"
+            },
+            DialogCssClass = "contribute-modal wine-surfer-modal",
+            DialogAttributes = new Dictionary<string, string?>
+            {
+                ["aria-labelledby"] = "contribute-modal-title"
+            },
+            HeaderCssClass = "contribute-modal__header wine-surfer-modal__header",
+            Title = "Contribute bottles",
+            TitleCssClass = "contribute-modal__title wine-surfer-modal__title",
+            TitleElementId = "contribute-modal-title",
+            CloseButtonCssClass = "wine-surfer-modal__close contribute-modal__close",
+            CloseButtonLabel = "Close contribute bottles dialog",
+            CloseButtonAttributes = new Dictionary<string, string?>
+            {
+                ["data-contribute-close"] = null
+            },
+            BodyCssClass = "contribute-modal__body wine-surfer-modal__body",
+            BodyContent = @<form method="post"
                   action="@Url.Action("ContributeSipSessionBottles", "WineSurfer")"
                   class="contribute-modal__form"
                   data-contribute-form>
@@ -2268,14 +2320,38 @@
                     <button type="button" class="sisterhood-button sisterhood-button--ghost" data-contribute-close>Cancel</button>
                 </div>
             </form>
-        </div>
-    </div>
-    <div class="sip-session-rate-modal-backdrop" data-sip-session-rate-modal hidden aria-hidden="true">
-        <div class="sip-session-rate-modal" role="dialog" aria-modal="true" aria-labelledby="sip-session-rate-modal-title">
-            <header class="sip-session-rate-modal__header">
-                <h2 class="sip-session-rate-modal__title" id="sip-session-rate-modal-title" data-sip-session-rate-title>Add tasting note</h2>
-            </header>
-            <form method="post"
+        }; }
+    @await Html.PartialAsync("_WineSurferModalShell", contributeModal)
+    @{ var rateModal = new WineSurferModalShell
+        {
+            BackdropCssClass = "sip-session-rate-modal-backdrop wine-surfer-modal-backdrop",
+            BackdropAttributes = new Dictionary<string, string?>
+            {
+                ["data-sip-session-rate-modal"] = null,
+                ["hidden"] = null,
+                ["aria-hidden"] = "true"
+            },
+            DialogCssClass = "sip-session-rate-modal wine-surfer-modal",
+            DialogAttributes = new Dictionary<string, string?>
+            {
+                ["aria-labelledby"] = "sip-session-rate-modal-title"
+            },
+            HeaderCssClass = "sip-session-rate-modal__header wine-surfer-modal__header",
+            Title = "Add tasting note",
+            TitleCssClass = "sip-session-rate-modal__title wine-surfer-modal__title",
+            TitleElementId = "sip-session-rate-modal-title",
+            TitleAttributes = new Dictionary<string, string?>
+            {
+                ["data-sip-session-rate-title"] = null
+            },
+            CloseButtonCssClass = "wine-surfer-modal__close sip-session-rate-modal__close",
+            CloseButtonLabel = "Close tasting note dialog",
+            CloseButtonAttributes = new Dictionary<string, string?>
+            {
+                ["data-sip-session-rate-close"] = null
+            },
+            BodyCssClass = "sip-session-rate-modal__body wine-surfer-modal__body",
+            BodyContent = @<form method="post"
                   action="@Url.Action("RateSipSessionBottle", "WineSurfer")"
                   class="sip-session-rate-modal__form"
                   data-sip-session-rate-form>
@@ -2317,8 +2393,8 @@
                     <button type="button" class="sisterhood-button sisterhood-button--ghost" data-sip-session-rate-close>Cancel</button>
                 </div>
             </form>
-        </div>
-    </div>
+        }; }
+    @await Html.PartialAsync("_WineSurferModalShell", rateModal)
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         let closeRateModal = null;
