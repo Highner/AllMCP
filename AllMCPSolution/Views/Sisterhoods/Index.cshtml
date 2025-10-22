@@ -12,6 +12,7 @@
         Model.IncomingInvitations,
         Model.SentInvitationNotifications,
         displayName: Model.DisplayName);
+    ViewData["WineSurferPageTitle"] = "Sisterhoods";
 }
 
 @functions {
@@ -1629,7 +1630,6 @@
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main>
         <section>
-            @await Html.PartialAsync("_WineSurferPageHeader", new WineSurferPageHeaderModel("Sisterhoods"))
             @{
                 var sanitizedDisplayName = string.IsNullOrWhiteSpace(Model.DisplayName) ? null : Model.DisplayName;
                 var hasMembership = Model.Sisterhoods.Count > 0;

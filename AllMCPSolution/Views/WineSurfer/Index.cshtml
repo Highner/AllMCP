@@ -739,12 +739,12 @@
         Model.IncomingInvitations,
         Model.SentInvitationNotifications,
         displayName: Model.CurrentUser?.DisplayName);
+    ViewData["WineSurferPageTitle"] = "Wine Surfer";
 }
 <body class="wine-app @bodyClass">
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main>
-            @await Html.PartialAsync("_WineSurferPageHeader", new WineSurferPageHeaderModel("Wine Surfer"))
             <p class="tagline">Chart the journeys of every bottle in your cellar, explore terroirs across the globe, and feel the pulse of vintages riding the waves of time.</p>
             @if (Model.CurrentUser is null)
             {

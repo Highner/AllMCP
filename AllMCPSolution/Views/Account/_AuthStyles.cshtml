@@ -41,7 +41,7 @@
 
     .top-bar-page-title {
         flex: 1 1 auto;
-        display: none;
+        display: flex;
         align-items: center;
         justify-content: center;
         font-size: 14px;
@@ -53,8 +53,8 @@
         pointer-events: none;
     }
 
-    .top-bar-page-title.is-visible {
-        display: flex;
+    .top-bar-page-title--hidden {
+        visibility: hidden;
     }
 
     .brand {

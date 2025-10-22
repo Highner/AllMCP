@@ -136,13 +136,24 @@
     var dismissalEndpointJson = JsonSerializer.Serialize(dismissalEndpoint);
     var isAuthenticated = User?.Identity?.IsAuthenticated == true;
     var isAuthenticatedJson = JsonSerializer.Serialize(isAuthenticated);
+
+    var rawPageTitle = ViewData["WineSurferPageTitle"] as string;
+    var pageTitle = string.IsNullOrWhiteSpace(rawPageTitle) ? null : rawPageTitle!.Trim();
+    var showPageTitle = !string.IsNullOrEmpty(pageTitle);
 }
 
 <header class="top-bar">
     <a class="brand" href="/wine-surfer" aria-label="Wine Surfer home">
         <img src="/assets/logo.png" alt="Wine Surfer" style="height:32px;width:auto;display:block;" />
     </a>
-    <div class="top-bar-page-title" data-top-bar-page-title aria-hidden="true" hidden></div>
+    @if (showPageTitle)
+    {
+        <h1 class="top-bar-page-title">@pageTitle</h1>
+    }
+    else
+    {
+        <span class="top-bar-page-title top-bar-page-title--hidden" aria-hidden="true"></span>
+    }
     <div class="top-bar-actions">
         <div class="notification-shell">
             <button
