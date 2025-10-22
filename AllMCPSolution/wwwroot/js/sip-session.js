@@ -60,9 +60,51 @@
         const hiddenBottle = form.querySelector('input[name="BottleId"]');
         const hiddenNoteId = form.querySelector('input[name="NoteId"]');
         const tokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
+        const baseCreateTitle = titleElement?.textContent?.trim() || 'Drink Bottle';
+        const createTitleUsesDrink = /\bdrink\b/i.test(baseCreateTitle);
+        const baseSubmitLabel = submitButton?.textContent?.trim() || 'Drink Bottle';
+        const editTitleBase = 'Update tasting note';
+        const editSubmitLabel = 'Update note';
+        const modalModeAttribute = 'data-form-mode';
         let activeCard = null;
         let loading = false;
         let closeTimerId = null;
+
+        const applyModalMode = (mode, label) => {
+            const normalized = mode === 'edit' ? 'edit' : 'create';
+            const trimmedLabel = (label ?? '').trim();
+
+            if (form) {
+                form.setAttribute(modalModeAttribute, normalized);
+            }
+
+            if (popover) {
+                popover.setAttribute(modalModeAttribute, normalized);
+            }
+
+            if (submitButton) {
+                submitButton.textContent = normalized === 'edit'
+                    ? editSubmitLabel
+                    : baseSubmitLabel;
+            }
+
+            if (titleElement) {
+                if (normalized === 'edit') {
+                    const base = editTitleBase;
+                    titleElement.textContent = trimmedLabel
+                        ? `${base} · ${trimmedLabel}`
+                        : base;
+                } else if (trimmedLabel) {
+                    titleElement.textContent = createTitleUsesDrink
+                        ? `Drink ${trimmedLabel}`
+                        : `${baseCreateTitle} · ${trimmedLabel}`;
+                } else {
+                    titleElement.textContent = baseCreateTitle;
+                }
+            }
+        };
+
+        applyModalMode('create');
 
         const showFeedback = (message, type = 'error') => {
             if (!errorElement) {
@@ -112,6 +154,8 @@
                 hiddenNoteId.value = '';
             }
 
+            applyModalMode('create');
+
             if (restoreFocus && cardToFocus instanceof HTMLElement) {
                 window.requestAnimationFrame(() => {
                     cardToFocus.focus();
@@ -127,36 +171,39 @@
             resetCloseTimer();
 
             activeCard = card;
-            const note = card.getAttribute('data-bottle-note') ?? '';
-            const score = card.getAttribute('data-bottle-score') ?? '';
-            const noteId = card.getAttribute('data-bottle-note-id') ?? '';
-            const label = card.getAttribute('data-bottle-label') ?? '';
-            const bottleId = card.getAttribute('data-bottle-id') ?? '';
+            const bottleId = card.dataset.bottleId ?? card.getAttribute('data-bottle-id') ?? '';
+            const label = card.dataset.bottleLabel ?? card.getAttribute('data-bottle-label') ?? '';
+            const note = card.dataset.bottleNote ?? card.getAttribute('data-bottle-note') ?? '';
+            const score = card.dataset.bottleScore ?? card.getAttribute('data-bottle-score') ?? '';
+            const noteId = card.dataset.bottleNoteId ?? card.getAttribute('data-bottle-note-id') ?? '';
+            const normalizedNoteId = (noteId ?? '').trim();
+            const noteText = typeof note === 'string' ? note : '';
+            const normalizedScore = (score ?? '').trim();
+            const trimmedLabel = (label ?? '').trim();
+            const hasExisting = normalizedNoteId.length > 0
+                || noteText.trim().length > 0
+                || normalizedScore.length > 0;
+
+            applyModalMode(hasExisting ? 'edit' : 'create', trimmedLabel);
 
             if (hiddenBottle) {
                 hiddenBottle.value = bottleId ?? '';
             }
 
             if (hiddenNoteId) {
-                hiddenNoteId.value = noteId ?? '';
+                hiddenNoteId.value = normalizedNoteId;
             }
 
             if (noteInput) {
-                noteInput.value = note ?? '';
+                noteInput.value = noteText;
             }
 
             if (scoreInput) {
-                scoreInput.value = score ?? '';
+                scoreInput.value = normalizedScore;
             }
 
             if (dateInput) {
                 dateInput.value = '';
-            }
-
-            if (titleElement) {
-                titleElement.textContent = label
-                    ? `Drink ${label}`
-                    : 'Drink Bottle';
             }
 
             showFeedback('');
