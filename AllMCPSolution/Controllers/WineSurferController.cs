@@ -904,7 +904,14 @@ public class WineSurferController : Controller
                 ?? Url.Action("Register", "Account", registerRouteValues)
                 ?? "/account/register";
             signupLink = EnsureEmailQueryParameter(signupLink, inviteeEmail);
-            var body = $"We'd love to have you in the {sisterhood.Name} sisterhood on Wine Surfer. Sign up at {signupLink} using this email address and accept the invite we just sent.";
+            var body =
+                $"Dear Wine Lover,\n\n" +
+                $"We'd be thrilled to welcome you to the {sisterhood.Name} sisterhood on Wine Surfer—" +
+                "a vibrant community of surfers who share discoveries, tasting notes, and good company.\n\n" +
+                $"{signupLink}\n\n" +
+                "Use this email address when you sign up and accept the invitation waiting for you. " +
+                "We're excited to ride the next wave of wine adventures together!\n\n" +
+                "Cheers,\nThe Wine Surfer Crew";
             mailtoLink = $"mailto:{inviteeEmail}?subject={Uri.EscapeDataString(subject)}&body={Uri.EscapeDataString(body)}";
         }
 
