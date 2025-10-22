@@ -918,6 +918,59 @@ textarea:focus {
     box-shadow: 0 0 0 3px hsla(var(--ring) / 0.25);
 }
 
+.sisterhood-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(244, 241, 234, 0.24);
+    background: rgba(244, 241, 234, 0.08);
+    color: #f4f1ea;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    text-decoration: none;
+    min-width: 0;
+}
+
+.sisterhood-button:hover,
+.sisterhood-button:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(244, 241, 234, 0.45);
+    background: rgba(244, 241, 234, 0.12);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    text-decoration: none;
+}
+
+.sisterhood-button:focus-visible {
+    outline: 2px solid rgba(244, 241, 234, 0.5);
+    outline-offset: 2px;
+}
+
+.sisterhood-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.sisterhood-button--primary {
+    background: linear-gradient(135deg, rgba(166, 25, 46, 0.95), rgba(219, 56, 56, 0.9));
+    border-color: rgba(244, 241, 234, 0.35);
+    color: #f4f1ea;
+}
+
+.sisterhood-button--primary:hover,
+.sisterhood-button--primary:focus-visible {
+    background: linear-gradient(135deg, rgba(219, 56, 56, 1), rgba(166, 25, 46, 1));
+    border-color: rgba(244, 241, 234, 0.6);
+}
+
 .filters button,
 .details-controls button,
 .details-table button,
