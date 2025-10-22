@@ -1484,16 +1484,19 @@
         }
 
         .pending-invite-actions {
-            display: grid;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
             gap: 6px;
             margin-top: 4px;
         }
 
         .pending-invite-actions .sisterhood-button {
-            justify-self: start;
+            align-self: flex-start;
         }
 
         .pending-invite-actions .invite-feedback {
+            flex-basis: 100%;
             margin: 0;
         }
 
