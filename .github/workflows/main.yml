@@ -1,0 +1,39 @@
+name: ASP.NET + OpenAI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    env:
+      # Map your GitHub secret into an env var that ASP.NET config can read.
+      # "OpenAI__ApiKey" becomes Configuration["OpenAI:ApiKey"] in C#.
+      OpenAI__ApiKey: ${{ secrets.OPENAI_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build --verbosity normal
+
+      # (Optional) run your web app for quick smoke checks
+      # - name: Run (smoke)
+      #   run: |
+      #     dotnet run --project src/YourWebProject/YourWebProject.csproj --urls=http://localhost:5000 &
+      #     sleep 10
+      #     curl -I http://localhost:5000/health || true
