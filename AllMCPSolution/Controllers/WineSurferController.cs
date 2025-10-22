@@ -297,6 +297,7 @@ public class WineSurferController : Controller
         WineSurferCurrentUser? currentUser = null;
         IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
         IReadOnlyList<WineSurferSentInvitationNotification> sentInvitationNotifications = Array.Empty<WineSurferSentInvitationNotification>();
+        IReadOnlyList<WineSurferSipSessionBottle> availableBottles = Array.Empty<WineSurferSipSessionBottle>();
         Guid? currentUserId = null;
 
         if (User?.Identity?.IsAuthenticated == true)
@@ -374,6 +375,11 @@ public class WineSurferController : Controller
 
         if (currentUserId.HasValue)
         {
+            var availableBottleEntities = await _bottleRepository.GetAvailableForUserAsync(
+                currentUserId.Value,
+                cancellationToken);
+            availableBottles = CreateBottleSummaries(availableBottleEntities, currentUserId);
+
             var acceptedInvitations = await _sisterhoodInvitationRepository.GetAcceptedForAdminAsync(
                 currentUserId.Value,
                 now - SentInvitationNotificationWindow,
@@ -411,7 +417,8 @@ public class WineSurferController : Controller
             incomingInvitations,
             sentInvitationNotifications,
             false,
-            Array.Empty<WineSurferSisterhoodOption>());
+            Array.Empty<WineSurferSisterhoodOption>(),
+            availableBottles);
 
         Response.ContentType = "text/html; charset=utf-8";
         return View("SipSession", model);
@@ -544,7 +551,8 @@ public class WineSurferController : Controller
             incomingInvitations,
             sentInvitationNotifications,
             true,
-            manageableSisterhoods);
+            manageableSisterhoods,
+            Array.Empty<WineSurferSipSessionBottle>());
 
         Response.ContentType = "text/html; charset=utf-8";
         return View("SipSession", model);
@@ -2731,7 +2739,8 @@ public record WineSurferSipSessionDetailViewModel(
     IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
     IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
     bool IsCreateMode,
-    IReadOnlyList<WineSurferSisterhoodOption> ManageableSisterhoods);
+    IReadOnlyList<WineSurferSisterhoodOption> ManageableSisterhoods,
+    IReadOnlyList<WineSurferSipSessionBottle> AvailableBottles);
 
 public record WineSurferSisterhoodOption(Guid Id, string Name, string? Description);
 
