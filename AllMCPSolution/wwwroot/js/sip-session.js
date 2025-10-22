@@ -72,6 +72,7 @@
         const dateInput = popover.querySelector('.drink-bottle-date');
         const errorElement = popover.querySelector('.drink-bottle-error');
         const cancelButton = popover.querySelector('.drink-bottle-cancel');
+        const headerCloseButton = popover.querySelector('[data-drink-bottle-close]');
         const submitButton = popover.querySelector('.drink-bottle-submit');
         const titleElement = popover.querySelector('.drink-bottle-title');
         const hiddenSisterhood = form.querySelector('input[name="SisterhoodId"]');
@@ -240,6 +241,7 @@
             loading = state;
             setElementDisabled(submitButton, state);
             setElementDisabled(cancelButton, state);
+            setElementDisabled(headerCloseButton, state);
             setElementDisabled(noteInput, state);
             setElementDisabled(scoreInput, state);
             setElementDisabled(dateInput, state);
@@ -336,6 +338,12 @@
         });
 
         cancelButton?.addEventListener('click', () => {
+            if (!loading) {
+                closeModal();
+            }
+        });
+
+        headerCloseButton?.addEventListener('click', () => {
             if (!loading) {
                 closeModal();
             }
