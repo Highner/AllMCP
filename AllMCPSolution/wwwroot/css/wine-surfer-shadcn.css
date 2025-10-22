@@ -1315,6 +1315,67 @@ textarea:focus {
     min-height: 44px;
 }
 
+.drink-bottle-score-field .drink-bottle-score-control {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.drink-bottle-score-field .drink-bottle-score {
+    width: 100%;
+    padding: 0;
+    height: 32px;
+    min-height: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    accent-color: hsl(var(--primary));
+}
+
+.drink-bottle-score-field .drink-bottle-score[data-has-value='false'] {
+    opacity: 0.65;
+}
+
+.drink-bottle-score-field .drink-bottle-score:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+}
+
+.drink-bottle-score-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 0.9rem;
+    color: hsla(var(--muted-foreground) / 0.95);
+}
+
+.drink-bottle-score-display {
+    font-variant-numeric: tabular-nums;
+}
+
+.drink-bottle-score-clear {
+    border: none;
+    background: none;
+    color: hsl(var(--primary));
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    padding: 6px 0;
+}
+
+.drink-bottle-score-clear:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.drink-bottle-score-clear:hover:not(:disabled),
+.drink-bottle-score-clear:focus-visible {
+    text-decoration: underline;
+}
+
 .inventory-add-summary,
 .inventory-add-vintage-hint {
     margin: 0;

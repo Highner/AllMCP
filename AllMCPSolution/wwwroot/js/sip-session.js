@@ -69,6 +69,13 @@
 
         const noteInput = popover.querySelector('.drink-bottle-note');
         const scoreInput = popover.querySelector('.drink-bottle-score');
+        const scoreIsRange = (scoreInput?.type ?? '').toLowerCase() === 'range';
+        const scoreDisplay = popover.querySelector('.drink-bottle-score-display');
+        const scoreClearButton = popover.querySelector('.drink-bottle-score-clear');
+        const scoreDefaultValue = scoreInput?.dataset?.defaultValue
+            ?? scoreInput?.getAttribute('data-default-value')
+            ?? scoreInput?.getAttribute('min')
+            ?? '5';
         const dateInput = popover.querySelector('.drink-bottle-date');
         const errorElement = popover.querySelector('.drink-bottle-error');
         const cancelButton = popover.querySelector('.drink-bottle-cancel');
@@ -124,7 +131,87 @@
             }
         };
 
+        function initializeScoreControl() {
+            if (!scoreInput || !scoreIsRange) {
+                if (scoreClearButton) {
+                    scoreClearButton.disabled = true;
+                }
+                return;
+            }
+
+            setScoreValue('');
+
+            scoreInput.addEventListener('input', () => {
+                scoreInput.dataset.hasValue = 'true';
+                updateScoreDisplay();
+            });
+
+            scoreClearButton?.addEventListener('click', (event) => {
+                event.preventDefault();
+                setScoreValue('');
+                scoreInput.focus();
+            });
+
+            updateScoreDisplay();
+        }
+
+        function setScoreValue(value) {
+            if (!scoreInput) {
+                return;
+            }
+
+            if (!scoreIsRange) {
+                scoreInput.value = value != null && value !== '' ? String(value) : '';
+                return;
+            }
+
+            const hasValue = value != null && value !== '';
+            scoreInput.dataset.hasValue = hasValue ? 'true' : 'false';
+
+            const fallback = scoreDefaultValue ?? scoreInput.min ?? '0';
+            scoreInput.value = hasValue ? String(value) : fallback;
+
+            updateScoreDisplay();
+        }
+
+        function getScoreRawValue() {
+            if (!scoreInput) {
+                return '';
+            }
+
+            if (!scoreIsRange) {
+                return scoreInput.value ?? '';
+            }
+
+            return scoreInput.dataset.hasValue === 'true'
+                ? (scoreInput.value ?? '')
+                : '';
+        }
+
+        function updateScoreDisplay() {
+            if (!scoreDisplay) {
+                return;
+            }
+
+            if (!scoreInput || scoreInput.dataset.hasValue !== 'true') {
+                scoreDisplay.textContent = 'Not rated';
+                scoreInput?.setAttribute('aria-valuetext', 'Not rated');
+                return;
+            }
+
+            const numeric = Number.parseFloat(scoreInput.value ?? '');
+            if (Number.isFinite(numeric)) {
+                const formatted = numeric.toFixed(1);
+                scoreDisplay.textContent = `${formatted} / 10`;
+                scoreInput.setAttribute('aria-valuetext', `${formatted} out of 10`);
+            } else {
+                scoreDisplay.textContent = 'Not rated';
+                scoreInput.setAttribute('aria-valuetext', 'Not rated');
+            }
+        }
+
         applyModalMode('create');
+        initializeScoreControl();
 
         const showFeedback = (message, type = 'error') => {
             if (!errorElement) {
@@ -165,6 +252,8 @@
             if (form) {
                 form.reset();
             }
+
+            setScoreValue('');
 
             if (hiddenBottle) {
                 hiddenBottle.value = '';
@@ -218,9 +307,7 @@
                 noteInput.value = noteText;
             }
 
-            if (scoreInput) {
-                scoreInput.value = normalizedScore;
-            }
+            setScoreValue(normalizedScore);
 
             if (dateInput) {
                 dateInput.value = '';
@@ -244,6 +331,7 @@
             setElementDisabled(headerCloseButton, state);
             setElementDisabled(noteInput, state);
             setElementDisabled(scoreInput, state);
+            setElementDisabled(scoreClearButton, state);
             setElementDisabled(dateInput, state);
         };
 
@@ -390,7 +478,7 @@
                 return;
             }
 
-            const scoreValue = parseScoreInput(scoreInput?.value ?? '');
+            const scoreValue = parseScoreInput(getScoreRawValue());
             if (scoreValue === undefined) {
                 showFeedback('Score must be between 0 and 10.');
                 scoreInput?.focus();
