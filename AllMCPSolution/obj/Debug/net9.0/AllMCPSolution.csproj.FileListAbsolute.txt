@@ -1,4 +1,3 @@
-/Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/appsettings.Development.json
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/appsettings.json
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/AllMCPSolution.staticwebassets.endpoints.json
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/AllMCPSolution
@@ -267,3 +266,4 @@
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/gx6okbfyc1-0ah621l8r7.gz
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/htk32py7x6-k0zmscek3b.gz
 /Users/johann/RiderProjects/AllMCP/AllMCPSolution/obj/Debug/net9.0/compressed/1511xmqvm8-01i4y3nwkl.gz
+/Users/johann/RiderProjects/AllMCP/AllMCPSolution/bin/Debug/net9.0/OpenAI.dll

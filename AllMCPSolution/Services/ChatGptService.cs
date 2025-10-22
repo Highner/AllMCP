@@ -19,6 +19,7 @@ public sealed class ChatGptService : IChatGptService
     private readonly ChatClient _chatClient;
     private readonly ILogger<ChatGptService> _logger;
     private readonly string _defaultModel;
+    private readonly string _apiKey;
 
     public ChatGptService(
         IConfiguration configuration,
@@ -36,7 +37,8 @@ public sealed class ChatGptService : IChatGptService
 
         _logger = logger;
 
-        _chatClient = new ChatClient(_defaultModel, options.ApiKey);
+        _apiKey = options.ApiKey!;
+        _chatClient = new ChatClient(_defaultModel, _apiKey);
     }
 
     public async Task<ChatCompletion> GetChatCompletionAsync(
@@ -67,9 +69,11 @@ public sealed class ChatGptService : IChatGptService
 
         var completionOptions = new ChatCompletionOptions();
 
-        if (!string.IsNullOrWhiteSpace(model) && !string.Equals(model, _chatClient.Model, StringComparison.Ordinal))
+        // Select appropriate client based on requested model. The model is configured at the client level.
+        var client = _chatClient;
+        if (!string.IsNullOrWhiteSpace(model) && !string.Equals(model, _defaultModel, StringComparison.Ordinal))
         {
-            completionOptions.Model = model;
+            client = new ChatClient(model!, _apiKey);
         }
 
         if (temperature.HasValue)
@@ -79,7 +83,7 @@ public sealed class ChatGptService : IChatGptService
 
         try
         {
-            return await _chatClient
+            return await client
                 .CompleteChatAsync(materializedMessages, completionOptions, ct)
                 .ConfigureAwait(false);
         }

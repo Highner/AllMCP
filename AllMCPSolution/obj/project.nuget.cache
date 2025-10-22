@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "Kewm9hxZdwU=",
+  "dgSpecHash": "dfVMm0tXQB0=",
   "success": true,
   "projectFilePath": "/Users/johann/RiderProjects/AllMCP/AllMCPSolution/AllMCPSolution.csproj",
   "expectedPackageFiles": [
@@ -80,7 +80,8 @@
     "/Users/johann/.nuget/packages/modelcontextprotocol.aspnetcore/0.4.0-preview.2/modelcontextprotocol.aspnetcore.0.4.0-preview.2.nupkg.sha512",
     "/Users/johann/.nuget/packages/modelcontextprotocol.core/0.4.0-preview.2/modelcontextprotocol.core.0.4.0-preview.2.nupkg.sha512",
     "/Users/johann/.nuget/packages/mono.texttemplating/3.0.0/mono.texttemplating.3.0.0.nupkg.sha512",
-    "/Users/johann/.nuget/packages/system.clientmodel/1.0.0/system.clientmodel.1.0.0.nupkg.sha512",
+    "/Users/johann/.nuget/packages/openai/2.5.0/openai.2.5.0.nupkg.sha512",
+    "/Users/johann/.nuget/packages/system.clientmodel/1.6.1/system.clientmodel.1.6.1.nupkg.sha512",
     "/Users/johann/.nuget/packages/system.codedom/6.0.0/system.codedom.6.0.0.nupkg.sha512",
     "/Users/johann/.nuget/packages/system.collections.immutable/7.0.0/system.collections.immutable.7.0.0.nupkg.sha512",
     "/Users/johann/.nuget/packages/system.composition/7.0.0/system.composition.7.0.0.nupkg.sha512",
@@ -96,7 +97,7 @@
     "/Users/johann/.nuget/packages/system.identitymodel.tokens.jwt/8.14.0/system.identitymodel.tokens.jwt.8.14.0.nupkg.sha512",
     "/Users/johann/.nuget/packages/system.io.pipelines/7.0.0/system.io.pipelines.7.0.0.nupkg.sha512",
     "/Users/johann/.nuget/packages/system.memory/4.5.4/system.memory.4.5.4.nupkg.sha512",
-    "/Users/johann/.nuget/packages/system.memory.data/1.0.2/system.memory.data.1.0.2.nupkg.sha512",
+    "/Users/johann/.nuget/packages/system.memory.data/8.0.1/system.memory.data.8.0.1.nupkg.sha512",
     "/Users/johann/.nuget/packages/system.net.serversentevents/10.0.0-preview.4.25258.110/system.net.serversentevents.10.0.0-preview.4.25258.110.nupkg.sha512",
     "/Users/johann/.nuget/packages/system.numerics.vectors/4.5.0/system.numerics.vectors.4.5.0.nupkg.sha512",
     "/Users/johann/.nuget/packages/system.reflection.metadata/7.0.0/system.reflection.metadata.7.0.0.nupkg.sha512",
