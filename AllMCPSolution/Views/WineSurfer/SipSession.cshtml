@@ -79,14 +79,14 @@
             --session-content-max-width: min(var(--wine-surfer-card-max-width), 100%);
         }
 
-        .session-header,
+        .session-overview,
         .bottle-section {
             width: 100%;
             max-width: var(--session-content-max-width);
             margin: 0 auto;
         }
 
-        .session-header {
+        .session-overview {
             display: flex;
             flex-direction: column;
             gap: 18px;
@@ -98,13 +98,6 @@
             letter-spacing: 3px;
             text-transform: uppercase;
             color: rgba(244, 241, 234, 0.7);
-        }
-
-        .session-title {
-            margin: 0;
-            font-size: clamp(38px, 5vw, 68px);
-            letter-spacing: 10px;
-            text-transform: uppercase;
         }
 
         .session-description {
@@ -325,19 +318,24 @@
     var sisterhoodName = string.IsNullOrWhiteSpace(Model.SisterhoodName) ? "Sisterhood" : Model.SisterhoodName;
     var scheduleLabel = FormatSipSessionSchedule(Model.Session);
     var locationLabel = string.IsNullOrWhiteSpace(Model.Session.Location) ? "Location TBD" : Model.Session.Location;
+    var sessionTitle = string.IsNullOrWhiteSpace(Model.Session.Name) ? "Sip Session" : Model.Session.Name.Trim();
+    ViewData["WineSurferPageTitle"] = sessionTitle;
 }
 <body class="wine-app session-page @bodyClass">
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="session-main">
-            <header class="session-header">
+            <section class="session-overview" aria-label="Sip session details">
                 <p class="session-kicker">@sisterhoodName</p>
-                <h1 class="session-title">@Model.Session.Name</h1>
                 @if (!string.IsNullOrWhiteSpace(Model.Session.Description))
                 {
                     <p class="session-description">@Model.Session.Description</p>
                 }
-                <dl class="session-meta" aria-label="Sip session details">
+                <dl class="session-meta">
+                    <div class="session-meta-item">
+                        <dt>Session</dt>
+                        <dd>@sessionTitle</dd>
+                    </div>
                     <div class="session-meta-item">
                         <dt>Date &amp; time</dt>
                         <dd>@scheduleLabel</dd>
@@ -347,7 +345,7 @@
                         <dd>@locationLabel</dd>
                     </div>
                 </dl>
-            </header>
+            </section>
             <section class="bottle-section" aria-label="Bottle list">
                 <h2>Bottle list</h2>
                 @if (Model.Session.Bottles.Count > 0)

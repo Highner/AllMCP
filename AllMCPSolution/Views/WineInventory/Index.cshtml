@@ -46,6 +46,7 @@
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
         ?? WineSurferTopBarModel.Empty(currentPath);
     var bottleHeaderContent = await Html.PartialAsync("_BottleDetailsHeaderControls");
+    ViewData["WineSurferPageTitle"] = "Wine Inventory";
 
     var yourCellarTable = new CrudTableTemplateModel
     {
@@ -190,7 +191,6 @@
 <body class="wine-app">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main class="inventory-shell">
-        @await Html.PartialAsync("_WineSurferPageHeader", new WineSurferPageHeaderModel("Wine Inventory"))
         <form method="get" class="filters">
             <label>
                 Status
