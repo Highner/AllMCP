@@ -197,6 +197,11 @@
             align-items: center;
         }
 
+        .terroir-table--countries .terroir-table__header,
+        .terroir-table--countries .terroir-table__row {
+            grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
+        }
+
         .terroir-table--wines .terroir-table__header,
         .terroir-table--wines .terroir-table__row {
             grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.2fr);
@@ -312,7 +317,7 @@
         <main class="terroir-content">
             <header class="wine-surfer-page-header" aria-label="Terroir management intro">
                 <h1 class="wine-surfer-page-header__title">Terroir manager</h1>
-                <p class="tagline">Curate the regions, appellations, sub-appellations, and wines that power Wine Surfer.</p>
+                <p class="tagline">Curate the countries, regions, appellations, sub-appellations, and wines that power Wine Surfer.</p>
             </header>
 
             @if (hasStatus)
@@ -323,6 +328,63 @@
             {
                 <div class="status-banner status-banner--error" role="alert">@Model.ErrorMessage</div>
             }
+
+            <section class="terroir-section" aria-labelledby="countries-title">
+                <div class="terroir-section__header">
+                    <h2 id="countries-title" class="terroir-section__title">Countries</h2>
+                    <p class="terroir-section__summary">@Model.Countries.Count country@(Model.Countries.Count == 1 ? string.Empty : "s")</p>
+                </div>
+                <form class="create-form" method="post" action="@Url.Action("CreateCountry", "WineSurfer")">
+                    @Html.AntiForgeryToken()
+                    <div class="create-form__fields">
+                        <label for="create-country-name">
+                            Country name
+                            <input id="create-country-name" name="Name" type="text" placeholder="e.g. France" maxlength="256" required />
+                        </label>
+                    </div>
+                    <button type="submit" class="terroir-button terroir-button--primary">Create country</button>
+                </form>
+                <div class="terroir-table terroir-table--countries" role="table" aria-label="Existing countries">
+                    <div class="terroir-table__header" role="row">
+                        <span role="columnheader">Country</span>
+                        <span role="columnheader">Stats</span>
+                        <span role="columnheader">Actions</span>
+                    </div>
+                    @foreach (var country in Model.Countries)
+                    {
+                        var updateCountryUrl = Url.Action("UpdateCountry", "WineSurfer", new { id = country.Id });
+                        var deleteCountryUrl = Url.Action("DeleteCountry", "WineSurfer", new { id = country.Id });
+                        var countryNameId = $"country-name-{country.Id:N}";
+                        <form method="post" action="@updateCountryUrl" class="terroir-table__row" role="row">
+                            @Html.AntiForgeryToken()
+                            <div class="terroir-row-field" role="cell">
+                                <label class="sr-only" for="@countryNameId">Country name</label>
+                                <input id="@countryNameId" name="Name" type="text" value="@country.Name" maxlength="256" required />
+                            </div>
+                            <div class="terroir-row-stats" role="cell">
+                                <span class="terroir-badge" title="Regions"><strong>@country.RegionCount</strong> Regions</span>
+                                <span class="terroir-badge" title="Appellations"><strong>@country.AppellationCount</strong> Appellations</span>
+                                <span class="terroir-badge" title="Sub-appellations"><strong>@country.SubAppellationCount</strong> Sub-appellations</span>
+                                <span class="terroir-badge" title="Wines"><strong>@country.WineCount</strong> Wines</span>
+                            </div>
+                            <div class="terroir-actions" role="cell">
+                                <button type="submit" class="terroir-button">Save</button>
+                                <button type="submit"
+                                        class="terroir-button terroir-button--danger"
+                                        formaction="@deleteCountryUrl"
+                                        formmethod="post"
+                                        onclick="return confirm('Delete country @country.Name?');">
+                                    Delete
+                                </button>
+                            </div>
+                        </form>
+                    }
+                    @if (!Model.Countries.Any())
+                    {
+                        <div class="terroir-empty" role="row">No countries recorded yet.</div>
+                    }
+                </div>
+            </section>
 
             <section class="terroir-section" aria-labelledby="regions-title">
                 <div class="terroir-section__header">
