@@ -548,6 +548,10 @@ namespace AllMCPSolution.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Reason")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
                     b.Property<Guid>("SubAppellationId")
                         .HasColumnType("uniqueidentifier");
 
