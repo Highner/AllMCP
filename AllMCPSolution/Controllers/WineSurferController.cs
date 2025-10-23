@@ -621,7 +621,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
                     new SystemChatMessage(TasteProfileGenerationSystemPrompt),
                     new UserChatMessage(prompt)
                 },
-                temperature: 0.6,
+
                 ct: cancellationToken);
         }
         catch (ClientResultException)
@@ -1632,7 +1632,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
                     new SystemChatMessage(SipSessionFoodSuggestionSystemPrompt),
                     new UserChatMessage(prompt)
                 },
-                temperature: 0.6,
+
                 ct: cancellationToken);
         }
         catch (ClientResultException)

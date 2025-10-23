@@ -542,6 +542,28 @@ namespace AllMCPSolution.Migrations
                     b.ToTable("SubAppellations");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.SuggestedAppellation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SubAppellationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubAppellationId");
+
+                    b.HasIndex("UserId", "SubAppellationId")
+                        .IsUnique();
+
+                    b.ToTable("SuggestedAppellations");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.TastingNote", b =>
                 {
                     b.Property<Guid>("Id")
@@ -970,6 +992,25 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("Appellation");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.SuggestedAppellation", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.SubAppellation", "SubAppellation")
+                        .WithMany("SuggestedAppellations")
+                        .HasForeignKey("SubAppellationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AllMCPSolution.Models.ApplicationUser", "User")
+                        .WithMany("SuggestedAppellations")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SubAppellation");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.TastingNote", b =>
                 {
                     b.HasOne("AllMCPSolution.Models.Bottle", "Bottle")
@@ -1109,6 +1150,8 @@ namespace AllMCPSolution.Migrations
 
                     b.Navigation("SisterhoodMemberships");
 
+                    b.Navigation("SuggestedAppellations");
+
                     b.Navigation("TastingNotes");
 
                     b.Navigation("WineVintageEvolutionScores");
@@ -1157,6 +1200,8 @@ namespace AllMCPSolution.Migrations
 
             modelBuilder.Entity("AllMCPSolution.Models.SubAppellation", b =>
                 {
+                    b.Navigation("SuggestedAppellations");
+
                     b.Navigation("Wines");
                 });
 
