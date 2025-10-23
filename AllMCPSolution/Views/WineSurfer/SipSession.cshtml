@@ -324,6 +324,10 @@
             margin: 0;
         }
 
+        .bottle-section__meta {
+            margin: 8px 0 12px;
+        }
+
         .food-suggestions {
             margin: 0;
             margin-top: 8px;
@@ -388,8 +392,8 @@
             backdrop-filter: blur(4px);
             display: flex;
             flex-direction: column;
-            gap: 18px;
-            padding: 28px;
+            gap: 10px;
+            padding: 16px 20px;
             position: relative;
             transition: transform 160ms ease, box-shadow 160ms ease;
         }
@@ -415,8 +419,8 @@
 
         .bottle-name {
             margin: 0;
-            font-size: 20px;
-            letter-spacing: 4px;
+            font-size: 18px;
+            letter-spacing: 3px;
             text-transform: uppercase;
         }
 
@@ -429,8 +433,8 @@
 
         .bottle-vintage {
             margin: 0;
-            font-size: 14px;
-            letter-spacing: 3px;
+            font-size: 12px;
+            letter-spacing: 2.4px;
             text-transform: uppercase;
             color: rgba(244, 241, 234, 0.65);
         }
@@ -438,8 +442,8 @@
         .bottle-meta {
             display: flex;
             flex-wrap: wrap;
-            gap: 24px;
-            margin: 0 0 8px;
+            gap: 16px;
+            margin: 0;
             padding: 0;
             list-style: none;
         }
@@ -447,21 +451,21 @@
         .bottle-meta-item {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
         }
 
         .bottle-meta-item dt {
             margin: 0;
-            font-size: 11px;
-            letter-spacing: 1.6px;
+            font-size: 10px;
+            letter-spacing: 1.4px;
             text-transform: uppercase;
             color: rgba(244, 241, 234, 0.6);
         }
 
         .bottle-meta-item dd {
             margin: 0;
-            font-size: 16px;
-            letter-spacing: 1.1px;
+            font-size: 14px;
+            letter-spacing: 1px;
         }
 
         .sip-session-edit-region {
@@ -667,10 +671,10 @@
         }
 
         .bottle-note {
-            margin: 8px 0 0;
-            font-size: 15px;
-            letter-spacing: 0.8px;
-            line-height: 1.6;
+            margin: 4px 0 0;
+            font-size: 14px;
+            letter-spacing: 0.6px;
+            line-height: 1.4;
             color: rgba(244, 241, 234, 0.82);
             white-space: pre-wrap;
         }
@@ -681,9 +685,9 @@
         }
 
         .bottle-prompt {
-            margin: 6px 0 0;
+            margin: 4px 0 0;
             font-size: 11px;
-            letter-spacing: 2.5px;
+            letter-spacing: 2px;
             text-transform: uppercase;
             color: rgba(244, 241, 234, 0.55);
         }
@@ -715,7 +719,7 @@
             }
 
             .bottle-card {
-                padding: 18px;
+                padding: 14px 16px;
             }
         }
     </style>
@@ -983,16 +987,6 @@
                 {
                     <p class="session-description">@Model.Session.Description</p>
                 }
-                <dl class="session-meta">
-                    <div class="session-meta-item">
-                        <dt>Date &amp; time</dt>
-                        <dd>@scheduleLabel</dd>
-                    </div>
-                    <div class="session-meta-item">
-                        <dt>Location</dt>
-                        <dd>@locationLabel</dd>
-                    </div>
-                </dl>
             </section>
             <section class="bottle-section" aria-label="Bottle list">
                 <div class="bottle-section__header">
@@ -1047,6 +1041,16 @@
                         <div class="status-banner error food-suggestions__error" role="alert">@foodSuggestionError</div>
                     }
                 }
+                <dl class="session-meta bottle-section__meta">
+                    <div class="session-meta-item">
+                        <dt>Date &amp; time</dt>
+                        <dd>@scheduleLabel</dd>
+                    </div>
+                    <div class="session-meta-item">
+                        <dt>Location</dt>
+                        <dd>@locationLabel</dd>
+                    </div>
+                </dl>
                 @if (isCreateMode)
                 {
                     <p class="empty-state">Add bottles after you create this sip session.</p>
