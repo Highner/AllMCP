@@ -178,7 +178,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=WineSurfer}/{action=Index}/{id?}");
 app.MapRazorPages();
 app.MapControllers();
 
@@ -187,7 +187,9 @@ var mcpServer = app.Services.GetRequiredService<AllMCPSolution.Services.McpServe
 var manifestGenerator = app.Services.GetRequiredService<ManifestGenerator>();
 var toolRegistry = app.Services.GetRequiredService<ToolRegistry>();
 
-app.MapGet("/", async (HttpContext context) =>
+app.MapGet("/", () => Results.Redirect("/wine-surfer"));
+
+app.MapGet("/mcp-server-home", async (HttpContext context) =>
 {
     var filePath = Path.Combine(app.Environment.WebRootPath, "index.html");
     if (File.Exists(filePath))
