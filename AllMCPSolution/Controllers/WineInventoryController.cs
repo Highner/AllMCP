@@ -1,18 +1,22 @@
 using System;
 using System.Collections.Generic;
+using System.ClientModel;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
+using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using OpenAI.Chat;
 
 namespace AllMCPSolution.Controllers;
 
@@ -29,6 +33,8 @@ public class WineInventoryController : Controller
     private readonly ITastingNoteRepository _tastingNoteRepository;
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IWineImportService _wineImportService;
+    private readonly IChatGptService _chatGptService;
+    private const string WineSurferSystemPrompt = "You are Wine Surfer, an expert wine research assistant. Respond ONLY with minified JSON matching {\"wines\":[{\"name\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":\"...\"}]}. List up to six likely matches, order them by relevance, and use null for any field you cannot determine.");
 
     public WineInventoryController(
         IBottleRepository bottleRepository,
@@ -39,7 +45,8 @@ public class WineInventoryController : Controller
         IUserRepository userRepository,
         ITastingNoteRepository tastingNoteRepository,
         IWineSurferTopBarService topBarService,
-        IWineImportService wineImportService)
+        IWineImportService wineImportService,
+        IChatGptService chatGptService)
     {
         _bottleRepository = bottleRepository;
         _bottleLocationRepository = bottleLocationRepository;
@@ -50,6 +57,7 @@ public class WineInventoryController : Controller
         _tastingNoteRepository = tastingNoteRepository;
         _topBarService = topBarService;
         _wineImportService = wineImportService;
+        _chatGptService = chatGptService;
     }
 
     [HttpGet("")]
@@ -408,6 +416,45 @@ public class WineInventoryController : Controller
             .ToList();
 
         return Json(response);
+    }
+
+    [HttpGet("wine-surfer")]
+    public async Task<IActionResult> GetWineSurferMatches([FromQuery(Name = "query")] string? query, CancellationToken cancellationToken)
+    {
+        var trimmedQuery = query?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedQuery) || trimmedQuery.Length < 3)
+        {
+            return Json(new WineSurferLookupResponse(Array.Empty<WineSurferLookupResult>()));
+        }
+
+        ChatCompletion completion;
+        try
+        {
+            completion = await _chatGptService.GetChatCompletionAsync(
+                new ChatMessage[]
+                {
+                    new SystemChatMessage(WineSurferSystemPrompt),
+                    new UserChatMessage(BuildWineSurferUserPrompt(trimmedQuery))
+                },
+                temperature: 0.2,
+                ct: cancellationToken);
+        }
+        catch (ClientResultException)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new WineSurferLookupError("Wine Surfer could not reach the discovery service. Please try again."));
+        }
+        catch (Exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new WineSurferLookupError("Wine Surfer is unavailable right now. Please try again."));
+        }
+
+        var completionText = ExtractCompletionText(completion);
+        if (!WineSurferResultParser.TryParse(completionText, out var matches))
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new WineSurferLookupError("Wine Surfer returned an unexpected response. Please try again."));
+        }
+
+        return Json(new WineSurferLookupResponse(matches));
     }
 
     [HttpGet("bottles/{bottleId:guid}/notes")]
@@ -1314,6 +1361,38 @@ public class WineInventoryController : Controller
             ? DateTime.SpecifyKind(value, DateTimeKind.Utc)
             : value;
     }
+
+    private static string BuildWineSurferUserPrompt(string query)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("Find wines that match the user's search text.");
+        builder.Append("Search text: ");
+        builder.AppendLine(query);
+        builder.AppendLine("Return up to six likely matches sorted by relevance.");
+        builder.AppendLine("Include the full wine name, region, appellation, and sub-appellation when available.");
+        builder.AppendLine("Use null for any field you cannot determine.");
+        return builder.ToString();
+    }
+
+    private static string? ExtractCompletionText(ChatCompletion completion)
+    {
+        if (completion?.Content is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder();
+        foreach (var part in completion.Content)
+        {
+            if (part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
+            {
+                builder.Append(part.Text);
+            }
+        }
+
+        return builder.Length > 0 ? builder.ToString() : null;
+    }
+
 }
 
 public class WineInventoryViewModel
