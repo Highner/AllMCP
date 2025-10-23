@@ -376,6 +376,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
 
         IReadOnlyList<WineSurferSisterhoodOption> manageableSisterhoods = Array.Empty<WineSurferSisterhoodOption>();
         IReadOnlyList<WineSurferSipSessionBottle> favoriteBottles = Array.Empty<WineSurferSipSessionBottle>();
+        IReadOnlyCollection<Guid> inventoryWineIds = Array.Empty<Guid>();
         IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
         if (currentUserId.HasValue)
         {
@@ -387,6 +388,21 @@ Each suggestion must be a short dish description followed by a concise reason, a
             var ownedBottles = await _bottleRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
             if (ownedBottles.Count > 0)
             {
+                var ownedWineIds = new HashSet<Guid>();
+                foreach (var bottle in ownedBottles)
+                {
+                    var wineId = bottle.WineVintage?.Wine?.Id ?? Guid.Empty;
+                    if (wineId != Guid.Empty)
+                    {
+                        ownedWineIds.Add(wineId);
+                    }
+                }
+
+                if (ownedWineIds.Count > 0)
+                {
+                    inventoryWineIds = ownedWineIds;
+                }
+
                 favoriteBottles = CreateBottleSummaries(ownedBottles, currentUserId)
                     .Where(bottle => bottle.CurrentUserScore.HasValue)
                     .OrderByDescending(bottle => bottle.CurrentUserScore!.Value)
@@ -437,7 +453,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
             sentInvitationNotifications,
             manageableSisterhoods,
             favoriteBottles,
-            suggestedAppellations);
+            suggestedAppellations,
+            inventoryWineIds);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
     }
@@ -7026,7 +7043,8 @@ public record WineSurferLandingViewModel(
     IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
     IReadOnlyList<WineSurferSisterhoodOption> ManageableSisterhoods,
     IReadOnlyList<WineSurferSipSessionBottle> FavoriteBottles,
-    IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations);
+    IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations,
+    IReadOnlyCollection<Guid> InventoryWineIds);
 
 public record WineSurferUpcomingSipSession(
     Guid SisterhoodId,
