@@ -452,6 +452,16 @@
     const winesList = document.getElementById('surf-eye-wines');
     const emptyState = document.getElementById('surf-eye-empty');
     const cellarMessage = document.querySelector('[data-favorite-message]');
+    const showCellarMessage = (message, state = 'info') => {
+        if (!cellarMessage) {
+            return;
+        }
+
+        const text = typeof message === 'string' ? message : '';
+        cellarMessage.textContent = text;
+        cellarMessage.hidden = text.trim().length === 0;
+        cellarMessage.dataset.state = state;
+    };
     const analyzeUrl = form.dataset.analyzeUrl ?? '';
     const hasTasteProfile = form.dataset.hasTasteProfile === 'true';
     const maxBytes = Number(form.dataset.maxBytes ?? '0');
@@ -487,11 +497,7 @@
             emptyState.textContent = 'Surf Eye is waiting for a photo.';
             emptyState.style.display = 'block';
         }
-        if (cellarMessage) {
-            cellarMessage.textContent = '';
-            cellarMessage.hidden = true;
-            cellarMessage.dataset.state = 'info';
-        }
+        showCellarMessage('', 'info');
         resultsSection?.classList.remove('is-visible');
     };
 
@@ -637,6 +643,36 @@
             assignData('wineRegion', wine.region);
             assignData('wineVariety', wine.variety);
             assignData('wineVintage', wine.vintage);
+
+            addButton.addEventListener('click', (event) => {
+                const openAddWineModal = window.wineSurferFavorites?.openAddWineModal;
+                if (typeof openAddWineModal !== 'function') {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+
+                showCellarMessage('', 'info');
+
+                const context = {
+                    source: 'surf-eye',
+                    name: addButton.dataset.wineName ?? '',
+                    producer: addButton.dataset.wineProducer ?? '',
+                    region: addButton.dataset.wineRegion ?? '',
+                    variety: addButton.dataset.wineVariety ?? '',
+                    vintage: addButton.dataset.wineVintage ?? ''
+                };
+
+                openAddWineModal(context).catch(error => {
+                    const message = typeof error?.message === 'string'
+                        ? error.message
+                        : 'Unable to open add wine modal.';
+                    showCellarMessage(message, 'error');
+                });
+            });
+
             footActions.appendChild(addButton);
 
             foot.appendChild(footActions);
