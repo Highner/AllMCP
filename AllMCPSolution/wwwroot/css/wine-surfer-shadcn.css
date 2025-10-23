@@ -1408,10 +1408,23 @@ textarea:focus {
     cursor: pointer;
 }
 
+.inventory-add-wine-option--action {
+    border: 1px dashed hsla(var(--input) / 0.45);
+    background: hsla(var(--accent) / 0.18);
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
 .inventory-add-wine-option:hover,
 .inventory-add-wine-option:focus,
 .inventory-add-wine-option.is-active {
     background: hsla(var(--accent) / 0.25);
+}
+
+.inventory-add-wine-option--action:hover,
+.inventory-add-wine-option--action:focus,
+.inventory-add-wine-option--action.is-active {
+    background: hsla(var(--accent) / 0.28);
+    border-color: hsla(var(--accent) / 0.6);
 }
 
 .inventory-add-wine-option__name {
@@ -1431,6 +1444,74 @@ textarea:focus {
     padding: 10px 12px;
     color: hsla(var(--muted-foreground) / 0.9);
     font-size: 0.9rem;
+}
+
+.inventory-add-wine-result-status--error {
+    color: hsla(var(--destructive-foreground) / 0.95);
+}
+
+.inventory-wine-surfer-overlay {
+    z-index: 110;
+}
+
+.inventory-wine-surfer-popover {
+    width: min(520px, 100%);
+}
+
+.inventory-wine-surfer-body {
+    gap: 18px;
+}
+
+.inventory-wine-surfer-intro {
+    margin: 0;
+    font-size: 0.95rem;
+    color: hsla(var(--muted-foreground) / 0.9);
+}
+
+.inventory-wine-surfer-query {
+    font-weight: 600;
+}
+
+.inventory-wine-surfer-status {
+    font-size: 0.9rem;
+    color: hsla(var(--muted-foreground) / 0.85);
+    min-height: 1.2em;
+}
+
+.inventory-wine-surfer-status.is-error {
+    color: hsla(var(--destructive-foreground) / 0.95);
+}
+
+.inventory-wine-surfer-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.inventory-wine-surfer-item {
+    border-radius: 12px;
+    border: 1px solid hsla(var(--input) / 0.45);
+    background: hsla(var(--accent) / 0.16);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.inventory-wine-surfer-item__name {
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.inventory-wine-surfer-item__meta {
+    font-size: 0.9rem;
+    color: hsla(var(--muted-foreground) / 0.85);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
 .drink-bottle-score-field .drink-bottle-score-control {

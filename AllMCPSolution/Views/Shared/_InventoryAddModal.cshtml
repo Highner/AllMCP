@@ -95,5 +95,41 @@
             </div>
         </form>
     };
+
+    var wineSurferModal = new WineSurferModalShell
+    {
+        BackdropId = "inventory-wine-surfer-overlay",
+        BackdropCssClass = "inventory-add-overlay wine-surfer-modal-backdrop inventory-wine-surfer-overlay",
+        BackdropAttributes = new Dictionary<string, string?>
+        {
+            ["hidden"] = null,
+            ["aria-hidden"] = "true"
+        },
+        DialogId = "inventory-wine-surfer-popover",
+        DialogCssClass = "inventory-add-popover wine-surfer-modal inventory-wine-surfer-popover",
+        DialogAttributes = new Dictionary<string, string?>
+        {
+            ["aria-labelledby"] = "inventory-wine-surfer-title"
+        },
+        HeaderCssClass = "wine-surfer-modal__header inventory-wine-surfer-header",
+        Title = "Wine Surfer suggestions",
+        TitleCssClass = "wine-surfer-modal__title inventory-wine-surfer-title",
+        TitleElementId = "inventory-wine-surfer-title",
+        BodyCssClass = "wine-surfer-modal__body inventory-wine-surfer-body",
+        CloseButtonCssClass = "wine-surfer-modal__close inventory-wine-surfer-close",
+        CloseButtonLabel = "Close Wine Surfer suggestions dialog",
+        CloseButtonAttributes = new Dictionary<string, string?>
+        {
+            ["data-wine-surfer-close"] = null
+        },
+        BodyContent = @<div class="inventory-wine-surfer-content">
+            <p class="inventory-wine-surfer-intro" aria-live="polite">
+                Wine Surfer searched for <span class="inventory-wine-surfer-query"></span>.
+            </p>
+            <div class="inventory-wine-surfer-status" aria-live="polite" role="status"></div>
+            <ul class="inventory-wine-surfer-list" aria-label="Wine Surfer matches"></ul>
+        </div>
+    };
 }
 @await Html.PartialAsync("_WineSurferModalShell", modal)
+@await Html.PartialAsync("_WineSurferModalShell", wineSurferModal)
