@@ -9,4 +9,5 @@ public class SubAppellation
     public Appellation Appellation { get; set; } = null!;
 
     public ICollection<Wine> Wines { get; set; } = [];
+    public ICollection<SuggestedAppellation> SuggestedAppellations { get; set; } = [];
 }
