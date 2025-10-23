@@ -244,6 +244,7 @@
         let wineSurferResults = [];
         let wineSurferActiveQuery = '';
         let wineSurferController = null;
+        let wineSurferSelectionPending = false;
         let bottleLocations = [];
         let bottleLocationsPromise = null;
         let modalLoading = false;
@@ -691,7 +692,9 @@
                 wineSurferStatus.classList.remove('is-error');
 
                 if (hasQuery) {
-                    if (wineSurferLoading) {
+                    if (wineSurferSelectionPending) {
+                        wineSurferStatus.textContent = 'Adding wine to your cellar…';
+                    } else if (wineSurferLoading) {
                         wineSurferStatus.textContent = 'Wine Surfer is searching…';
                     } else if (wineSurferError) {
                         wineSurferStatus.textContent = wineSurferError;
@@ -716,12 +719,24 @@
 
                 wineSurferResults.forEach((result) => {
                     const item = document.createElement('li');
-                    item.className = 'inventory-wine-surfer-item';
+
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'inventory-wine-surfer-item';
+                    button.disabled = wineSurferSelectionPending;
+                    if (wineSurferSelectionPending) {
+                        button.setAttribute('aria-disabled', 'true');
+                    } else {
+                        button.removeAttribute('aria-disabled');
+                    }
+                    button.addEventListener('click', () => {
+                        handleWineSurferSelection(result);
+                    });
 
                     const name = document.createElement('span');
                     name.className = 'inventory-wine-surfer-item__name';
                     name.textContent = result.name;
-                    item.appendChild(name);
+                    button.appendChild(name);
 
                     const metaParts = [];
                     if (result.color) {
@@ -750,11 +765,61 @@
                         const meta = document.createElement('span');
                         meta.className = 'inventory-wine-surfer-item__meta';
                         meta.textContent = metaParts.join(' • ');
-                        item.appendChild(meta);
+                        button.appendChild(meta);
                     }
 
+                    item.appendChild(button);
                     wineSurferList.appendChild(item);
                 });
+            }
+        }
+
+        async function handleWineSurferSelection(result) {
+            if (!result || wineSurferSelectionPending) {
+                return;
+            }
+
+            const payload = {
+                name: result.name,
+                country: result.country ?? null,
+                region: result.region ?? null,
+                appellation: result.appellation ?? null,
+                subAppellation: result.subAppellation ?? null,
+                color: result.color ?? null
+            };
+
+            wineSurferSelectionPending = true;
+            wineSurferError = '';
+            renderWineSurferResults();
+
+            try {
+                const response = await sendJson('/wine-manager/wine-surfer/wines', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+
+                const option = normalizeWineOption(response);
+                if (!option) {
+                    throw new Error('Wine Surfer returned an unexpected response.');
+                }
+
+                // Close the suggestions popover and show a transient confirmation
+                closeWineSurferPopover({ restoreFocus: true });
+                if (statusMessage) {
+                    statusMessage.textContent = `Added ${option.name} to your catalog.`;
+                    statusMessage.hidden = false;
+                    setTimeout(() => {
+                        if (statusMessage) {
+                            statusMessage.textContent = '';
+                            statusMessage.hidden = true;
+                        }
+                    }, 3500);
+                }
+            } catch (error) {
+                wineSurferError = error?.message ?? 'Wine Surfer could not add that wine right now.';
+            } finally {
+                wineSurferSelectionPending = false;
+                renderWineSurferResults();
             }
         }
 
@@ -764,6 +829,7 @@
             wineSurferError = '';
             wineSurferResults = [];
             wineSurferActiveQuery = '';
+            wineSurferSelectionPending = false;
 
             if (wineSurferOverlay) {
                 wineSurferOverlay.classList.remove('is-open');
