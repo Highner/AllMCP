@@ -4,8 +4,6 @@
     var analyzeUrl = Url.Action("AnalyzeSurfEye", "WineSurfer");
     var hasTasteProfile = Model.HasTasteProfile;
     var displayName = string.IsNullOrWhiteSpace(Model.DisplayName) ? "Surfer" : Model.DisplayName;
-    var tasteProfileSummary = Model.TasteProfileSummary ?? string.Empty;
-    var tasteProfile = Model.TasteProfile ?? string.Empty;
     var maxUploadBytes = ViewData["SurfEyeMaxUploadBytes"] is long bytes ? bytes : 8L * 1024L * 1024L;
     string FormatBytes(long bytes)
     {
@@ -361,63 +359,6 @@
             color: rgba(244, 241, 234, 0.45);
         }
 
-        .surf-eye-profile-card {
-            background: rgba(19, 19, 22, 0.86);
-            border: 1px solid rgba(244, 241, 234, 0.08);
-            border-radius: 24px;
-            padding: 28px;
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.32);
-        }
-
-        .surf-eye-profile-card h2 {
-            margin: 0;
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            font-size: 1rem;
-            color: rgba(244, 241, 234, 0.7);
-        }
-
-        .surf-eye-profile-summary {
-            margin: 0;
-            line-height: 1.7;
-            color: rgba(244, 241, 234, 0.85);
-            font-size: 1rem;
-        }
-
-        .surf-eye-profile-details {
-            background: rgba(12, 12, 15, 0.72);
-            border: 1px solid rgba(244, 241, 234, 0.08);
-            border-radius: 18px;
-            padding: 16px 18px;
-            color: rgba(244, 241, 234, 0.78);
-            font-size: 0.95rem;
-            line-height: 1.7;
-            white-space: pre-wrap;
-            max-height: 260px;
-            overflow-y: auto;
-        }
-
-        .surf-eye-profile-empty {
-            font-size: 0.9rem;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.4);
-        }
-
-        .surf-eye-alert {
-            padding: 16px 18px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 180, 135, 0.45);
-            background: rgba(255, 180, 135, 0.1);
-            color: rgba(255, 226, 199, 0.92);
-            font-size: 0.9rem;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
         @@media (max-width: 720px) {
             .surf-eye-header {
                 padding: 18px 16px;
@@ -427,8 +368,7 @@
                 grid-template-columns: 1fr;
             }
 
-            .surf-eye-card,
-            .surf-eye-profile-card {
+            .surf-eye-card {
                 padding: 22px;
             }
         }
@@ -479,32 +419,6 @@
                 <div id="surf-eye-empty" class="surf-eye-empty">Surf Eye is waiting for a photo.</div>
             </div>
         </form>
-        <aside class="surf-eye-profile-card">
-            <h2>Your taste profile</h2>
-            @if (!hasTasteProfile)
-            {
-                <div class="surf-eye-alert">
-                    Surf Eye needs a taste profile to rank bottles. <a href="@Url.Action("TasteProfile", "WineSurfer")" style="color: inherit; text-decoration: underline;">Update yours here</a>.
-                </div>
-            }
-            else if (!string.IsNullOrWhiteSpace(tasteProfileSummary))
-            {
-                <p class="surf-eye-profile-summary">@tasteProfileSummary</p>
-            }
-            else
-            {
-                <p class="surf-eye-profile-empty">No summary yet — Surf Eye will still use your full profile.</p>
-            }
-
-            @if (!string.IsNullOrWhiteSpace(tasteProfile))
-            {
-                <div class="surf-eye-profile-details">@tasteProfile</div>
-            }
-            else
-            {
-                <div class="surf-eye-profile-empty">Add tasting notes and generate a profile to help Surf Eye rank wines.</div>
-            }
-        </aside>
     </section>
 </main>
 <script>
