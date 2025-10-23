@@ -18,6 +18,9 @@ public class SipSession
     [MaxLength(2048)]
     public string? Description { get; set; }
 
+    [MaxLength(4096)]
+    public string? FoodSuggestion { get; set; }
+
     public DateTime? Date { get; set; }
 
     [MaxLength(256)]

@@ -14,6 +14,7 @@ public interface ISipSessionRepository
     Task<List<SipSession>> GetUpcomingAsync(DateTime utcNow, int limit, Guid? memberUserId, CancellationToken ct = default);
     Task<SipSession> AddAsync(SipSession sipSession, CancellationToken ct = default);
     Task UpdateAsync(SipSession sipSession, CancellationToken ct = default);
+    Task UpdateFoodSuggestionAsync(Guid sessionId, string? foodSuggestion, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task<int> AddBottlesToSessionAsync(Guid sessionId, Guid ownerUserId, IReadOnlyCollection<Guid> bottleIds, CancellationToken ct = default);
     Task<bool> RemoveBottleFromSessionAsync(Guid sessionId, Guid ownerUserId, Guid bottleId, CancellationToken ct = default);
@@ -202,6 +203,33 @@ public class SipSessionRepository : ISipSessionRepository
         if (affected == 0)
         {
             throw new ArgumentException("Sip session could not be found.", nameof(sipSession));
+        }
+    }
+
+    public async Task UpdateFoodSuggestionAsync(Guid sessionId, string? foodSuggestion, CancellationToken ct = default)
+    {
+        if (sessionId == Guid.Empty)
+        {
+            throw new ArgumentException("Sip session ID cannot be empty.", nameof(sessionId));
+        }
+
+        var normalizedSuggestion = string.IsNullOrWhiteSpace(foodSuggestion)
+            ? null
+            : foodSuggestion.Trim();
+
+        var updatedAt = DateTime.UtcNow;
+
+        var affected = await _db.SipSessions
+            .Where(session => session.Id == sessionId)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(session => session.FoodSuggestion, normalizedSuggestion)
+                    .SetProperty(session => session.UpdatedAt, updatedAt),
+                ct);
+
+        if (affected == 0)
+        {
+            throw new ArgumentException("Sip session could not be found.", nameof(sessionId));
         }
     }
 
