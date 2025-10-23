@@ -1988,13 +1988,15 @@ tbody tr:hover {
 }
 
 .location-card--highlight {
-    box-shadow: 0 0 0 1px rgba(244, 241, 234, 0.28), 0 0 22px rgba(244, 241, 234, 0.18);
+    box-shadow: 0 0 0 1px rgba(126, 216, 182, 0.45), 0 0 22px rgba(126, 216, 182, 0.25);
     transform: translate3d(0, -2px, 0);
+    background: #1f4d37;
+    border-color: rgba(126, 216, 182, 0.45);
 }
 
 .location-card--highlight.wine-card-hover::after {
     opacity: 1;
-    background: var(--wine-surface-highlight-strong);
+    background: rgba(126, 216, 182, 0.18);
 }
 
 .location-card .wine-card__actions {
