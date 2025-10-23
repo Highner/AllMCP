@@ -17,4 +17,5 @@ public class ApplicationUser : IdentityUser<Guid>
     public ICollection<SisterhoodInvitation> SisterhoodInvitations { get; set; } = [];
     public ICollection<WineSurferNotificationDismissal> NotificationDismissals { get; set; } = [];
     public ICollection<WineVintageEvolutionScore> WineVintageEvolutionScores { get; set; } = [];
+    public ICollection<SuggestedAppellation> SuggestedAppellations { get; set; } = [];
 }

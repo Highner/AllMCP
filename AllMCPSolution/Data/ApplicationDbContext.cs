@@ -20,6 +20,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Region> Regions { get; set; }
     public DbSet<Appellation> Appellations { get; set; }
     public DbSet<SubAppellation> SubAppellations { get; set; }
+    public DbSet<SuggestedAppellation> SuggestedAppellations { get; set; }
     public DbSet<Wine> Wines { get; set; }
     public DbSet<WineVintage> WineVintages { get; set; }
     public DbSet<WineVintageEvolutionScore> WineVintageEvolutionScores { get; set; }
@@ -149,6 +150,22 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Restrict);
 
             e.HasIndex(sa => new { sa.Name, sa.AppellationId })
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<SuggestedAppellation>(e =>
+        {
+            e.HasOne(suggested => suggested.SubAppellation)
+                .WithMany(subAppellation => subAppellation.SuggestedAppellations)
+                .HasForeignKey(suggested => suggested.SubAppellationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(suggested => suggested.User)
+                .WithMany(user => user.SuggestedAppellations)
+                .HasForeignKey(suggested => suggested.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(suggested => new { suggested.UserId, suggested.SubAppellationId })
                 .IsUnique();
         });
 
