@@ -594,6 +594,42 @@ namespace AllMCPSolution.Migrations
                     b.ToTable("SuggestedWines");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.TasteProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<bool>("InUse")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Profile")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "InUse")
+                        .IsUnique()
+                        .HasFilter("[InUse] = 1");
+
+                    b.ToTable("TasteProfiles");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.TastingNote", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1060,6 +1096,17 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("Wine");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.TasteProfile", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.ApplicationUser", "User")
+                        .WithMany("TasteProfiles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.TastingNote", b =>
                 {
                     b.HasOne("AllMCPSolution.Models.Bottle", "Bottle")
@@ -1200,6 +1247,8 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("SisterhoodMemberships");
 
                     b.Navigation("SuggestedAppellations");
+
+                    b.Navigation("TasteProfiles");
 
                     b.Navigation("TastingNotes");
 
