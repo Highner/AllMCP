@@ -4799,7 +4799,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
         builder.AppendLine("Identify consistent stylistic preferences, texture, structure, and favored regions or grapes.");
         builder.AppendLine("Use only the provided information and avoid recommending specific new bottles.");
         builder.AppendLine("Write the taste profile in the second person.");
-        builder.AppendLine("Also include exactly two suggested appellations or sub-appellations that match the palate, providing country, region, and appellation, and set subAppellation to null when unknown.");
+        builder.AppendLine("Also include exactly two suggested appellations or sub-appellations that match the palate, providing country, region, and appellation, and set subAppellation to null when unknown. Suggest only appellations that are not already in use.");
         builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null},{...}]}. No markdown or commentary.");
 
         return builder.ToString();
