@@ -493,6 +493,179 @@ public class WineInventoryController : Controller
         return Json(new WineSurferLookupResponse(matches));
     }
 
+    [HttpGet("catalog/countries")]
+    public async Task<IActionResult> SearchCountries([FromQuery(Name = "search")] string? search, CancellationToken cancellationToken)
+    {
+        var trimmedSearch = search?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedSearch) || trimmedSearch.Length < 1)
+        {
+            return Json(Array.Empty<WineCountrySuggestion>());
+        }
+
+        var matches = await _countryRepository.SearchByApproximateNameAsync(trimmedSearch, 10, cancellationToken);
+        var response = matches
+            .Where(country => !string.IsNullOrWhiteSpace(country.Name))
+            .Select(country => new WineCountrySuggestion
+            {
+                Id = country.Id,
+                Name = country.Name ?? string.Empty
+            })
+            .ToList();
+
+        return Json(response);
+    }
+
+    [HttpGet("catalog/regions")]
+    public async Task<IActionResult> SearchRegions(
+        [FromQuery(Name = "search")] string? search,
+        [FromQuery(Name = "countryId")] Guid? countryId,
+        CancellationToken cancellationToken)
+    {
+        var trimmedSearch = search?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedSearch) || trimmedSearch.Length < 1)
+        {
+            return Json(Array.Empty<WineRegionSuggestion>());
+        }
+
+        var matches = await _regionRepository.SearchByApproximateNameAsync(trimmedSearch, 20, cancellationToken);
+        var filtered = countryId.HasValue
+            ? matches.Where(region => region.CountryId == countryId.Value)
+            : matches;
+
+        var response = filtered
+            .Where(region => !string.IsNullOrWhiteSpace(region.Name))
+            .Take(10)
+            .Select(region => new WineRegionSuggestion
+            {
+                Id = region.Id,
+                Name = region.Name ?? string.Empty,
+                CountryId = region.CountryId,
+                CountryName = region.Country?.Name ?? string.Empty
+            })
+            .ToList();
+
+        return Json(response);
+    }
+
+    [HttpGet("catalog/appellations")]
+    public async Task<IActionResult> SearchAppellations(
+        [FromQuery(Name = "search")] string? search,
+        [FromQuery(Name = "regionId")] Guid? regionId,
+        CancellationToken cancellationToken)
+    {
+        if (!regionId.HasValue)
+        {
+            return Json(Array.Empty<WineAppellationSuggestion>());
+        }
+
+        var trimmedSearch = search?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedSearch) || trimmedSearch.Length < 1)
+        {
+            return Json(Array.Empty<WineAppellationSuggestion>());
+        }
+
+        var matches = await _appellationRepository.SearchByApproximateNameAsync(trimmedSearch, regionId.Value, 10, cancellationToken);
+        var response = matches
+            .Where(appellation => !string.IsNullOrWhiteSpace(appellation.Name))
+            .Select(appellation => new WineAppellationSuggestion
+            {
+                Id = appellation.Id,
+                Name = appellation.Name ?? string.Empty,
+                RegionId = appellation.RegionId,
+                RegionName = appellation.Region?.Name ?? string.Empty,
+                CountryId = appellation.Region?.CountryId ?? Guid.Empty,
+                CountryName = appellation.Region?.Country?.Name ?? string.Empty
+            })
+            .ToList();
+
+        return Json(response);
+    }
+
+    [HttpGet("catalog/sub-appellations")]
+    public async Task<IActionResult> SearchSubAppellations(
+        [FromQuery(Name = "search")] string? search,
+        [FromQuery(Name = "appellationId")] Guid? appellationId,
+        CancellationToken cancellationToken)
+    {
+        if (!appellationId.HasValue)
+        {
+            return Json(Array.Empty<WineSubAppellationSuggestion>());
+        }
+
+        var trimmedSearch = search?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedSearch) || trimmedSearch.Length < 1)
+        {
+            return Json(Array.Empty<WineSubAppellationSuggestion>());
+        }
+
+        var matches = await _subAppellationRepository.SearchByApproximateNameAsync(trimmedSearch, appellationId.Value, 10, cancellationToken);
+        var response = matches
+            .Where(sub => !string.IsNullOrWhiteSpace(sub.Name))
+            .Select(sub => new WineSubAppellationSuggestion
+            {
+                Id = sub.Id,
+                Name = sub.Name ?? string.Empty,
+                AppellationId = sub.AppellationId,
+                AppellationName = sub.Appellation?.Name ?? string.Empty,
+                RegionId = sub.Appellation?.RegionId ?? Guid.Empty,
+                RegionName = sub.Appellation?.Region?.Name ?? string.Empty,
+                CountryId = sub.Appellation?.Region?.CountryId ?? Guid.Empty,
+                CountryName = sub.Appellation?.Region?.Country?.Name ?? string.Empty
+            })
+            .ToList();
+
+        return Json(response);
+    }
+
+    [HttpPost("catalog/wines")]
+    public async Task<IActionResult> CreateWine([FromBody] CreateWineCatalogRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        if (!TryGetCurrentUserId(out _))
+        {
+            return Challenge();
+        }
+
+        var result = await _wineCatalogService.EnsureWineAsync(
+            new WineCatalogRequest(
+                request.Name,
+                request.Color,
+                request.Country,
+                request.Region,
+                request.Appellation,
+                request.SubAppellation,
+                request.GrapeVariety),
+            cancellationToken);
+
+        if (!result.IsSuccess || result.Wine is null)
+        {
+            if (result.Errors.Count > 0)
+            {
+                foreach (var entry in result.Errors)
+                {
+                    var key = string.IsNullOrWhiteSpace(entry.Key) ? string.Empty : entry.Key;
+                    foreach (var message in entry.Value)
+                    {
+                        ModelState.AddModelError(key, message);
+                    }
+                }
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, "Unable to add wine to the catalog.");
+            }
+
+            return ValidationProblem(ModelState);
+        }
+
+        var option = CreateWineOption(result.Wine);
+        return Json(option);
+    }
+
     [HttpPost("wine-surfer/wines")]
     public async Task<IActionResult> CreateWineFromWineSurfer([FromBody] WineSurferAddWineRequest request, CancellationToken cancellationToken)
     {
@@ -1833,6 +2006,70 @@ public class WineSurferAddWineRequest
 
     [StringLength(32)]
     public string? Color { get; set; }
+}
+
+public class CreateWineCatalogRequest
+{
+    [Required]
+    [StringLength(256, MinimumLength = 1)]
+    public string Name { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(32, MinimumLength = 1)]
+    public string Color { get; set; } = string.Empty;
+
+    [StringLength(128)]
+    public string? Country { get; set; }
+
+    [Required]
+    [StringLength(128, MinimumLength = 1)]
+    public string Region { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(256, MinimumLength = 1)]
+    public string Appellation { get; set; } = string.Empty;
+
+    [StringLength(256)]
+    public string? SubAppellation { get; set; }
+
+    [StringLength(256)]
+    public string? GrapeVariety { get; set; }
+}
+
+public class WineCountrySuggestion
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
+public class WineRegionSuggestion
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public Guid CountryId { get; set; }
+    public string CountryName { get; set; } = string.Empty;
+}
+
+public class WineAppellationSuggestion
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public Guid RegionId { get; set; }
+    public string RegionName { get; set; } = string.Empty;
+    public Guid CountryId { get; set; }
+    public string CountryName { get; set; } = string.Empty;
+}
+
+public class WineSubAppellationSuggestion
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public Guid AppellationId { get; set; }
+    public string AppellationName { get; set; } = string.Empty;
+    public Guid RegionId { get; set; }
+    public string RegionName { get; set; } = string.Empty;
+    public Guid CountryId { get; set; }
+    public string CountryName { get; set; } = string.Empty;
 }
 
 public class InventoryReferenceDataResponse
