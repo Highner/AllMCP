@@ -833,6 +833,9 @@
                     throw new Error('Wine Surfer returned an unexpected response.');
                 }
 
+                wineOptions = appendWineSurferOption([option], option.name);
+                setSelectedWine(option);
+                showError('');
                 // Close the suggestions popover and show a transient confirmation
                 closeWineSurferPopover({ restoreFocus: true });
                 if (statusMessage) {
