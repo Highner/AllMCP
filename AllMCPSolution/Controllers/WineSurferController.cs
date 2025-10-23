@@ -4814,8 +4814,7 @@ public class WineSurferController : Controller
                     subAppellationCount,
                     wineCount);
             })
-            .OrderBy(region => region.CountryName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(region => region.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(region => region.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var appellationModels = appellations
@@ -4834,8 +4833,7 @@ public class WineSurferController : Controller
                     subCount,
                     wineCount);
             })
-            .OrderBy(appellation => appellation.RegionName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(appellation => appellation.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(appellation => appellation.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var subAppellationModels = subAppellations
@@ -4854,9 +4852,8 @@ public class WineSurferController : Controller
                     countryName,
                     wineCount);
             })
-            .OrderBy(sub => sub.RegionName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(sub => sub.AppellationName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(sub => sub.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(sub => sub.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(sub => sub.AppellationName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var wineModels = wines
