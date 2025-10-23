@@ -1,0 +1,791 @@
+@model AllMCPSolution.Controllers.WineSurferSurfEyeViewModel
+@{
+    Layout = null;
+    var analyzeUrl = Url.Action("AnalyzeSurfEye", "WineSurfer");
+    var hasTasteProfile = Model.HasTasteProfile;
+    var displayName = string.IsNullOrWhiteSpace(Model.DisplayName) ? "Surfer" : Model.DisplayName;
+    var tasteProfileSummary = Model.TasteProfileSummary ?? string.Empty;
+    var tasteProfile = Model.TasteProfile ?? string.Empty;
+    var maxUploadBytes = ViewData["SurfEyeMaxUploadBytes"] is long bytes ? bytes : 8L * 1024L * 1024L;
+    string FormatBytes(long bytes)
+    {
+        const double OneKb = 1024d;
+        const double OneMb = OneKb * 1024d;
+        return bytes >= OneMb
+            ? string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0.#} MB", bytes / OneMb)
+            : string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0.#} KB", bytes / OneKb);
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Surf Eye • Wine Surfer</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--wine-app-background);
+            color: #f4f1ea;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 48px 20px 80px;
+            gap: 32px;
+        }
+
+        .surf-eye-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px 32px;
+            background: rgba(8, 8, 10, 0.85);
+            border-bottom: 1px solid rgba(244, 241, 234, 0.08);
+            position: sticky;
+            top: 0;
+            z-index: 12;
+            backdrop-filter: blur(10px);
+            gap: 16px;
+        }
+
+        .surf-eye-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(244, 241, 234, 0.86);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .surf-eye-back svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .surf-eye-title {
+            flex: 1 1 auto;
+            text-align: center;
+            font-size: 14px;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.55);
+            font-weight: 600;
+        }
+
+        .surf-eye-hero {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+            max-width: 720px;
+        }
+
+        .surf-eye-hero h1 {
+            margin: 0;
+            font-size: clamp(3rem, 7vw, 5.5rem);
+            letter-spacing: 12px;
+            text-transform: uppercase;
+        }
+
+        .surf-eye-hero p {
+            margin: 0;
+            line-height: 1.8;
+            color: rgba(244, 241, 234, 0.74);
+            font-size: 1rem;
+        }
+
+        .surf-eye-content {
+            width: min(100%, 960px);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+        }
+
+        .surf-eye-card {
+            background: rgba(17, 17, 20, 0.82);
+            border: 1px solid rgba(244, 241, 234, 0.08);
+            border-radius: 24px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+        }
+
+        .surf-eye-section-title {
+            margin: 0;
+            font-size: 0.9rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .surf-eye-camera {
+            background: rgba(12, 12, 15, 0.78);
+            border: 1px dashed rgba(244, 241, 234, 0.18);
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 260px;
+        }
+
+        .surf-eye-preview {
+            max-width: 100%;
+            max-height: 420px;
+            border-radius: 16px;
+            display: none;
+            object-fit: cover;
+        }
+
+        .surf-eye-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            color: rgba(244, 241, 234, 0.45);
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .surf-eye-placeholder svg {
+            width: 56px;
+            height: 56px;
+        }
+
+        .surf-eye-input {
+            display: none;
+        }
+
+        .surf-eye-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .surf-eye-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border-radius: 999px;
+            border: 1px solid rgba(244, 241, 234, 0.22);
+            background: linear-gradient(135deg, rgba(131, 56, 236, 0.9), rgba(69, 28, 151, 0.92));
+            color: #f4f1ea;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            min-width: 160px;
+        }
+
+        .surf-eye-button:hover,
+        .surf-eye-button:focus-visible {
+            transform: translateY(-1px);
+            border-color: rgba(244, 241, 234, 0.45);
+            box-shadow: 0 14px 40px rgba(131, 56, 236, 0.35);
+        }
+
+        .surf-eye-button:focus-visible {
+            outline: 2px solid rgba(244, 241, 234, 0.6);
+            outline-offset: 3px;
+        }
+
+        .surf-eye-button.secondary {
+            background: rgba(244, 241, 234, 0.08);
+            border: 1px solid rgba(244, 241, 234, 0.18);
+            color: rgba(244, 241, 234, 0.9);
+        }
+
+        .surf-eye-button.secondary:hover,
+        .surf-eye-button.secondary:focus-visible {
+            background: rgba(244, 241, 234, 0.14);
+            border-color: rgba(244, 241, 234, 0.32);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .surf-eye-button[disabled] {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .surf-eye-status {
+            min-height: 28px;
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.72);
+        }
+
+        .surf-eye-status[data-tone="error"] {
+            color: #ff9ca3;
+        }
+
+        .surf-eye-status[data-tone="success"] {
+            color: #9cf2c6;
+        }
+
+        .surf-eye-results {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .surf-eye-results.is-visible {
+            display: flex;
+        }
+
+        .surf-eye-summary {
+            margin: 0;
+            font-size: 1rem;
+            line-height: 1.6;
+            color: rgba(244, 241, 234, 0.85);
+        }
+
+        .surf-eye-wines {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 0;
+            margin: 0;
+        }
+
+        .surf-eye-wine {
+            padding: 20px;
+            border-radius: 18px;
+            border: 1px solid rgba(244, 241, 234, 0.1);
+            background: rgba(21, 21, 24, 0.85);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .surf-eye-wine__header {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .surf-eye-wine__rank {
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+            padding-top: 4px;
+        }
+
+        .surf-eye-wine__title {
+            flex: 1 1 auto;
+        }
+
+        .surf-eye-wine__title h3 {
+            margin: 0;
+            font-size: 1.25rem;
+            letter-spacing: 1px;
+        }
+
+        .surf-eye-wine__meta {
+            margin: 6px 0 0;
+            font-size: 0.9rem;
+            color: rgba(244, 241, 234, 0.65);
+            letter-spacing: 1px;
+        }
+
+        .surf-eye-wine__score {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .surf-eye-wine__score-value {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #ffb347;
+        }
+
+        .surf-eye-wine__body {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: rgba(244, 241, 234, 0.82);
+        }
+
+        .surf-eye-wine__foot {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .surf-eye-empty {
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 0.85rem;
+            color: rgba(244, 241, 234, 0.45);
+        }
+
+        .surf-eye-profile-card {
+            background: rgba(19, 19, 22, 0.86);
+            border: 1px solid rgba(244, 241, 234, 0.08);
+            border-radius: 24px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.32);
+        }
+
+        .surf-eye-profile-card h2 {
+            margin: 0;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            font-size: 1rem;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        .surf-eye-profile-summary {
+            margin: 0;
+            line-height: 1.7;
+            color: rgba(244, 241, 234, 0.85);
+            font-size: 1rem;
+        }
+
+        .surf-eye-profile-details {
+            background: rgba(12, 12, 15, 0.72);
+            border: 1px solid rgba(244, 241, 234, 0.08);
+            border-radius: 18px;
+            padding: 16px 18px;
+            color: rgba(244, 241, 234, 0.78);
+            font-size: 0.95rem;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .surf-eye-profile-empty {
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.4);
+        }
+
+        .surf-eye-alert {
+            padding: 16px 18px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 180, 135, 0.45);
+            background: rgba(255, 180, 135, 0.1);
+            color: rgba(255, 226, 199, 0.92);
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 720px) {
+            .surf-eye-header {
+                padding: 18px 16px;
+            }
+
+            .surf-eye-content {
+                grid-template-columns: 1fr;
+            }
+
+            .surf-eye-card,
+            .surf-eye-profile-card {
+                padding: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+<header class="surf-eye-header">
+    <a class="surf-eye-back" href="@Url.Action("Index", "WineSurfer")">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+        </svg>
+        Back
+    </a>
+    <div class="surf-eye-title">Surf Eye</div>
+    <div style="width: 60px; visibility: hidden;">.</div>
+</header>
+<main>
+    <section class="surf-eye-hero">
+        <h1>Surf Eye</h1>
+        <p>Capture a bottle shot and let Surf Eye spot the labels, then rank them by how well they vibe with @displayName's palate.</p>
+    </section>
+    <section class="surf-eye-content">
+        <form id="surf-eye-form" class="surf-eye-card" method="post" enctype="multipart/form-data" data-analyze-url="@analyzeUrl" data-has-taste-profile="@hasTasteProfile.ToString().ToLowerInvariant()" data-max-bytes="@maxUploadBytes">
+            @Html.AntiForgeryToken()
+            <div>
+                <p class="surf-eye-section-title">Capture</p>
+                <div class="surf-eye-camera">
+                    <img id="surf-eye-preview" class="surf-eye-preview" alt="Preview of the captured wine photo" />
+                    <div id="surf-eye-placeholder" class="surf-eye-placeholder">
+                        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M16 12l3-4h10l3 4h6a4 4 0 0 1 4 4v18a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V16a4 4 0 0 1 4-4z" />
+                            <circle cx="24" cy="25" r="8" />
+                        </svg>
+                        <span>Open the camera and snap a label</span>
+                        <span style="font-size: 0.7rem; letter-spacing: 2px;">Max size @FormatBytes(maxUploadBytes)</span>
+                    </div>
+                </div>
+            </div>
+            <input type="file" id="surf-eye-photo" class="surf-eye-input" accept="image/*" capture="environment" name="Photo" />
+            <div class="surf-eye-actions">
+                <label for="surf-eye-photo" class="surf-eye-button secondary">Open Camera</label>
+                <button type="button" class="surf-eye-button" id="surf-eye-analyze" @(hasTasteProfile ? "" : "disabled")>Analyze Photo</button>
+            </div>
+            <div id="surf-eye-status" class="surf-eye-status">@(hasTasteProfile ? "Snap a photo to begin." : "Add a taste profile to unlock Surf Eye.")</div>
+            <div id="surf-eye-results" class="surf-eye-results">
+                <p id="surf-eye-summary" class="surf-eye-summary"></p>
+                <ul id="surf-eye-wines" class="surf-eye-wines"></ul>
+                <div id="surf-eye-empty" class="surf-eye-empty">Surf Eye is waiting for a photo.</div>
+            </div>
+        </form>
+        <aside class="surf-eye-profile-card">
+            <h2>Your taste profile</h2>
+            @if (!hasTasteProfile)
+            {
+                <div class="surf-eye-alert">
+                    Surf Eye needs a taste profile to rank bottles. <a href="@Url.Action("TasteProfile", "WineSurfer")" style="color: inherit; text-decoration: underline;">Update yours here</a>.
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(tasteProfileSummary))
+            {
+                <p class="surf-eye-profile-summary">@tasteProfileSummary</p>
+            }
+            else
+            {
+                <p class="surf-eye-profile-empty">No summary yet — Surf Eye will still use your full profile.</p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(tasteProfile))
+            {
+                <div class="surf-eye-profile-details">@tasteProfile</div>
+            }
+            else
+            {
+                <div class="surf-eye-profile-empty">Add tasting notes and generate a profile to help Surf Eye rank wines.</div>
+            }
+        </aside>
+    </section>
+</main>
+<script>
+(() => {
+    const form = document.getElementById('surf-eye-form');
+    if (!form) {
+        return;
+    }
+
+    const photoInput = document.getElementById('surf-eye-photo');
+    const previewImage = document.getElementById('surf-eye-preview');
+    const placeholder = document.getElementById('surf-eye-placeholder');
+    const analyzeButton = document.getElementById('surf-eye-analyze');
+    const statusEl = document.getElementById('surf-eye-status');
+    const resultsSection = document.getElementById('surf-eye-results');
+    const summaryEl = document.getElementById('surf-eye-summary');
+    const winesList = document.getElementById('surf-eye-wines');
+    const emptyState = document.getElementById('surf-eye-empty');
+    const analyzeUrl = form.dataset.analyzeUrl ?? '';
+    const hasTasteProfile = form.dataset.hasTasteProfile === 'true';
+    const maxBytes = Number(form.dataset.maxBytes ?? '0');
+
+    let previewUrl = null;
+
+    const setStatus = (message, tone = 'info') => {
+        if (!statusEl) {
+            return;
+        }
+        statusEl.textContent = message;
+        statusEl.dataset.tone = tone;
+    };
+
+    const clearPreview = () => {
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+        }
+        previewImage.style.display = 'none';
+        previewImage.removeAttribute('src');
+        placeholder.style.display = 'flex';
+    };
+
+    const clearResults = () => {
+        if (summaryEl) {
+            summaryEl.textContent = '';
+        }
+        if (winesList) {
+            winesList.innerHTML = '';
+        }
+        if (emptyState) {
+            emptyState.textContent = 'Surf Eye is waiting for a photo.';
+            emptyState.style.display = 'block';
+        }
+        resultsSection?.classList.remove('is-visible');
+    };
+
+    const formatConfidence = (value) => {
+        if (Number.isNaN(value)) {
+            return '0% confidence';
+        }
+        const percent = Math.round(Math.min(Math.max(value, 0), 1) * 100);
+        return `${percent}% confidence`;
+    };
+
+    const disableAnalyze = (isDisabled) => {
+        if (!analyzeButton) {
+            return;
+        }
+        analyzeButton.disabled = Boolean(isDisabled);
+        analyzeButton.dataset.state = isDisabled ? 'loading' : 'ready';
+    };
+
+    const renderWines = (wines) => {
+        if (!winesList) {
+            return;
+        }
+
+        winesList.innerHTML = '';
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
+        wines.forEach((wine, index) => {
+            const item = document.createElement('li');
+            item.className = 'surf-eye-wine';
+
+            const header = document.createElement('div');
+            header.className = 'surf-eye-wine__header';
+
+            const rank = document.createElement('span');
+            rank.className = 'surf-eye-wine__rank';
+            rank.textContent = `#${index + 1}`;
+            header.appendChild(rank);
+
+            const titleBlock = document.createElement('div');
+            titleBlock.className = 'surf-eye-wine__title';
+
+            const title = document.createElement('h3');
+            title.textContent = wine.name ?? 'Unknown wine';
+            titleBlock.appendChild(title);
+
+            const metaParts = [];
+            if (wine.producer) metaParts.push(wine.producer);
+            if (wine.region) metaParts.push(wine.region);
+            if (wine.variety) metaParts.push(wine.variety);
+            if (wine.vintage) metaParts.push(wine.vintage);
+            if (metaParts.length > 0) {
+                const meta = document.createElement('p');
+                meta.className = 'surf-eye-wine__meta';
+                meta.textContent = metaParts.join(' • ');
+                titleBlock.appendChild(meta);
+            }
+
+            header.appendChild(titleBlock);
+
+            const scoreBlock = document.createElement('div');
+            scoreBlock.className = 'surf-eye-wine__score';
+
+            const scoreValue = document.createElement('span');
+            scoreValue.className = 'surf-eye-wine__score-value';
+            const alignmentScore = typeof wine.alignmentScore === 'number' ? Math.round(wine.alignmentScore) : 0;
+            scoreValue.textContent = `${alignmentScore}`;
+            scoreBlock.appendChild(scoreValue);
+
+            const scoreLabel = document.createElement('span');
+            scoreLabel.textContent = 'Alignment';
+            scoreBlock.appendChild(scoreLabel);
+
+            header.appendChild(scoreBlock);
+            item.appendChild(header);
+
+            const body = document.createElement('div');
+            body.className = 'surf-eye-wine__body';
+
+            if (wine.alignmentSummary) {
+                const alignment = document.createElement('p');
+                alignment.textContent = wine.alignmentSummary;
+                body.appendChild(alignment);
+            }
+
+            if (wine.notes) {
+                const notes = document.createElement('p');
+                notes.textContent = wine.notes;
+                body.appendChild(notes);
+            }
+
+            const foot = document.createElement('div');
+            foot.className = 'surf-eye-wine__foot';
+            foot.appendChild(document.createTextNode(formatConfidence(Number(wine.confidence))));
+            if (wine.region && !metaParts.includes(wine.region)) {
+                const region = document.createElement('span');
+                region.textContent = wine.region;
+                foot.appendChild(region);
+            }
+            if (wine.variety && !metaParts.includes(wine.variety)) {
+                const variety = document.createElement('span');
+                variety.textContent = wine.variety;
+                foot.appendChild(variety);
+            }
+
+            body.appendChild(foot);
+            item.appendChild(body);
+            winesList.appendChild(item);
+        });
+    };
+
+    disableAnalyze(true);
+
+    photoInput?.addEventListener('change', () => {
+        const [file] = photoInput.files ?? [];
+        clearResults();
+
+        if (!file) {
+            clearPreview();
+            disableAnalyze(true);
+            setStatus(hasTasteProfile ? 'Snap a photo to begin.' : 'Add a taste profile to unlock Surf Eye.');
+            return;
+        }
+
+        if (maxBytes > 0 && file.size > maxBytes) {
+            clearPreview();
+            photoInput.value = '';
+            setStatus(`That file is too large. Keep it under ${(maxBytes / (1024 * 1024)).toFixed(1)} MB.`, 'error');
+            disableAnalyze(true);
+            return;
+        }
+
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+
+        previewUrl = URL.createObjectURL(file);
+        previewImage.src = previewUrl;
+        previewImage.style.display = 'block';
+        placeholder.style.display = 'none';
+        setStatus('Photo ready. Tap analyze to see what Surf Eye spots.');
+        disableAnalyze(!hasTasteProfile);
+    });
+
+    const submitAnalysis = async () => {
+        const [file] = photoInput.files ?? [];
+        if (!file) {
+            setStatus('Snap a photo before analyzing.', 'error');
+            return;
+        }
+
+        if (!hasTasteProfile) {
+            setStatus('Add a taste profile to unlock Surf Eye.', 'error');
+            return;
+        }
+
+        disableAnalyze(true);
+        setStatus('Surf Eye is analyzing your photo…', 'progress');
+
+        const formData = new FormData(form);
+        try {
+            const response = await fetch(analyzeUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                let message = 'Surf Eye hit a snag. Try again in a moment.';
+                try {
+                    const errorPayload = await response.json();
+                    if (errorPayload && typeof errorPayload.error === 'string') {
+                        message = errorPayload.error;
+                    }
+                } catch (_) {
+                    // ignore parsing issues
+                }
+                setStatus(message, 'error');
+                resultsSection?.classList.remove('is-visible');
+                disableAnalyze(false);
+                return;
+            }
+
+            const payload = await response.json();
+            if (payload) {
+                summaryEl.textContent = payload.summary ?? '';
+                if (Array.isArray(payload.wines) && payload.wines.length > 0) {
+                    renderWines(payload.wines);
+                    if (emptyState) {
+                        emptyState.style.display = 'none';
+                    }
+                } else {
+                    winesList.innerHTML = '';
+                    if (emptyState) {
+                        emptyState.textContent = 'Surf Eye did not recognize any wines.';
+                        emptyState.style.display = 'block';
+                    }
+                }
+                resultsSection.classList.add('is-visible');
+                setStatus('Surf Eye finished analyzing your photo.', 'success');
+            }
+        } catch (error) {
+            console.error('Surf Eye analysis failed', error);
+            setStatus('We lost the connection. Try again in a moment.', 'error');
+            resultsSection?.classList.remove('is-visible');
+        } finally {
+            disableAnalyze(false);
+        }
+    };
+
+    analyzeButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        submitAnalysis();
+    });
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+    });
+
+    window.addEventListener('beforeunload', () => {
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+    });
+})();
+</script>
+</body>
+</html>
