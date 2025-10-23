@@ -2409,6 +2409,34 @@ tbody tr:hover {
     }
 }
 
+@media (max-width: 768px) {
+    .inventory-table .summary-header--appellation,
+    .inventory-table .summary-header--color,
+    .inventory-table .summary-header--status,
+    .inventory-table .summary-header--score,
+    .inventory-table .summary-appellation,
+    .inventory-table .summary-color,
+    .inventory-table .summary-status,
+    .inventory-table .summary-score {
+        display: none;
+    }
+
+    .inventory-table th,
+    .inventory-table td {
+        padding: 12px;
+    }
+
+    .inventory-table .summary-header--wine,
+    .inventory-table .summary-wine {
+        width: 60%;
+    }
+
+    .inventory-table .summary-header--bottles,
+    .inventory-table .summary-bottles {
+        text-align: right;
+    }
+}
+
 @media (max-width: 600px) {
     h1 {
         font-size: 40px;
