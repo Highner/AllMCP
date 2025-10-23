@@ -381,6 +381,35 @@ Each suggestion must be a short dish description followed by a concise reason, a
                     .Take(3)
                     .ToList();
             }
+
+            var suggestedAppellations = await GetSuggestedAppellationsForUserAsync(currentUserId.Value, cancellationToken);
+            if (suggestedAppellations.Count > 0)
+            {
+                var suggestionHighlights = new List<MapHighlightPoint>(suggestedAppellations.Count);
+                foreach (var suggestion in suggestedAppellations)
+                {
+                    var highlight = CreateSuggestedHighlightPoint(suggestion);
+                    if (highlight is null)
+                    {
+                        continue;
+                    }
+
+                    suggestionHighlights.Add(highlight);
+                }
+
+                if (suggestionHighlights.Count > 0)
+                {
+                    highlightPoints.AddRange(suggestionHighlights);
+                }
+            }
+        }
+
+        if (highlightPoints.Count > 1)
+        {
+            highlightPoints = highlightPoints
+                .OrderBy(point => point.IsSuggested ? 1 : 0)
+                .ThenBy(point => point.Label, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken);
@@ -5957,6 +5986,85 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
 
         return null;
     }
+
+    private static MapHighlightPoint? CreateSuggestedHighlightPoint(WineSurferSuggestedAppellation suggestion)
+    {
+        if (suggestion is null)
+        {
+            return null;
+        }
+
+        var label = !string.IsNullOrWhiteSpace(suggestion.SubAppellationName)
+            ? suggestion.SubAppellationName.Trim()
+            : suggestion.AppellationName?.Trim();
+
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            label = !string.IsNullOrWhiteSpace(suggestion.RegionName)
+                ? suggestion.RegionName.Trim()
+                : suggestion.CountryName?.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            return null;
+        }
+
+        var regionName = string.IsNullOrWhiteSpace(suggestion.RegionName)
+            ? null
+            : suggestion.RegionName.Trim();
+        var countryName = string.IsNullOrWhiteSpace(suggestion.CountryName)
+            ? null
+            : suggestion.CountryName.Trim();
+
+        static string BuildSubtitle(string? regionValue, string? countryValue)
+        {
+            var parts = new List<string>(2);
+            if (!string.IsNullOrWhiteSpace(regionValue))
+            {
+                parts.Add(regionValue.Trim());
+            }
+
+            if (!string.IsNullOrWhiteSpace(countryValue))
+            {
+                parts.Add(countryValue.Trim());
+            }
+
+            return parts.Count > 0 ? string.Join(", ", parts) : string.Empty;
+        }
+
+        var subtitle = BuildSubtitle(regionName, countryName);
+
+        if (!string.IsNullOrWhiteSpace(regionName) && RegionCoordinates.TryGetValue(regionName, out var regionCoord))
+        {
+            return new MapHighlightPoint(
+                label,
+                subtitle,
+                regionCoord.Latitude,
+                regionCoord.Longitude,
+                0,
+                0,
+                null,
+                Array.Empty<RegionUserAverageScore>(),
+                true);
+        }
+
+        if (!string.IsNullOrWhiteSpace(countryName) && CountryCoordinates.TryGetValue(countryName, out var countryCoord))
+        {
+            return new MapHighlightPoint(
+                label,
+                subtitle,
+                countryCoord.Latitude,
+                countryCoord.Longitude,
+                0,
+                0,
+                null,
+                Array.Empty<RegionUserAverageScore>(),
+                true);
+        }
+
+        return null;
+    }
 }
 
 public record SurfEyeAnalysisResponse(string Summary, IReadOnlyList<SurfEyeWineMatch> Wines);
@@ -6413,7 +6521,8 @@ public record MapHighlightPoint(
     int BottlesCellared,
     int BottlesConsumed,
     decimal? AverageScore,
-    IReadOnlyList<RegionUserAverageScore> UserAverageScores);
+    IReadOnlyList<RegionUserAverageScore> UserAverageScores,
+    bool IsSuggested = false);
 
 public record WineSurferIncomingSisterhoodInvitation(
     Guid Id,

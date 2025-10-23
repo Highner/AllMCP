@@ -640,6 +640,19 @@
             fill: rgba(244, 241, 234, 0.9);
         }
 
+        .highlight-point.is-suggested circle.halo {
+            fill: rgba(255, 173, 239, 0.32);
+            opacity: 0.95;
+        }
+
+        .highlight-point.is-suggested circle.core {
+            fill: rgba(255, 224, 247, 0.95);
+        }
+
+        .highlight-point.is-suggested .highlight-label {
+            fill: rgba(255, 224, 247, 0.92);
+        }
+
         .highlight-point.is-hovered circle.halo,
         .highlight-point.is-selected circle.halo {
             opacity: 1;
@@ -680,6 +693,11 @@
             transition: transform 0.2s ease, border-color 0.2s ease;
         }
 
+        .region-card--suggested {
+            border-color: rgba(255, 173, 239, 0.45);
+            background: linear-gradient(135deg, rgba(101, 22, 73, 0.35), rgba(52, 8, 43, 0.25));
+        }
+
         .region-card:hover {
             transform: translateY(-4px);
             border-color: rgba(244, 241, 234, 0.35);
@@ -693,6 +711,32 @@
 
         .region-card.is-selected {
             transform: translateY(-6px);
+        }
+
+        .region-card__tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 10px;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            background: rgba(255, 173, 239, 0.22);
+            color: rgba(255, 224, 247, 0.92);
+            border: 1px solid rgba(255, 173, 239, 0.45);
+            margin-bottom: 12px;
+        }
+
+        .region-card--suggested .wine-card__title {
+            color: rgba(255, 224, 247, 0.95);
+        }
+
+        .region-card__suggested-note {
+            margin: 12px 0 0;
+            font-size: 13px;
+            line-height: 1.5;
+            color: rgba(244, 241, 234, 0.78);
         }
 
         .region-card .label {
@@ -1032,33 +1076,50 @@
                         point.BottlesCellared,
                         point.BottlesConsumed,
                         point.AverageScore,
-                        point.UserAverageScores
+                        point.UserAverageScores,
+                        point.IsSuggested
                     }), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
             </script>
             <section class="regions-panel" aria-label="Highlighted wine regions">
                 @for (var i = 0; i < Model.HighlightPoints.Count; i++)
                 {
                     var point = Model.HighlightPoints[i];
-                    <article class="region-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" data-region-index="@i">
+                    var cardClasses = "region-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card";
+                    if (point.IsSuggested)
+                    {
+                        cardClasses += " region-card--suggested";
+                    }
+                    <article class="@cardClasses" data-region-index="@i" data-region-suggested="@(point.IsSuggested ? "true" : null)">
+                        @if (point.IsSuggested)
+                        {
+                            <span class="region-card__tag">Suggested</span>
+                        }
                         <span class="label wine-card__title">@point.Label</span>
                         @if (!string.IsNullOrWhiteSpace(point.Country))
                         {
                             <span class="country wine-card__subtitle">@point.Country</span>
                         }
-                        <dl class="inventory-overview wine-card__stats" aria-label="Inventory overview for @point.Label">
-                            <div class="metric wine-card__stat">
-                                <dt>Cellared</dt>
-                                <dd>@point.BottlesCellared</dd>
-                            </div>
-                            <div class="metric wine-card__stat">
-                                <dt>Consumed</dt>
-                                <dd>@point.BottlesConsumed</dd>
-                            </div>
-                            <div class="metric wine-card__stat">
-                                <dt>Avg. Score</dt>
-                                <dd data-region-average>—</dd>
-                            </div>
-                        </dl>
+                        @if (!point.IsSuggested)
+                        {
+                            <dl class="inventory-overview wine-card__stats" aria-label="Inventory overview for @point.Label">
+                                <div class="metric wine-card__stat">
+                                    <dt>Cellared</dt>
+                                    <dd>@point.BottlesCellared</dd>
+                                </div>
+                                <div class="metric wine-card__stat">
+                                    <dt>Consumed</dt>
+                                    <dd>@point.BottlesConsumed</dd>
+                                </div>
+                                <div class="metric wine-card__stat">
+                                    <dt>Avg. Score</dt>
+                                    <dd data-region-average>—</dd>
+                                </div>
+                            </dl>
+                        }
+                        else
+                        {
+                            <p class="region-card__suggested-note">Suggested by your taste profile. Zoom the map to explore this appellation.</p>
+                        }
                     </article>
                 }
                 @if (!Model.HighlightPoints.Any())
@@ -1250,7 +1311,7 @@
                         .selectAll('g.highlight-point')
                         .data(highlightData)
                         .join('g')
-                        .attr('class', 'highlight-point')
+                        .attr('class', d => d.isSuggested ? 'highlight-point is-suggested' : 'highlight-point')
                         .attr('transform', d => {
                             const projected = projection([d.longitude, d.latitude]);
                             return projected ? `translate(${projected[0]}, ${projected[1]})` : null;
@@ -1271,7 +1332,13 @@
                         .text(d => d.label ?? '');
 
                     highlightPoints.append('title')
-                        .text(d => d.label ?? '');
+                        .text(d => {
+                            if (!d?.label) {
+                                return '';
+                            }
+
+                            return d.isSuggested ? `${d.label} (Suggested appellation)` : d.label;
+                        });
 
                     const regionCards = Array.from(document.querySelectorAll('.region-card'));
 
