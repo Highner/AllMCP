@@ -3,6 +3,7 @@ using System.ClientModel;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net.Mail;
 using System.Security.Claims;
@@ -127,6 +128,24 @@ public class WineSurferController : Controller
     {
         AllowTrailingCommas = true,
         CommentHandling = JsonCommentHandling.Skip
+    };
+    private const long SurfEyeMaxUploadBytes = 8 * 1024 * 1024;
+    private const string SurfEyeSystemPrompt = """
+You are Surf Eye, an expert sommelier and computer vision guide. Use the user's taste profile to rank wines from best to worst alignment.
+Respond ONLY with minified JSON matching {"analysisSummary":"...","wines":[{"name":"...","producer":"...","region":"...","variety":"...","vintage":"...","alignmentScore":0,"alignmentSummary":"...","confidence":0.0,"notes":"..."}]}.
+The wines array must be sorted by descending alignmentScore. Include at most five wines. Provide concise notes that justify the ranking with respect to the taste profile. The alignmentScore must be an integer from 0 to 100. Confidence must be a decimal between 0 and 1. If no wine is recognized, return an empty wines array and set analysisSummary to a short explanation. Do not use markdown, newlines, or any commentary outside of the JSON object.
+""";
+    private static readonly JsonDocumentOptions SurfEyeJsonDocumentOptions = new()
+    {
+        AllowTrailingCommas = true,
+        CommentHandling = JsonCommentHandling.Skip
+    };
+    private static readonly HashSet<string> SurfEyeSupportedContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp"
     };
 
     public WineSurferController(
@@ -620,6 +639,147 @@ public class WineSurferController : Controller
         }
 
         return Json(new GenerateTasteProfileResponse(summary, profile));
+    }
+
+    [Authorize]
+    [HttpGet("surf-eye")]
+    public async Task<IActionResult> SurfEye(CancellationToken cancellationToken)
+    {
+        Response.ContentType = "text/html; charset=utf-8";
+
+        var identityName = User?.Identity?.Name;
+        var email = User?.FindFirstValue(ClaimTypes.Email) ?? User?.FindFirstValue("email");
+        var currentUserId = GetCurrentUserId();
+
+        ApplicationUser? domainUser = null;
+        if (currentUserId.HasValue)
+        {
+            domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
+        }
+
+        var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
+        var tasteProfileSummary = domainUser?.TasteProfileSummary?.Trim() ?? string.Empty;
+        var tasteProfile = domainUser?.TasteProfile?.Trim() ?? string.Empty;
+
+        ViewData["SurfEyeMaxUploadBytes"] = SurfEyeMaxUploadBytes;
+
+        var viewModel = new WineSurferSurfEyeViewModel(
+            displayName,
+            tasteProfileSummary,
+            tasteProfile,
+            !string.IsNullOrWhiteSpace(tasteProfile));
+
+        return View("SurfEye", viewModel);
+    }
+
+    [Authorize]
+    [HttpPost("surf-eye/analyze")]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(SurfEyeMaxUploadBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = SurfEyeMaxUploadBytes)]
+    public async Task<IActionResult> AnalyzeSurfEye([FromForm] SurfEyeAnalysisRequest request, CancellationToken cancellationToken)
+    {
+        if (request?.Photo is null || request.Photo.Length == 0)
+        {
+            return BadRequest(new SurfEyeAnalysisError("Capture a photo before asking Surf Eye to analyze it."));
+        }
+
+        if (request.Photo.Length > SurfEyeMaxUploadBytes)
+        {
+            return BadRequest(new SurfEyeAnalysisError("Images must be 8 MB or smaller."));
+        }
+
+        var contentType = request.Photo.ContentType;
+        if (!string.IsNullOrWhiteSpace(contentType) && !SurfEyeSupportedContentTypes.Contains(contentType))
+        {
+            return BadRequest(new SurfEyeAnalysisError("Please use a JPEG, PNG, or WEBP photo."));
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        var user = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        var tasteProfile = user.TasteProfile?.Trim();
+        if (string.IsNullOrWhiteSpace(tasteProfile))
+        {
+            return BadRequest(new SurfEyeAnalysisError("Add a taste profile before using Surf Eye."));
+        }
+
+        var normalizedTasteProfile = tasteProfile!;
+        var tasteProfileSummary = user.TasteProfileSummary?.Trim();
+
+        byte[] imageBytes;
+        await using (var stream = new MemoryStream())
+        {
+            await request.Photo.CopyToAsync(stream, cancellationToken);
+            if (stream.Length == 0)
+            {
+                return BadRequest(new SurfEyeAnalysisError("We couldn't read that photo. Please try again."));
+            }
+
+            imageBytes = stream.ToArray();
+        }
+
+        var normalizedContentType = string.IsNullOrWhiteSpace(contentType)
+            ? "image/jpeg"
+            : contentType!;
+
+        var prompt = BuildSurfEyePrompt(tasteProfileSummary, normalizedTasteProfile);
+
+        ChatCompletion completion;
+        try
+        {
+            completion = await _chatGptService.GetChatCompletionAsync(
+                new ChatMessage[]
+                {
+                    new SystemChatMessage(SurfEyeSystemPrompt),
+                    new UserChatMessage(new[]
+                    {
+                        ChatMessageContentPart.CreateTextPart(prompt),
+                        ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(imageBytes), normalizedContentType, ChatImageDetailLevel.High)
+                    })
+                },
+                temperature: 0.2,
+                ct: cancellationToken);
+        }
+        catch (ClientResultException)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new SurfEyeAnalysisError("We couldn't reach the Surf Eye analyst. Please try again."));
+        }
+        catch (Exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new SurfEyeAnalysisError("We couldn't analyze that photo right now. Please try again."));
+        }
+
+        var content = ExtractCompletionText(completion);
+        if (!TryParseSurfEyeAnalysis(content, out var parsedResult))
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new SurfEyeAnalysisError("We couldn't understand Surf Eye's response. Please try again."));
+        }
+
+        var orderedMatches = parsedResult!.Wines
+            .OrderByDescending(match => match.AlignmentScore)
+            .ThenByDescending(match => match.Confidence)
+            .ThenBy(match => match.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(5)
+            .ToList();
+
+        var summary = string.IsNullOrWhiteSpace(parsedResult.Summary)
+            ? (orderedMatches.Count > 0
+                ? "Surf Eye spotted the following wines."
+                : "Surf Eye couldn't recognize any wines in this photo.")
+            : parsedResult.Summary.Trim();
+
+        var response = new SurfEyeAnalysisResponse(summary, orderedMatches);
+        return Json(response);
     }
 
     [Authorize]
@@ -4392,6 +4552,159 @@ public class WineSurferController : Controller
         }
     }
 
+    private static string? ExtractCompletionText(ChatCompletion completion)
+    {
+        if (completion?.Content is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder();
+        foreach (var part in completion.Content)
+        {
+            if (part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
+            {
+                builder.Append(part.Text);
+            }
+        }
+
+        return builder.Length > 0 ? builder.ToString() : null;
+    }
+
+    private static string BuildSurfEyePrompt(string? tasteProfileSummary, string tasteProfile)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("Analyze the attached photo of wine bottles.");
+
+        if (!string.IsNullOrWhiteSpace(tasteProfileSummary))
+        {
+            builder.Append("User taste profile summary: ");
+            builder.AppendLine(tasteProfileSummary.Trim());
+        }
+
+        builder.Append("User taste profile details: ");
+        builder.AppendLine(tasteProfile.Trim());
+        builder.AppendLine("Identify each distinct wine label that appears in the photo and return at most five wines.");
+        builder.AppendLine("Prioritize wines that match the user's taste preferences and explain the ranking succinctly.");
+
+        return builder.ToString();
+    }
+
+    private static bool TryParseSurfEyeAnalysis(string? content, out SurfEyeAnalysisIntermediate? result)
+    {
+        result = null;
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return false;
+        }
+
+        var segment = ExtractJsonSegment(content);
+
+        try
+        {
+            using var document = JsonDocument.Parse(segment, SurfEyeJsonDocumentOptions);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            var summary = TryGetTrimmedString(root, "analysisSummary");
+            var wines = new List<SurfEyeWineMatch>();
+
+            if (root.TryGetProperty("wines", out var winesElement) && winesElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var wineElement in winesElement.EnumerateArray())
+                {
+                    if (wineElement.ValueKind != JsonValueKind.Object)
+                    {
+                        continue;
+                    }
+
+                    var name = TryGetTrimmedString(wineElement, "name");
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        continue;
+                    }
+
+                    var alignmentScore = TryGetDouble(wineElement, "alignmentScore");
+                    if (double.IsNaN(alignmentScore))
+                    {
+                        alignmentScore = 0d;
+                    }
+
+                    var confidence = TryGetDouble(wineElement, "confidence");
+                    if (double.IsNaN(confidence))
+                    {
+                        confidence = 0d;
+                    }
+
+                    alignmentScore = Math.Clamp(alignmentScore, 0d, 100d);
+                    confidence = Math.Clamp(confidence, 0d, 1d);
+
+                    var match = new SurfEyeWineMatch(
+                        name!,
+                        TryGetTrimmedString(wineElement, "producer"),
+                        TryGetTrimmedString(wineElement, "region"),
+                        TryGetTrimmedString(wineElement, "variety"),
+                        TryGetTrimmedString(wineElement, "vintage"),
+                        alignmentScore,
+                        TryGetTrimmedString(wineElement, "alignmentSummary") ?? "",
+                        confidence,
+                        TryGetTrimmedString(wineElement, "notes"));
+
+                    wines.Add(match);
+                }
+            }
+
+            result = new SurfEyeAnalysisIntermediate(summary, wines);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static string? TryGetTrimmedString(JsonElement element, string propertyName)
+    {
+        if (element.TryGetProperty(propertyName, out var property))
+        {
+            if (property.ValueKind == JsonValueKind.String)
+            {
+                var value = property.GetString();
+                return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+            }
+        }
+
+        return null;
+    }
+
+    private static double TryGetDouble(JsonElement element, string propertyName)
+    {
+        if (element.TryGetProperty(propertyName, out var property))
+        {
+            if (property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var number))
+            {
+                return number;
+            }
+
+            if (property.ValueKind == JsonValueKind.String)
+            {
+                var text = property.GetString();
+                if (!string.IsNullOrWhiteSpace(text) &&
+                    double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+                {
+                    return parsed;
+                }
+            }
+        }
+
+        return double.NaN;
+    }
+
+    private sealed record SurfEyeAnalysisIntermediate(string? Summary, IReadOnlyList<SurfEyeWineMatch> Wines);
+
     private static string ExtractJsonSegment(string content)
     {
         var trimmed = content.Trim();
@@ -4584,6 +4897,33 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
         return null;
     }
 }
+
+public record SurfEyeAnalysisResponse(string Summary, IReadOnlyList<SurfEyeWineMatch> Wines);
+
+public record SurfEyeWineMatch(
+    string Name,
+    string? Producer,
+    string? Region,
+    string? Variety,
+    string? Vintage,
+    double AlignmentScore,
+    string AlignmentSummary,
+    double Confidence,
+    string? Notes);
+
+public record SurfEyeAnalysisError(string Error);
+
+public class SurfEyeAnalysisRequest
+{
+    [Required]
+    public IFormFile? Photo { get; set; }
+}
+
+public record WineSurferSurfEyeViewModel(
+    string? DisplayName,
+    string TasteProfileSummary,
+    string TasteProfile,
+    bool HasTasteProfile);
 
 public record GenerateTasteProfileResponse(string Summary, string Profile);
 
