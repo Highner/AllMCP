@@ -2161,6 +2161,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
             .Select(u => new WineSurferUserSummary(
                 u.Id,
                 u.Name,
+                u.Email ?? string.Empty,
                 u.TasteProfileSummary ?? string.Empty,
                 u.TasteProfile ?? string.Empty))
             .ToList();
@@ -5786,5 +5787,5 @@ public record RegionInventoryMetrics(
 
 public record RegionUserAverageScore(Guid UserId, decimal AverageScore);
 
-public record WineSurferUserSummary(Guid Id, string Name, string TasteProfileSummary, string TasteProfile);
+public record WineSurferUserSummary(Guid Id, string Name, string Email, string TasteProfileSummary, string TasteProfile);
 public record WineSurferCurrentUser(Guid? DomainUserId, string DisplayName, string? Email, string? TasteProfileSummary, string? TasteProfile, bool IsAdmin);
