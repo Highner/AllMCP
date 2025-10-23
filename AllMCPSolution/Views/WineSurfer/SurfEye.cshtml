@@ -1,10 +1,17 @@
+@using AllMCPSolution.Controllers
 @model AllMCPSolution.Controllers.WineSurferSurfEyeViewModel
 @{
     Layout = null;
+    var requestPath = Context.Request.Path.HasValue ? Context.Request.Path.Value : string.Empty;
+    var requestQuery = Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value : string.Empty;
+    var currentLocation = string.Concat(requestPath, requestQuery);
+    var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
+        ?? WineSurferTopBarModel.Empty(currentLocation);
     var analyzeUrl = Url.Action("AnalyzeSurfEye", "WineSurfer");
     var hasTasteProfile = Model.HasTasteProfile;
     var displayName = string.IsNullOrWhiteSpace(Model.DisplayName) ? "Surfer" : Model.DisplayName;
     var maxUploadBytes = ViewData["SurfEyeMaxUploadBytes"] is long bytes ? bytes : 8L * 1024L * 1024L;
+    ViewData["WineSurferPageTitle"] = "Surf Eye";
     string FormatBytes(long bytes)
     {
         const double OneKb = 1024d;
@@ -34,6 +41,11 @@
             background: var(--wine-app-background);
             color: #f4f1ea;
             font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+        }
+
+        .page-content {
+            min-height: 100vh;
+            flex: 1;
             display: flex;
             flex-direction: column;
         }
@@ -44,71 +56,7 @@
             flex-direction: column;
             align-items: center;
             padding: 48px 20px 80px;
-            gap: 32px;
-        }
-
-        .surf-eye-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 24px 32px;
-            background: rgba(8, 8, 10, 0.85);
-            border-bottom: 1px solid rgba(244, 241, 234, 0.08);
-            position: sticky;
-            top: 0;
-            z-index: 12;
-            backdrop-filter: blur(10px);
-            gap: 16px;
-        }
-
-        .surf-eye-back {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: rgba(244, 241, 234, 0.86);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-size: 12px;
-            font-weight: 600;
-            text-decoration: none;
-        }
-
-        .surf-eye-back svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        .surf-eye-title {
-            flex: 1 1 auto;
-            text-align: center;
-            font-size: 14px;
-            letter-spacing: 6px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.55);
-            font-weight: 600;
-        }
-
-        .surf-eye-hero {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            gap: 12px;
-            max-width: 720px;
-        }
-
-        .surf-eye-hero h1 {
-            margin: 0;
-            font-size: clamp(3rem, 7vw, 5.5rem);
-            letter-spacing: 12px;
-            text-transform: uppercase;
-        }
-
-        .surf-eye-hero p {
-            margin: 0;
-            line-height: 1.8;
-            color: rgba(244, 241, 234, 0.74);
-            font-size: 1rem;
+            gap: 24px;
         }
 
         .surf-eye-content {
@@ -116,6 +64,15 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 24px;
+        }
+
+        .surf-eye-intro {
+            max-width: 720px;
+            margin: 0;
+            text-align: center;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: rgba(244, 241, 234, 0.74);
         }
 
         .surf-eye-card {
@@ -360,10 +317,6 @@
         }
 
         @@media (max-width: 720px) {
-            .surf-eye-header {
-                padding: 18px 16px;
-            }
-
             .surf-eye-content {
                 grid-template-columns: 1fr;
             }
@@ -375,52 +328,42 @@
     </style>
 </head>
 <body>
-<header class="surf-eye-header">
-    <a class="surf-eye-back" href="@Url.Action("Index", "WineSurfer")">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M15 18l-6-6 6-6" />
-        </svg>
-        Back
-    </a>
-    <div class="surf-eye-title">Surf Eye</div>
-    <div style="width: 60px; visibility: hidden;">.</div>
-</header>
-<main>
-    <section class="surf-eye-hero">
-        <h1>Surf Eye</h1>
-        <p>Capture a bottle shot and let Surf Eye spot the labels, then rank them by how well they vibe with @displayName's palate.</p>
-    </section>
-    <section class="surf-eye-content">
-        <form id="surf-eye-form" class="surf-eye-card" method="post" enctype="multipart/form-data" data-analyze-url="@analyzeUrl" data-has-taste-profile="@hasTasteProfile.ToString().ToLowerInvariant()" data-max-bytes="@maxUploadBytes">
-            @Html.AntiForgeryToken()
-            <div>
-                <p class="surf-eye-section-title">Capture</p>
-                <div class="surf-eye-camera">
-                    <img id="surf-eye-preview" class="surf-eye-preview" alt="Preview of the captured wine photo" />
-                    <div id="surf-eye-placeholder" class="surf-eye-placeholder">
-                        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M16 12l3-4h10l3 4h6a4 4 0 0 1 4 4v18a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V16a4 4 0 0 1 4-4z" />
-                            <circle cx="24" cy="25" r="8" />
-                        </svg>
-                        <span>Open the camera and snap a label</span>
-                        <span style="font-size: 0.7rem; letter-spacing: 2px;">Max size @FormatBytes(maxUploadBytes)</span>
+    <div class="page-content">
+        @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
+        <main>
+            <p class="surf-eye-intro">Capture a bottle shot and let Surf Eye spot the labels, then rank them by how well they vibe with @displayName's palate.</p>
+            <section class="surf-eye-content">
+                <form id="surf-eye-form" class="surf-eye-card" method="post" enctype="multipart/form-data" data-analyze-url="@analyzeUrl" data-has-taste-profile="@hasTasteProfile.ToString().ToLowerInvariant()" data-max-bytes="@maxUploadBytes">
+                    @Html.AntiForgeryToken()
+                    <div>
+                        <p class="surf-eye-section-title">Capture</p>
+                        <div class="surf-eye-camera">
+                            <img id="surf-eye-preview" class="surf-eye-preview" alt="Preview of the captured wine photo" />
+                            <div id="surf-eye-placeholder" class="surf-eye-placeholder">
+                                <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M16 12l3-4h10l3 4h6a4 4 0 0 1 4 4v18a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V16a4 4 0 0 1 4-4z" />
+                                    <circle cx="24" cy="25" r="8" />
+                                </svg>
+                                <span>Open the camera and snap a label</span>
+                                <span style="font-size: 0.7rem; letter-spacing: 2px;">Max size @FormatBytes(maxUploadBytes)</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-            <input type="file" id="surf-eye-photo" class="surf-eye-input" accept="image/*" capture="environment" name="Photo" />
-            <div class="surf-eye-actions">
-                <label for="surf-eye-photo" class="surf-eye-button secondary">Open Camera</label>
-                <button type="button" class="surf-eye-button" id="surf-eye-analyze" @(hasTasteProfile ? "" : "disabled")>Analyze Photo</button>
-            </div>
-            <div id="surf-eye-status" class="surf-eye-status">@(hasTasteProfile ? "Snap a photo to begin." : "Add a taste profile to unlock Surf Eye.")</div>
-            <div id="surf-eye-results" class="surf-eye-results">
-                <p id="surf-eye-summary" class="surf-eye-summary"></p>
-                <ul id="surf-eye-wines" class="surf-eye-wines"></ul>
-                <div id="surf-eye-empty" class="surf-eye-empty">Surf Eye is waiting for a photo.</div>
-            </div>
-        </form>
-    </section>
-</main>
+                    <input type="file" id="surf-eye-photo" class="surf-eye-input" accept="image/*" capture="environment" name="Photo" />
+                    <div class="surf-eye-actions">
+                        <label for="surf-eye-photo" class="surf-eye-button secondary">Open Camera</label>
+                        <button type="button" class="surf-eye-button" id="surf-eye-analyze" @(hasTasteProfile ? "" : "disabled")>Analyze Photo</button>
+                    </div>
+                    <div id="surf-eye-status" class="surf-eye-status">@(hasTasteProfile ? "Snap a photo to begin." : "Add a taste profile to unlock Surf Eye.")</div>
+                    <div id="surf-eye-results" class="surf-eye-results">
+                        <p id="surf-eye-summary" class="surf-eye-summary"></p>
+                        <ul id="surf-eye-wines" class="surf-eye-wines"></ul>
+                        <div id="surf-eye-empty" class="surf-eye-empty">Surf Eye is waiting for a photo.</div>
+                    </div>
+                </form>
+            </section>
+        </main>
+    </div>
 <script>
 (() => {
     const form = document.getElementById('surf-eye-form');
