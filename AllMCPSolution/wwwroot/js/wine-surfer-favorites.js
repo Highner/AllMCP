@@ -251,12 +251,6 @@
             }
         });
 
-        select?.addEventListener('change', () => {
-            updateSummary();
-            updateHint();
-            showError('');
-        });
-
         locationSelect?.addEventListener('change', () => {
             showError('');
         });
