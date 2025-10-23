@@ -747,14 +747,13 @@ The wines array must be sorted by descending alignmentScore. Include at most fiv
                         ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(imageBytes), normalizedContentType, ChatImageDetailLevel.High)
                     })
                 },
-                temperature: 0.2,
                 ct: cancellationToken);
         }
-        catch (ClientResultException)
+        catch (ClientResultException ex)
         {
             return StatusCode(StatusCodes.Status502BadGateway, new SurfEyeAnalysisError("We couldn't reach the Surf Eye analyst. Please try again."));
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, new SurfEyeAnalysisError("We couldn't analyze that photo right now. Please try again."));
         }
