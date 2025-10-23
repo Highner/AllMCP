@@ -2973,6 +2973,40 @@
         let inviteSearchAbortController = null;
         let inviteSearchCurrentTerm = '';
 
+        const toTrimmedString = (value) => typeof value === 'string' ? value.trim() : '';
+        const registerUserLookup = (value, userId) => {
+            const lookupKey = toTrimmedString(value).toLowerCase();
+            if (lookupKey) {
+                userMap.set(lookupKey, userId);
+            }
+        };
+        const createInviteOption = (value, label, user) => {
+            const trimmedValue = toTrimmedString(value);
+            if (!trimmedValue) {
+                return;
+            }
+
+            registerUserLookup(trimmedValue, user.id);
+
+            if (!inviteDataList) {
+                return;
+            }
+
+            const option = document.createElement('option');
+            option.value = trimmedValue;
+            if (label) {
+                option.label = label;
+            }
+            option.dataset.userId = user.id;
+
+            const trimmedEmail = toTrimmedString(user.email);
+            if (trimmedEmail) {
+                option.dataset.userEmail = trimmedEmail;
+            }
+
+            inviteDataList.appendChild(option);
+        };
+
         const updateInviteUserOptions = (users) => {
             if (!inviteDataList) {
                 return;
@@ -2982,18 +3016,42 @@
             userMap.clear();
 
             users.forEach(user => {
-                if (!user?.name || !user?.id) {
+                if (!user?.id) {
                     return;
                 }
 
-                const option = document.createElement('option');
-                option.value = user.name;
-                if (user.tasteProfile) {
-                    option.label = `${user.name} · ${user.tasteProfile}`;
+                const name = toTrimmedString(user.name);
+                if (!name) {
+                    return;
                 }
-                option.dataset.userId = user.id;
-                inviteDataList.appendChild(option);
-                userMap.set(user.name.toLowerCase(), user.id);
+
+                const email = toTrimmedString(user.email);
+                const tasteSummary = toTrimmedString(user.tasteProfileSummary) || toTrimmedString(user.tasteProfile);
+                const descriptorParts = [];
+
+                if (email) {
+                    descriptorParts.push(email);
+                }
+
+                if (tasteSummary) {
+                    descriptorParts.push(tasteSummary);
+                }
+
+                const baseLabel = descriptorParts.length > 0
+                    ? `${name} · ${descriptorParts.join(' · ')}`
+                    : name;
+
+                createInviteOption(name, baseLabel, user);
+
+                if (email && email.toLowerCase() !== name.toLowerCase()) {
+                    const emailLabelParts = [email, name];
+                    if (tasteSummary) {
+                        emailLabelParts.push(tasteSummary);
+                    }
+                    createInviteOption(email, emailLabelParts.join(' · '), user);
+                } else if (email) {
+                    registerUserLookup(email, user.id);
+                }
             });
 
             inviteForms.forEach(form => {
