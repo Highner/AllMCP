@@ -708,6 +708,15 @@
             stroke: none;
         }
 
+        .map-hover-card {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            pointer-events: none;
+            z-index: 4;
+            width: min(280px, calc(100% - 24px));
+        }
+
         .highlight-group {
             cursor: pointer;
         }
@@ -1781,7 +1790,7 @@
             };
 
             const regionAverageElements = new Map();
-            document.querySelectorAll('.region-card').forEach(card => {
+            document.querySelectorAll('.regions-panel .region-card').forEach(card => {
                 const index = Number(card.dataset?.regionIndex ?? -1);
                 if (!Number.isInteger(index) || index < 0) {
                     return;
@@ -1881,6 +1890,234 @@
                 window.wineSurferHighlightData = Array.isArray(highlightData) ? highlightData : [];
             }
 
+            const mapHoverCard = document.createElement('article');
+            mapHoverCard.className = 'map-hover-card region-card wine-card wine-surface wine-surface-border wine-surfer-card';
+            mapHoverCard.hidden = true;
+            mapHoverCard.setAttribute('aria-hidden', 'true');
+            mapHoverCard.style.left = '-9999px';
+            mapHoverCard.style.top = '-9999px';
+            mapContainer.appendChild(mapHoverCard);
+
+            let activeHoverPoint = null;
+
+            const normalizeUserId = (value) => {
+                if (value === null || value === undefined) {
+                    return '';
+                }
+
+                if (typeof value === 'string') {
+                    return value.trim().toLowerCase();
+                }
+
+                return String(value).trim().toLowerCase();
+            };
+
+            const normalizedCurrentUserId = normalizeUserId(window.wineSurferCurrentUser?.domainUserId);
+
+            const formatScore = (value) => {
+                const numeric = Number(value);
+                return Number.isFinite(numeric) ? numeric.toFixed(1) : '—';
+            };
+
+            const formatCount = (value) => {
+                const numeric = Number(value);
+                if (!Number.isFinite(numeric)) {
+                    return '0';
+                }
+
+                return Math.max(0, Math.round(numeric)).toString();
+            };
+
+            const resolveAverageScore = (point) => {
+                if (!point) {
+                    return null;
+                }
+
+                const baseAverage = Number(point.averageScore);
+                if (!normalizedCurrentUserId) {
+                    return Number.isFinite(baseAverage) ? baseAverage : null;
+                }
+
+                const userScores = Array.isArray(point.userAverageScores) ? point.userAverageScores : [];
+                const matchingScore = userScores.find(score => normalizeUserId(score.userId) === normalizedCurrentUserId);
+                if (matchingScore && matchingScore.averageScore != null) {
+                    const numericScore = Number(matchingScore.averageScore);
+                    if (Number.isFinite(numericScore)) {
+                        return numericScore;
+                    }
+                }
+
+                return Number.isFinite(baseAverage) ? baseAverage : null;
+            };
+
+            const appendMetric = (list, title, value) => {
+                const metric = document.createElement('div');
+                metric.className = 'metric wine-card__stat';
+
+                const term = document.createElement('dt');
+                term.textContent = title;
+
+                const detail = document.createElement('dd');
+                detail.textContent = value;
+
+                metric.appendChild(term);
+                metric.appendChild(detail);
+                list.appendChild(metric);
+            };
+
+            const renderMapHoverCard = (point) => {
+                mapHoverCard.replaceChildren();
+                const isSuggested = Boolean(point?.isSuggested);
+                mapHoverCard.classList.toggle('region-card--suggested', isSuggested);
+
+                if (isSuggested) {
+                    const tag = document.createElement('span');
+                    tag.className = 'region-card__tag';
+                    tag.textContent = 'Suggested';
+                    mapHoverCard.appendChild(tag);
+                }
+
+                const labelText = typeof point?.label === 'string' ? point.label.trim() : '';
+                const safeLabel = labelText || 'Unnamed region';
+
+                const label = document.createElement('span');
+                label.className = 'label wine-card__title';
+                label.textContent = safeLabel;
+                mapHoverCard.appendChild(label);
+
+                const countryText = typeof point?.country === 'string' ? point.country.trim() : '';
+                if (countryText) {
+                    const country = document.createElement('span');
+                    country.className = 'country wine-card__subtitle';
+                    country.textContent = countryText;
+                    mapHoverCard.appendChild(country);
+                }
+
+                if (isSuggested) {
+                    const note = document.createElement('p');
+                    note.className = 'region-card__suggested-note';
+
+                    const reasonText = typeof point?.suggestionReason === 'string'
+                        ? point.suggestionReason.trim()
+                        : '';
+
+                    if (reasonText) {
+                        const reason = document.createElement('span');
+                        reason.className = 'region-card__suggested-reason';
+                        reason.textContent = reasonText;
+                        note.appendChild(reason);
+                    } else {
+                        const defaultReason = document.createElement('span');
+                        defaultReason.textContent = 'Suggested by your taste profile.';
+                        note.appendChild(defaultReason);
+                    }
+
+                    const instructions = document.createElement('span');
+                    instructions.className = 'region-card__suggested-instructions';
+                    instructions.textContent = 'Zoom the map to explore this appellation.';
+                    note.appendChild(instructions);
+
+                    mapHoverCard.appendChild(note);
+                    return;
+                }
+
+                const stats = document.createElement('dl');
+                stats.className = 'inventory-overview wine-card__stats';
+                stats.setAttribute('aria-label', `Inventory overview for ${safeLabel}`);
+                appendMetric(stats, 'Cellared', formatCount(point?.bottlesCellared));
+                appendMetric(stats, 'Consumed', formatCount(point?.bottlesConsumed));
+                appendMetric(stats, 'Avg. Score', formatScore(resolveAverageScore(point)));
+
+                mapHoverCard.appendChild(stats);
+            };
+
+            const hideMapHoverCard = () => {
+                mapHoverCard.hidden = true;
+                mapHoverCard.setAttribute('aria-hidden', 'true');
+                mapHoverCard.style.left = '-9999px';
+                mapHoverCard.style.top = '-9999px';
+                mapHoverCard.dataset.regionIndex = '';
+                activeHoverPoint = null;
+            };
+
+            const updateMapHoverCardPosition = (point) => {
+                if (!point || mapHoverCard.hidden) {
+                    return;
+                }
+
+                const regionIndex = Number.isInteger(point.index)
+                    ? point.index
+                    : Number.parseInt(mapHoverCard.dataset?.regionIndex ?? '', 10);
+
+                if (!Number.isInteger(regionIndex)) {
+                    hideMapHoverCard();
+                    return;
+                }
+
+                const highlightNode = mapContainer.querySelector(`.highlight-point[data-region-index="${regionIndex}"]`);
+                if (!highlightNode) {
+                    hideMapHoverCard();
+                    return;
+                }
+
+                const containerRect = mapContainer.getBoundingClientRect();
+                const nodeRect = highlightNode.getBoundingClientRect();
+                const cardRect = mapHoverCard.getBoundingClientRect();
+
+                if (!containerRect.width || !cardRect.width) {
+                    return;
+                }
+
+                const offset = 16;
+                const padding = 12;
+
+                let left = nodeRect.left - containerRect.left + offset;
+                let top = nodeRect.top - containerRect.top + offset;
+
+                if (left + cardRect.width + padding > containerRect.width) {
+                    left = nodeRect.left - containerRect.left - cardRect.width - offset;
+                }
+
+                if (top + cardRect.height + padding > containerRect.height) {
+                    top = nodeRect.top - containerRect.top - cardRect.height - offset;
+                }
+
+                left = Math.max(padding, Math.min(left, containerRect.width - cardRect.width - padding));
+                top = Math.max(padding, Math.min(top, containerRect.height - cardRect.height - padding));
+
+                if (!Number.isFinite(left) || !Number.isFinite(top)) {
+                    return;
+                }
+
+                mapHoverCard.style.left = `${left}px`;
+                mapHoverCard.style.top = `${top}px`;
+            };
+
+            const showMapHoverCard = (point) => {
+                if (!point) {
+                    hideMapHoverCard();
+                    return;
+                }
+
+                activeHoverPoint = point;
+                mapHoverCard.style.left = '-9999px';
+                mapHoverCard.style.top = '-9999px';
+                renderMapHoverCard(point);
+                mapHoverCard.dataset.regionIndex = Number.isInteger(point.index) ? String(point.index) : '';
+                mapHoverCard.hidden = false;
+                mapHoverCard.setAttribute('aria-hidden', 'false');
+                updateMapHoverCardPosition(point);
+            };
+
+            const handleResize = () => {
+                if (activeHoverPoint) {
+                    updateMapHoverCardPosition(activeHoverPoint);
+                }
+            };
+
+            window.addEventListener('resize', handleResize);
+            mapContainer.addEventListener('mouseleave', hideMapHoverCard);
+
             const svg = d3.select(mapContainer)
                 .append('svg')
                 .attr('class', 'map-svg')
@@ -1905,6 +2142,9 @@
                 .translateExtent([[0, 0], [width, height]])
                 .on('zoom', (event) => {
                     mapGroup.attr('transform', event.transform);
+                    if (activeHoverPoint) {
+                        updateMapHoverCardPosition(activeHoverPoint);
+                    }
                 });
 
             svg.call(zoomBehavior).on('dblclick.zoom', null);
@@ -1942,6 +2182,7 @@
                         .data(highlightData)
                         .join('g')
                         .attr('class', d => d.isSuggested ? 'highlight-point is-suggested' : 'highlight-point')
+                        .attr('data-region-index', d => Number.isInteger(d.index) ? d.index : null)
                         .attr('transform', d => {
                             const projected = projection([d.longitude, d.latitude]);
                             return projected ? `translate(${projected[0]}, ${projected[1]})` : null;
@@ -1971,7 +2212,7 @@
                             return d.isSuggested ? `${formattedLabel} (Suggested appellation)` : formattedLabel;
                         });
 
-                    const regionCards = Array.from(document.querySelectorAll('.region-card'));
+                    const regionCards = Array.from(document.querySelectorAll('.regions-panel .region-card'));
 
                     let selectedIndex = null;
 
@@ -2007,7 +2248,19 @@
                     };
 
                     const setSelectedIndex = (index, { focus = false } = {}) => {
+                        const point = highlightData.find(d => d.index === index);
+
                         if (index === selectedIndex) {
+                            if (focus && point) {
+                                focusOnPoint(point);
+                            }
+
+                            if (point) {
+                                showMapHoverCard(point);
+                            } else {
+                                hideMapHoverCard();
+                            }
+
                             return;
                         }
 
@@ -2022,15 +2275,26 @@
                             }
                         });
 
-                        if (focus) {
-                            const point = highlightData.find(d => d.index === index);
+                        if (point) {
+                            showMapHoverCard(point);
+                        } else {
+                            hideMapHoverCard();
+                        }
+
+                        if (focus && point) {
                             focusOnPoint(point);
                         }
                     };
 
                     highlightPoints
-                        .on('mouseenter', (_, d) => setHoveredIndex(d.index))
-                        .on('mouseleave', () => setHoveredIndex(null))
+                        .on('mouseenter', (_, d) => {
+                            setHoveredIndex(d.index);
+                            showMapHoverCard(d);
+                        })
+                        .on('mouseleave', () => {
+                            setHoveredIndex(null);
+                            hideMapHoverCard();
+                        })
                         .on('click', (_, d) => setSelectedIndex(d.index, { focus: true }));
 
                     regionCards.forEach(card => {
