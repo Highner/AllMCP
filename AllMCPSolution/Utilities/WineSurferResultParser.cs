@@ -67,12 +67,14 @@ public static class WineSurferResultParser
                     continue;
                 }
 
+                var country = TryGetTrimmedString(element, "country");
                 var region = TryGetTrimmedString(element, "region");
                 var appellation = TryGetTrimmedString(element, "appellation");
                 var subAppellation = TryGetTrimmedString(element, "subAppellation")
                     ?? TryGetTrimmedString(element, "sub_appellation");
+                var color = TryGetTrimmedString(element, "color");
 
-                list.Add(new WineSurferLookupResult(name, region, appellation, subAppellation));
+                list.Add(new WineSurferLookupResult(name, country, region, appellation, subAppellation, color));
                 if (list.Count == MaxResults)
                 {
                     break;

@@ -11,7 +11,7 @@ public class WineSurferResultParserTests
     [Fact]
     public void TryParse_ReturnsMatches_ForValidObjectPayload()
     {
-        const string payload = "{\"wines\":[{\"name\":\"Chateau Example\",\"region\":\"Bordeaux\",\"appellation\":\"Pauillac\",\"subAppellation\":\"Lafite\"}]}";
+        const string payload = "{\"wines\":[{\"name\":\"Chateau Example\",\"country\":\"France\",\"region\":\"Bordeaux\",\"appellation\":\"Pauillac\",\"subAppellation\":\"Lafite\",\"color\":\"Red\"}]}";
 
         var success = WineSurferResultParser.TryParse(payload, out var matches);
 
@@ -19,9 +19,11 @@ public class WineSurferResultParserTests
         matches.Should().HaveCount(1);
         matches[0].Should().BeEquivalentTo(new WineSurferLookupResult(
             "Chateau Example",
+            "France",
             "Bordeaux",
             "Pauillac",
-            "Lafite"));
+            "Lafite",
+            "Red"));
     }
 
     [Fact]
@@ -35,8 +37,12 @@ public class WineSurferResultParserTests
         matches.Should().HaveCount(2);
         matches[0].Name.Should().Be("Wine A");
         matches[0].Region.Should().Be("Region");
+        matches[0].Country.Should().BeNull();
+        matches[0].Color.Should().BeNull();
         matches[1].Name.Should().Be("Wine B");
         matches[1].Region.Should().BeNull();
+        matches[1].Country.Should().BeNull();
+        matches[1].Color.Should().BeNull();
     }
 
     [Fact]
