@@ -56,6 +56,17 @@ window.WineInventoryTables.initialize = function () {
             const notesTitle = document.getElementById('notes-title');
             const notesSubtitle = document.getElementById('notes-subtitle');
             const notesCloseButton = document.getElementById('notes-close');
+            const locationSection = document.getElementById('inventory-locations');
+            const locationList = locationSection?.querySelector('[data-location-list]');
+            const locationTemplate = document.getElementById('inventory-location-template');
+            const locationMessage = locationSection?.querySelector('[data-location-message]');
+            const locationEmpty = locationSection?.querySelector('[data-location-empty]');
+            const locationCreateCard = locationSection?.querySelector('[data-location-create]');
+            const locationCreateForm = locationCreateCard?.querySelector('[data-location-create-form]');
+            const locationCreateInput = locationCreateForm?.querySelector('[data-location-input]');
+            const locationCreateCancel = locationCreateForm?.querySelector('[data-location-cancel]');
+            const locationAddButton = locationSection?.querySelector('[data-location-add]');
+            const currentUserId = locationSection?.dataset?.currentUserId ?? locationSection?.getAttribute('data-current-user-id') ?? '';
             const notesEnabled = Boolean(notesPanel && notesTable && notesBody && notesAddRow && notesEmptyRow && notesAddUserDisplay && notesAddScore && notesAddText && notesAddButton && notesMessage && notesTitle && notesSubtitle && notesCloseButton);
 
             if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner) {
@@ -137,6 +148,7 @@ window.WineInventoryTables.initialize = function () {
 
             resetDetailsView();
 
+            initializeLocationSection();
             initializeSummaryRows();
             bindAddWinePopover();
             bindDetailAddRow();
@@ -969,6 +981,587 @@ window.WineInventoryTables.initialize = function () {
                 showNotesMessage('', 'info');
             }
 
+            function initializeLocationSection() {
+                if (!locationSection || !locationList) {
+                    return;
+                }
+
+                setLocationMessage('');
+
+                const cards = Array.from(locationList.querySelectorAll('[data-location-card]'));
+                cards.forEach(card => {
+                    bindLocationCard(card);
+                    updateLocationCardCounts(card);
+                });
+
+                if (locationAddButton) {
+                    locationAddButton.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        openLocationCreateForm();
+                    });
+                }
+
+                if (locationCreateCancel) {
+                    locationCreateCancel.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        closeLocationCreateForm();
+                    });
+                }
+
+                if (locationCreateForm) {
+                    locationCreateForm.addEventListener('submit', (event) => {
+                        event.preventDefault();
+                        handleLocationCreate();
+                    });
+                }
+
+                closeLocationCreateForm();
+                updateLocationEmptyState();
+            }
+
+            function openLocationCreateForm() {
+                if (!locationCreateCard || !locationCreateForm) {
+                    return;
+                }
+
+                locationCreateCard.removeAttribute('hidden');
+                setLocationError(locationCreateForm, '');
+                if (locationCreateInput) {
+                    locationCreateInput.value = '';
+                    locationCreateInput.focus();
+                }
+                updateLocationEmptyState();
+            }
+
+            function closeLocationCreateForm() {
+                if (!locationCreateCard || !locationCreateForm) {
+                    return;
+                }
+
+                locationCreateCard.setAttribute('hidden', 'hidden');
+                if (locationCreateInput) {
+                    locationCreateInput.value = '';
+                }
+                setLocationFormLoading(locationCreateForm, false);
+                setLocationError(locationCreateForm, '');
+                updateLocationEmptyState();
+            }
+
+            async function handleLocationCreate() {
+                if (!locationCreateForm) {
+                    return;
+                }
+
+                const nameField = locationCreateForm.querySelector('[data-location-input]');
+                const proposedName = (nameField?.value ?? '').trim();
+                if (!proposedName) {
+                    setLocationError(locationCreateForm, 'Location name is required.');
+                    nameField?.focus();
+                    return;
+                }
+
+                if (!currentUserId) {
+                    setLocationError(locationCreateForm, 'Unable to determine current user.');
+                    return;
+                }
+
+                setLocationError(locationCreateForm, '');
+                setLocationFormLoading(locationCreateForm, true);
+
+                try {
+                    const response = await sendJson('/api/BottleLocations', {
+                        method: 'POST',
+                        body: JSON.stringify({ name: proposedName, userId: currentUserId })
+                    });
+                    const normalized = normalizeLocation(response);
+                    if (!normalized) {
+                        throw new Error('Location could not be created.');
+                    }
+
+                    const card = createLocationCardElement(normalized, {
+                        bottleCount: 0,
+                        uniqueCount: 0,
+                        cellaredCount: 0,
+                        drunkCount: 0
+                    });
+
+                    if (card) {
+                        insertLocationCard(card);
+                    }
+
+                    addLocationToReference(normalized);
+                    setLocationMessage(`Location '${normalized.name}' created.`, 'success');
+                    closeLocationCreateForm();
+                } catch (error) {
+                    setLocationError(locationCreateForm, error?.message ?? String(error));
+                } finally {
+                    setLocationFormLoading(locationCreateForm, false);
+                }
+            }
+
+            function bindLocationCard(card) {
+                if (!card) {
+                    return;
+                }
+
+                const editButton = card.querySelector('[data-location-edit]');
+                const deleteButton = card.querySelector('[data-location-delete]');
+                const form = card.querySelector('[data-location-edit-form]');
+                const cancelButton = form?.querySelector('[data-location-cancel]');
+                const input = form?.querySelector('[data-location-input]');
+
+                editButton?.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    openLocationEdit(card);
+                });
+
+                cancelButton?.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    closeLocationEdit(card);
+                });
+
+                if (form && input) {
+                    form.addEventListener('submit', (event) => {
+                        event.preventDefault();
+                        handleLocationUpdate(card, form, input);
+                    });
+                }
+
+                deleteButton?.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    handleLocationDelete(card);
+                });
+            }
+
+            function openLocationEdit(card) {
+                if (!card) {
+                    return;
+                }
+
+                const view = card.querySelector('[data-location-view]');
+                const form = card.querySelector('[data-location-edit-form]');
+                const input = form?.querySelector('[data-location-input]');
+                if (!form || !view) {
+                    return;
+                }
+
+                view.hidden = true;
+                form.hidden = false;
+                setLocationError(form, '');
+                if (input) {
+                    input.value = card.dataset.locationName ?? '';
+                    input.focus();
+                    input.select();
+                }
+            }
+
+            function closeLocationEdit(card) {
+                if (!card) {
+                    return;
+                }
+
+                const view = card.querySelector('[data-location-view]');
+                const form = card.querySelector('[data-location-edit-form]');
+                const input = form?.querySelector('[data-location-input]');
+                if (!form || !view) {
+                    return;
+                }
+
+                view.hidden = false;
+                form.hidden = true;
+                setLocationError(form, '');
+                if (input) {
+                    input.value = card.dataset.locationName ?? '';
+                }
+            }
+
+            async function handleLocationUpdate(card, form, input) {
+                const locationId = card?.dataset?.locationId ?? '';
+                if (!locationId) {
+                    setLocationError(form, 'Location identifier is missing.');
+                    return;
+                }
+
+                const proposedName = (input?.value ?? '').trim();
+                if (!proposedName) {
+                    setLocationError(form, 'Location name is required.');
+                    input?.focus();
+                    return;
+                }
+
+                if (!currentUserId) {
+                    setLocationError(form, 'Unable to determine current user.');
+                    return;
+                }
+
+                const currentName = (card.dataset.locationName ?? '').trim();
+                if (currentName && currentName === proposedName) {
+                    closeLocationEdit(card);
+                    return;
+                }
+
+                setLocationError(form, '');
+                setLocationFormLoading(form, true);
+                setLocationCardLoading(card, true);
+
+                try {
+                    const response = await sendJson(`/api/BottleLocations/${encodeURIComponent(locationId)}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ name: proposedName, userId: currentUserId })
+                    });
+                    const normalized = normalizeLocation(response) ?? { id: locationId, name: proposedName };
+
+                    updateLocationCardName(card, normalized.name ?? proposedName);
+                    closeLocationEdit(card);
+                    reorderLocationCard(card);
+                    updateReferenceLocation(normalized);
+                    setLocationMessage(`Location renamed to '${normalized.name ?? proposedName}'.`, 'success');
+                } catch (error) {
+                    setLocationError(form, error?.message ?? String(error));
+                } finally {
+                    setLocationFormLoading(form, false);
+                    setLocationCardLoading(card, false);
+                }
+            }
+
+            async function handleLocationDelete(card) {
+                const locationId = card?.dataset?.locationId ?? '';
+                if (!locationId) {
+                    return;
+                }
+
+                const displayName = card.dataset.locationName || card.querySelector('[data-location-name]')?.textContent || 'this location';
+                const confirmed = window.confirm(`Delete ${displayName}? Bottles assigned to this location will no longer be associated with it.`);
+                if (!confirmed) {
+                    return;
+                }
+
+                setLocationCardLoading(card, true);
+
+                try {
+                    await sendJson(`/api/BottleLocations/${encodeURIComponent(locationId)}`, { method: 'DELETE' });
+                    removeLocationCard(card);
+                    removeReferenceLocation(locationId);
+                    setLocationMessage(`Location '${displayName}' deleted.`, 'success');
+                } catch (error) {
+                    setLocationCardLoading(card, false);
+                    setLocationMessage(error?.message ?? String(error), 'error');
+                }
+            }
+
+            function createLocationCardElement(location, counts) {
+                if (!locationTemplate?.content || !location) {
+                    return null;
+                }
+
+                const fragment = locationTemplate.content.cloneNode(true);
+                const card = fragment.querySelector('[data-location-card]');
+                if (!card) {
+                    return null;
+                }
+
+                updateLocationCardName(card, location.name ?? '');
+                card.dataset.locationId = location.id ?? '';
+                setLocationDatasetCounts(card, counts ?? {});
+                updateLocationCardCounts(card);
+                bindLocationCard(card);
+                return card;
+            }
+
+            function insertLocationCard(card) {
+                if (!locationList || !card) {
+                    return;
+                }
+
+                const newName = (card.dataset.locationName ?? '').toString().toLocaleLowerCase();
+                const cards = Array.from(locationList.querySelectorAll('[data-location-card]')).filter(existing => existing !== card);
+                const referenceNode = cards.find(existing => {
+                    const existingName = (existing.dataset.locationName ?? '').toString().toLocaleLowerCase();
+                    return newName.localeCompare(existingName, undefined, { sensitivity: 'base' }) < 0;
+                });
+
+                if (referenceNode) {
+                    locationList.insertBefore(card, referenceNode);
+                } else {
+                    locationList.appendChild(card);
+                }
+
+                updateLocationCardCounts(card);
+                updateLocationEmptyState();
+            }
+
+            function reorderLocationCard(card) {
+                if (!locationList || !card) {
+                    return;
+                }
+
+                const cards = Array.from(locationList.querySelectorAll('[data-location-card]')).filter(existing => existing !== card);
+                const newName = (card.dataset.locationName ?? '').toString().toLocaleLowerCase();
+                let inserted = false;
+                for (const existing of cards) {
+                    const existingName = (existing.dataset.locationName ?? '').toString().toLocaleLowerCase();
+                    if (newName.localeCompare(existingName, undefined, { sensitivity: 'base' }) < 0) {
+                        locationList.insertBefore(card, existing);
+                        inserted = true;
+                        break;
+                    }
+                }
+
+                if (!inserted) {
+                    locationList.appendChild(card);
+                }
+            }
+
+            function updateLocationCardName(card, name) {
+                if (!card) {
+                    return;
+                }
+
+                const normalizedName = name != null ? String(name) : '';
+                card.dataset.locationName = normalizedName;
+                const title = card.querySelector('[data-location-name]');
+                if (title) {
+                    title.textContent = normalizedName;
+                }
+            }
+
+            function setLocationDatasetCounts(card, counts) {
+                if (!card) {
+                    return;
+                }
+
+                const bottleCount = Number(counts?.bottleCount ?? counts?.BottleCount ?? card.dataset.bottleCount ?? 0) || 0;
+                const uniqueCount = Number(counts?.uniqueCount ?? counts?.UniqueWineCount ?? card.dataset.uniqueCount ?? 0) || 0;
+                const drunkCount = Number(counts?.drunkCount ?? counts?.DrunkBottleCount ?? card.dataset.drunkCount ?? 0) || 0;
+                const cellaredSource = counts?.cellaredCount ?? counts?.CellaredBottleCount ?? card.dataset.cellaredCount;
+                let cellaredCount = Number(cellaredSource ?? (bottleCount - drunkCount));
+                if (!Number.isFinite(cellaredCount)) {
+                    cellaredCount = bottleCount - drunkCount;
+                }
+
+                card.dataset.bottleCount = String(bottleCount);
+                card.dataset.uniqueCount = String(uniqueCount);
+                card.dataset.drunkCount = String(drunkCount);
+                card.dataset.cellaredCount = String(cellaredCount);
+            }
+
+            function updateLocationCardCounts(card) {
+                if (!card) {
+                    return;
+                }
+
+                const bottleCount = Number(card.dataset.bottleCount ?? '0') || 0;
+                const uniqueCount = Number(card.dataset.uniqueCount ?? '0') || 0;
+                const drunkCount = Number(card.dataset.drunkCount ?? '0') || 0;
+                const cellaredCount = Number(card.dataset.cellaredCount ?? String(bottleCount - drunkCount)) || 0;
+
+                const bottleLabel = `${bottleCount} bottle${bottleCount === 1 ? '' : 's'}`;
+                const uniqueLabel = uniqueCount > 0
+                    ? `· ${uniqueCount} unique wine${uniqueCount === 1 ? '' : 's'}`
+                    : '';
+
+                const bottleTarget = card.querySelector('[data-location-bottle-count]');
+                if (bottleTarget) {
+                    bottleTarget.textContent = bottleLabel;
+                }
+
+                const uniqueTarget = card.querySelector('[data-location-wine-count]');
+                if (uniqueTarget) {
+                    uniqueTarget.textContent = uniqueLabel;
+                }
+
+                const descriptionTarget = card.querySelector('[data-location-description]');
+                if (descriptionTarget) {
+                    if (bottleCount > 0) {
+                        const safeCellared = Math.max(cellaredCount, 0);
+                        descriptionTarget.textContent = `${safeCellared} cellared · ${drunkCount} enjoyed`;
+                    } else {
+                        descriptionTarget.textContent = 'No bottles stored here yet.';
+                    }
+                }
+            }
+
+            function setLocationMessage(message, variant = 'info') {
+                if (!locationMessage) {
+                    return;
+                }
+
+                const text = message ? String(message).trim() : '';
+                if (!text) {
+                    locationMessage.textContent = '';
+                    locationMessage.setAttribute('hidden', 'hidden');
+                    locationMessage.removeAttribute('data-variant');
+                    return;
+                }
+
+                locationMessage.textContent = text;
+                locationMessage.dataset.variant = variant;
+                locationMessage.removeAttribute('hidden');
+            }
+
+            function setLocationError(container, message) {
+                if (!container) {
+                    return;
+                }
+
+                const target = container.querySelector('[data-location-error]');
+                if (!target) {
+                    return;
+                }
+
+                const text = message ? String(message).trim() : '';
+                target.textContent = text;
+                if (text) {
+                    target.removeAttribute('aria-hidden');
+                } else {
+                    target.setAttribute('aria-hidden', 'true');
+                }
+            }
+
+            function toggleDisabledWithMemory(element, state) {
+                if (!element) {
+                    return;
+                }
+
+                if (state) {
+                    element.dataset.prevDisabled = element.disabled ? 'true' : 'false';
+                    element.disabled = true;
+                } else {
+                    const wasDisabled = element.dataset.prevDisabled === 'true';
+                    element.disabled = wasDisabled;
+                    delete element.dataset.prevDisabled;
+                }
+            }
+
+            function setLocationFormLoading(form, state) {
+                if (!form) {
+                    return;
+                }
+
+                const elements = form.querySelectorAll('input, button, textarea, select');
+                elements.forEach(element => toggleDisabledWithMemory(element, state));
+            }
+
+            function setLocationCardLoading(card, state) {
+                if (!card) {
+                    return;
+                }
+
+                const actions = card.querySelectorAll('[data-location-edit], [data-location-delete]');
+                actions.forEach(button => toggleDisabledWithMemory(button, state));
+            }
+
+            function removeLocationCard(card) {
+                if (!card) {
+                    return;
+                }
+
+                card.remove();
+                updateLocationEmptyState();
+            }
+
+            function updateLocationEmptyState() {
+                if (!locationEmpty) {
+                    return;
+                }
+
+                const hasCards = Boolean(locationList?.querySelector('[data-location-card]'));
+                const createVisible = locationCreateCard && !locationCreateCard.hasAttribute('hidden');
+
+                if (hasCards || createVisible) {
+                    locationEmpty.setAttribute('hidden', 'hidden');
+                } else {
+                    locationEmpty.removeAttribute('hidden');
+                }
+            }
+
+            function addLocationToReference(location) {
+                const normalized = normalizeLocation(location);
+                if (!normalized) {
+                    return;
+                }
+
+                referenceData.bottleLocations = sortLocations([...referenceData.bottleLocations, normalized]);
+                refreshLocationOptions();
+            }
+
+            function updateReferenceLocation(location) {
+                const normalized = normalizeLocation(location);
+                if (!normalized) {
+                    return;
+                }
+
+                referenceData.bottleLocations = sortLocations([...referenceData.bottleLocations, normalized]);
+                refreshLocationOptions();
+            }
+
+            function removeReferenceLocation(locationId) {
+                if (!locationId) {
+                    return;
+                }
+
+                referenceData.bottleLocations = referenceData.bottleLocations.filter(option => {
+                    const normalized = normalizeLocation(option);
+                    return normalized?.id && normalized.id !== locationId;
+                });
+                refreshLocationOptions();
+            }
+
+            function refreshLocationOptions() {
+                if (detailAddLocation) {
+                    populateLocationSelect(detailAddLocation, detailAddLocation.value ?? '');
+                }
+
+                if (detailsBody) {
+                    const selects = Array.from(detailsBody.querySelectorAll('.detail-location'));
+                    selects.forEach(select => {
+                        populateLocationSelect(select, select.value ?? '');
+                    });
+                }
+            }
+
+            function normalizeLocation(raw) {
+                if (!raw) {
+                    return null;
+                }
+
+                const id = raw.id ?? raw.Id ?? raw.locationId ?? raw.LocationId;
+                if (!id) {
+                    return null;
+                }
+
+                const nameValue = raw.name ?? raw.Name ?? raw.label ?? raw.Label ?? '';
+                const userValue = raw.userId ?? raw.UserId ?? raw.ownerId ?? raw.OwnerId ?? '';
+                const normalized = {
+                    id: String(id),
+                    name: typeof nameValue === 'string' ? nameValue : String(nameValue ?? id)
+                };
+                if (userValue) {
+                    normalized.userId = String(userValue);
+                }
+                return normalized;
+            }
+
+            function sortLocations(list) {
+                const seen = new Map();
+                list.forEach(item => {
+                    const normalized = normalizeLocation(item);
+                    if (normalized?.id) {
+                        seen.set(normalized.id, normalized);
+                    }
+                });
+
+                return Array.from(seen.values()).sort((a, b) => {
+                    const nameA = (a.name ?? '').toString().toLocaleLowerCase();
+                    const nameB = (b.name ?? '').toString().toLocaleLowerCase();
+                    if (nameA === nameB) {
+                        return (a.id ?? '').localeCompare(b.id ?? '');
+                    }
+
+                    return nameA.localeCompare(nameB);
+                });
+            }
+
             async function loadReferenceData() {
                 try {
                     const response = await sendJson('/wine-manager/options', { method: 'GET' });
@@ -989,10 +1582,10 @@ window.WineInventoryTables.initialize = function () {
                             : [];
 
                     referenceData.subAppellations = subApps;
-                    referenceData.bottleLocations = locations;
+                    referenceData.bottleLocations = sortLocations(locations);
                     referenceData.users = users;
 
-                    populateLocationSelect(detailAddLocation, detailAddLocation?.value ?? '');
+                    refreshLocationOptions();
                 } catch (error) {
                     showMessage(error.message, 'error');
                 }

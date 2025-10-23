@@ -43,6 +43,7 @@
     }
 
     var hasBottles = Model.Bottles.Any();
+    var hasLocations = Model.Locations.Any();
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
         ?? WineSurferTopBarModel.Empty(currentPath);
     var bottleHeaderContent = await Html.PartialAsync("_BottleDetailsHeaderControls");
@@ -232,6 +233,130 @@
             <button type="submit">Apply</button>
             <button type="button" class="secondary filters__clear-button" data-clear-filters>Clear filters</button>
         </form>
+
+        <section id="inventory-locations"
+                 class="inventory-locations"
+                 data-current-user-id="@Model.CurrentUserId">
+            <div class="location-header">
+                <div class="location-header-text">
+                    <h2 class="location-title">Storage Locations</h2>
+                    <p class="location-description">Keep track of where every bottle lives across your cellar.</p>
+                </div>
+                <button type="button" class="sisterhood-button sisterhood-button--primary" data-location-add>Add location</button>
+            </div>
+            <div class="location-message" data-location-message hidden aria-live="polite"></div>
+            <div class="location-grid" data-location-list>
+                <article class="wine-card wine-surface wine-surface-border wine-card-hover location-card location-card--create"
+                         data-location-create hidden>
+                    <form class="location-edit-form" data-location-create-form>
+                        <label class="location-edit-label">
+                            <span class="wine-card__meta">Location name</span>
+                            <input type="text"
+                                   class="location-edit-input"
+                                   data-location-input
+                                   placeholder="e.g., Main Cellar"
+                                   maxlength="128" />
+                        </label>
+                        <div class="location-edit-actions">
+                            <button type="button" class="sisterhood-button sisterhood-button--ghost" data-location-cancel>Cancel</button>
+                            <button type="submit" class="sisterhood-button sisterhood-button--primary" data-location-submit>Create</button>
+                        </div>
+                        <p class="location-edit-error" data-location-error aria-live="polite" aria-hidden="true"></p>
+                    </form>
+                </article>
+                @foreach (var location in Model.Locations)
+                {
+                    var bottleLabel = $"{location.BottleCount} bottle{(location.BottleCount == 1 ? string.Empty : "s")}";
+                    var uniqueLabel = location.UniqueWineCount > 0
+                        ? $"· {location.UniqueWineCount} unique wine{(location.UniqueWineCount == 1 ? string.Empty : "s")}" : string.Empty;
+                    var statusLabel = location.BottleCount > 0
+                        ? $"{location.CellaredBottleCount} cellared · {location.DrunkBottleCount} enjoyed"
+                        : "No bottles stored here yet.";
+                    <article class="wine-card wine-surface wine-surface-border wine-card-hover location-card"
+                             data-location-card
+                             data-location-id="@location.Id"
+                             data-location-name="@location.Name"
+                             data-bottle-count="@location.BottleCount"
+                             data-unique-count="@location.UniqueWineCount"
+                             data-cellared-count="@location.CellaredBottleCount"
+                             data-drunk-count="@location.DrunkBottleCount">
+                        <div class="location-card-view" data-location-view>
+                            <div class="wine-card__header location-card-header">
+                                <div class="location-card-text">
+                                    <h3 class="wine-card__title location-card-name" data-location-name>@location.Name</h3>
+                                    <p class="wine-card__subtitle location-card-subtitle">
+                                        <span data-location-bottle-count>@bottleLabel</span>
+                                        <span data-location-wine-count>@uniqueLabel</span>
+                                    </p>
+                                </div>
+                                <div class="wine-card__actions location-card-actions">
+                                    <button type="button" class="sisterhood-button" data-location-edit>Rename</button>
+                                    <button type="button" class="sisterhood-button sisterhood-button--ghost-danger" data-location-delete>Delete</button>
+                                </div>
+                            </div>
+                            <p class="wine-card__description location-card-description" data-location-description>@statusLabel</p>
+                        </div>
+                        <form class="location-edit-form" data-location-edit-form hidden>
+                            <label class="location-edit-label">
+                                <span class="wine-card__meta">Location name</span>
+                                <input type="text"
+                                       class="location-edit-input"
+                                       data-location-input
+                                       value="@location.Name"
+                                       maxlength="128"
+                                       required />
+                            </label>
+                            <div class="location-edit-actions">
+                                <button type="button" class="sisterhood-button sisterhood-button--ghost" data-location-cancel>Cancel</button>
+                                <button type="submit" class="sisterhood-button sisterhood-button--primary" data-location-submit>Save</button>
+                            </div>
+                            <p class="location-edit-error" data-location-error aria-live="polite" aria-hidden="true"></p>
+                        </form>
+                    </article>
+                }
+            </div>
+            <article class="wine-card wine-surface wine-surface-border wine-card-hover location-empty" data-location-empty @(hasLocations ? "hidden" : null)>
+                <p>No storage locations yet. Create your first location to start organizing your cellar.</p>
+            </article>
+            <template id="inventory-location-template">
+                <article class="wine-card wine-surface wine-surface-border wine-card-hover location-card"
+                         data-location-card
+                         data-location-id=""
+                         data-location-name=""
+                         data-bottle-count="0"
+                         data-unique-count="0"
+                         data-cellared-count="0"
+                         data-drunk-count="0">
+                    <div class="location-card-view" data-location-view>
+                        <div class="wine-card__header location-card-header">
+                            <div class="location-card-text">
+                                <h3 class="wine-card__title location-card-name" data-location-name></h3>
+                                <p class="wine-card__subtitle location-card-subtitle">
+                                    <span data-location-bottle-count></span>
+                                    <span data-location-wine-count></span>
+                                </p>
+                            </div>
+                            <div class="wine-card__actions location-card-actions">
+                                <button type="button" class="sisterhood-button" data-location-edit>Rename</button>
+                                <button type="button" class="sisterhood-button sisterhood-button--ghost-danger" data-location-delete>Delete</button>
+                            </div>
+                        </div>
+                        <p class="wine-card__description location-card-description" data-location-description></p>
+                    </div>
+                    <form class="location-edit-form" data-location-edit-form hidden>
+                        <label class="location-edit-label">
+                            <span class="wine-card__meta">Location name</span>
+                            <input type="text" class="location-edit-input" data-location-input maxlength="128" required />
+                        </label>
+                        <div class="location-edit-actions">
+                            <button type="button" class="sisterhood-button sisterhood-button--ghost" data-location-cancel>Cancel</button>
+                            <button type="submit" class="sisterhood-button sisterhood-button--primary" data-location-submit>Save</button>
+                        </div>
+                        <p class="location-edit-error" data-location-error aria-live="polite" aria-hidden="true"></p>
+                    </form>
+                </article>
+            </template>
+        </section>
 
         @if (!hasBottles)
         {

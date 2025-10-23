@@ -971,6 +971,40 @@ textarea:focus {
     border-color: rgba(244, 241, 234, 0.6);
 }
 
+.sisterhood-button--danger {
+    border-color: rgba(181, 65, 65, 0.45);
+    color: #f6dcdc;
+}
+
+.sisterhood-button--danger:hover,
+.sisterhood-button--danger:focus-visible {
+    background: rgba(181, 65, 65, 0.25);
+    color: #ffe3e3;
+}
+
+.sisterhood-button--ghost {
+    background: transparent;
+    border-color: rgba(244, 241, 234, 0.16);
+    color: rgba(244, 241, 234, 0.85);
+}
+
+.sisterhood-button--ghost:hover,
+.sisterhood-button--ghost:focus-visible {
+    background: rgba(244, 241, 234, 0.1);
+    color: #f4f1ea;
+}
+
+.sisterhood-button--ghost-danger {
+    border-color: rgba(214, 104, 86, 0.45);
+    color: #f3b0a3;
+}
+
+.sisterhood-button--ghost-danger:hover,
+.sisterhood-button--ghost-danger:focus-visible {
+    background: rgba(214, 104, 86, 0.15);
+    color: #ffd6cc;
+}
+
 .filters button,
 .details-controls button,
 .details-table button,
@@ -1879,6 +1913,159 @@ tbody tr:hover {
 .details-grid {
     display: grid;
     gap: 24px;
+}
+
+.inventory-locations {
+    margin: 36px auto 48px;
+    padding: 0 0 8px;
+    width: min(1080px, 100%);
+    display: grid;
+    gap: 24px;
+}
+
+.location-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.location-header-text {
+    display: grid;
+    gap: 6px;
+}
+
+.location-title {
+    margin: 0;
+    font-size: 20px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+}
+
+.location-description {
+    margin: 0;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    color: rgba(244, 241, 234, 0.65);
+}
+
+.location-message {
+    border-radius: 14px;
+    border: 1px solid rgba(244, 241, 234, 0.12);
+    background: rgba(244, 241, 234, 0.06);
+    padding: 14px 18px;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    color: rgba(244, 241, 234, 0.8);
+}
+
+.location-message[hidden] {
+    display: none;
+}
+
+.location-message[data-variant="success"] {
+    border-color: rgba(126, 216, 182, 0.5);
+    color: #c7f3dd;
+}
+
+.location-message[data-variant="error"] {
+    border-color: rgba(214, 104, 86, 0.6);
+    color: #ffb8a8;
+}
+
+.location-grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.location-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.location-card .wine-card__actions {
+    justify-content: flex-end;
+}
+
+.location-card-header {
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.location-card-text {
+    display: grid;
+    gap: 6px;
+}
+
+.location-card-description {
+    margin: 0;
+    color: rgba(244, 241, 234, 0.74);
+    letter-spacing: 1.2px;
+}
+
+.location-edit-form {
+    display: grid;
+    gap: 12px;
+}
+
+.location-edit-label {
+    display: grid;
+    gap: 6px;
+}
+
+.location-edit-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(244, 241, 234, 0.2);
+    background: rgba(244, 241, 234, 0.05);
+    color: #f4f1ea;
+    letter-spacing: 1px;
+}
+
+.location-edit-input:focus {
+    outline: none;
+    border-color: rgba(244, 241, 234, 0.35);
+    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.18);
+}
+
+.location-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.location-edit-error {
+    margin: 0;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: #f7b6b1;
+    min-height: 16px;
+}
+
+.location-card--create {
+    border: 1px dashed rgba(244, 241, 234, 0.18);
+    background: rgba(244, 241, 234, 0.03);
+}
+
+.location-card--create .location-edit-form {
+    height: 100%;
+}
+
+.location-empty {
+    text-align: center;
+    margin: 0;
+    padding: 26px;
+    letter-spacing: 1.4px;
+    color: rgba(244, 241, 234, 0.72);
+}
+
+.location-empty p {
+    margin: 0;
 }
 
 @media (max-width: 900px) {
