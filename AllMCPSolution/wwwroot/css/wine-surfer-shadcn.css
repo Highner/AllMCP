@@ -2437,6 +2437,19 @@ tbody tr:hover {
     }
 }
 
+@media (max-width: 768px) {
+    .details-table .details-header--price,
+    .details-table .details-header--enjoyed,
+    .details-table .detail-price-cell,
+    .details-table .detail-enjoyed-at {
+        display: none;
+    }
+
+    .details-table .detail-location-cell {
+        width: 100%;
+    }
+}
+
 @media (max-width: 600px) {
     h1 {
         font-size: 40px;
