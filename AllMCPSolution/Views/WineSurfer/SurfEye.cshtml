@@ -301,12 +301,80 @@
 
         .surf-eye-wine__foot {
             display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .surf-eye-wine__foot-meta {
+            flex: 1 1 auto;
+            display: flex;
             flex-wrap: wrap;
             gap: 12px;
             font-size: 0.85rem;
             letter-spacing: 1px;
             text-transform: uppercase;
             color: rgba(244, 241, 234, 0.6);
+        }
+
+        .surf-eye-wine__foot-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .surf-eye-add-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(244, 241, 234, 0.28);
+            background: rgba(244, 241, 234, 0.12);
+            color: #f4f1ea;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .surf-eye-add-button:hover,
+        .surf-eye-add-button:focus-visible {
+            background: rgba(244, 241, 234, 0.2);
+            border-color: rgba(244, 241, 234, 0.45);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .surf-eye-add-button:focus-visible {
+            outline: 2px solid rgba(244, 241, 234, 0.6);
+            outline-offset: 3px;
+        }
+
+        .surf-eye-add-button[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .surf-eye-cellar-message {
+            margin: 0;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .surf-eye-cellar-message[data-state="success"] {
+            color: #9cf2c6;
+        }
+
+        .surf-eye-cellar-message[data-state="error"] {
+            color: #ff9ca3;
         }
 
         .surf-eye-empty {
@@ -357,13 +425,16 @@
                     <div id="surf-eye-status" class="surf-eye-status">@(hasTasteProfile ? "Snap a photo to begin." : "Add a taste profile to unlock Surf Eye.")</div>
                     <div id="surf-eye-results" class="surf-eye-results">
                         <p id="surf-eye-summary" class="surf-eye-summary"></p>
+                        <p class="surf-eye-cellar-message" data-favorite-message hidden role="status"></p>
                         <ul id="surf-eye-wines" class="surf-eye-wines"></ul>
                         <div id="surf-eye-empty" class="surf-eye-empty">Surf Eye is waiting for a photo.</div>
                     </div>
                 </form>
             </section>
+            @await Html.PartialAsync("_InventoryAddModal")
         </main>
     </div>
+    <script src="/js/wine-surfer-favorites.js"></script>
 <script>
 (() => {
     const form = document.getElementById('surf-eye-form');
@@ -380,6 +451,7 @@
     const summaryEl = document.getElementById('surf-eye-summary');
     const winesList = document.getElementById('surf-eye-wines');
     const emptyState = document.getElementById('surf-eye-empty');
+    const cellarMessage = document.querySelector('[data-favorite-message]');
     const analyzeUrl = form.dataset.analyzeUrl ?? '';
     const hasTasteProfile = form.dataset.hasTasteProfile === 'true';
     const maxBytes = Number(form.dataset.maxBytes ?? '0');
@@ -414,6 +486,11 @@
         if (emptyState) {
             emptyState.textContent = 'Surf Eye is waiting for a photo.';
             emptyState.style.display = 'block';
+        }
+        if (cellarMessage) {
+            cellarMessage.textContent = '';
+            cellarMessage.hidden = true;
+            cellarMessage.dataset.state = 'info';
         }
         resultsSection?.classList.remove('is-visible');
     };
@@ -509,17 +586,38 @@
 
             const foot = document.createElement('div');
             foot.className = 'surf-eye-wine__foot';
-            foot.appendChild(document.createTextNode(formatConfidence(Number(wine.confidence))));
+
+            const footMeta = document.createElement('div');
+            footMeta.className = 'surf-eye-wine__foot-meta';
+
+            const confidence = document.createElement('span');
+            confidence.textContent = formatConfidence(Number(wine.confidence));
+            footMeta.appendChild(confidence);
+
             if (wine.region && !metaParts.includes(wine.region)) {
                 const region = document.createElement('span');
                 region.textContent = wine.region;
-                foot.appendChild(region);
+                footMeta.appendChild(region);
             }
             if (wine.variety && !metaParts.includes(wine.variety)) {
                 const variety = document.createElement('span');
                 variety.textContent = wine.variety;
-                foot.appendChild(variety);
+                footMeta.appendChild(variety);
             }
+
+            foot.appendChild(footMeta);
+
+            const footActions = document.createElement('div');
+            footActions.className = 'surf-eye-wine__foot-actions';
+
+            const addButton = document.createElement('button');
+            addButton.type = 'button';
+            addButton.className = 'surf-eye-add-button';
+            addButton.setAttribute('data-add-wine-trigger', 'surf-eye');
+            addButton.textContent = 'Add to my cellar';
+            footActions.appendChild(addButton);
+
+            foot.appendChild(footActions);
 
             body.appendChild(foot);
             item.appendChild(body);

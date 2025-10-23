@@ -97,11 +97,6 @@
     }
 
     function initializeFavoritesModal() {
-        const triggers = Array.from(document.querySelectorAll('[data-add-wine-trigger="favorites"]'));
-        if (triggers.length === 0) {
-            return;
-        }
-
         const overlay = document.getElementById('inventory-add-overlay');
         const popover = document.getElementById('inventory-add-popover');
         if (!overlay || !popover) {
@@ -130,14 +125,21 @@
         let wineOptionsPromise = null;
         let modalLoading = false;
 
-        triggers.forEach(trigger => {
-            trigger.addEventListener('click', event => {
-                event.preventDefault();
-                openModal().catch(err => {
-                    showStatus(err?.message ?? 'Unable to open add wine modal.', 'error');
-                });
+        const triggerSelector = '[data-add-wine-trigger="favorites"], [data-add-wine-trigger="surf-eye"]';
+
+        const handleTriggerClick = (event) => {
+            const trigger = event.target.closest(triggerSelector);
+            if (!trigger) {
+                return;
+            }
+
+            event.preventDefault();
+            openModal().catch(err => {
+                showStatus(err?.message ?? 'Unable to open add wine modal.', 'error');
             });
-        });
+        };
+
+        document.addEventListener('click', handleTriggerClick);
 
         const bindClose = (element) => {
             if (!element) {
