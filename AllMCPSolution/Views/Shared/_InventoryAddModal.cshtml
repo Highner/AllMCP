@@ -130,6 +130,144 @@
             <ul class="inventory-wine-surfer-list" aria-label="Wine Surfer matches"></ul>
         </div>
     };
+
+    var createWineModal = new WineSurferModalShell
+    {
+        BackdropId = "create-wine-overlay",
+        BackdropCssClass = "inventory-add-overlay wine-surfer-modal-backdrop create-wine-overlay",
+        BackdropAttributes = new Dictionary<string, string?>
+        {
+            ["hidden"] = null,
+            ["aria-hidden"] = "true"
+        },
+        DialogId = "create-wine-popover",
+        DialogCssClass = "inventory-add-popover wine-surfer-modal create-wine-popover",
+        DialogAttributes = new Dictionary<string, string?>
+        {
+            ["aria-labelledby"] = "create-wine-title"
+        },
+        HeaderCssClass = "wine-surfer-modal__header create-wine-header",
+        Title = "Create wine",
+        TitleCssClass = "wine-surfer-modal__title create-wine-title",
+        TitleElementId = "create-wine-title",
+        BodyCssClass = "wine-surfer-modal__body create-wine-body",
+        CloseButtonCssClass = "wine-surfer-modal__close create-wine-close",
+        CloseButtonLabel = "Close create wine dialog",
+        CloseButtonAttributes = new Dictionary<string, string?>
+        {
+            ["data-create-wine-close"] = null
+        },
+        BodyContent = @<form class="create-wine-form" novalidate>
+            <p class="create-wine-intro">Enter the wine details to add it to your cellar.</p>
+            <label class="inventory-add-field create-wine-field">
+                <span class="inventory-add-label create-wine-label">Wine name</span>
+                <input type="text"
+                       class="create-wine-name"
+                       placeholder="e.g. Penfolds Grange"
+                       aria-label="Wine name"
+                       maxlength="256"
+                       required />
+            </label>
+            <label class="inventory-add-field create-wine-field">
+                <span class="inventory-add-label create-wine-label">Color</span>
+                <select class="create-wine-color" aria-label="Color" required>
+                    <option value="Red">Red</option>
+                    <option value="White">White</option>
+                    <option value="Rose">Rosé</option>
+                </select>
+            </label>
+            <label class="inventory-add-field create-wine-field">
+                <span class="inventory-add-label create-wine-label">Country</span>
+                <div class="inventory-add-combobox create-wine-combobox" data-create-wine-combobox="country">
+                    <input type="search"
+                           class="create-wine-country-input"
+                           placeholder="Search or create a country"
+                           aria-label="Country"
+                           role="combobox"
+                           aria-autocomplete="list"
+                           aria-expanded="false"
+                           aria-controls="create-wine-country-results"
+                           autocomplete="off"
+                           spellcheck="false" />
+                    <div class="inventory-add-wine-results create-wine-results"
+                         id="create-wine-country-results"
+                         role="listbox"
+                         aria-label="Country suggestions"></div>
+                </div>
+            </label>
+            <label class="inventory-add-field create-wine-field">
+                <span class="inventory-add-label create-wine-label">Region</span>
+                <div class="inventory-add-combobox create-wine-combobox" data-create-wine-combobox="region">
+                    <input type="search"
+                           class="create-wine-region-input"
+                           placeholder="Search or create a region"
+                           aria-label="Region"
+                           role="combobox"
+                           aria-autocomplete="list"
+                           aria-expanded="false"
+                           aria-controls="create-wine-region-results"
+                           autocomplete="off"
+                           spellcheck="false" />
+                    <div class="inventory-add-wine-results create-wine-results"
+                         id="create-wine-region-results"
+                         role="listbox"
+                         aria-label="Region suggestions"></div>
+                </div>
+            </label>
+            <label class="inventory-add-field create-wine-field">
+                <span class="inventory-add-label create-wine-label">Appellation</span>
+                <div class="inventory-add-combobox create-wine-combobox" data-create-wine-combobox="appellation">
+                    <input type="search"
+                           class="create-wine-appellation-input"
+                           placeholder="Search or create an appellation"
+                           aria-label="Appellation"
+                           role="combobox"
+                           aria-autocomplete="list"
+                           aria-expanded="false"
+                           aria-controls="create-wine-appellation-results"
+                           autocomplete="off"
+                           spellcheck="false" />
+                    <div class="inventory-add-wine-results create-wine-results"
+                         id="create-wine-appellation-results"
+                         role="listbox"
+                         aria-label="Appellation suggestions"></div>
+                </div>
+            </label>
+            <label class="inventory-add-field create-wine-field">
+                <span class="inventory-add-label create-wine-label">Sub-appellation <span class="create-wine-optional">(optional)</span></span>
+                <div class="inventory-add-combobox create-wine-combobox" data-create-wine-combobox="sub-appellation">
+                    <input type="search"
+                           class="create-wine-sub-appellation-input"
+                           placeholder="Search or create a sub-appellation"
+                           aria-label="Sub-appellation"
+                           role="combobox"
+                           aria-autocomplete="list"
+                           aria-expanded="false"
+                           aria-controls="create-wine-sub-appellation-results"
+                           autocomplete="off"
+                           spellcheck="false" />
+                    <div class="inventory-add-wine-results create-wine-results"
+                         id="create-wine-sub-appellation-results"
+                         role="listbox"
+                         aria-label="Sub-appellation suggestions"></div>
+                </div>
+            </label>
+            <label class="inventory-add-field create-wine-field">
+                <span class="inventory-add-label create-wine-label">Grape variety <span class="create-wine-optional">(optional)</span></span>
+                <input type="text"
+                       class="create-wine-grape"
+                       placeholder="Optional"
+                       aria-label="Grape variety"
+                       maxlength="256" />
+            </label>
+            <p class="create-wine-error" role="alert" aria-hidden="true"></p>
+            <div class="create-wine-actions">
+                <button type="button" class="crud-table__action-button secondary create-wine-cancel">Cancel</button>
+                <button type="submit" class="crud-table__action-button create-wine-submit">Create wine</button>
+            </div>
+        </form>
+    };
 }
 @await Html.PartialAsync("_WineSurferModalShell", modal)
 @await Html.PartialAsync("_WineSurferModalShell", wineSurferModal)
+@await Html.PartialAsync("_WineSurferModalShell", createWineModal)
