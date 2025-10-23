@@ -171,6 +171,7 @@ window.WineInventoryTables.initialize = function () {
             let wineSurferActiveQuery = '';
             let wineSurferController = null;
             let wineSurferSelectionPending = false;
+            let wineSurferStreamChunkCount = 0;
 
             resetDetailsView();
 
@@ -478,7 +479,13 @@ window.WineInventoryTables.initialize = function () {
                         if (wineSurferSelectionPending) {
                             wineSurferStatus.textContent = 'Adding wine to your cellar…';
                         } else if (wineSurferLoading) {
-                            wineSurferStatus.textContent = 'Wine Surfer is searching…';
+                            if (wineSurferStreamChunkCount > 0) {
+                                wineSurferStatus.textContent = wineSurferStreamChunkCount === 1
+                                    ? 'Wine Surfer is gathering matches… (1 update received)'
+                                    : `Wine Surfer is gathering matches… (${wineSurferStreamChunkCount} updates received)`;
+                            } else {
+                                wineSurferStatus.textContent = 'Wine Surfer is searching…';
+                            }
                         } else if (wineSurferError) {
                             wineSurferStatus.textContent = wineSurferError;
                             wineSurferStatus.classList.add('is-error');
@@ -564,6 +571,7 @@ window.WineInventoryTables.initialize = function () {
                 wineSurferResults = [];
                 wineSurferActiveQuery = '';
                 wineSurferSelectionPending = false;
+                wineSurferStreamChunkCount = 0;
 
                 if (wineSurferOverlay) {
                     wineSurferOverlay.classList.remove('is-open');
@@ -598,28 +606,23 @@ window.WineInventoryTables.initialize = function () {
                 wineSurferError = '';
                 wineSurferResults = [];
                 wineSurferActiveQuery = trimmedQuery;
+                wineSurferStreamChunkCount = 0;
                 renderWineSurferResults();
 
                 const controller = new AbortController();
                 wineSurferController = controller;
 
                 try {
-                    const response = await sendJson(`/wine-manager/wine-surfer?query=${encodeURIComponent(trimmedQuery)}`, {
-                        method: 'GET',
-                        signal: controller.signal
-                    });
+                    const streamSupported = supportsReadableStream();
+                    if (streamSupported) {
+                        await streamWineSurferMatches(trimmedQuery, controller);
+                    } else {
+                        await fetchWineSurferJson(trimmedQuery, controller);
+                    }
 
                     if (wineSurferController !== controller) {
                         return;
                     }
-
-                    const items = Array.isArray(response?.wines)
-                        ? response.wines
-                        : [];
-                    wineSurferResults = items
-                        .map(normalizeWineSurferResult)
-                        .filter(Boolean);
-                    wineSurferError = '';
                 } catch (error) {
                     if (controller.signal.aborted) {
                         return;
@@ -639,6 +642,223 @@ window.WineInventoryTables.initialize = function () {
                         wineSurferClose.focus();
                     }
                 }
+            }
+
+            async function fetchWineSurferJson(query, controller) {
+                const response = await sendJson(`/wine-manager/wine-surfer?query=${encodeURIComponent(query)}`, {
+                    method: 'GET',
+                    signal: controller.signal
+                });
+
+                if (wineSurferController !== controller) {
+                    return;
+                }
+
+                const items = Array.isArray(response?.wines)
+                    ? response.wines
+                    : [];
+                wineSurferResults = items
+                    .map(normalizeWineSurferResult)
+                    .filter(Boolean);
+                wineSurferError = '';
+            }
+
+            async function streamWineSurferMatches(query, controller) {
+                const response = await fetch(`/wine-manager/wine-surfer?query=${encodeURIComponent(query)}`, {
+                    method: 'GET',
+                    signal: controller.signal,
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/x-ndjson'
+                    }
+                });
+
+                if (!response.ok) {
+                    const message = await readWineSurferResponseError(response);
+                    throw new Error(message);
+                }
+
+                if (!response.body || typeof response.body.getReader !== 'function') {
+                    const payload = await response.json();
+                    if (wineSurferController !== controller) {
+                        return;
+                    }
+
+                    const items = Array.isArray(payload?.wines)
+                        ? payload.wines
+                        : [];
+                    wineSurferResults = items
+                        .map(normalizeWineSurferResult)
+                        .filter(Boolean);
+                    wineSurferError = '';
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let aggregated = '';
+                let encounteredError = '';
+                let hasReceivedMatches = false;
+
+                try {
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) {
+                            break;
+                        }
+
+                        if (!value) {
+                            continue;
+                        }
+
+                        buffer += decoder.decode(value, { stream: true });
+
+                        let newlineIndex = buffer.indexOf('\n');
+                        while (newlineIndex >= 0) {
+                            const line = buffer.slice(0, newlineIndex).trim();
+                            buffer = buffer.slice(newlineIndex + 1);
+
+                            if (line) {
+                                let eventPayload = null;
+                                try {
+                                    eventPayload = JSON.parse(line);
+                                } catch {
+                                    eventPayload = null;
+                                }
+
+                                if (eventPayload) {
+                                    const eventType = typeof eventPayload.type === 'string'
+                                        ? eventPayload.type
+                                        : '';
+
+                                    if (eventType === 'delta') {
+                                        const deltaContent = typeof eventPayload.content === 'string'
+                                            ? eventPayload.content
+                                            : '';
+                                        if (deltaContent) {
+                                            aggregated += deltaContent;
+                                            wineSurferStreamChunkCount += 1;
+                                        }
+                                    } else if (eventType === 'matches') {
+                                        const wines = Array.isArray(eventPayload.wines)
+                                            ? eventPayload.wines
+                                            : [];
+                                        wineSurferResults = wines
+                                            .map(normalizeWineSurferResult)
+                                            .filter(Boolean);
+                                        wineSurferError = '';
+                                        hasReceivedMatches = true;
+                                    } else if (eventType === 'error') {
+                                        encounteredError = typeof eventPayload.message === 'string'
+                                            ? eventPayload.message
+                                            : 'Wine Surfer could not search right now.';
+                                    } else if (eventType === 'complete') {
+                                        const wines = Array.isArray(eventPayload.wines)
+                                            ? eventPayload.wines
+                                            : null;
+                                        if (wines) {
+                                            wineSurferResults = wines
+                                                .map(normalizeWineSurferResult)
+                                                .filter(Boolean);
+                                            wineSurferError = '';
+                                            hasReceivedMatches = true;
+                                        }
+                                    }
+                                }
+                            }
+
+                            renderWineSurferResults();
+
+                            if (encounteredError || controller.signal.aborted) {
+                                break;
+                            }
+
+                            newlineIndex = buffer.indexOf('\n');
+                        }
+
+                        if (encounteredError || controller.signal.aborted) {
+                            break;
+                        }
+                    }
+
+                    aggregated += decoder.decode();
+                } catch (error) {
+                    if (!controller.signal.aborted) {
+                        throw error;
+                    }
+                } finally {
+                    try {
+                        reader.releaseLock();
+                    } catch {
+                        /* ignore */
+                    }
+                }
+
+                if (controller.signal.aborted) {
+                    return;
+                }
+
+                if (encounteredError) {
+                    wineSurferResults = [];
+                    wineSurferError = encounteredError;
+                    renderWineSurferResults();
+                    return;
+                }
+
+                if (!hasReceivedMatches && aggregated) {
+                    try {
+                        const parsed = JSON.parse(aggregated);
+                        const wines = Array.isArray(parsed?.wines)
+                            ? parsed.wines
+                            : [];
+                        wineSurferResults = wines
+                            .map(normalizeWineSurferResult)
+                            .filter(Boolean);
+                        wineSurferError = '';
+                        hasReceivedMatches = true;
+                    } catch {
+                        /* ignore parse errors for partial content */
+                    }
+                }
+
+                if (!hasReceivedMatches && !wineSurferError) {
+                    wineSurferResults = [];
+                }
+
+                renderWineSurferResults();
+            }
+
+            function supportsReadableStream() {
+                return typeof ReadableStream !== 'undefined'
+                    && typeof Response !== 'undefined'
+                    && Response.prototype
+                    && 'body' in Response.prototype;
+            }
+
+            async function readWineSurferResponseError(response) {
+                let message = `${response.status} ${response.statusText}`;
+                try {
+                    const problem = await response.json();
+                    if (typeof problem === 'string') {
+                        message = problem;
+                    } else if (problem?.title) {
+                        message = problem.title;
+                    } else if (problem?.message) {
+                        message = problem.message;
+                    }
+                } catch {
+                    try {
+                        const text = await response.text();
+                        if (text) {
+                            message = text;
+                        }
+                    } catch {
+                        /* ignore */
+                    }
+                }
+
+                return message;
             }
 
             function cancelWineSearchTimeout() {
