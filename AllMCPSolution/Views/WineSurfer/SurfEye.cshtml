@@ -615,6 +615,28 @@
             addButton.className = 'surf-eye-add-button';
             addButton.setAttribute('data-add-wine-trigger', 'surf-eye');
             addButton.textContent = 'Add to my cellar';
+            const assignData = (key, value) => {
+                if (!key) {
+                    return;
+                }
+
+                if (value === null || value === undefined) {
+                    return;
+                }
+
+                const text = typeof value === 'string' ? value.trim() : String(value).trim();
+                if (text.length === 0) {
+                    return;
+                }
+
+                addButton.dataset[key] = text;
+            };
+
+            assignData('wineName', wine.name);
+            assignData('wineProducer', wine.producer);
+            assignData('wineRegion', wine.region);
+            assignData('wineVariety', wine.variety);
+            assignData('wineVintage', wine.vintage);
             footActions.appendChild(addButton);
 
             foot.appendChild(footActions);

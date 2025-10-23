@@ -9,6 +9,36 @@
         }
     }
 
+    function toTrimmedString(value) {
+        if (typeof value === 'string') {
+            return value.trim();
+        }
+
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        return String(value).trim();
+    }
+
+    function createComparisonKey(value) {
+        const text = toTrimmedString(value);
+        if (!text) {
+            return '';
+        }
+
+        let normalized = text;
+        if (typeof normalized.normalize === 'function') {
+            normalized = normalized
+                .normalize('NFKD')
+                .replace(/[\u0300-\u036f]/g, '');
+        }
+
+        return normalized
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '');
+    }
+
     function normalizeWineOption(raw) {
         if (!raw) {
             return null;
@@ -28,6 +58,14 @@
         const vintages = Array.isArray(raw?.vintages ?? raw?.Vintages)
             ? (raw?.vintages ?? raw?.Vintages)
             : [];
+        const label = pick(raw, ['label', 'Label']) ?? name;
+        const searchKey = createComparisonKey(label || name);
+        const regionKeys = [
+            createComparisonKey(subAppellation),
+            createComparisonKey(appellation),
+            createComparisonKey(region),
+            createComparisonKey(country)
+        ].filter(Boolean);
 
         return {
             id,
@@ -38,7 +76,9 @@
             country,
             color,
             vintages,
-            label: pick(raw, ['label', 'Label']) ?? name
+            label,
+            searchKey,
+            regionKeys
         };
     }
 
@@ -134,12 +174,30 @@
             }
 
             event.preventDefault();
-            openModal().catch(err => {
+            const context = buildContextFromTrigger(trigger);
+
+            openModal(context).catch(err => {
                 showStatus(err?.message ?? 'Unable to open add wine modal.', 'error');
             });
         };
 
         document.addEventListener('click', handleTriggerClick);
+
+        function buildContextFromTrigger(trigger) {
+            if (!trigger || !trigger.dataset) {
+                return null;
+            }
+
+            const dataset = trigger.dataset;
+            return {
+                source: toTrimmedString(dataset.addWineTrigger),
+                name: toTrimmedString(dataset.wineName),
+                producer: toTrimmedString(dataset.wineProducer),
+                region: toTrimmedString(dataset.wineRegion),
+                variety: toTrimmedString(dataset.wineVariety),
+                vintage: toTrimmedString(dataset.wineVintage)
+            };
+        }
 
         const bindClose = (element) => {
             if (!element) {
@@ -211,7 +269,7 @@
             }
         }
 
-        async function openModal() {
+        async function openModal(context = null) {
             showError('');
             showStatus('', 'info');
             overlay.hidden = false;
@@ -219,18 +277,52 @@
             overlay.classList.add('is-open');
             document.body.style.overflow = 'hidden';
 
+            const normalizedContext = context
+                ? {
+                    source: toTrimmedString(context.source),
+                    name: toTrimmedString(context.name),
+                    producer: toTrimmedString(context.producer),
+                    region: toTrimmedString(context.region),
+                    variety: toTrimmedString(context.variety),
+                    vintage: toTrimmedString(context.vintage)
+                }
+                : null;
+
             setModalLoading(true);
             try {
                 await ensureWineOptions();
-                populateSelect();
+                const matchedOption = findBestWineOptionMatch(normalizedContext);
+                const selectedId = matchedOption?.id ?? '';
+                populateSelect(selectedId);
+                const normalizedVintage = normalizeVintageValue(normalizedContext?.vintage);
                 if (vintage) {
-                    vintage.value = '';
+                    vintage.value = normalizedVintage;
                 }
                 if (quantity) {
                     quantity.value = '1';
                 }
                 updateSummary();
                 updateHint();
+
+                if (normalizedContext?.source === 'surf-eye') {
+                    let statusText = '';
+                    if (matchedOption) {
+                        const label = matchedOption.label ?? matchedOption.name ?? 'this wine';
+                        statusText = `Surf Eye matched ${label}. Confirm the details before adding.`;
+                    } else if (normalizedContext?.name) {
+                        statusText = `Surf Eye spotted "${normalizedContext.name}". Select the matching wine to add it to your cellar.`;
+                    }
+
+                    const originalVintage = normalizedContext?.vintage ?? '';
+                    if (originalVintage && !normalizedVintage) {
+                        const vintageReminder = `Enter the correct vintage (Surf Eye suggested ${originalVintage}).`;
+                        statusText = statusText ? `${statusText} ${vintageReminder}` : vintageReminder;
+                    }
+
+                    if (statusText) {
+                        showStatus(statusText, 'info');
+                    }
+                }
             } catch (error) {
                 showError(error?.message ?? 'Unable to load wines.');
                 closeModal();
@@ -240,6 +332,95 @@
             }
 
             select?.focus();
+        }
+
+        function findBestWineOptionMatch(context) {
+            if (!context) {
+                return null;
+            }
+
+            const nameKey = createComparisonKey(context.name);
+            const regionKey = createComparisonKey(context.region);
+
+            let candidates = [];
+            if (nameKey) {
+                candidates = wineOptions.filter(option => {
+                    if (!option || !option.id) {
+                        return false;
+                    }
+
+                    const optionKey = option.searchKey ?? createComparisonKey(option.name ?? option.label);
+                    return optionKey === nameKey;
+                });
+            }
+
+            if (candidates.length === 1) {
+                return candidates[0];
+            }
+
+            if (regionKey) {
+                const scopedOptions = candidates.length > 0 ? candidates : wineOptions;
+                const regionMatches = filterMatchesByRegion(scopedOptions, regionKey);
+                if (regionMatches.length === 1) {
+                    return regionMatches[0];
+                }
+                if (regionMatches.length > 1) {
+                    return regionMatches[0];
+                }
+            }
+
+            if (candidates.length > 0) {
+                return candidates[0];
+            }
+
+            return null;
+        }
+
+        function filterMatchesByRegion(options, regionKey) {
+            if (!Array.isArray(options) || !regionKey) {
+                return [];
+            }
+
+            return options.filter(option => matchesRegionKey(option, regionKey));
+        }
+
+        function matchesRegionKey(option, regionKey) {
+            if (!option || !regionKey) {
+                return false;
+            }
+
+            const keys = Array.isArray(option.regionKeys) && option.regionKeys.length > 0
+                ? option.regionKeys
+                : [
+                    createComparisonKey(option.subAppellation),
+                    createComparisonKey(option.appellation),
+                    createComparisonKey(option.region),
+                    createComparisonKey(option.country)
+                ].filter(Boolean);
+
+            if (keys.length === 0) {
+                return false;
+            }
+
+            return keys.some(key => key === regionKey || key.includes(regionKey) || regionKey.includes(key));
+        }
+
+        function normalizeVintageValue(value) {
+            const trimmed = toTrimmedString(value);
+            if (!trimmed) {
+                return '';
+            }
+
+            const parsed = Number.parseInt(trimmed, 10);
+            if (Number.isNaN(parsed)) {
+                return '';
+            }
+
+            if (parsed < 1900 || parsed > 2100) {
+                return '';
+            }
+
+            return String(parsed);
         }
 
         function closeModal() {
