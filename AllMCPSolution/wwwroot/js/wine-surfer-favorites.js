@@ -151,7 +151,10 @@
         initialized = true;
 
         const form = popover.querySelector('.inventory-add-form');
-        const select = popover.querySelector('.inventory-add-wine');
+        const wineSearch = popover.querySelector('.inventory-add-wine-search');
+        const wineIdInput = popover.querySelector('.inventory-add-wine-id');
+        const wineResults = popover.querySelector('.inventory-add-wine-results');
+        const wineCombobox = popover.querySelector('.inventory-add-combobox');
         const vintage = popover.querySelector('.inventory-add-vintage');
         const locationSelect = popover.querySelector('.inventory-add-location');
         const quantity = popover.querySelector('.inventory-add-quantity');
@@ -164,7 +167,14 @@
         const statusMessage = document.querySelector('[data-favorite-message]');
 
         let wineOptions = [];
-        let wineOptionsPromise = null;
+        let selectedWineOption = null;
+        let wineSearchTimeoutId = null;
+        let wineSearchController = null;
+        let wineSearchLoading = false;
+        let wineSearchError = '';
+        let currentWineQuery = '';
+        let activeWineOptionIndex = -1;
+        let lastCompletedQuery = '';
         let bottleLocations = [];
         let bottleLocationsPromise = null;
         let modalLoading = false;
@@ -252,6 +262,10 @@
         });
 
         form?.addEventListener('submit', handleSubmit);
+        wineSearch?.addEventListener('input', handleWineSearchInput);
+        wineSearch?.addEventListener('keydown', handleWineSearchKeyDown);
+        wineSearch?.addEventListener('focus', handleWineSearchFocus);
+        document.addEventListener('pointerdown', handleWinePointerDown);
 
         function showStatus(message, state) {
             if (!statusMessage) {
@@ -279,8 +293,16 @@
             if (submit) {
                 submit.disabled = state;
             }
-            if (select) {
-                select.disabled = state;
+            if (wineSearch) {
+                wineSearch.disabled = state;
+                if (state) {
+                    wineSearch.setAttribute('aria-busy', 'true');
+                    cancelWineSearchTimeout();
+                    abortWineSearchRequest();
+                    closeWineResults();
+                } else {
+                    wineSearch.removeAttribute('aria-busy');
+                }
             }
             if (vintage) {
                 vintage.disabled = state;
@@ -302,27 +324,48 @@
             document.body.style.overflow = 'hidden';
 
             const normalizedContext = normalizeContext(context);
+            resetWineSelection();
 
             setModalLoading(true);
+            let matchedOption = null;
+            let normalizedVintage = '';
+
             try {
-                await ensureWineOptions();
                 await ensureBottleLocations();
                 populateLocationSelect('');
                 if (locationSelect) {
                     locationSelect.value = '';
                 }
-                const matchedOption = findBestWineOptionMatch(normalizedContext);
-                const selectedId = matchedOption?.id ?? '';
-                populateSelect(selectedId);
-                const normalizedVintage = normalizeVintageValue(normalizedContext?.vintage);
+
+                normalizedVintage = normalizeVintageValue(normalizedContext?.vintage);
                 if (vintage) {
                     vintage.value = normalizedVintage;
                 }
                 if (quantity) {
                     quantity.value = '1';
                 }
-                updateSummary();
-                updateHint();
+
+                const contextName = normalizedContext?.name ?? '';
+                if (contextName) {
+                    if (wineSearch) {
+                        wineSearch.value = contextName;
+                    }
+                    currentWineQuery = contextName.trim();
+                    if (currentWineQuery.length >= 3) {
+                        await performWineSearch(currentWineQuery);
+                        matchedOption = findBestWineOptionMatch(normalizedContext);
+                        if (matchedOption) {
+                            setSelectedWine(matchedOption);
+                            closeWineResults();
+                        }
+                    } else {
+                        renderWineSearchResults();
+                    }
+                }
+
+                if (!matchedOption) {
+                    setSelectedWine(null);
+                }
 
                 if (normalizedContext?.source === 'surf-eye') {
                     let statusText = '';
@@ -351,7 +394,7 @@
                 setModalLoading(false);
             }
 
-            select?.focus();
+            wineSearch?.focus();
         }
 
         const openModalWithStatus = async (context = null) => {
@@ -467,9 +510,7 @@
             overlay.hidden = true;
             document.body.style.overflow = '';
             showError('');
-            if (select) {
-                select.value = '';
-            }
+            resetWineSelection();
             if (vintage) {
                 vintage.value = '';
             }
@@ -479,8 +520,6 @@
             if (quantity) {
                 quantity.value = '1';
             }
-            updateSummary();
-            updateHint();
         }
 
         async function handleSubmit(event) {
@@ -489,14 +528,14 @@
                 return;
             }
 
-            const wineId = select?.value ?? '';
+            const wineId = wineIdInput?.value ?? '';
             const vintageValue = Number(vintage?.value ?? '');
             const quantityValue = Number(quantity?.value ?? '1');
             const locationValue = locationSelect?.value ?? '';
 
             if (!wineId) {
                 showError('Select a wine to add to your inventory.');
-                select?.focus();
+                wineSearch?.focus();
                 return;
             }
 
@@ -532,36 +571,415 @@
             }
         }
 
-        async function ensureWineOptions() {
-            if (wineOptions.length > 0) {
+        function cancelWineSearchTimeout() {
+            if (wineSearchTimeoutId !== null) {
+                window.clearTimeout(wineSearchTimeoutId);
+                wineSearchTimeoutId = null;
+            }
+        }
+
+        function abortWineSearchRequest() {
+            if (wineSearchController) {
+                wineSearchController.abort();
+                wineSearchController = null;
+            }
+        }
+
+        function resetWineSelection() {
+            cancelWineSearchTimeout();
+            abortWineSearchRequest();
+            wineOptions = [];
+            selectedWineOption = null;
+            wineSearchLoading = false;
+            wineSearchError = '';
+            currentWineQuery = '';
+            activeWineOptionIndex = -1;
+            lastCompletedQuery = '';
+            if (wineIdInput) {
+                wineIdInput.value = '';
+            }
+            if (wineSearch) {
+                wineSearch.value = '';
+                wineSearch.setAttribute('aria-expanded', 'false');
+                wineSearch.removeAttribute('aria-activedescendant');
+            }
+            if (wineResults) {
+                wineResults.innerHTML = '';
+                wineResults.dataset.visible = 'false';
+                wineResults.setAttribute('hidden', '');
+            }
+            updateSummary(null);
+            updateHint(null);
+        }
+
+        function scheduleWineSearch(query) {
+            cancelWineSearchTimeout();
+            wineSearchTimeoutId = window.setTimeout(() => {
+                performWineSearch(query).catch(() => {
+                    /* handled via render state */
+                });
+            }, 500);
+        }
+
+        async function performWineSearch(query) {
+            cancelWineSearchTimeout();
+            if (!query || query.length < 3) {
                 return;
             }
 
-            if (!wineOptionsPromise) {
-                wineOptionsPromise = sendJson('/wine-manager/wines', { method: 'GET' })
-                    .then(data => {
-                        const items = Array.isArray(data) ? data : [];
-                        wineOptions = items
-                            .map(normalizeWineOption)
-                            .filter(Boolean)
-                            .sort((a, b) => {
-                                const nameA = (a?.name ?? '').toString().toLowerCase();
-                                const nameB = (b?.name ?? '').toString().toLowerCase();
-                                if (nameA === nameB) {
-                                    const regionA = (a?.subAppellation ?? '').toString().toLowerCase();
-                                    const regionB = (b?.subAppellation ?? '').toString().toLowerCase();
-                                    return regionA.localeCompare(regionB, undefined, { sensitivity: 'base' });
-                                }
+            abortWineSearchRequest();
+            const controller = new AbortController();
+            wineSearchController = controller;
+            wineSearchLoading = true;
+            wineSearchError = '';
+            renderWineSearchResults();
 
-                                return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
-                            });
-                    })
-                    .finally(() => {
-                        wineOptionsPromise = null;
-                    });
+            try {
+                const data = await sendJson(`/wine-manager/wines?search=${encodeURIComponent(query)}`, {
+                    method: 'GET',
+                    signal: controller.signal
+                });
+                if (wineSearchController !== controller) {
+                    return;
+                }
+
+                const items = Array.isArray(data) ? data : [];
+                wineOptions = items
+                    .map(normalizeWineOption)
+                    .filter(Boolean);
+                lastCompletedQuery = query;
+                wineSearchLoading = false;
+                wineSearchError = '';
+                renderWineSearchResults();
+            } catch (error) {
+                if (controller.signal.aborted) {
+                    return;
+                }
+
+                wineOptions = [];
+                wineSearchLoading = false;
+                wineSearchError = error?.message ?? 'Unable to search for wines.';
+                lastCompletedQuery = query;
+                renderWineSearchResults();
+            } finally {
+                if (wineSearchController === controller) {
+                    wineSearchController = null;
+                }
+            }
+        }
+
+        function renderWineSearchResults() {
+            if (!wineResults) {
+                return;
             }
 
-            await wineOptionsPromise;
+            const trimmedQuery = currentWineQuery.trim();
+            const shouldDisplay = trimmedQuery.length >= 3
+                || wineSearchLoading
+                || wineSearchError
+                || wineSearchTimeoutId !== null;
+
+            if (!shouldDisplay) {
+                closeWineResults();
+                return;
+            }
+
+            setWineResultsVisibility(true);
+            wineResults.innerHTML = '';
+
+            if (wineSearchTimeoutId !== null || wineSearchLoading) {
+                wineResults.appendChild(buildWineStatusElement('Searching…'));
+                return;
+            }
+
+            if (wineSearchError) {
+                wineResults.appendChild(buildWineStatusElement(wineSearchError));
+                return;
+            }
+
+            if (trimmedQuery === lastCompletedQuery && wineOptions.length === 0) {
+                wineResults.appendChild(buildWineStatusElement('No wines found.'));
+                return;
+            }
+
+            if (wineOptions.length === 0) {
+                wineResults.appendChild(buildWineStatusElement('Keep typing to search the cellar.'));
+                return;
+            }
+
+            const list = document.createElement('div');
+            list.className = 'inventory-add-wine-options';
+
+            wineOptions.forEach((option, index) => {
+                if (!option?.id) {
+                    return;
+                }
+
+                const element = document.createElement('button');
+                element.type = 'button';
+                element.className = 'inventory-add-wine-option';
+                element.setAttribute('role', 'option');
+                element.dataset.index = String(index);
+                element.dataset.wineId = option.id;
+                const optionId = `inventory-add-wine-option-${option.id}`;
+                element.id = optionId;
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'inventory-add-wine-option__name';
+                nameSpan.textContent = option.label ?? option.name ?? option.id;
+                element.appendChild(nameSpan);
+
+                const metaParts = [];
+                if (option.color) {
+                    metaParts.push(option.color);
+                }
+
+                const regionParts = [];
+                if (option.subAppellation) {
+                    regionParts.push(option.subAppellation);
+                }
+                if (option.appellation && !regionParts.includes(option.appellation)) {
+                    regionParts.push(option.appellation);
+                }
+                if (option.region) {
+                    regionParts.push(option.region);
+                }
+                if (option.country) {
+                    regionParts.push(option.country);
+                }
+
+                if (regionParts.length > 0) {
+                    metaParts.push(regionParts.join(' • '));
+                }
+
+                if (Array.isArray(option.vintages) && option.vintages.length > 0) {
+                    const vintages = option.vintages.slice(0, 3);
+                    const suffix = option.vintages.length > vintages.length ? '…' : '';
+                    metaParts.push(`Vintages: ${vintages.join(', ')}${suffix}`);
+                }
+
+                if (metaParts.length > 0) {
+                    const metaSpan = document.createElement('span');
+                    metaSpan.className = 'inventory-add-wine-option__meta';
+                    metaSpan.textContent = metaParts.join(' · ');
+                    element.appendChild(metaSpan);
+                }
+
+                element.addEventListener('mousedown', (event) => {
+                    event.preventDefault();
+                });
+
+                element.addEventListener('click', () => {
+                    selectWineOption(option);
+                });
+
+                list.appendChild(element);
+            });
+
+            wineResults.appendChild(list);
+            highlightActiveWineOption();
+        }
+
+        function buildWineStatusElement(text) {
+            const status = document.createElement('div');
+            status.className = 'inventory-add-wine-result-status';
+            status.textContent = text;
+            status.setAttribute('role', 'status');
+            return status;
+        }
+
+        function setWineResultsVisibility(visible) {
+            if (!wineResults || !wineSearch) {
+                return;
+            }
+
+            if (visible) {
+                wineResults.dataset.visible = 'true';
+                wineResults.removeAttribute('hidden');
+                wineSearch.setAttribute('aria-expanded', 'true');
+            } else {
+                wineResults.dataset.visible = 'false';
+                wineResults.setAttribute('hidden', '');
+                wineSearch.setAttribute('aria-expanded', 'false');
+                wineSearch.removeAttribute('aria-activedescendant');
+            }
+        }
+
+        function closeWineResults() {
+            activeWineOptionIndex = -1;
+            setWineResultsVisibility(false);
+            if (wineResults) {
+                wineResults.innerHTML = '';
+            }
+        }
+
+        function highlightActiveWineOption() {
+            if (!wineResults || !wineSearch) {
+                return;
+            }
+
+            const options = Array.from(wineResults.querySelectorAll('.inventory-add-wine-option'));
+            options.forEach((element, index) => {
+                const isActive = index === activeWineOptionIndex;
+                element.classList.toggle('is-active', isActive);
+                element.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+
+            const activeElement = options[activeWineOptionIndex];
+            if (activeElement) {
+                wineSearch.setAttribute('aria-activedescendant', activeElement.id);
+                activeElement.scrollIntoView({ block: 'nearest' });
+            } else {
+                wineSearch.removeAttribute('aria-activedescendant');
+            }
+        }
+
+        function moveWineResultFocus(step) {
+            if (!Array.isArray(wineOptions) || wineOptions.length === 0) {
+                return;
+            }
+
+            const maxIndex = wineOptions.length - 1;
+            if (maxIndex < 0) {
+                return;
+            }
+
+            if (wineResults?.dataset?.visible !== 'true') {
+                renderWineSearchResults();
+            }
+
+            if (activeWineOptionIndex < 0) {
+                activeWineOptionIndex = step > 0 ? 0 : maxIndex;
+            } else {
+                activeWineOptionIndex += step;
+                if (activeWineOptionIndex > maxIndex) {
+                    activeWineOptionIndex = 0;
+                } else if (activeWineOptionIndex < 0) {
+                    activeWineOptionIndex = maxIndex;
+                }
+            }
+
+            highlightActiveWineOption();
+        }
+
+        function selectWineOption(option) {
+            if (!option) {
+                return;
+            }
+
+            setSelectedWine(option);
+            showError('');
+            closeWineResults();
+        }
+
+        function setSelectedWine(option) {
+            selectedWineOption = option ?? null;
+            if (wineIdInput) {
+                wineIdInput.value = option?.id ?? '';
+            }
+            if (wineSearch) {
+                const label = option?.label ?? option?.name ?? '';
+                wineSearch.value = label;
+                currentWineQuery = label.trim();
+            }
+            updateSummary(option);
+            updateHint(option);
+        }
+
+        function valueMatchesSelected(value) {
+            if (!selectedWineOption) {
+                return false;
+            }
+
+            const selectedLabel = selectedWineOption.label ?? selectedWineOption.name ?? '';
+            return value.trim().toLowerCase() === selectedLabel.trim().toLowerCase();
+        }
+
+        function handleWineSearchInput(event) {
+            const value = event?.target?.value ?? '';
+            currentWineQuery = value.trim();
+
+            if (!valueMatchesSelected(value)) {
+                setSelectedWine(null);
+                if (wineIdInput) {
+                    wineIdInput.value = '';
+                }
+            }
+
+            wineSearchError = '';
+
+            if (currentWineQuery.length < 3) {
+                wineOptions = [];
+                wineSearchLoading = false;
+                lastCompletedQuery = '';
+                cancelWineSearchTimeout();
+                abortWineSearchRequest();
+                renderWineSearchResults();
+                return;
+            }
+
+            scheduleWineSearch(currentWineQuery);
+            renderWineSearchResults();
+        }
+
+        function handleWineSearchKeyDown(event) {
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                moveWineResultFocus(1);
+                return;
+            }
+
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                moveWineResultFocus(-1);
+                return;
+            }
+
+            if (event.key === 'Enter') {
+                if (activeWineOptionIndex >= 0 && wineOptions[activeWineOptionIndex]) {
+                    event.preventDefault();
+                    selectWineOption(wineOptions[activeWineOptionIndex]);
+                }
+                return;
+            }
+
+            if (event.key === 'Escape') {
+                if (wineResults?.dataset?.visible === 'true') {
+                    event.preventDefault();
+                    closeWineResults();
+                    return;
+                }
+
+                if (wineSearch?.value) {
+                    event.preventDefault();
+                    wineSearch.value = '';
+                    handleWineSearchInput({ target: wineSearch });
+                }
+            }
+        }
+
+        function handleWineSearchFocus() {
+            if (!wineResults) {
+                return;
+            }
+
+            if (wineOptions.length > 0 || wineSearchError || wineSearchLoading || wineSearchTimeoutId !== null) {
+                renderWineSearchResults();
+            }
+        }
+
+        function handleWinePointerDown(event) {
+            if (!overlay || overlay.hidden) {
+                return;
+            }
+
+            if (!wineCombobox) {
+                return;
+            }
+
+            if (!wineCombobox.contains(event.target)) {
+                closeWineResults();
+            }
         }
 
         async function ensureBottleLocations() {
@@ -690,69 +1108,34 @@
             return integer;
         }
 
-        function populateSelect(selectedId) {
-            if (!select) {
-                return;
-            }
-
-            const previous = selectedId ?? select.value ?? '';
-            select.innerHTML = '';
-
-            const placeholder = document.createElement('option');
-            placeholder.value = '';
-            placeholder.textContent = 'Select a wine';
-            select.appendChild(placeholder);
-
-            wineOptions.forEach(option => {
-                if (!option?.id) {
-                    return;
-                }
-
-                const element = document.createElement('option');
-                element.value = option.id;
-                element.textContent = option.label ?? option.name ?? option.id;
-                select.appendChild(element);
-            });
-
-            if (previous) {
-                select.value = previous;
-            }
-        }
-
-        function updateSummary() {
+        function updateSummary(option = selectedWineOption) {
             if (!summary) {
                 return;
             }
 
-            const selectedId = select?.value ?? '';
-            if (!selectedId) {
-                summary.textContent = 'Select a wine to see its appellation and color.';
-                return;
-            }
-
-            const option = wineOptions.find(item => item?.id === selectedId);
-            if (!option) {
-                summary.textContent = 'Select a wine to see its appellation and color.';
+            const target = option ?? null;
+            if (!target) {
+                summary.textContent = 'Search for a wine to see its appellation and color.';
                 return;
             }
 
             const parts = [];
-            if (option.color) {
-                parts.push(option.color);
+            if (target.color) {
+                parts.push(target.color);
             }
 
             const regionParts = [];
-            if (option.subAppellation) {
-                regionParts.push(option.subAppellation);
+            if (target.subAppellation) {
+                regionParts.push(target.subAppellation);
             }
-            if (option.appellation && !regionParts.includes(option.appellation)) {
-                regionParts.push(option.appellation);
+            if (target.appellation && !regionParts.includes(target.appellation)) {
+                regionParts.push(target.appellation);
             }
-            if (option.region) {
-                regionParts.push(option.region);
+            if (target.region) {
+                regionParts.push(target.region);
             }
-            if (option.country) {
-                regionParts.push(option.country);
+            if (target.country) {
+                regionParts.push(target.country);
             }
 
             if (regionParts.length > 0) {
@@ -764,25 +1147,24 @@
                 : 'No additional details available.';
         }
 
-        function updateHint() {
+        function updateHint(option = selectedWineOption) {
             if (!hint) {
                 return;
             }
 
-            const selectedId = select?.value ?? '';
-            if (!selectedId) {
-                hint.textContent = 'Pick a wine to view existing vintages.';
+            const target = option ?? null;
+            if (!target) {
+                hint.textContent = 'Search for a wine to view existing vintages.';
                 return;
             }
 
-            const option = wineOptions.find(item => item?.id === selectedId);
-            if (!option || !Array.isArray(option.vintages) || option.vintages.length === 0) {
+            if (!Array.isArray(target.vintages) || target.vintages.length === 0) {
                 hint.textContent = 'No bottles recorded yet for this wine. Enter any vintage to begin.';
                 return;
             }
 
-            const vintages = option.vintages.slice(0, 6);
-            const suffix = option.vintages.length > vintages.length ? '…' : '';
+            const vintages = target.vintages.slice(0, 6);
+            const suffix = target.vintages.length > vintages.length ? '…' : '';
             hint.textContent = `Existing vintages: ${vintages.join(', ')}${suffix}`;
         }
     }

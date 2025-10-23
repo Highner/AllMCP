@@ -12,6 +12,7 @@ public interface IWineRepository
 {
     Task<List<Wine>> GetAllAsync(CancellationToken ct = default);
     Task<IReadOnlyList<WineOptionResult>> GetInventoryOptionsAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<WineOptionResult>> SearchInventoryOptionsAsync(string query, int maxResults = 20, CancellationToken ct = default);
     Task<Wine?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Wine?> FindByNameAsync(string name, string? subAppellation = null, string? appellation = null, CancellationToken ct = default);
     Task<IReadOnlyList<Wine>> FindClosestMatchesAsync(string name, int maxResults = 5, CancellationToken ct = default);
@@ -89,6 +90,80 @@ public class WineRepository : IWineRepository
             .OrderBy(option => option.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(option => option.SubAppellation, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<WineOptionResult>> SearchInventoryOptionsAsync(string query, int maxResults = 20, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return Array.Empty<WineOptionResult>();
+        }
+
+        var matches = await FindClosestMatchesAsync(query, Math.Max(1, maxResults), ct);
+        if (matches.Count == 0)
+        {
+            return Array.Empty<WineOptionResult>();
+        }
+
+        var ids = matches
+            .Select(match => match.Id)
+            .Distinct()
+            .ToList();
+
+        var rawOptions = await _db.Wines
+            .AsNoTracking()
+            .Where(w => ids.Contains(w.Id))
+            .Select(w => new
+            {
+                w.Id,
+                w.Name,
+                w.Color,
+                SubAppellation = w.SubAppellation == null ? null : w.SubAppellation.Name,
+                Appellation = w.SubAppellation == null || w.SubAppellation.Appellation == null
+                    ? null
+                    : w.SubAppellation.Appellation.Name,
+                Region = w.SubAppellation == null || w.SubAppellation.Appellation == null
+                    || w.SubAppellation.Appellation.Region == null
+                    ? null
+                    : w.SubAppellation.Appellation.Region.Name,
+                Country = w.SubAppellation == null || w.SubAppellation.Appellation == null
+                    || w.SubAppellation.Appellation.Region == null
+                    || w.SubAppellation.Appellation.Region.Country == null
+                    ? null
+                    : w.SubAppellation.Appellation.Region.Country.Name,
+                Vintages = w.WineVintages
+                    .Select(v => v.Vintage)
+                    .ToList()
+            })
+            .ToListAsync(ct);
+
+        var optionLookup = rawOptions
+            .Select(item => new WineOptionResult
+            {
+                Id = item.Id,
+                Name = item.Name,
+                Color = item.Color,
+                SubAppellation = item.SubAppellation,
+                Appellation = item.Appellation,
+                Region = item.Region,
+                Country = item.Country,
+                Vintages = item.Vintages
+                    .Distinct()
+                    .OrderByDescending(v => v)
+                    .ToList()
+            })
+            .ToDictionary(option => option.Id, option => option);
+
+        var ordered = new List<WineOptionResult>(optionLookup.Count);
+        foreach (var match in matches)
+        {
+            if (optionLookup.TryGetValue(match.Id, out var option))
+            {
+                ordered.Add(option);
+            }
+        }
+
+        return ordered;
     }
 
     public async Task<Wine?> GetByIdAsync(Guid id, CancellationToken ct = default)

@@ -40,16 +40,27 @@
             <p class="inventory-add-intro">Choose an existing wine and vintage to add a bottle to your cellar.</p>
             <label class="inventory-add-field">
                 <span class="inventory-add-label">Wine</span>
-                <select class="inventory-add-wine" aria-label="Wine">
-                    <option value="">Select a wine</option>
-                </select>
+                <div class="inventory-add-combobox">
+                    <input type="search"
+                           class="inventory-add-wine-search"
+                           placeholder="Search for a wine"
+                           aria-label="Wine"
+                           role="combobox"
+                           aria-autocomplete="list"
+                           aria-expanded="false"
+                           aria-controls="inventory-add-wine-results"
+                           autocomplete="off"
+                           spellcheck="false" />
+                    <input type="hidden" class="inventory-add-wine-id" />
+                    <div class="inventory-add-wine-results" id="inventory-add-wine-results" role="listbox" aria-label="Matching wines"></div>
+                </div>
             </label>
-            <p class="inventory-add-summary" aria-live="polite">Select a wine to see its appellation and color.</p>
+            <p class="inventory-add-summary" aria-live="polite">Search for a wine to see its appellation and color.</p>
             <label class="inventory-add-field">
                 <span class="inventory-add-label">Vintage</span>
                 <input type="number" class="inventory-add-vintage" min="1900" max="2100" placeholder="Year" aria-label="Vintage" />
             </label>
-            <p class="inventory-add-vintage-hint" aria-live="polite">Pick a wine to view existing vintages.</p>
+            <p class="inventory-add-vintage-hint" aria-live="polite">Search for a wine to view existing vintages.</p>
             <label class="inventory-add-field">
                 <span class="inventory-add-label">Location</span>
                 <select class="inventory-add-location" aria-label="Bottle location">
