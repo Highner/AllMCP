@@ -201,61 +201,12 @@ public class WineInventoryController : Controller
             .ThenBy(b => b.Vintage)
             .ToList();
 
-        var bottleLocations = await _bottleLocationRepository.GetAllAsync(cancellationToken);
-        var userLocations = bottleLocations
-            .Where(location => location.UserId == currentUserId)
-            .OrderBy(location => location.Name)
-            .ToList();
+        var userLocations = await GetUserLocationsAsync(currentUserId, cancellationToken);
         var userLocationIds = userLocations
             .Select(location => location.Id)
             .ToHashSet();
 
-        var bottlesByLocation = bottles
-            .Where(bottle => bottle.BottleLocationId.HasValue)
-            .GroupBy(bottle => bottle.BottleLocationId!.Value)
-            .ToDictionary(
-                group => group.Key,
-                group => new
-                {
-                    BottleCount = group.Count(),
-                    UniqueWineCount = group
-                        .Select(bottle => bottle.WineVintageId)
-                        .Distinct()
-                        .Count(),
-                    DrunkBottleCount = group.Count(bottle => bottle.IsDrunk)
-                });
-
-        var locationSummaries = userLocations
-            .Select(location =>
-            {
-                if (!bottlesByLocation.TryGetValue(location.Id, out var summary))
-                {
-                    return new WineInventoryLocationViewModel
-                    {
-                        Id = location.Id,
-                        Name = location.Name,
-                        Capacity = location.Capacity,
-                        BottleCount = 0,
-                        UniqueWineCount = 0,
-                        CellaredBottleCount = 0,
-                        DrunkBottleCount = 0
-                    };
-                }
-
-                var cellaredCount = summary.BottleCount - summary.DrunkBottleCount;
-
-                return new WineInventoryLocationViewModel
-                {
-                    Id = location.Id,
-                    Name = location.Name,
-                    Capacity = location.Capacity,
-                    BottleCount = summary.BottleCount,
-                    UniqueWineCount = summary.UniqueWineCount,
-                    CellaredBottleCount = Math.Max(cellaredCount, 0),
-                    DrunkBottleCount = summary.DrunkBottleCount
-                };
-            })
-            .ToList();
+        var locationSummaries = BuildLocationSummaries(bottles, userLocations);
 
         var highlightedLocationIds = hasActiveFilters
             ? filteredBottles
@@ -378,7 +329,7 @@ public class WineInventoryController : Controller
         }
 
         var response = await BuildBottleGroupResponseAsync(wineVintageId, currentUserId, cancellationToken);
-        if (response is null)
+        if (response.Group is null)
         {
             return NotFound();
         }
@@ -550,7 +501,7 @@ public class WineInventoryController : Controller
         }
 
         var response = await BuildBottleGroupResponseAsync(wineVintage.Id, currentUserId, cancellationToken);
-        if (response is null)
+        if (response.Group is null)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load wine group after creation.");
         }
@@ -631,7 +582,7 @@ public class WineInventoryController : Controller
         }
 
         var response = await BuildBottleGroupResponseAsync(wineVintage.Id, currentUserId.Value, cancellationToken);
-        if (response is null)
+        if (response.Group is null)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load wine group after creation.");
         }
@@ -707,7 +658,7 @@ public class WineInventoryController : Controller
         await _wineVintageRepository.UpdateAsync(updatedVintage, cancellationToken);
 
         var response = await BuildBottleGroupResponseAsync(updatedVintage.Id, currentUserId, cancellationToken);
-        if (response is null)
+        if (response.Group is null)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load wine group after update.");
         }
@@ -867,11 +818,7 @@ public class WineInventoryController : Controller
         await _bottleRepository.UpdateAsync(bottle, cancellationToken);
 
         var response = await BuildBottleGroupResponseAsync(bottle.WineVintageId, currentUserId, cancellationToken);
-        return Json(response ?? new BottleGroupDetailsResponse
-        {
-            Group = null,
-            Details = Array.Empty<WineInventoryBottleDetailViewModel>()
-        });
+        return Json(response);
     }
 
     [HttpPost("notes")]
@@ -1067,24 +1014,27 @@ public class WineInventoryController : Controller
         await _bottleRepository.DeleteAsync(id, cancellationToken);
 
         var response = await BuildBottleGroupResponseAsync(bottle.WineVintageId, currentUserId, cancellationToken);
-        return Json(response ?? new BottleGroupDetailsResponse
-        {
-            Group = null,
-            Details = Array.Empty<WineInventoryBottleDetailViewModel>()
-        });
+        return Json(response);
     }
 
-    private async Task<BottleGroupDetailsResponse?> BuildBottleGroupResponseAsync(Guid wineVintageId, Guid userId, CancellationToken cancellationToken)
+    private async Task<BottleGroupDetailsResponse> BuildBottleGroupResponseAsync(Guid wineVintageId, Guid userId, CancellationToken cancellationToken)
     {
-        var bottles = await _bottleRepository.GetByWineVintageIdAsync(wineVintageId, cancellationToken);
+        var userBottles = await _bottleRepository.GetForUserAsync(userId, cancellationToken);
+        var userLocations = await GetUserLocationsAsync(userId, cancellationToken);
+        var locationSummaries = BuildLocationSummaries(userBottles, userLocations);
 
-        var ownedBottles = bottles
-            .Where(bottle => bottle.UserId == userId)
+        var ownedBottles = userBottles
+            .Where(bottle => bottle.WineVintageId == wineVintageId)
             .ToList();
 
         if (!ownedBottles.Any())
         {
-            return null;
+            return new BottleGroupDetailsResponse
+            {
+                Group = null,
+                Details = Array.Empty<WineInventoryBottleDetailViewModel>(),
+                Locations = locationSummaries
+            };
         }
 
         var averageScore = CalculateAverageScore(ownedBottles);
@@ -1122,8 +1072,70 @@ public class WineInventoryController : Controller
         return new BottleGroupDetailsResponse
         {
             Group = summary,
-            Details = details
+            Details = details,
+            Locations = locationSummaries
         };
+    }
+
+    private async Task<List<BottleLocation>> GetUserLocationsAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var bottleLocations = await _bottleLocationRepository.GetAllAsync(cancellationToken);
+        return bottleLocations
+            .Where(location => location.UserId == userId)
+            .OrderBy(location => location.Name)
+            .ToList();
+    }
+
+    private static List<WineInventoryLocationViewModel> BuildLocationSummaries(
+        IEnumerable<Bottle> bottles,
+        IEnumerable<BottleLocation> userLocations)
+    {
+        var bottlesByLocation = bottles
+            .Where(bottle => bottle.BottleLocationId.HasValue)
+            .GroupBy(bottle => bottle.BottleLocationId!.Value)
+            .ToDictionary(
+                group => group.Key,
+                group => new
+                {
+                    BottleCount = group.Count(),
+                    UniqueWineCount = group
+                        .Select(bottle => bottle.WineVintageId)
+                        .Distinct()
+                        .Count(),
+                    DrunkBottleCount = group.Count(bottle => bottle.IsDrunk)
+                });
+
+        return userLocations
+            .Select(location =>
+            {
+                if (!bottlesByLocation.TryGetValue(location.Id, out var summary))
+                {
+                    return new WineInventoryLocationViewModel
+                    {
+                        Id = location.Id,
+                        Name = location.Name,
+                        Capacity = location.Capacity,
+                        BottleCount = 0,
+                        UniqueWineCount = 0,
+                        CellaredBottleCount = 0,
+                        DrunkBottleCount = 0
+                    };
+                }
+
+                var cellaredCount = summary.BottleCount - summary.DrunkBottleCount;
+
+                return new WineInventoryLocationViewModel
+                {
+                    Id = location.Id,
+                    Name = location.Name,
+                    Capacity = location.Capacity,
+                    BottleCount = summary.BottleCount,
+                    UniqueWineCount = summary.UniqueWineCount,
+                    CellaredBottleCount = Math.Max(cellaredCount, 0),
+                    DrunkBottleCount = summary.DrunkBottleCount
+                };
+            })
+            .ToList();
     }
 
     private async Task<BottleNotesResponse?> BuildBottleNotesResponseAsync(Guid bottleId, Guid userId, CancellationToken cancellationToken)
@@ -1371,6 +1383,7 @@ public class BottleGroupDetailsResponse
 {
     public WineInventoryBottleViewModel? Group { get; set; }
     public IReadOnlyList<WineInventoryBottleDetailViewModel> Details { get; set; } = Array.Empty<WineInventoryBottleDetailViewModel>();
+    public IReadOnlyList<WineInventoryLocationViewModel> Locations { get; set; } = Array.Empty<WineInventoryLocationViewModel>();
 }
 
 public class BottleMutationRequest
