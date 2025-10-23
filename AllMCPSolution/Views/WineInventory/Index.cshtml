@@ -285,6 +285,9 @@
                     var capacityLabel = hasCapacity
                         ? $"· Capacity: {capacityValue}"
                         : string.Empty;
+                    var highlightClass = Model.HasActiveFilters && Model.HighlightedLocationIds.Contains(location.Id)
+                        ? " location-card--highlight"
+                        : string.Empty;
                     var remainingCapacity = hasCapacity ? capacityValue - location.BottleCount : 0;
                     string statusLabel;
                     if (location.BottleCount > 0)
@@ -318,7 +321,7 @@
                         statusLabel = "No bottles stored here yet.";
                         capacityLabel = string.Empty;
                     }
-                    <article class="wine-card wine-surface wine-surface-border wine-card-hover location-card"
+                    <article class="wine-card wine-surface wine-surface-border wine-card-hover location-card@highlightClass"
                              data-location-card
                              data-location-id="@location.Id"
                              data-location-name="@location.Name"
