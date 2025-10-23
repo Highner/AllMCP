@@ -59,6 +59,8 @@
             border: 1px solid hsla(var(--border) / 0.55);
             background: hsla(var(--card) / 0.8);
             box-shadow: 0 32px 80px rgba(0, 0, 0, 0.35);
+            --taste-profile-success: 142 69% 58%;
+            --taste-profile-success-foreground: 142 76% 90%;
         }
 
         .taste-profile-header {
@@ -93,9 +95,9 @@
         }
 
         .taste-profile-banner--success {
-            background: hsla(var(--primary) / 0.2);
-            border-color: hsla(var(--primary) / 0.6);
-            color: hsl(var(--primary-foreground));
+            background: hsla(var(--taste-profile-success) / 0.2);
+            border-color: hsla(var(--taste-profile-success) / 0.55);
+            color: hsl(var(--taste-profile-success-foreground));
         }
 
         .taste-profile-banner--error {
