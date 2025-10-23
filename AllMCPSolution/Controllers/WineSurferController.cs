@@ -28,6 +28,15 @@ namespace AllMCPSolution.Controllers;
 [Route("wine-surfer")]
 public class WineSurferController : Controller
 {
+    [Route("debug/config")]
+    public IActionResult ConfigTest([FromServices] IConfiguration config)
+    {
+        var apiKey = config["OpenAI:ApiKey"];
+        if (string.IsNullOrEmpty(apiKey))
+            return Ok("OpenAI API key not found 😕");
+        return Ok("OpenAI API key is loaded ✅");
+    }
+
     private static readonly IReadOnlyDictionary<string, (double Longitude, double Latitude)> RegionCoordinates =
         new Dictionary<string, (double Longitude, double Latitude)>(StringComparer.OrdinalIgnoreCase)
         {
