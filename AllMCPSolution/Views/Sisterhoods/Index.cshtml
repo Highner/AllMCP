@@ -2095,8 +2095,13 @@
                             </div>
                             @if (sisterhood.SipSessions.Count > 0)
                             {
+                                var orderedSipSessions = sisterhood.SipSessions
+                                    .Where(session => !IsPastSipSession(session))
+                                    .Concat(sisterhood.SipSessions.Where(session => IsPastSipSession(session)))
+                                    .ToList();
+
                                 <ul class="sip-session-list">
-                                    @foreach (var session in sisterhood.SipSessions)
+                                    @foreach (var session in orderedSipSessions)
                                     {
                                         var editFormId = $"sip-session-edit-{session.Id}";
                                         var editContainerId = $"sip-session-edit-container-{session.Id}";
