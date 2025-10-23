@@ -429,6 +429,16 @@ public sealed class TerroirMergeRepository : ITerroirMergeRepository
         }
     }
 
+    private async Task MergeWineEntitiesAsync(Wine leader, Wine follower, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(leader.GrapeVariety) && !string.IsNullOrWhiteSpace(follower.GrapeVariety))
+        {
+            leader.GrapeVariety = follower.GrapeVariety;
+        }
+
+        await MergeWineCollectionAsync(leader, new[] { follower }, ct);
+    }
+
     private async Task MergeRegionEntitiesAsync(Region leader, Region follower, CancellationToken ct)
     {
         await _db.Entry(leader).Collection(r => r.Appellations).LoadAsync(ct);
