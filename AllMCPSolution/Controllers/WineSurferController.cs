@@ -3066,10 +3066,6 @@ public class WineSurferController : Controller
 
         var bottle = sessionBottle.Bottle;
         var noteText = request.Note?.Trim();
-        if (string.IsNullOrWhiteSpace(noteText))
-        {
-            return Error("Please share a tasting note before saving.");
-        }
 
         decimal? score = null;
         var rawScore = request.Score?.Trim();
@@ -3103,6 +3099,14 @@ public class WineSurferController : Controller
 
         var bottleLabel = CreateBottleLabel(bottle);
 
+        var hasNote = !string.IsNullOrWhiteSpace(noteText);
+        if (!hasNote && score is null)
+        {
+            return Error("Add a tasting note or score.");
+        }
+
+        var noteToSave = hasNote ? noteText! : string.Empty;
+
         try
         {
             var existingNotes = await _tastingNoteRepository.GetByBottleIdAsync(request.BottleId, cancellationToken);
@@ -3113,7 +3117,7 @@ public class WineSurferController : Controller
 
             if (existing is not null)
             {
-                existing.Note = noteText;
+                existing.Note = noteToSave;
                 existing.Score = score;
                 await _tastingNoteRepository.UpdateAsync(existing, cancellationToken);
                 message = $"Updated your tasting note for {bottleLabel}.";
@@ -3124,7 +3128,7 @@ public class WineSurferController : Controller
                 {
                     BottleId = request.BottleId,
                     UserId = currentUserId.Value,
-                    Note = noteText,
+                    Note = noteToSave,
                     Score = score
                 };
 
@@ -3966,9 +3970,8 @@ public class WineSurferController : Controller
         [Required]
         public Guid BottleId { get; set; }
 
-        [Required]
-        [StringLength(2048, MinimumLength = 1)]
-        public string Note { get; set; } = string.Empty;
+        [StringLength(2048)]
+        public string? Note { get; set; }
 
         // Accept as raw string to avoid culture-specific model binding issues; we'll parse manually.
         public string? Score { get; set; }
