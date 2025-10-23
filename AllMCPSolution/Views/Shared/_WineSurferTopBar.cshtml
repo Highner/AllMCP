@@ -15,14 +15,16 @@
     {
         ("/wine-surfer", "Home"),
         ("/wine-surfer/terroir", "Terroir"),
-        ("/wine-surfer/sisterhoods", "Sisterhoods"),
-        ("/wine-manager", "Wine Inventory")
+        ("/wine-surfer/sisterhoods", "Sisterhoods")
     };
 
     if (isAuthenticatedUser)
     {
-        navItems.Insert(3, ("/wine-surfer/taste-profile", "Taste Profile"));
+        navItems.Add(("/wine-surfer/surf-eye", "Surf Eye"));
+        navItems.Add(("/wine-surfer/taste-profile", "Taste Profile"));
     }
+
+    navItems.Add(("/wine-manager", "Wine Inventory"));
 
     if (!isAdmin)
     {
