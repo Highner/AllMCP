@@ -18,6 +18,10 @@
     ViewData["WineSurferPageTitle"] = "Terroir manager";
     var hasStatus = !string.IsNullOrWhiteSpace(Model.StatusMessage);
     var hasError = !string.IsNullOrWhiteSpace(Model.ErrorMessage);
+    var highlightSection = Model.HighlightSection;
+    var highlightId = Model.HighlightId;
+    highlightSection = string.IsNullOrWhiteSpace(highlightSection) ? null : highlightSection.Trim();
+    highlightId = string.IsNullOrWhiteSpace(highlightId) ? null : highlightId.Trim();
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -222,6 +226,22 @@
             background: hsla(var(--accent) / 0.22);
         }
 
+        .terroir-table__row--highlight {
+            animation: terroir-row-highlight 1s ease;
+        }
+
+        @keyframes terroir-row-highlight {
+            0% {
+                box-shadow: 0 0 0 3px hsla(var(--primary) / 0.45);
+                background: hsla(var(--primary) / 0.35);
+            }
+
+            100% {
+                box-shadow: none;
+                background: hsla(var(--accent) / 0.22);
+            }
+        }
+
         .terroir-row-field {
             display: flex;
             flex-direction: column;
@@ -311,7 +331,7 @@
         }
     </style>
 </head>
-<body class="wine-app terroir-manager @bodyClass">
+<body class="wine-app terroir-manager @bodyClass" data-highlight-section="@highlightSection" data-highlight-id="@highlightId">
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="terroir-content">
@@ -355,7 +375,13 @@
                         var updateCountryUrl = Url.Action("UpdateCountry", "WineSurfer", new { id = country.Id });
                         var deleteCountryUrl = Url.Action("DeleteCountry", "WineSurfer", new { id = country.Id });
                         var countryNameId = $"country-name-{country.Id:N}";
-                        <form method="post" action="@updateCountryUrl" class="terroir-table__row" role="row">
+                        <form method="post"
+                              action="@updateCountryUrl"
+                              class="terroir-table__row"
+                              role="row"
+                              id="terroir-country-@country.Id"
+                              data-terroir-item="country"
+                              data-terroir-id="@country.Id">
                             @Html.AntiForgeryToken()
                             <div class="terroir-row-field" role="cell">
                                 <label class="sr-only" for="@countryNameId">Country name</label>
@@ -424,7 +450,13 @@
                         var deleteRegionUrl = Url.Action("DeleteRegion", "WineSurfer", new { id = region.Id });
                         var regionNameId = $"region-name-{region.Id:N}";
                         var regionCountryId = $"region-country-{region.Id:N}";
-                        <form method="post" action="@updateRegionUrl" class="terroir-table__row" role="row">
+                        <form method="post"
+                              action="@updateRegionUrl"
+                              class="terroir-table__row"
+                              role="row"
+                              id="terroir-region-@region.Id"
+                              data-terroir-item="region"
+                              data-terroir-id="@region.Id">
                             @Html.AntiForgeryToken()
                             <div class="terroir-row-field" role="cell">
                                 <label class="sr-only" for="@regionNameId">Region name</label>
@@ -501,7 +533,13 @@
                         var deleteAppellationUrl = Url.Action("DeleteAppellation", "WineSurfer", new { id = appellation.Id });
                         var appellationNameId = $"appellation-name-{appellation.Id:N}";
                         var appellationRegionId = $"appellation-region-{appellation.Id:N}";
-                        <form method="post" action="@updateAppellationUrl" class="terroir-table__row" role="row">
+                        <form method="post"
+                              action="@updateAppellationUrl"
+                              class="terroir-table__row"
+                              role="row"
+                              id="terroir-appellation-@appellation.Id"
+                              data-terroir-item="appellation"
+                              data-terroir-id="@appellation.Id">
                             @Html.AntiForgeryToken()
                             <div class="terroir-row-field" role="cell">
                                 <label class="sr-only" for="@appellationNameId">Appellation name</label>
@@ -580,7 +618,13 @@
                         var subNameId = $"subappellation-name-{subAppellation.Id:N}";
                         var subAppellationSelectId = $"subappellation-parent-{subAppellation.Id:N}";
                         var displayName = string.IsNullOrWhiteSpace(subAppellation.Name) ? "" : subAppellation.Name;
-                        <form method="post" action="@updateSubUrl" class="terroir-table__row" role="row">
+                        <form method="post"
+                              action="@updateSubUrl"
+                              class="terroir-table__row"
+                              role="row"
+                              id="terroir-sub-appellation-@subAppellation.Id"
+                              data-terroir-item="sub-appellation"
+                              data-terroir-id="@subAppellation.Id">
                             @Html.AntiForgeryToken()
                             <div class="terroir-row-field" role="cell">
                                 <label class="sr-only" for="@subNameId">Sub-appellation name</label>
@@ -676,7 +720,13 @@
                         var wineSubId = $"wine-sub-{wine.Id:N}";
                         var wineColorId = $"wine-color-{wine.Id:N}";
                         var wineGrapeId = $"wine-grape-{wine.Id:N}";
-                        <form method="post" action="@updateWineUrl" class="terroir-table__row" role="row">
+                        <form method="post"
+                              action="@updateWineUrl"
+                              class="terroir-table__row"
+                              role="row"
+                              id="terroir-wine-@wine.Id"
+                              data-terroir-item="wine"
+                              data-terroir-id="@wine.Id">
                             @Html.AntiForgeryToken()
                             <div class="terroir-row-field" role="cell">
                                 <label class="sr-only" for="@wineNameId">Wine name</label>
@@ -727,5 +777,36 @@
             </section>
         </main>
     </div>
+    <script>
+        (function () {
+            const root = document.body;
+            if (!root) {
+                return;
+            }
+
+            const section = root.dataset.highlightSection;
+            const id = root.dataset.highlightId;
+            if (!section || !id) {
+                return;
+            }
+
+            const selector = '[data-terroir-item="' + section + '"][data-terroir-id="' + id + '"]';
+            const target = document.querySelector(selector);
+            if (!target) {
+                return;
+            }
+
+            window.requestAnimationFrame(() => {
+                if (typeof target.scrollIntoView === 'function') {
+                    target.scrollIntoView({ block: 'center', inline: 'nearest' });
+                }
+
+                target.classList.add('terroir-table__row--highlight');
+                window.setTimeout(() => {
+                    target.classList.remove('terroir-table__row--highlight');
+                }, 1200);
+            });
+        })();
+    </script>
 </body>
 </html>
