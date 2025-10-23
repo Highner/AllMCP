@@ -98,19 +98,25 @@
             return null;
         }
 
+        const countryValue = pick(raw, ['country', 'Country']);
         const regionValue = pick(raw, ['region', 'Region']);
         const appellationValue = pick(raw, ['appellation', 'Appellation']);
         const subAppellationValue = pick(raw, ['subAppellation', 'SubAppellation', 'sub_appellation', 'Sub_Appellation']);
+        const colorValue = pick(raw, ['color', 'Color']);
 
+        const country = typeof countryValue === 'string' ? countryValue.trim() : countryValue != null ? String(countryValue).trim() : '';
         const region = typeof regionValue === 'string' ? regionValue.trim() : regionValue != null ? String(regionValue).trim() : '';
         const appellation = typeof appellationValue === 'string' ? appellationValue.trim() : appellationValue != null ? String(appellationValue).trim() : '';
         const subAppellation = typeof subAppellationValue === 'string' ? subAppellationValue.trim() : subAppellationValue != null ? String(subAppellationValue).trim() : '';
+        const color = typeof colorValue === 'string' ? colorValue.trim() : colorValue != null ? String(colorValue).trim() : '';
 
         return {
             name,
+            country: country || null,
             region: region || null,
             appellation: appellation || null,
-            subAppellation: subAppellation || null
+            subAppellation: subAppellation || null,
+            color: color || null
         };
     }
 
@@ -718,14 +724,26 @@
                     item.appendChild(name);
 
                     const metaParts = [];
-                    if (result.region) {
-                        metaParts.push(`Region: ${result.region}`);
+                    if (result.color) {
+                        metaParts.push(`Color: ${result.color}`);
                     }
-                    if (result.appellation) {
-                        metaParts.push(`Appellation: ${result.appellation}`);
-                    }
+
+                    const locationParts = [];
                     if (result.subAppellation) {
-                        metaParts.push(`Sub-appellation: ${result.subAppellation}`);
+                        locationParts.push(result.subAppellation);
+                    }
+                    if (result.appellation && !locationParts.includes(result.appellation)) {
+                        locationParts.push(result.appellation);
+                    }
+                    if (result.region) {
+                        locationParts.push(result.region);
+                    }
+                    if (result.country) {
+                        locationParts.push(result.country);
+                    }
+
+                    if (locationParts.length > 0) {
+                        metaParts.push(`Location: ${locationParts.join(' • ')}`);
                     }
 
                     if (metaParts.length > 0) {

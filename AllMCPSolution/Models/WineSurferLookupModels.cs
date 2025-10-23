@@ -8,9 +8,11 @@ public sealed record WineSurferLookupResponse(
 
 public sealed record WineSurferLookupResult(
     [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("country")] string? Country,
     [property: JsonPropertyName("region")] string? Region,
     [property: JsonPropertyName("appellation")] string? Appellation,
-    [property: JsonPropertyName("subAppellation")] string? SubAppellation);
+    [property: JsonPropertyName("subAppellation")] string? SubAppellation,
+    [property: JsonPropertyName("color")] string? Color);
 
 public sealed record WineSurferLookupError(
     [property: JsonPropertyName("message")] string Message);
