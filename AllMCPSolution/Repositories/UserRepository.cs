@@ -103,7 +103,7 @@ public class UserRepository : IUserRepository
         var likeNormalizedEmail = $"%{EscapeLikePattern(normalizedEmail)}%";
         var limit = Math.Max(1, maxResults);
 
-        return await _userManager.Users
+        var directMatches = await _userManager.Users
             .AsNoTracking()
             .Where(u =>
                 (!string.IsNullOrEmpty(u.Name) && EF.Functions.Like(u.Name!, likeName, "\\")) ||
@@ -111,8 +111,47 @@ public class UserRepository : IUserRepository
                 (!string.IsNullOrEmpty(u.NormalizedEmail) && EF.Functions.Like(u.NormalizedEmail!, likeNormalizedEmail, "\\")))
             .OrderBy(u => u.Name)
             .ThenBy(u => u.UserName)
-            .Take(limit)
+            .Take(limit * 3)
             .ToListAsync(ct);
+
+        var results = new List<ApplicationUser>(directMatches.Count);
+        var seen = new HashSet<Guid>();
+
+        foreach (var user in directMatches)
+        {
+            if (seen.Add(user.Id))
+            {
+                results.Add(user);
+
+                if (results.Count >= limit)
+                {
+                    return results.Take(limit).ToList();
+                }
+            }
+        }
+
+        var shouldRunFuzzySearch = results.Count < limit && !trimmed.Contains('@');
+
+        if (shouldRunFuzzySearch)
+        {
+            var fuzzyMatches = await SearchByApproximateNameAsync(trimmed, limit * 3, ct);
+
+            foreach (var user in fuzzyMatches)
+            {
+                if (seen.Add(user.Id))
+                {
+                    results.Add(user);
+
+                    if (results.Count >= limit)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Trim to the requested limit while preserving the ranking of direct and fuzzy matches.
+        return results.Take(limit).ToList();
     }
 
     public async Task<ApplicationUser> GetOrCreateAsync(string name, string tasteProfile, string? tasteProfileSummary = null, CancellationToken ct = default)
