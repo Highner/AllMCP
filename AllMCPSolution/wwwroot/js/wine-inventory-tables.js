@@ -1034,8 +1034,11 @@ window.WineInventoryTables.initialize = function () {
                     addWineResults.appendChild(errorStatus);
                 } else if (!hasCellarOptions) {
                     if (trimmedQuery === lastCompletedQuery) {
+                        const createMessage = hasCreateOption && trimmedQuery.length > 0
+                            ? `No wines found in your cellar. Create “${trimmedQuery}” or try Wine Surfer.`
+                            : 'No wines found in your cellar. Create a new wine or try Wine Surfer.';
                         const message = hasCreateOption
-                            ? 'No wines found in your cellar. Create a new wine or try Wine Surfer.'
+                            ? createMessage
                             : hasWineSurferOption
                                 ? 'No wines found in your cellar. Try Wine Surfer for more matches.'
                                 : 'No wines found.';
@@ -1043,6 +1046,11 @@ window.WineInventoryTables.initialize = function () {
                     } else {
                         addWineResults.appendChild(buildWineStatusElement('Keep typing to search the cellar.'));
                     }
+                } else if (hasCreateOption && trimmedQuery === lastCompletedQuery) {
+                    const message = trimmedQuery.length > 0
+                        ? `Select a wine below or create “${trimmedQuery}” if it's missing from your cellar.`
+                        : 'Select a wine below or create a new entry if it is missing from your cellar.';
+                    addWineResults.appendChild(buildWineStatusElement(message));
                 }
 
                 if (wineOptions.length === 0) {
@@ -4544,9 +4552,11 @@ window.WineInventoryTables.initialize = function () {
                     ? options.filter(option => option && option.isWineSurfer !== true && option.isCreateWine !== true)
                     : [];
                 const trimmed = (query ?? '').trim();
-                const shouldIncludeCreate = includeCreate ?? (trimmed.length >= 3 && baseOptions.length === 0);
+                const hasQuery = trimmed.length > 0;
+                const shouldIncludeCreate = includeCreate ?? hasQuery;
+                const canAppendCreate = hasQuery || includeCreate === true;
 
-                if (shouldIncludeCreate) {
+                if (shouldIncludeCreate && canAppendCreate) {
                     baseOptions.push(createCreateWineOption(trimmed));
                 }
 
