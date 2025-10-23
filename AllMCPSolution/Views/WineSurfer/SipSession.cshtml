@@ -995,6 +995,25 @@
                 </dl>
             </section>
             <section class="bottle-section" aria-label="Bottle list">
+                @if (!isCreateMode)
+                {
+                    if (hasFoodSuggestions)
+                    {
+                        <section class="food-suggestions" aria-label="Suggested food pairings" role="status">
+                            <h3 class="food-suggestions__title">Suggested pairings</h3>
+                            <ul class="food-suggestions__list">
+                                @foreach (var suggestion in foodSuggestions)
+                                {
+                                    <li>@suggestion</li>
+                                }
+                            </ul>
+                        </section>
+                    }
+                    else if (!string.IsNullOrEmpty(foodSuggestionError))
+                    {
+                        <div class="status-banner error food-suggestions__error" role="alert">@foodSuggestionError</div>
+                    }
+                }
                 <div class="bottle-section__header">
                     <h2 class="bottle-section__title">Bottle list</h2>
                     @if (showBottleActions)
@@ -1032,25 +1051,6 @@
                         </div>
                     }
                 </div>
-                @if (!isCreateMode)
-                {
-                    if (hasFoodSuggestions)
-                    {
-                        <section class="food-suggestions" aria-label="Suggested food pairings" role="status">
-                            <h3 class="food-suggestions__title">Suggested pairings</h3>
-                            <ul class="food-suggestions__list">
-                                @foreach (var suggestion in foodSuggestions)
-                                {
-                                    <li>@suggestion</li>
-                                }
-                            </ul>
-                        </section>
-                    }
-                    else if (!string.IsNullOrEmpty(foodSuggestionError))
-                    {
-                        <div class="status-banner error food-suggestions__error" role="alert">@foodSuggestionError</div>
-                    }
-                }
                 @if (isCreateMode)
                 {
                     <p class="empty-state">Add bottles after you create this sip session.</p>
