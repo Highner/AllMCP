@@ -262,6 +262,13 @@
             letter-spacing: 1px;
         }
 
+        .taste-profile-suggestion-reason {
+            font-size: 13px;
+            color: hsla(var(--muted-foreground) / 0.95);
+            letter-spacing: 0.6px;
+            line-height: 1.5;
+        }
+
         .taste-profile-suggestions-empty {
             margin: 0;
             font-size: 13px;
@@ -377,12 +384,19 @@
                             }
 
                             var detail = detailSegments.Count > 0 ? string.Join(" • ", detailSegments) : null;
+                            var reason = string.IsNullOrWhiteSpace(suggestion.Reason)
+                                ? null
+                                : suggestion.Reason.Trim();
 
                             <li class="taste-profile-suggestion-item">
                                 <span class="taste-profile-suggestion-name">@primary</span>
                                 @if (!string.IsNullOrWhiteSpace(detail))
                                 {
                                     <span class="taste-profile-suggestion-location">@detail</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(reason))
+                                {
+                                    <span class="taste-profile-suggestion-reason">@reason</span>
                                 }
                             </li>
                         }
@@ -510,6 +524,7 @@
                         const appellation = toText(entry.appellation);
                         const region = toText(entry.region);
                         const country = toText(entry.country);
+                        const reason = toText(entry.reason);
                         const primary = subAppellation || appellation;
 
                         if (!primary) {
@@ -547,6 +562,13 @@
                             locationNode.className = 'taste-profile-suggestion-location';
                             locationNode.textContent = detailSegments.join(' • ');
                             item.appendChild(locationNode);
+                        }
+
+                        if (reason) {
+                            const reasonNode = document.createElement('span');
+                            reasonNode.className = 'taste-profile-suggestion-reason';
+                            reasonNode.textContent = reason;
+                            item.appendChild(reasonNode);
                         }
 
                         fragment.appendChild(item);

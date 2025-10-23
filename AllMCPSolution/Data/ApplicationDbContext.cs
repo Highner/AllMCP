@@ -155,6 +155,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
         modelBuilder.Entity<SuggestedAppellation>(e =>
         {
+            e.Property(suggested => suggested.Reason)
+                .HasMaxLength(512);
+
             e.HasOne(suggested => suggested.SubAppellation)
                 .WithMany(subAppellation => subAppellation.SuggestedAppellations)
                 .HasForeignKey(suggested => suggested.SubAppellationId)

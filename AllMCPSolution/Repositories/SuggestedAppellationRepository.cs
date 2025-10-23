@@ -1,18 +1,18 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using AllMCPSolution.Data;
 using AllMCPSolution.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace AllMCPSolution.Repositories;
 
+public sealed record SuggestedAppellationReplacement(Guid SubAppellationId, string? Reason);
+
 public interface ISuggestedAppellationRepository
 {
     Task<IReadOnlyList<SuggestedAppellation>> GetForUserAsync(Guid userId, CancellationToken ct = default);
-    Task ReplaceSuggestionsAsync(Guid userId, IReadOnlyList<Guid>? subAppellationIds, CancellationToken ct = default);
+    Task ReplaceSuggestionsAsync(
+        Guid userId,
+        IReadOnlyList<SuggestedAppellationReplacement>? suggestions,
+        CancellationToken ct = default);
 }
 
 public sealed class SuggestedAppellationRepository : ISuggestedAppellationRepository
@@ -40,7 +40,10 @@ public sealed class SuggestedAppellationRepository : ISuggestedAppellationReposi
             .ToListAsync(ct);
     }
 
-    public async Task ReplaceSuggestionsAsync(Guid userId, IReadOnlyList<Guid>? subAppellationIds, CancellationToken ct = default)
+    public async Task ReplaceSuggestionsAsync(
+        Guid userId,
+        IReadOnlyList<SuggestedAppellationReplacement>? suggestions,
+        CancellationToken ct = default)
     {
         var existing = await _db.SuggestedAppellations
             .Where(suggestion => suggestion.UserId == userId)
@@ -51,16 +54,17 @@ public sealed class SuggestedAppellationRepository : ISuggestedAppellationReposi
             _db.SuggestedAppellations.RemoveRange(existing);
         }
 
-        if (subAppellationIds is not null && subAppellationIds.Count > 0)
+        if (suggestions is not null && suggestions.Count > 0)
         {
-            var pending = subAppellationIds
-                .Where(id => id != Guid.Empty)
-                .Distinct()
-                .Select(id => new SuggestedAppellation
+            var pending = suggestions
+                .Where(entry => entry is not null && entry.SubAppellationId != Guid.Empty)
+                .GroupBy(entry => entry.SubAppellationId)
+                .Select(group => new SuggestedAppellation
                 {
                     Id = Guid.NewGuid(),
                     UserId = userId,
-                    SubAppellationId = id
+                    SubAppellationId = group.Key,
+                    Reason = NormalizeReason(group.First().Reason)
                 })
                 .ToList();
 
@@ -71,5 +75,26 @@ public sealed class SuggestedAppellationRepository : ISuggestedAppellationReposi
         }
 
         await _db.SaveChangesAsync(ct);
+    }
+
+    private static string? NormalizeReason(string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return null;
+        }
+
+        var normalized = reason.ReplaceLineEndings(" ").Trim();
+        while (normalized.Contains("  ", StringComparison.Ordinal))
+        {
+            normalized = normalized.Replace("  ", " ", StringComparison.Ordinal);
+        }
+
+        if (normalized.Length <= 512)
+        {
+            return normalized;
+        }
+
+        return normalized[..512].TrimEnd();
     }
 }
