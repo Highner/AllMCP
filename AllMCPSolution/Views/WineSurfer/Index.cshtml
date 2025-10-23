@@ -1642,62 +1642,105 @@
                         point.IsSuggested
                     }), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
             </script>
-            <section class="regions-panel" aria-label="Highlighted wine regions">
-                @for (var i = 0; i < Model.HighlightPoints.Count; i++)
+            @{
+                var highlightEntries = (Model.HighlightPoints ?? Enumerable.Empty<MapHighlightPoint>())
+                    .Select((point, index) => (Index: index, Point: point))
+                    .ToList();
+
+                var regionCardEntries = highlightEntries
+                    .Where(entry => entry.Point.IsSuggested)
+                    .Take(2)
+                    .Select(entry => (entry.Index, entry.Point))
+                    .ToList();
+
+                var currentUserId = Model.CurrentUser?.DomainUserId;
+
+                if (currentUserId.HasValue)
                 {
-                    var point = Model.HighlightPoints[i];
-                    var cardClasses = "region-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card";
-                    if (point.IsSuggested)
+                    var topEntry = highlightEntries
+                        .Where(entry => !entry.Point.IsSuggested)
+                        .Select(entry =>
+                        {
+                            var userScore = entry.Point.UserAverageScores
+                                .FirstOrDefault(score => score.UserId == currentUserId.Value);
+
+                            return new
+                            {
+                                entry.Index,
+                                entry.Point,
+                                Score = userScore?.AverageScore
+                            };
+                        })
+                        .Where(entry => entry.Score.HasValue)
+                        .OrderByDescending(entry => entry.Score!.Value)
+                        .FirstOrDefault();
+
+                    if (topEntry is not null && !regionCardEntries.Any(entry => entry.Index == topEntry.Index))
                     {
-                        cardClasses += " region-card--suggested";
+                        regionCardEntries.Add((topEntry.Index, topEntry.Point));
                     }
-                    <article class="@cardClasses" data-region-index="@i" data-region-suggested="@(point.IsSuggested ? "true" : null)">
-                        @if (point.IsSuggested)
-                        {
-                            <span class="region-card__tag">Suggested</span>
-                        }
-                        <span class="label wine-card__title">@point.Label</span>
-                        @if (!string.IsNullOrWhiteSpace(point.Country))
-                        {
-                            <span class="country wine-card__subtitle">@point.Country</span>
-                        }
-                        @if (!point.IsSuggested)
-                        {
-                            <dl class="inventory-overview wine-card__stats" aria-label="Inventory overview for @point.Label">
-                                <div class="metric wine-card__stat">
-                                    <dt>Cellared</dt>
-                                    <dd>@point.BottlesCellared</dd>
-                                </div>
-                                <div class="metric wine-card__stat">
-                                    <dt>Consumed</dt>
-                                    <dd>@point.BottlesConsumed</dd>
-                                </div>
-                                <div class="metric wine-card__stat">
-                                    <dt>Avg. Score</dt>
-                                    <dd data-region-average>—</dd>
-                                </div>
-                            </dl>
-                        }
-                        else
-                        {
-                            var suggestionReason = string.IsNullOrWhiteSpace(point.SuggestionReason)
-                                ? null
-                                : point.SuggestionReason.Trim();
-                            <p class="region-card__suggested-note">
-                                @if (suggestionReason is not null)
-                                {
-                                    <span class="region-card__suggested-reason">@suggestionReason</span>
-                                }
-                                else
-                                {
-                                    <span>Suggested by your taste profile.</span>
-                                }
-                                <span class="region-card__suggested-instructions">Zoom the map to explore this appellation.</span>
-                            </p>
-                        }
-                    </article>
                 }
-                @if (!Model.HighlightPoints.Any())
+            }
+            <section class="regions-panel" aria-label="Highlighted wine regions">
+                @if (regionCardEntries.Any())
+                {
+                    foreach (var entry in regionCardEntries)
+                    {
+                        var point = entry.Point;
+                        var regionIndex = entry.Index;
+                        var cardClasses = "region-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card";
+                        if (point.IsSuggested)
+                        {
+                            cardClasses += " region-card--suggested";
+                        }
+                        <article class="@cardClasses" data-region-index="@regionIndex" data-region-suggested="@(point.IsSuggested ? "true" : null)">
+                            @if (point.IsSuggested)
+                            {
+                                <span class="region-card__tag">Suggested</span>
+                            }
+                            <span class="label wine-card__title">@point.Label</span>
+                            @if (!string.IsNullOrWhiteSpace(point.Country))
+                            {
+                                <span class="country wine-card__subtitle">@point.Country</span>
+                            }
+                            @if (!point.IsSuggested)
+                            {
+                                <dl class="inventory-overview wine-card__stats" aria-label="Inventory overview for @point.Label">
+                                    <div class="metric wine-card__stat">
+                                        <dt>Cellared</dt>
+                                        <dd>@point.BottlesCellared</dd>
+                                    </div>
+                                    <div class="metric wine-card__stat">
+                                        <dt>Consumed</dt>
+                                        <dd>@point.BottlesConsumed</dd>
+                                    </div>
+                                    <div class="metric wine-card__stat">
+                                        <dt>Avg. Score</dt>
+                                        <dd data-region-average>—</dd>
+                                    </div>
+                                </dl>
+                            }
+                            else
+                            {
+                                var suggestionReason = string.IsNullOrWhiteSpace(point.SuggestionReason)
+                                    ? null
+                                    : point.SuggestionReason.Trim();
+                                <p class="region-card__suggested-note">
+                                    @if (suggestionReason is not null)
+                                    {
+                                        <span class="region-card__suggested-reason">@suggestionReason</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Suggested by your taste profile.</span>
+                                    }
+                                    <span class="region-card__suggested-instructions">Zoom the map to explore this appellation.</span>
+                                </p>
+                            }
+                        </article>
+                    }
+                }
+                else
                 {
                     <article class="region-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card">
                         <span class="label wine-card__title">No wine regions available yet</span>
