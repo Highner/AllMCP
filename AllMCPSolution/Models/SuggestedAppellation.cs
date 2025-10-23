@@ -9,4 +9,6 @@ public class SuggestedAppellation
 
     public Guid UserId { get; set; }
     public ApplicationUser User { get; set; } = null!;
+
+    public string? Reason { get; set; }
 }

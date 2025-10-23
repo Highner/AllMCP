@@ -134,10 +134,10 @@ public class WineSurferController : Controller
     private const string TasteProfileStatusTempDataKey = "WineSurfer.TasteProfile.Status";
     private const string TasteProfileErrorTempDataKey = "WineSurfer.TasteProfile.Error";
     private const string TasteProfileGenerationSystemPrompt =
-        "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null},{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null}]}. " +
+        "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\"},{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\"}]}. " +
         "The summary must be 200 characters or fewer and offer a concise descriptor of the user's palate. " +
         "The profile must be 3-5 sentences, 1500 characters or fewer, written in the second person, and describe styles, structure, and flavor preferences without recommending specific new wines. " +
-        "The suggestedAppellations array must contain exactly two entries describing appellations or sub-appellations that fit the profile, each with country, region, and appellation strings and subAppellation set to a string or null. " +
+        "The suggestedAppellations array must contain exactly two entries describing appellations or sub-appellations that fit the profile, each with country, region, appellation strings, subAppellation set to a string or null, and a single-sentence reason of 200 characters or fewer explaining the match. " +
         "Do not include markdown, bullet lists, code fences, or any explanatory text outside the JSON object.";
     private static readonly JsonDocumentOptions TasteProfileJsonDocumentOptions = new()
     {
@@ -728,7 +728,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 suggestion.CountryName,
                 suggestion.RegionName,
                 suggestion.AppellationName,
-                suggestion.SubAppellationName))
+                suggestion.SubAppellationName,
+                suggestion.Reason ?? string.Empty))
             .ToList();
 
         return Json(new GenerateTasteProfileResponse(summary, profile, responseSuggestions));
@@ -4799,8 +4800,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
         builder.AppendLine("Identify consistent stylistic preferences, texture, structure, and favored regions or grapes.");
         builder.AppendLine("Use only the provided information and avoid recommending specific new bottles.");
         builder.AppendLine("Write the taste profile in the second person.");
-        builder.AppendLine("Also include exactly two suggested appellations or sub-appellations that match the palate, providing country, region, and appellation, and set subAppellation to null when unknown. Suggest only appellations that are not already in use.");
-        builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null},{...}]}. No markdown or commentary.");
+        builder.AppendLine("Also include exactly two suggested appellations or sub-appellations that match the palate, providing country, region, appellation, an optional subAppellation (use null when unknown), and a single-sentence reason under 200 characters explaining the fit. Suggest only appellations that are not already in use.");
+        builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\"},{...}]}. No markdown or commentary.");
 
         return builder.ToString();
     }
@@ -5020,12 +5021,15 @@ Each suggestion must be a short dish description followed by a concise reason, a
     {
         if (suggestions is null || suggestions.Count == 0)
         {
-            await _suggestedAppellationRepository.ReplaceSuggestionsAsync(userId, Array.Empty<Guid>(), cancellationToken);
+            await _suggestedAppellationRepository.ReplaceSuggestionsAsync(
+                userId,
+                Array.Empty<SuggestedAppellationReplacement>(),
+                cancellationToken);
             return Array.Empty<WineSurferSuggestedAppellation>();
         }
 
         var resolved = new List<WineSurferSuggestedAppellation>(Math.Min(suggestions.Count, 2));
-        var subAppellationIds = new List<Guid>(Math.Min(suggestions.Count, 2));
+        var replacements = new List<SuggestedAppellationReplacement>(Math.Min(suggestions.Count, 2));
         var seen = new HashSet<Guid>();
 
         foreach (var suggestion in suggestions.Take(2))
@@ -5057,7 +5061,13 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 continue;
             }
 
-            subAppellationIds.Add(subAppellation.Id);
+            var normalizedReason = NormalizeSuggestedReason(suggestion.Reason);
+            if (string.IsNullOrEmpty(normalizedReason))
+            {
+                continue;
+            }
+
+            replacements.Add(new SuggestedAppellationReplacement(subAppellation.Id, normalizedReason));
 
             var subName = string.IsNullOrWhiteSpace(subAppellation.Name)
                 ? null
@@ -5069,10 +5079,11 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 appellation.Id,
                 appellation.Name?.Trim() ?? string.Empty,
                 region.Name?.Trim() ?? string.Empty,
-                country.Name?.Trim() ?? string.Empty));
+                country.Name?.Trim() ?? string.Empty,
+                normalizedReason));
         }
 
-        await _suggestedAppellationRepository.ReplaceSuggestionsAsync(userId, subAppellationIds, cancellationToken);
+        await _suggestedAppellationRepository.ReplaceSuggestionsAsync(userId, replacements, cancellationToken);
 
         return resolved.Count == 0 ? Array.Empty<WineSurferSuggestedAppellation>() : resolved;
     }
@@ -5291,13 +5302,16 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 ? null
                 : subAppellation.Name.Trim();
 
+            var reason = NormalizeSuggestedReason(suggestion.Reason);
+
             results.Add(new WineSurferSuggestedAppellation(
                 subAppellation.Id,
                 subName,
                 appellation.Id,
                 appellation.Name?.Trim() ?? string.Empty,
                 region.Name?.Trim() ?? string.Empty,
-                country.Name?.Trim() ?? string.Empty));
+                country.Name?.Trim() ?? string.Empty,
+                reason));
         }
 
         return results.Count == 0 ? Array.Empty<WineSurferSuggestedAppellation>() : results;
@@ -5318,6 +5332,27 @@ Each suggestion must be a short dish description followed by a concise reason, a
 
         var truncated = trimmed[..maxLength].TrimEnd();
         return truncated;
+    }
+
+    private static string? NormalizeSuggestedReason(string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return null;
+        }
+
+        var normalized = reason.ReplaceLineEndings(" ").Trim();
+        while (normalized.Contains("  ", StringComparison.Ordinal))
+        {
+            normalized = normalized.Replace("  ", " ", StringComparison.Ordinal);
+        }
+
+        if (normalized.Length > 512)
+        {
+            normalized = normalized[..512].TrimEnd();
+        }
+
+        return normalized;
     }
 
     private static string BuildSummaryFallback(string profile, int maxLength)
@@ -5411,15 +5446,17 @@ Each suggestion must be a short dish description followed by a concise reason, a
                     var region = GetTrimmedJsonString(suggestionElement, "region");
                     var appellation = GetTrimmedJsonString(suggestionElement, "appellation");
                     var subAppellation = GetTrimmedJsonString(suggestionElement, "subAppellation");
+                    var reason = GetTrimmedJsonString(suggestionElement, "reason");
 
                     if (string.IsNullOrWhiteSpace(country)
                         || string.IsNullOrWhiteSpace(region)
-                        || string.IsNullOrWhiteSpace(appellation))
+                        || string.IsNullOrWhiteSpace(appellation)
+                        || string.IsNullOrWhiteSpace(reason))
                     {
                         continue;
                     }
 
-                    parsed.Add(new GeneratedAppellationSuggestion(country!, region!, appellation!, subAppellation));
+                    parsed.Add(new GeneratedAppellationSuggestion(country!, region!, appellation!, subAppellation, reason!));
 
                     if (parsed.Count == 2)
                     {
@@ -5819,7 +5856,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
         string? Country,
         string? Region,
         string? Appellation,
-        string? SubAppellation);
+        string? SubAppellation,
+        string? Reason);
 
 private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(
     IEnumerable<SipSessionBottle>? sessionBottles,
@@ -6110,7 +6148,8 @@ public record GenerateTasteProfileSuggestion(
     string Country,
     string Region,
     string Appellation,
-    string? SubAppellation);
+    string? SubAppellation,
+    string Reason);
 
 public record GenerateTasteProfileError(string Error);
 
@@ -6132,7 +6171,8 @@ public record WineSurferSuggestedAppellation(
     Guid AppellationId,
     string AppellationName,
     string RegionName,
-    string CountryName);
+    string CountryName,
+    string? Reason);
 
 public record WineSurferTerroirManagementViewModel(
     WineSurferCurrentUser? CurrentUser,
