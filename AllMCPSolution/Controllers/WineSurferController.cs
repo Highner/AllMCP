@@ -3193,6 +3193,11 @@ Each suggestion must be a short dish description followed by a concise reason, a
             TempData["SisterhoodError"] = "We couldn't remove that bottle right now. Please try again.";
         }
 
+        if (!string.IsNullOrWhiteSpace(request.ReturnUrl) && Url.IsLocalUrl(request.ReturnUrl))
+        {
+            return Redirect(request.ReturnUrl);
+        }
+
         return RedirectToAction(nameof(Sisterhoods));
     }
 
@@ -4283,6 +4288,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
 
         [Required]
         public Guid BottleId { get; set; }
+
+        public string? ReturnUrl { get; set; }
     }
 
     public class RevealSipSessionBottleRequest

@@ -1102,7 +1102,8 @@
                                 {
                                     { "IsAuthenticated", Model.CurrentUser is not null },
                                     { "SisterhoodId", Model.SisterhoodId },
-                                    { "SipSessionId", Model.Session.Id }
+                                    { "SipSessionId", Model.Session.Id },
+                                    { "ReturnUrl", currentLocation }
                                 })
                             </li>
                         }
