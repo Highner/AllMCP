@@ -12,6 +12,7 @@ public interface IRegionRepository
     Task<Region?> FindByNameAsync(string name, CancellationToken ct = default);
     Task<Region?> FindByNameAndCountryAsync(string name, Guid countryId, CancellationToken ct = default);
     Task<IReadOnlyList<Region>> SearchByApproximateNameAsync(string name, int maxResults = 5, CancellationToken ct = default);
+    Task<bool> AnyForCountryAsync(Guid countryId, CancellationToken ct = default);
     Task<Region> GetOrCreateAsync(string name, Country country, CancellationToken ct = default);
     Task AddAsync(Region region, CancellationToken ct = default);
     Task UpdateAsync(Region region, CancellationToken ct = default);
@@ -76,6 +77,11 @@ public class RegionRepository : IRegionRepository
             .ToListAsync(ct);
 
         return FuzzyMatchUtilities.FindClosestMatches(regions, name, r => r.Name, maxResults);
+    }
+
+    public async Task<bool> AnyForCountryAsync(Guid countryId, CancellationToken ct = default)
+    {
+        return await _db.Regions.AnyAsync(r => r.CountryId == countryId, ct);
     }
 
     public async Task<Region> GetOrCreateAsync(string name, Country country, CancellationToken ct = default)

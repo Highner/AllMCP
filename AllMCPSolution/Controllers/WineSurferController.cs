@@ -937,6 +937,110 @@ Each suggestion must be a short dish description followed by a concise reason, a
     }
 
     [Authorize]
+    [HttpPost("countries")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateCountry([FromForm] CreateCountryRequest request, CancellationToken cancellationToken)
+    {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            TempData["ErrorMessage"] = "Country name is required.";
+            return RedirectToAction(nameof(ManageTerroir));
+        }
+
+        var trimmedName = request.Name.Trim();
+        var duplicate = await _countryRepository.FindByNameAsync(trimmedName, cancellationToken);
+        if (duplicate is not null)
+        {
+            TempData["ErrorMessage"] = $"Country '{trimmedName}' already exists.";
+            return RedirectToAction(nameof(ManageTerroir));
+        }
+
+        var country = new Country
+        {
+            Id = Guid.NewGuid(),
+            Name = trimmedName
+        };
+
+        await _countryRepository.AddAsync(country, cancellationToken);
+
+        TempData["StatusMessage"] = $"Country '{country.Name}' was created.";
+        return RedirectToAction(nameof(ManageTerroir));
+    }
+
+    [Authorize]
+    [HttpPost("countries/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateCountry(Guid id, [FromForm] UpdateCountryRequest request, CancellationToken cancellationToken)
+    {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var existing = await _countryRepository.GetByIdAsync(id, cancellationToken);
+        if (existing is null)
+        {
+            TempData["ErrorMessage"] = "Country could not be found.";
+            return RedirectToAction(nameof(ManageTerroir));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            TempData["ErrorMessage"] = "Country name is required.";
+            return RedirectToAction(nameof(ManageTerroir));
+        }
+
+        var trimmedName = request.Name.Trim();
+        var duplicate = await _countryRepository.FindByNameAsync(trimmedName, cancellationToken);
+        if (duplicate is not null && duplicate.Id != id)
+        {
+            TempData["ErrorMessage"] = $"Country '{trimmedName}' already exists.";
+            return RedirectToAction(nameof(ManageTerroir));
+        }
+
+        existing.Name = trimmedName;
+
+        await _countryRepository.UpdateAsync(existing, cancellationToken);
+
+        TempData["StatusMessage"] = $"Country '{existing.Name}' was updated.";
+        return RedirectToAction(nameof(ManageTerroir));
+    }
+
+    [Authorize]
+    [HttpPost("countries/{id:guid}/delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteCountry(Guid id, CancellationToken cancellationToken)
+    {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var existing = await _countryRepository.GetByIdAsync(id, cancellationToken);
+        if (existing is null)
+        {
+            TempData["ErrorMessage"] = "Country could not be found.";
+            return RedirectToAction(nameof(ManageTerroir));
+        }
+
+        if (await _regionRepository.AnyForCountryAsync(id, cancellationToken))
+        {
+            TempData["ErrorMessage"] = $"Remove regions for '{existing.Name}' before deleting the country.";
+            return RedirectToAction(nameof(ManageTerroir));
+        }
+
+        await _countryRepository.DeleteAsync(id, cancellationToken);
+
+        TempData["StatusMessage"] = $"Country '{existing.Name}' was deleted.";
+        return RedirectToAction(nameof(ManageTerroir));
+    }
+
+    [Authorize]
     [HttpPost("regions")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateRegion([FromForm] CreateRegionRequest request, CancellationToken cancellationToken)
@@ -3861,8 +3965,41 @@ Each suggestion must be a short dish description followed by a concise reason, a
         var subAppellations = await _subAppellationRepository.GetAllAsync(cancellationToken);
         var wines = await _wineRepository.GetAllAsync(cancellationToken);
 
+        var regionCountByCountry = regions
+            .GroupBy(region => region.CountryId)
+            .ToDictionary(group => group.Key, group => group.Count());
+
+        var appellationCountByCountry = appellations
+            .Where(appellation => appellation.Region is not null)
+            .GroupBy(appellation => appellation.Region!.CountryId)
+            .ToDictionary(group => group.Key, group => group.Count());
+
+        var subAppellationCountByCountry = subAppellations
+            .Where(sub => sub.Appellation?.Region is not null)
+            .GroupBy(sub => sub.Appellation!.Region!.CountryId)
+            .ToDictionary(group => group.Key, group => group.Count());
+
+        var wineCountByCountry = wines
+            .Where(wine => wine.SubAppellation?.Appellation?.Region is not null)
+            .GroupBy(wine => wine.SubAppellation!.Appellation!.Region!.CountryId)
+            .ToDictionary(group => group.Key, group => group.Count());
+
         var countryModels = countries
-            .Select(country => new WineSurferTerroirCountry(country.Id, country.Name))
+            .Select(country =>
+            {
+                regionCountByCountry.TryGetValue(country.Id, out var regionCount);
+                appellationCountByCountry.TryGetValue(country.Id, out var appellationCount);
+                subAppellationCountByCountry.TryGetValue(country.Id, out var subAppellationCount);
+                wineCountByCountry.TryGetValue(country.Id, out var wineCount);
+
+                return new WineSurferTerroirCountry(
+                    country.Id,
+                    country.Name,
+                    regionCount,
+                    appellationCount,
+                    subAppellationCount,
+                    wineCount);
+            })
             .OrderBy(country => country.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -4075,6 +4212,20 @@ Each suggestion must be a short dish description followed by a concise reason, a
 
         [StringLength(TasteProfileMaxLength)]
         public string? TasteProfile { get; set; }
+    }
+
+    public sealed class CreateCountryRequest
+    {
+        [Required]
+        [StringLength(256, MinimumLength = 2)]
+        public string? Name { get; set; }
+    }
+
+    public sealed class UpdateCountryRequest
+    {
+        [Required]
+        [StringLength(256, MinimumLength = 2)]
+        public string? Name { get; set; }
     }
 
     public sealed class CreateRegionRequest
@@ -5387,7 +5538,13 @@ public record WineSurferTerroirManagementViewModel(
     string? StatusMessage,
     string? ErrorMessage);
 
-public record WineSurferTerroirCountry(Guid Id, string Name);
+public record WineSurferTerroirCountry(
+    Guid Id,
+    string Name,
+    int RegionCount,
+    int AppellationCount,
+    int SubAppellationCount,
+    int WineCount);
 
 public record WineSurferTerroirRegion(
     Guid Id,
