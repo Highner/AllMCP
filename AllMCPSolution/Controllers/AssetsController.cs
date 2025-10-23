@@ -17,10 +17,21 @@ namespace AllMCPSolution.Controllers
         [HttpGet("/assets/logo.png")]
         public IActionResult GetLogo()
         {
-            var path = Path.Combine(_env.ContentRootPath, "Views", "Shared", "Logo.png");
+            var basePath = !string.IsNullOrEmpty(_env.WebRootPath)
+                ? _env.WebRootPath!
+                : _env.ContentRootPath;
+
+            var path = Path.Combine(basePath, "assets", "logo.png");
+
             if (!System.IO.File.Exists(path))
             {
-                return NotFound();
+                // Fall back to the legacy location in case the asset hasn't been moved yet
+                path = Path.Combine(_env.ContentRootPath, "Views", "Shared", "Logo.png");
+
+                if (!System.IO.File.Exists(path))
+                {
+                    return NotFound();
+                }
             }
 
             var bytes = System.IO.File.ReadAllBytes(path);
