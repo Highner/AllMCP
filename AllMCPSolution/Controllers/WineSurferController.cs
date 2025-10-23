@@ -1536,6 +1536,13 @@ Each suggestion must be a short dish description followed by a concise reason. D
             return View("SipSession", errorModel);
         }
 
+        if (suggestions.Count > 0)
+        {
+            var serializedSuggestions = JsonSerializer.Serialize(suggestions);
+            await _sipSessionRepository.UpdateFoodSuggestionAsync(session.Id, serializedSuggestions, cancellationToken);
+            session.FoodSuggestion = serializedSuggestions;
+        }
+
         var model = await BuildSipSessionDetailViewModelAsync(session, cancellationToken, suggestions, null);
         Response.ContentType = "text/html; charset=utf-8";
         return View("SipSession", model);
@@ -1698,8 +1705,17 @@ Each suggestion must be a short dish description followed by a concise reason. D
             session.UpdatedAt,
             CreateBottleSummaries(session.Bottles, currentUserId, sisterhoodAverageScores));
 
+        IReadOnlyList<string>? suggestionCandidates = foodSuggestions;
+
+        if ((suggestionCandidates is null || suggestionCandidates.Count == 0) &&
+            TryParseSipSessionFoodSuggestions(session.FoodSuggestion, out var storedSuggestions) &&
+            storedSuggestions.Count > 0)
+        {
+            suggestionCandidates = storedSuggestions;
+        }
+
         IReadOnlyList<string> normalizedSuggestions;
-        if (foodSuggestions is null || foodSuggestions.Count == 0)
+        if (suggestionCandidates is null || suggestionCandidates.Count == 0)
         {
             normalizedSuggestions = Array.Empty<string>();
         }
@@ -1707,7 +1723,7 @@ Each suggestion must be a short dish description followed by a concise reason. D
         {
             var list = new List<string>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var suggestion in foodSuggestions)
+            foreach (var suggestion in suggestionCandidates)
             {
                 var trimmed = suggestion?.Trim();
                 if (string.IsNullOrWhiteSpace(trimmed))

@@ -241,6 +241,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(session => session.Description)
                 .HasMaxLength(2048);
 
+            entity.Property(session => session.FoodSuggestion)
+                .HasMaxLength(4096);
+
             entity.Property(session => session.Location)
                 .HasMaxLength(256);
 
