@@ -258,9 +258,14 @@
 
             return {
                 source: toTrimmedString(context.source),
+                id: toTrimmedString(context.id),
                 name: toTrimmedString(context.name),
                 producer: toTrimmedString(context.producer),
+                country: toTrimmedString(context.country),
                 region: toTrimmedString(context.region),
+                appellation: toTrimmedString(context.appellation),
+                subAppellation: toTrimmedString(context.subAppellation),
+                color: toTrimmedString(context.color),
                 variety: toTrimmedString(context.variety),
                 vintage: toTrimmedString(context.vintage)
             };
@@ -288,9 +293,14 @@
             const dataset = trigger.dataset;
             return normalizeContext({
                 source: dataset.addWineTrigger,
+                id: dataset.wineId,
                 name: dataset.wineName,
                 producer: dataset.wineProducer,
+                country: dataset.wineCountry,
                 region: dataset.wineRegion,
+                appellation: dataset.wineAppellation,
+                subAppellation: dataset.wineSubAppellation,
+                color: dataset.wineColor,
                 variety: dataset.wineVariety,
                 vintage: dataset.wineVintage
             });
@@ -513,8 +523,15 @@
                 return null;
             }
 
+            if (context.id) {
+                const matchById = wineOptions.find(option => option && option.id === context.id);
+                if (matchById) {
+                    return matchById;
+                }
+            }
+
             const nameKey = createComparisonKey(context.name);
-            const regionKey = createComparisonKey(context.region);
+            const regionKeys = createContextRegionKeys(context);
 
             let candidates = [];
             if (nameKey) {
@@ -532,9 +549,9 @@
                 return candidates[0];
             }
 
-            if (regionKey) {
+            if (regionKeys.length > 0) {
                 const scopedOptions = candidates.length > 0 ? candidates : wineOptions;
-                const regionMatches = filterMatchesByRegion(scopedOptions, regionKey);
+                const regionMatches = filterMatchesByRegion(scopedOptions, regionKeys);
                 if (regionMatches.length === 1) {
                     return regionMatches[0];
                 }
@@ -550,16 +567,16 @@
             return null;
         }
 
-        function filterMatchesByRegion(options, regionKey) {
-            if (!Array.isArray(options) || !regionKey) {
+        function filterMatchesByRegion(options, regionKeys) {
+            if (!Array.isArray(options) || !Array.isArray(regionKeys) || regionKeys.length === 0) {
                 return [];
             }
 
-            return options.filter(option => matchesRegionKey(option, regionKey));
+            return options.filter(option => matchesRegionKey(option, regionKeys));
         }
 
-        function matchesRegionKey(option, regionKey) {
-            if (!option || !regionKey) {
+        function matchesRegionKey(option, regionKeys) {
+            if (!option || !Array.isArray(regionKeys) || regionKeys.length === 0) {
                 return false;
             }
 
@@ -576,7 +593,20 @@
                 return false;
             }
 
-            return keys.some(key => key === regionKey || key.includes(regionKey) || regionKey.includes(key));
+            return regionKeys.some(regionKey =>
+                keys.some(key => key === regionKey || key.includes(regionKey) || regionKey.includes(key))
+            );
+        }
+
+        function createContextRegionKeys(context) {
+            const keys = [
+                createComparisonKey(context.subAppellation),
+                createComparisonKey(context.appellation),
+                createComparisonKey(context.region),
+                createComparisonKey(context.country)
+            ].filter(Boolean);
+
+            return Array.from(new Set(keys));
         }
 
         function normalizeVintageValue(value) {

@@ -115,6 +115,7 @@ public class WineSurferController : Controller
     private readonly IRegionRepository _regionRepository;
     private readonly IAppellationRepository _appellationRepository;
     private readonly ISubAppellationRepository _subAppellationRepository;
+    private readonly IWineCatalogService _wineCatalogService;
     private readonly IChatGptService _chatGptService;
     private static readonly TimeSpan SentInvitationNotificationWindow = TimeSpan.FromDays(7);
     private const int TasteProfileMaxLength = 4096;
@@ -134,8 +135,8 @@ public class WineSurferController : Controller
     private const long SurfEyeMaxUploadBytes = 8 * 1024 * 1024;
     private const string SurfEyeSystemPrompt = """
 You are Surf Eye, an expert sommelier and computer vision guide. Use the user's taste profile to rank wines from best to worst alignment.
-Respond ONLY with minified JSON matching {"analysisSummary":"...","wines":[{"name":"...","producer":"...","region":"...","variety":"...","vintage":"...","alignmentScore":0,"alignmentSummary":"...","confidence":0.0,"notes":"..."}]}. 
-The wines array must be sorted by descending alignmentScore. Include at most five wines. Provide concise notes that justify the ranking with respect to the taste profile. The alignmentScore must be an integer from 0 to 100. Confidence must be a decimal between 0 and 1. If no wine is recognized, return an empty wines array and set analysisSummary to a short explanation. Do not use markdown, newlines, or any commentary outside of the JSON object.
+Respond ONLY with minified JSON matching {"analysisSummary":"...","wines":[{"name":"...","producer":"...","country":"...","region":"...","appellation":"...","subAppellation":"...","variety":"...","color":"Red","vintage":"...","alignmentScore":0,"alignmentSummary":"...","confidence":0.0,"notes":"..."}]}.
+The wines array must be sorted by descending alignmentScore. Include at most five wines. Provide concise notes that justify the ranking with respect to the taste profile. Report each wine's color using Red, White, or Rose and set any unknown fields to null. The alignmentScore must be an integer from 0 to 100. Confidence must be a decimal between 0 and 1. If no wine is recognized, return an empty wines array and set analysisSummary to a short explanation. Do not use markdown, newlines, or any commentary outside of the JSON object.
 """;
     private static readonly JsonDocumentOptions SurfEyeJsonDocumentOptions = new()
     {
@@ -176,6 +177,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
         IRegionRepository regionRepository,
         IAppellationRepository appellationRepository,
         ISubAppellationRepository subAppellationRepository,
+        IWineCatalogService wineCatalogService,
         IChatGptService chatGptService,
         IWineSurferTopBarService topBarService)
     {
@@ -191,6 +193,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
         _regionRepository = regionRepository;
         _appellationRepository = appellationRepository;
         _subAppellationRepository = subAppellationRepository;
+        _wineCatalogService = wineCatalogService;
         _chatGptService = chatGptService;
         _topBarService = topBarService;
     }
@@ -807,7 +810,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 : "Surf Eye couldn't recognize any wines in this photo.")
             : parsedResult.Summary.Trim();
 
-        var response = new SurfEyeAnalysisResponse(summary, orderedMatches);
+        var persistedMatches = await PersistSurfEyeMatchesAsync(orderedMatches, cancellationToken);
+        var response = new SurfEyeAnalysisResponse(summary, persistedMatches);
         return Json(response);
     }
 
@@ -5231,8 +5235,12 @@ Each suggestion must be a short dish description followed by a concise reason, a
                     var match = new SurfEyeWineMatch(
                         name!,
                         TryGetTrimmedString(wineElement, "producer"),
+                        TryGetTrimmedString(wineElement, "country"),
                         TryGetTrimmedString(wineElement, "region"),
+                        TryGetTrimmedString(wineElement, "appellation"),
+                        TryGetTrimmedString(wineElement, "subAppellation") ?? TryGetTrimmedString(wineElement, "sub_appellation"),
                         TryGetTrimmedString(wineElement, "variety"),
+                        TryGetTrimmedString(wineElement, "color"),
                         TryGetTrimmedString(wineElement, "vintage"),
                         alignmentScore,
                         TryGetTrimmedString(wineElement, "alignmentSummary") ?? "",
@@ -5250,6 +5258,82 @@ Each suggestion must be a short dish description followed by a concise reason, a
         {
             return false;
         }
+    }
+
+    private async Task<IReadOnlyList<SurfEyeWineMatch>> PersistSurfEyeMatchesAsync(
+        IReadOnlyList<SurfEyeWineMatch> matches,
+        CancellationToken cancellationToken)
+    {
+        if (matches is null || matches.Count == 0)
+        {
+            return matches ?? Array.Empty<SurfEyeWineMatch>();
+        }
+
+        var persisted = new List<SurfEyeWineMatch>(matches.Count);
+
+        foreach (var match in matches)
+        {
+            if (match is null)
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(match.Name)
+                || string.IsNullOrWhiteSpace(match.Region)
+                || string.IsNullOrWhiteSpace(match.Appellation)
+                || string.IsNullOrWhiteSpace(match.Color))
+            {
+                persisted.Add(match);
+                continue;
+            }
+
+            try
+            {
+                var request = new WineCatalogRequest(
+                    match.Name,
+                    match.Color,
+                    match.Country,
+                    match.Region,
+                    match.Appellation,
+                    match.SubAppellation,
+                    match.Variety);
+
+                var result = await _wineCatalogService.EnsureWineAsync(request, cancellationToken);
+                if (result.IsSuccess && result.Wine is not null)
+                {
+                    var wine = result.Wine;
+                    var subAppellation = wine.SubAppellation;
+                    var appellation = subAppellation?.Appellation;
+                    var region = appellation?.Region;
+                    var country = region?.Country;
+
+                    var updated = match with
+                    {
+                        WineId = wine.Id,
+                        Country = country?.Name ?? match.Country,
+                        Region = region?.Name ?? match.Region,
+                        Appellation = appellation?.Name ?? match.Appellation,
+                        SubAppellation = subAppellation?.Name ?? match.SubAppellation,
+                        Color = wine.Color.ToString(),
+                        Variety = string.IsNullOrWhiteSpace(match.Variety) && !string.IsNullOrWhiteSpace(wine.GrapeVariety)
+                            ? wine.GrapeVariety
+                            : match.Variety
+                    };
+
+                    persisted.Add(updated);
+                }
+                else
+                {
+                    persisted.Add(match);
+                }
+            }
+            catch
+            {
+                persisted.Add(match);
+            }
+        }
+
+        return persisted;
     }
 
     private static string? TryGetTrimmedString(JsonElement element, string propertyName)
@@ -5489,13 +5573,20 @@ public record SurfEyeAnalysisResponse(string Summary, IReadOnlyList<SurfEyeWineM
 public record SurfEyeWineMatch(
     string Name,
     string? Producer,
+    string? Country,
     string? Region,
+    string? Appellation,
+    string? SubAppellation,
     string? Variety,
+    string? Color,
     string? Vintage,
     double AlignmentScore,
     string AlignmentSummary,
     double Confidence,
-    string? Notes);
+    string? Notes)
+{
+    public Guid? WineId { get; init; }
+}
 
 public record SurfEyeAnalysisError(string Error);
 

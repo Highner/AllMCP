@@ -34,6 +34,7 @@ public class WineInventoryController : Controller
     private readonly ICountryRepository _countryRepository;
     private readonly IUserRepository _userRepository;
     private readonly ITastingNoteRepository _tastingNoteRepository;
+    private readonly IWineCatalogService _wineCatalogService;
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IWineImportService _wineImportService;
     private readonly IChatGptService _chatGptService;
@@ -50,6 +51,7 @@ public class WineInventoryController : Controller
         ICountryRepository countryRepository,
         IUserRepository userRepository,
         ITastingNoteRepository tastingNoteRepository,
+        IWineCatalogService wineCatalogService,
         IWineSurferTopBarService topBarService,
         IWineImportService wineImportService,
         IChatGptService chatGptService)
@@ -64,6 +66,7 @@ public class WineInventoryController : Controller
         _countryRepository = countryRepository;
         _userRepository = userRepository;
         _tastingNoteRepository = tastingNoteRepository;
+        _wineCatalogService = wineCatalogService;
         _topBarService = topBarService;
         _wineImportService = wineImportService;
         _chatGptService = chatGptService;
@@ -479,109 +482,39 @@ public class WineInventoryController : Controller
             return Challenge();
         }
 
-        var normalizedName = NormalizeName(request.Name);
-        if (string.IsNullOrEmpty(normalizedName))
-        {
-            ModelState.AddModelError(nameof(request.Name), "Wine name is required.");
-            return ValidationProblem(ModelState);
-        }
+        var result = await _wineCatalogService.EnsureWineAsync(
+            new WineCatalogRequest(
+                request.Name,
+                request.Color,
+                request.Country,
+                request.Region,
+                request.Appellation,
+                request.SubAppellation,
+                null),
+            cancellationToken);
 
-        if (!TryParseWineColor(request.Color, out var color))
+        if (!result.IsSuccess || result.Wine is null)
         {
-            ModelState.AddModelError(nameof(request.Color), "Color must be Red, White, or Rose.");
-            return ValidationProblem(ModelState);
-        }
-
-        var normalizedRegion = NormalizeName(request.Region);
-        var normalizedAppellation = NormalizeName(request.Appellation);
-        var normalizedCountry = NormalizeName(request.Country);
-        var normalizedSubAppellation = NormalizeName(request.SubAppellation);
-
-        if (string.IsNullOrEmpty(normalizedRegion))
-        {
-            ModelState.AddModelError(nameof(request.Region), "Region is required to add this wine.");
-            return ValidationProblem(ModelState);
-        }
-
-        if (string.IsNullOrEmpty(normalizedAppellation))
-        {
-            ModelState.AddModelError(nameof(request.Appellation), "Appellation is required to add this wine.");
-            return ValidationProblem(ModelState);
-        }
-
-        Country? country = null;
-        if (!string.IsNullOrEmpty(normalizedCountry))
-        {
-            country = await _countryRepository.FindByNameAsync(normalizedCountry, cancellationToken)
-                ?? await _countryRepository.GetOrCreateAsync(normalizedCountry, cancellationToken);
-        }
-
-        Region? region;
-        if (country is not null)
-        {
-            region = await _regionRepository.FindByNameAndCountryAsync(normalizedRegion!, country.Id, cancellationToken)
-                ?? await _regionRepository.GetOrCreateAsync(normalizedRegion!, country, cancellationToken);
-        }
-        else
-        {
-            region = await _regionRepository.FindByNameAsync(normalizedRegion!, cancellationToken);
-            if (region is null)
+            if (result.Errors.Count > 0)
             {
-                ModelState.AddModelError(nameof(request.Country), "Country is required when creating a new region.");
-                return ValidationProblem(ModelState);
+                foreach (var entry in result.Errors)
+                {
+                    var key = string.IsNullOrWhiteSpace(entry.Key) ? string.Empty : entry.Key;
+                    foreach (var message in entry.Value)
+                    {
+                        ModelState.AddModelError(key, message);
+                    }
+                }
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, "Unable to add wine to the catalog.");
             }
 
-            country = region.Country;
+            return ValidationProblem(ModelState);
         }
 
-        var appellation = await _appellationRepository.FindByNameAndRegionAsync(normalizedAppellation!, region.Id, cancellationToken)
-            ?? await _appellationRepository.GetOrCreateAsync(normalizedAppellation!, region.Id, cancellationToken);
-
-        SubAppellation subAppellation;
-        if (string.IsNullOrEmpty(normalizedSubAppellation))
-        {
-            subAppellation = await _subAppellationRepository.GetOrCreateBlankAsync(appellation.Id, cancellationToken);
-        }
-        else
-        {
-            subAppellation = await _subAppellationRepository.FindByNameAndAppellationAsync(normalizedSubAppellation, appellation.Id, cancellationToken)
-                ?? await _subAppellationRepository.GetOrCreateAsync(normalizedSubAppellation, appellation.Id, cancellationToken);
-        }
-
-        var existingWine = await _wineRepository.FindByNameAsync(normalizedName, subAppellation.Name, appellation.Name, cancellationToken);
-        Wine result;
-
-        if (existingWine is not null)
-        {
-            var needsUpdate = existingWine.Color != color || existingWine.SubAppellationId != subAppellation.Id;
-            if (needsUpdate)
-            {
-                existingWine.Color = color;
-                existingWine.SubAppellationId = subAppellation.Id;
-                existingWine.SubAppellation = subAppellation;
-                await _wineRepository.UpdateAsync(existingWine, cancellationToken);
-            }
-
-            result = await _wineRepository.GetByIdAsync(existingWine.Id, cancellationToken)
-                ?? existingWine;
-        }
-        else
-        {
-            var wine = new Wine
-            {
-                Id = Guid.NewGuid(),
-                Name = normalizedName,
-                Color = color,
-                SubAppellationId = subAppellation.Id,
-                SubAppellation = subAppellation
-            };
-
-            await _wineRepository.AddAsync(wine, cancellationToken);
-            result = await _wineRepository.GetByIdAsync(wine.Id, cancellationToken)
-                ?? wine;
-        }
-
-        var option = CreateWineOption(result, subAppellation);
+        var option = CreateWineOption(result.Wine);
         return Json(option);
     }
 
@@ -1526,32 +1459,9 @@ public class WineInventoryController : Controller
         };
     }
 
-    private static string? NormalizeName(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
-
     private static string? NormalizeDisplayName(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value;
-    }
-
-    private static bool TryParseWineColor(string? value, out WineColor color)
-    {
-        color = default;
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        var trimmed = value.Trim();
-        if (Enum.TryParse(trimmed, true, out color))
-        {
-            return true;
-        }
-
-        var normalized = trimmed.Replace('é', 'e').Replace('É', 'E');
-        return Enum.TryParse(normalized, true, out color);
     }
 
     private static string? ExtractCompletionText(ChatCompletion completion)

@@ -550,9 +550,21 @@
 
             const metaParts = [];
             if (wine.producer) metaParts.push(wine.producer);
-            if (wine.region) metaParts.push(wine.region);
-            if (wine.variety) metaParts.push(wine.variety);
-            if (wine.vintage) metaParts.push(wine.vintage);
+            const locationParts = [];
+            if (wine.subAppellation) locationParts.push(wine.subAppellation);
+            if (wine.appellation && !locationParts.includes(wine.appellation)) {
+                locationParts.push(wine.appellation);
+            }
+            if (wine.region && !locationParts.includes(wine.region)) {
+                locationParts.push(wine.region);
+            }
+            if (wine.country && !locationParts.includes(wine.country)) {
+                locationParts.push(wine.country);
+            }
+            if (locationParts.length > 0) {
+                metaParts.push(locationParts.join(' • '));
+            }
+            if (wine.color) metaParts.push(`Color: ${wine.color}`);
             if (metaParts.length > 0) {
                 const meta = document.createElement('p');
                 meta.className = 'surf-eye-wine__meta';
@@ -602,16 +614,26 @@
             const confidence = document.createElement('span');
             confidence.textContent = formatConfidence(Number(wine.confidence));
             footMeta.appendChild(confidence);
-
-            if (wine.region && !metaParts.includes(wine.region)) {
-                const region = document.createElement('span');
-                region.textContent = wine.region;
-                footMeta.appendChild(region);
+            const detailParts = [];
+            if (wine.variety) {
+                detailParts.push(wine.variety);
             }
-            if (wine.variety && !metaParts.includes(wine.variety)) {
-                const variety = document.createElement('span');
-                variety.textContent = wine.variety;
-                footMeta.appendChild(variety);
+            if (wine.vintage) {
+                detailParts.push(wine.vintage);
+            }
+            if (locationParts.length === 0) {
+                const fallbackLocation = [];
+                if (wine.appellation) fallbackLocation.push(wine.appellation);
+                if (wine.region) fallbackLocation.push(wine.region);
+                if (wine.country) fallbackLocation.push(wine.country);
+                if (fallbackLocation.length > 0) {
+                    detailParts.push(fallbackLocation.join(' • '));
+                }
+            }
+            if (detailParts.length > 0) {
+                const details = document.createElement('span');
+                details.textContent = detailParts.join(' • ');
+                footMeta.appendChild(details);
             }
 
             foot.appendChild(footMeta);
@@ -643,9 +665,14 @@
 
             assignData('wineName', wine.name);
             assignData('wineProducer', wine.producer);
+            assignData('wineCountry', wine.country);
             assignData('wineRegion', wine.region);
+            assignData('wineAppellation', wine.appellation);
+            assignData('wineSubAppellation', wine.subAppellation);
             assignData('wineVariety', wine.variety);
             assignData('wineVintage', wine.vintage);
+            assignData('wineColor', wine.color);
+            assignData('wineId', wine.wineId);
 
             addButton.addEventListener('click', (event) => {
                 const openAddWineModal = window.wineSurferFavorites?.openAddWineModal;
@@ -661,9 +688,14 @@
 
                 const context = {
                     source: 'surf-eye',
+                    id: addButton.dataset.wineId ?? '',
                     name: addButton.dataset.wineName ?? '',
                     producer: addButton.dataset.wineProducer ?? '',
+                    country: addButton.dataset.wineCountry ?? '',
                     region: addButton.dataset.wineRegion ?? '',
+                    appellation: addButton.dataset.wineAppellation ?? '',
+                    subAppellation: addButton.dataset.wineSubAppellation ?? '',
+                    color: addButton.dataset.wineColor ?? '',
                     variety: addButton.dataset.wineVariety ?? '',
                     vintage: addButton.dataset.wineVintage ?? ''
                 };
