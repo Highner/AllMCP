@@ -61,6 +61,7 @@ builder.Services.AddScoped<ISisterhoodRepository, SisterhoodRepository>();
 builder.Services.AddScoped<ISisterhoodInvitationRepository, SisterhoodInvitationRepository>();
 builder.Services.AddScoped<ISipSessionRepository, SipSessionRepository>();
 builder.Services.AddScoped<IWineSurferNotificationDismissalRepository, WineSurferNotificationDismissalRepository>();
+builder.Services.AddScoped<ITerroirMergeRepository, TerroirMergeRepository>();
 builder.Services.AddScoped<InventoryIntakeService>();
 builder.Services.AddScoped<IWineSurferTopBarService, WineSurferTopBarService>();
 builder.Services.AddScoped<IWineImportService, WineImportService>();

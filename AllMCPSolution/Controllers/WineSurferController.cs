@@ -126,6 +126,7 @@ public class WineSurferController : Controller
     private readonly IAppellationRepository _appellationRepository;
     private readonly ISubAppellationRepository _subAppellationRepository;
     private readonly ISuggestedAppellationRepository _suggestedAppellationRepository;
+    private readonly ITerroirMergeRepository _terroirMergeRepository;
     private readonly IWineCatalogService _wineCatalogService;
     private readonly IChatGptService _chatGptService;
     private readonly IChatGptPromptService _chatGptPromptService;
@@ -188,6 +189,7 @@ public class WineSurferController : Controller
         IAppellationRepository appellationRepository,
         ISubAppellationRepository subAppellationRepository,
         ISuggestedAppellationRepository suggestedAppellationRepository,
+        ITerroirMergeRepository terroirMergeRepository,
         IWineCatalogService wineCatalogService,
         IChatGptService chatGptService,
         IChatGptPromptService chatGptPromptService,
@@ -206,6 +208,7 @@ public class WineSurferController : Controller
         _appellationRepository = appellationRepository;
         _subAppellationRepository = subAppellationRepository;
         _suggestedAppellationRepository = suggestedAppellationRepository;
+        _terroirMergeRepository = terroirMergeRepository;
         _wineCatalogService = wineCatalogService;
         _chatGptService = chatGptService;
         _chatGptPromptService = chatGptPromptService;
@@ -1295,6 +1298,11 @@ public class WineSurferController : Controller
 
     private const string TerroirHighlightSectionKey = "HighlightSection";
     private const string TerroirHighlightIdKey = "HighlightId";
+    private static readonly MergeEntityLabels CountryMergeLabels = new("country", "countries");
+    private static readonly MergeEntityLabels RegionMergeLabels = new("region", "regions");
+    private static readonly MergeEntityLabels AppellationMergeLabels = new("appellation", "appellations");
+    private static readonly MergeEntityLabels SubAppellationMergeLabels = new("sub-appellation", "sub-appellations");
+    private static readonly MergeEntityLabels WineMergeLabels = new("wine", "wines");
 
     [Authorize]
     [HttpGet("terroir")]
@@ -1436,6 +1444,49 @@ public class WineSurferController : Controller
         TempData[TerroirHighlightIdKey] = id.ToString();
     }
 
+    private MergeRequestValidationResult ValidateMergeRequest(MergeTerroirRequest? request, MergeEntityLabels labels)
+    {
+        if (request is null)
+        {
+            return MergeRequestValidationResult.Invalid($"Select at least two {labels.Plural} to merge.");
+        }
+
+        if (request.LeaderId == Guid.Empty)
+        {
+            return MergeRequestValidationResult.Invalid($"Select a leading {labels.Singular}.");
+        }
+
+        var ids = request.EntityIds is null
+            ? new List<Guid>()
+            : request.EntityIds.Where(id => id != Guid.Empty).ToList();
+
+        if (!ids.Contains(request.LeaderId))
+        {
+            ids.Add(request.LeaderId);
+        }
+
+        var distinctIds = ids.Distinct().ToList();
+        var followers = distinctIds.Where(id => id != request.LeaderId).ToList();
+
+        if (followers.Count == 0)
+        {
+            return MergeRequestValidationResult.Invalid($"Select at least two {labels.Plural} to merge.");
+        }
+
+        return MergeRequestValidationResult.Valid(request.LeaderId, followers);
+    }
+
+    private static string CreateMergeStatusMessage(MergeEntityLabels labels, string leaderName, int followersMerged)
+    {
+        if (followersMerged <= 0)
+        {
+            return $"Selected {labels.Plural} are already consolidated.";
+        }
+
+        var noun = followersMerged == 1 ? labels.Singular : labels.Plural;
+        return $"Merged {followersMerged} {noun} into {leaderName}.";
+    }
+
     [Authorize]
     [HttpPost("countries")]
     [ValidateAntiForgeryToken]
@@ -1541,6 +1592,45 @@ public class WineSurferController : Controller
         await _countryRepository.DeleteAsync(id, cancellationToken);
 
         TempData["StatusMessage"] = $"Country '{existing.Name}' was deleted.";
+        return RedirectToAction(nameof(ManageTerroir));
+    }
+
+    [Authorize]
+    [HttpPost("countries/merge")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MergeCountries([FromForm] MergeTerroirRequest request, CancellationToken cancellationToken)
+    {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var validation = ValidateMergeRequest(request, CountryMergeLabels);
+        if (!validation.IsValid)
+        {
+            TempData["ErrorMessage"] = validation.ErrorMessage;
+            return RedirectToAction(nameof(ManageTerroir));
+        }
+
+        try
+        {
+            var result = await _terroirMergeRepository.MergeCountriesAsync(validation.LeaderId, validation.FollowerIds, cancellationToken);
+            SetTerroirHighlight("country", result.LeaderId);
+            TempData["StatusMessage"] = CreateMergeStatusMessage(CountryMergeLabels, result.LeaderName, result.FollowersMerged);
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+        catch (DbUpdateException)
+        {
+            TempData["ErrorMessage"] = "We couldn't merge the selected countries. Please try again.";
+        }
+        catch (Exception)
+        {
+            TempData["ErrorMessage"] = "We couldn't merge the selected countries. Please try again.";
+        }
+
         return RedirectToAction(nameof(ManageTerroir));
     }
 
@@ -1681,6 +1771,45 @@ public class WineSurferController : Controller
     }
 
     [Authorize]
+    [HttpPost("regions/merge")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MergeRegions([FromForm] MergeTerroirRequest request, CancellationToken cancellationToken)
+    {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var validation = ValidateMergeRequest(request, RegionMergeLabels);
+        if (!validation.IsValid)
+        {
+            TempData["ErrorMessage"] = validation.ErrorMessage;
+            return RedirectToAction(nameof(ManageTerroir));
+        }
+
+        try
+        {
+            var result = await _terroirMergeRepository.MergeRegionsAsync(validation.LeaderId, validation.FollowerIds, cancellationToken);
+            SetTerroirHighlight("region", result.LeaderId);
+            TempData["StatusMessage"] = CreateMergeStatusMessage(RegionMergeLabels, result.LeaderName, result.FollowersMerged);
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+        catch (DbUpdateException)
+        {
+            TempData["ErrorMessage"] = "We couldn't merge the selected regions. Please try again.";
+        }
+        catch (Exception)
+        {
+            TempData["ErrorMessage"] = "We couldn't merge the selected regions. Please try again.";
+        }
+
+        return RedirectToAction(nameof(ManageTerroir));
+    }
+
+    [Authorize]
     [HttpPost("appellations")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateAppellation([FromForm] CreateAppellationRequest request, CancellationToken cancellationToken)
@@ -1813,6 +1942,45 @@ public class WineSurferController : Controller
         await _appellationRepository.DeleteAsync(id, cancellationToken);
 
         TempData["StatusMessage"] = $"Appellation '{existing.Name}' was deleted.";
+        return RedirectToAction(nameof(ManageTerroir));
+    }
+
+    [Authorize]
+    [HttpPost("appellations/merge")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MergeAppellations([FromForm] MergeTerroirRequest request, CancellationToken cancellationToken)
+    {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var validation = ValidateMergeRequest(request, AppellationMergeLabels);
+        if (!validation.IsValid)
+        {
+            TempData["ErrorMessage"] = validation.ErrorMessage;
+            return RedirectToAction(nameof(ManageTerroir));
+        }
+
+        try
+        {
+            var result = await _terroirMergeRepository.MergeAppellationsAsync(validation.LeaderId, validation.FollowerIds, cancellationToken);
+            SetTerroirHighlight("appellation", result.LeaderId);
+            TempData["StatusMessage"] = CreateMergeStatusMessage(AppellationMergeLabels, result.LeaderName, result.FollowersMerged);
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+        catch (DbUpdateException)
+        {
+            TempData["ErrorMessage"] = "We couldn't merge the selected appellations. Please try again.";
+        }
+        catch (Exception)
+        {
+            TempData["ErrorMessage"] = "We couldn't merge the selected appellations. Please try again.";
+        }
+
         return RedirectToAction(nameof(ManageTerroir));
     }
 
@@ -1951,6 +2119,45 @@ public class WineSurferController : Controller
     }
 
     [Authorize]
+    [HttpPost("sub-appellations/merge")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MergeSubAppellations([FromForm] MergeTerroirRequest request, CancellationToken cancellationToken)
+    {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var validation = ValidateMergeRequest(request, SubAppellationMergeLabels);
+        if (!validation.IsValid)
+        {
+            TempData["ErrorMessage"] = validation.ErrorMessage;
+            return RedirectToAction(nameof(ManageTerroir));
+        }
+
+        try
+        {
+            var result = await _terroirMergeRepository.MergeSubAppellationsAsync(validation.LeaderId, validation.FollowerIds, cancellationToken);
+            SetTerroirHighlight("sub-appellation", result.LeaderId);
+            TempData["StatusMessage"] = CreateMergeStatusMessage(SubAppellationMergeLabels, result.LeaderName, result.FollowersMerged);
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+        catch (DbUpdateException)
+        {
+            TempData["ErrorMessage"] = "We couldn't merge the selected sub-appellations. Please try again.";
+        }
+        catch (Exception)
+        {
+            TempData["ErrorMessage"] = "We couldn't merge the selected sub-appellations. Please try again.";
+        }
+
+        return RedirectToAction(nameof(ManageTerroir));
+    }
+
+    [Authorize]
     [HttpPost("wines")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateWine([FromForm] CreateWineRequest request, CancellationToken cancellationToken)
@@ -2085,6 +2292,45 @@ public class WineSurferController : Controller
         await _wineRepository.DeleteAsync(id, cancellationToken);
 
         TempData["StatusMessage"] = $"Wine '{existing.Name}' was deleted.";
+        return RedirectToAction(nameof(ManageTerroir));
+    }
+
+    [Authorize]
+    [HttpPost("wines/merge")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MergeWines([FromForm] MergeTerroirRequest request, CancellationToken cancellationToken)
+    {
+        if (!await IsCurrentUserAdminAsync(cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var validation = ValidateMergeRequest(request, WineMergeLabels);
+        if (!validation.IsValid)
+        {
+            TempData["ErrorMessage"] = validation.ErrorMessage;
+            return RedirectToAction(nameof(ManageTerroir));
+        }
+
+        try
+        {
+            var result = await _terroirMergeRepository.MergeWinesAsync(validation.LeaderId, validation.FollowerIds, cancellationToken);
+            SetTerroirHighlight("wine", result.LeaderId);
+            TempData["StatusMessage"] = CreateMergeStatusMessage(WineMergeLabels, result.LeaderName, result.FollowersMerged);
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+        catch (DbUpdateException)
+        {
+            TempData["ErrorMessage"] = "We couldn't merge the selected wines. Please try again.";
+        }
+        catch (Exception)
+        {
+            TempData["ErrorMessage"] = "We couldn't merge the selected wines. Please try again.";
+        }
+
         return RedirectToAction(nameof(ManageTerroir));
     }
 
@@ -4738,6 +4984,15 @@ public class WineSurferController : Controller
         public string? TasteProfile { get; set; }
     }
 
+    private readonly record struct MergeRequestValidationResult(bool IsValid, Guid LeaderId, List<Guid> FollowerIds, string? ErrorMessage)
+    {
+        public static MergeRequestValidationResult Invalid(string message) => new(false, Guid.Empty, new List<Guid>(), message);
+
+        public static MergeRequestValidationResult Valid(Guid leaderId, List<Guid> followerIds) => new(true, leaderId, followerIds, null);
+    }
+
+    private readonly record struct MergeEntityLabels(string Singular, string Plural);
+
     public sealed class CreateCountryRequest
     {
         [Required]
@@ -4840,6 +5095,14 @@ public class WineSurferController : Controller
 
         [Required]
         public WineColor Color { get; set; }
+    }
+
+    public sealed class MergeTerroirRequest
+    {
+        [Required]
+        public Guid LeaderId { get; set; }
+
+        public List<Guid> EntityIds { get; set; } = new();
     }
 
     public class CreateSisterhoodRequest
