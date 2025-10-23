@@ -9,6 +9,7 @@ using System.Net.Mail;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
@@ -142,8 +143,9 @@ The wines array must be sorted by descending alignmentScore. Include at most fiv
     };
     private const string SipSessionFoodSuggestionSystemPrompt = """
 You are an expert sommelier assistant. Recommend three distinct food pairings that can be served together with the wines provided by the user.
-Respond ONLY with minified JSON matching {"suggestions":["Suggestion 1","Suggestion 2","Suggestion 3"]}.
-Each suggestion must be a short dish description followed by a concise reason. Do not include numbering, markdown, or any other fields.
+Ensure at least one suggestion is vegetarian and begin that entry with "(Vegetarian)".
+Respond ONLY with minified JSON matching {"suggestions":["Suggestion 1","Suggestion 2","Suggestion 3"],"cheese":"Cheese course"}.
+Each suggestion must be a short dish description followed by a concise reason, and the cheese field must describe a dedicated cheese course pairing. Do not include numbering, markdown, or any other fields.
 """;
     private static readonly JsonDocumentOptions SipSessionFoodSuggestionJsonDocumentOptions = new()
     {
@@ -1525,7 +1527,7 @@ Each suggestion must be a short dish description followed by a concise reason. D
         }
 
         var completionText = ExtractCompletionText(completion);
-        if (!TryParseSipSessionFoodSuggestions(completionText, out var suggestions))
+        if (!TryParseSipSessionFoodSuggestions(completionText, out var suggestions, out var cheeseSuggestion))
         {
             var errorModel = await BuildSipSessionDetailViewModelAsync(
                 session,
@@ -1538,12 +1540,18 @@ Each suggestion must be a short dish description followed by a concise reason. D
 
         if (suggestions.Count > 0)
         {
-            var serializedSuggestions = JsonSerializer.Serialize(suggestions);
+            var payload = new SipSessionFoodSuggestionPayload(suggestions, cheeseSuggestion);
+            var serializedSuggestions = JsonSerializer.Serialize(payload);
             await _sipSessionRepository.UpdateFoodSuggestionAsync(session.Id, serializedSuggestions, cancellationToken);
             session.FoodSuggestion = serializedSuggestions;
         }
 
-        var model = await BuildSipSessionDetailViewModelAsync(session, cancellationToken, suggestions, null);
+        var model = await BuildSipSessionDetailViewModelAsync(
+            session,
+            cancellationToken,
+            suggestions,
+            null,
+            cheeseSuggestion);
         Response.ContentType = "text/html; charset=utf-8";
         return View("SipSession", model);
     }
@@ -1552,7 +1560,8 @@ Each suggestion must be a short dish description followed by a concise reason. D
         SipSession session,
         CancellationToken cancellationToken,
         IReadOnlyList<string>? foodSuggestions = null,
-        string? foodSuggestionError = null)
+        string? foodSuggestionError = null,
+        string? cheeseSuggestion = null)
     {
         if (session is null)
         {
@@ -1706,12 +1715,19 @@ Each suggestion must be a short dish description followed by a concise reason. D
             CreateBottleSummaries(session.Bottles, currentUserId, sisterhoodAverageScores));
 
         IReadOnlyList<string>? suggestionCandidates = foodSuggestions;
+        var cheeseCandidate = string.IsNullOrWhiteSpace(cheeseSuggestion)
+            ? null
+            : cheeseSuggestion.Trim();
 
         if ((suggestionCandidates is null || suggestionCandidates.Count == 0) &&
-            TryParseSipSessionFoodSuggestions(session.FoodSuggestion, out var storedSuggestions) &&
+            TryParseSipSessionFoodSuggestions(session.FoodSuggestion, out var storedSuggestions, out var storedCheese) &&
             storedSuggestions.Count > 0)
         {
             suggestionCandidates = storedSuggestions;
+            if (string.IsNullOrWhiteSpace(cheeseCandidate) && !string.IsNullOrWhiteSpace(storedCheese))
+            {
+                cheeseCandidate = storedCheese.Trim();
+            }
         }
 
         IReadOnlyList<string> normalizedSuggestions;
@@ -1753,6 +1769,15 @@ Each suggestion must be a short dish description followed by a concise reason. D
             normalizedFoodSuggestionError = null;
         }
 
+        var normalizedCheeseSuggestion = string.IsNullOrWhiteSpace(cheeseCandidate)
+            ? null
+            : cheeseCandidate.Trim();
+
+        if (normalizedSuggestions.Count == 0)
+        {
+            normalizedCheeseSuggestion = null;
+        }
+
         return new WineSurferSipSessionDetailViewModel(
             summary,
             session.SisterhoodId,
@@ -1766,7 +1791,8 @@ Each suggestion must be a short dish description followed by a concise reason. D
             Array.Empty<WineSurferSisterhoodOption>(),
             availableBottles,
             normalizedSuggestions,
-            normalizedFoodSuggestionError);
+            normalizedFoodSuggestionError,
+            normalizedCheeseSuggestion);
     }
 
     [Authorize]
@@ -4517,6 +4543,8 @@ Each suggestion must be a short dish description followed by a concise reason. D
         builder.Append("The following wines will be tasted during ");
         builder.Append(sessionName);
         builder.AppendLine(". Recommend three complementary food pairings that guests can enjoy together.");
+        builder.AppendLine("Ensure at least one pairing is vegetarian and start that suggestion with \"(Vegetarian)\".");
+        builder.AppendLine("Also provide a dedicated cheese course recommendation suited to the lineup.");
 
         if (!string.IsNullOrWhiteSpace(session.Description))
         {
@@ -4578,7 +4606,7 @@ Each suggestion must be a short dish description followed by a concise reason. D
 
         builder.AppendLine();
         builder.AppendLine("Suggest dishes that harmonize with the overall lineup and briefly explain why each works.");
-        builder.AppendLine("Respond ONLY with JSON shaped as {\"suggestions\":[\"Suggestion 1\",\"Suggestion 2\",\"Suggestion 3\"]}.");
+        builder.AppendLine("Respond ONLY with JSON shaped as {\"suggestions\":[\"Suggestion 1\",\"Suggestion 2\",\"Suggestion 3\"],\"cheese\":\"Cheese course\"}.");
 
         return builder.ToString();
     }
@@ -4803,9 +4831,17 @@ Each suggestion must be a short dish description followed by a concise reason. D
         }
     }
 
-    private static bool TryParseSipSessionFoodSuggestions(string? content, out IReadOnlyList<string> suggestions)
+    private sealed record SipSessionFoodSuggestionPayload(
+        [property: JsonPropertyName("suggestions")] IReadOnlyList<string> Suggestions,
+        [property: JsonPropertyName("cheese")] string? Cheese);
+
+    private static bool TryParseSipSessionFoodSuggestions(
+        string? content,
+        out IReadOnlyList<string> suggestions,
+        out string? cheeseSuggestion)
     {
         suggestions = Array.Empty<string>();
+        cheeseSuggestion = null;
         if (string.IsNullOrWhiteSpace(content))
         {
             return false;
@@ -4824,6 +4860,15 @@ Each suggestion must be a short dish description followed by a concise reason. D
                 suggestionsElement.ValueKind == JsonValueKind.Array)
             {
                 candidateElements = suggestionsElement.EnumerateArray();
+
+                if (root.TryGetProperty("cheese", out var cheeseElement) && cheeseElement.ValueKind == JsonValueKind.String)
+                {
+                    var cheeseValue = cheeseElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(cheeseValue))
+                    {
+                        cheeseSuggestion = cheeseValue.Trim();
+                    }
+                }
             }
             else if (root.ValueKind == JsonValueKind.Array)
             {
@@ -5355,7 +5400,8 @@ public record WineSurferSipSessionDetailViewModel(
     IReadOnlyList<WineSurferSisterhoodOption> ManageableSisterhoods,
     IReadOnlyList<WineSurferSipSessionBottle> AvailableBottles,
     IReadOnlyList<string>? FoodSuggestions = null,
-    string? FoodSuggestionError = null);
+    string? FoodSuggestionError = null,
+    string? CheeseSuggestion = null);
 
 public record WineSurferSisterhoodOption(Guid Id, string Name, string? Description);
 

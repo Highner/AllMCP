@@ -358,6 +358,29 @@
             letter-spacing: 1px;
         }
 
+        .food-suggestions__cheese {
+            margin-top: 4px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(244, 241, 234, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .food-suggestions__cheese-title {
+            margin: 0;
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .food-suggestions__cheese-text {
+            margin: 0;
+            font-size: 15px;
+            letter-spacing: 1px;
+        }
+
         .food-suggestions__error {
             margin: 0;
             margin-top: 8px;
@@ -756,6 +779,9 @@
     var foodSuggestions = Model.FoodSuggestions ?? Array.Empty<string>();
     var hasFoodSuggestions = foodSuggestions.Count > 0;
     var foodSuggestionError = string.IsNullOrWhiteSpace(Model.FoodSuggestionError) ? null : Model.FoodSuggestionError!.Trim();
+    var cheeseSuggestion = string.IsNullOrWhiteSpace(Model.CheeseSuggestion) ? null : Model.CheeseSuggestion!.Trim();
+    var hasCheeseSuggestion = !string.IsNullOrEmpty(cheeseSuggestion);
+    var hasPairingContent = hasFoodSuggestions || hasCheeseSuggestion;
     var suggestFoodAction = !isCreateMode ? Url.Action("SuggestSipSessionFood", "WineSurfer", new { sipSessionId = Model.Session.Id }) : null;
     var canShowFoodButton = !isCreateMode && !string.IsNullOrEmpty(suggestFoodAction);
     var canRequestFoodSuggestions = canShowFoodButton && sessionBottles.Count > 0;
@@ -1051,6 +1077,35 @@
                         </div>
                     }
                 </div>
+                @if (!isCreateMode)
+                {
+                    if (hasPairingContent)
+                    {
+                        <section class="food-suggestions" aria-label="Suggested food pairings" role="status">
+                            <h3 class="food-suggestions__title">Suggested pairings</h3>
+                            @if (hasFoodSuggestions)
+                            {
+                                <ul class="food-suggestions__list">
+                                    @foreach (var suggestion in foodSuggestions)
+                                    {
+                                        <li>@suggestion</li>
+                                    }
+                                </ul>
+                            }
+                            @if (hasCheeseSuggestion)
+                            {
+                                <div class="food-suggestions__cheese">
+                                    <h4 class="food-suggestions__cheese-title">Cheese pairing</h4>
+                                    <p class="food-suggestions__cheese-text">@cheeseSuggestion</p>
+                                </div>
+                            }
+                        </section>
+                    }
+                    else if (!string.IsNullOrEmpty(foodSuggestionError))
+                    {
+                        <div class="status-banner error food-suggestions__error" role="alert">@foodSuggestionError</div>
+                    }
+                }
                 @if (isCreateMode)
                 {
                     <p class="empty-state">Add bottles after you create this sip session.</p>
