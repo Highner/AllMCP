@@ -4,7 +4,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AllMCPSolution.Repositories;
 
-public sealed record SuggestedAppellationReplacement(Guid SubAppellationId, string? Reason);
+public sealed record SuggestedWineReplacement(Guid WineId, string? Vintage);
+
+public sealed record SuggestedAppellationReplacement(
+    Guid SubAppellationId,
+    string? Reason,
+    IReadOnlyList<SuggestedWineReplacement> Wines);
 
 public interface ISuggestedAppellationRepository
 {
@@ -33,6 +38,12 @@ public sealed class SuggestedAppellationRepository : ISuggestedAppellationReposi
                 .ThenInclude(sub => sub.Appellation)
                     .ThenInclude(app => app.Region)
                         .ThenInclude(region => region.Country)
+            .Include(suggestion => suggestion.SuggestedWines)
+                .ThenInclude(suggestedWine => suggestedWine.Wine)
+                    .ThenInclude(wine => wine.SubAppellation)
+                        .ThenInclude(sub => sub.Appellation)
+                            .ThenInclude(app => app.Region)
+                                .ThenInclude(region => region.Country)
             .OrderBy(suggestion => suggestion.SubAppellation.Appellation.Region.Country.Name)
             .ThenBy(suggestion => suggestion.SubAppellation.Appellation.Region.Name)
             .ThenBy(suggestion => suggestion.SubAppellation.Appellation.Name)
@@ -64,7 +75,8 @@ public sealed class SuggestedAppellationRepository : ISuggestedAppellationReposi
                     Id = Guid.NewGuid(),
                     UserId = userId,
                     SubAppellationId = group.Key,
-                    Reason = NormalizeReason(group.First().Reason)
+                    Reason = NormalizeReason(group.First().Reason),
+                    SuggestedWines = NormalizeWines(group.SelectMany(entry => entry.Wines ?? Array.Empty<SuggestedWineReplacement>()))
                 })
                 .ToList();
 
@@ -96,5 +108,59 @@ public sealed class SuggestedAppellationRepository : ISuggestedAppellationReposi
         }
 
         return normalized[..512].TrimEnd();
+    }
+
+    private static List<SuggestedWine> NormalizeWines(IEnumerable<SuggestedWineReplacement> wines)
+    {
+        if (wines is null)
+        {
+            return [];
+        }
+
+        var normalized = new List<SuggestedWine>();
+        var seen = new HashSet<Guid>();
+
+        foreach (var wine in wines)
+        {
+            if (wine is null || wine.WineId == Guid.Empty)
+            {
+                continue;
+            }
+
+            if (!seen.Add(wine.WineId))
+            {
+                continue;
+            }
+
+            normalized.Add(new SuggestedWine
+            {
+                Id = Guid.NewGuid(),
+                WineId = wine.WineId,
+                Vintage = NormalizeVintage(wine.Vintage)
+            });
+
+            if (normalized.Count == 3)
+            {
+                break;
+            }
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeVintage(string? vintage)
+    {
+        if (string.IsNullOrWhiteSpace(vintage))
+        {
+            return null;
+        }
+
+        var trimmed = vintage.Trim();
+        if (trimmed.Length <= 32)
+        {
+            return trimmed;
+        }
+
+        return trimmed[..32].TrimEnd();
     }
 }

@@ -11,4 +11,6 @@ public class SuggestedAppellation
     public ApplicationUser User { get; set; } = null!;
 
     public string? Reason { get; set; }
+
+    public ICollection<SuggestedWine> SuggestedWines { get; set; } = [];
 }

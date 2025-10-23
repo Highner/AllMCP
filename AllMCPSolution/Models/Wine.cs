@@ -11,4 +11,5 @@ public class Wine
     public SubAppellation SubAppellation { get; set; } = null!;
 
     public ICollection<WineVintage> WineVintages { get; set; } = [];
+    public ICollection<SuggestedWine> SuggestedWines { get; set; } = [];
 }
