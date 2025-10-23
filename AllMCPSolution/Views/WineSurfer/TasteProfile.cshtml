@@ -269,6 +269,45 @@
             line-height: 1.5;
         }
 
+        .taste-profile-suggestion-wines {
+            margin: 8px 0 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .taste-profile-wine-item {
+            position: relative;
+            padding-left: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .taste-profile-wine-item::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            top: 0;
+            color: hsla(var(--muted-foreground) / 0.7);
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .taste-profile-wine-name {
+            font-size: 14px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .taste-profile-wine-details {
+            font-size: 12px;
+            color: hsla(var(--muted-foreground) / 0.75);
+            letter-spacing: 0.8px;
+        }
+
         .taste-profile-suggestions-empty {
             margin: 0;
             font-size: 13px;
@@ -361,6 +400,8 @@
                                 continue;
                             }
 
+                            var wines = suggestion.Wines ?? Array.Empty<WineSurferSuggestedWine>();
+                            var hasWines = wines.Count > 0;
                             var detailSegments = new List<string>();
                             if (hasSub && !string.IsNullOrWhiteSpace(suggestion.AppellationName))
                             {
@@ -397,6 +438,52 @@
                                 @if (!string.IsNullOrWhiteSpace(reason))
                                 {
                                     <span class="taste-profile-suggestion-reason">@reason</span>
+                                }
+                                @if (hasWines)
+                                {
+                                    <ul class="taste-profile-suggestion-wines">
+                                        @foreach (var wine in wines)
+                                        {
+                                            if (wine is null || string.IsNullOrWhiteSpace(wine.Name))
+                                            {
+                                                continue;
+                                            }
+
+                                            var wineDetailsSegments = new List<string>();
+
+                                            if (!string.IsNullOrWhiteSpace(wine.Vintage))
+                                            {
+                                                wineDetailsSegments.Add(wine.Vintage);
+                                            }
+
+                                            if (!string.IsNullOrWhiteSpace(wine.Color))
+                                            {
+                                                wineDetailsSegments.Add(wine.Color);
+                                            }
+
+                                            if (!string.IsNullOrWhiteSpace(wine.Variety))
+                                            {
+                                                wineDetailsSegments.Add(wine.Variety);
+                                            }
+
+                                            if (!string.IsNullOrWhiteSpace(wine.SubAppellationName))
+                                            {
+                                                wineDetailsSegments.Add(wine.SubAppellationName);
+                                            }
+
+                                            var wineDetails = wineDetailsSegments.Count > 0
+                                                ? string.Join(" • ", wineDetailsSegments)
+                                                : null;
+
+                                            <li class="taste-profile-wine-item">
+                                                <span class="taste-profile-wine-name">@wine.Name</span>
+                                                @if (!string.IsNullOrWhiteSpace(wineDetails))
+                                                {
+                                                    <span class="taste-profile-wine-details">@wineDetails</span>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
                                 }
                             </li>
                         }
@@ -569,6 +656,65 @@
                             reasonNode.className = 'taste-profile-suggestion-reason';
                             reasonNode.textContent = reason;
                             item.appendChild(reasonNode);
+                        }
+
+                        const wines = Array.isArray(entry.wines) ? entry.wines : [];
+                        if (wines.length > 0) {
+                            const winesList = document.createElement('ul');
+                            winesList.className = 'taste-profile-suggestion-wines';
+
+                            for (const wine of wines) {
+                                if (!wine || typeof wine !== 'object') {
+                                    continue;
+                                }
+
+                                const wineName = toText(wine.name || wine.Name);
+                                if (!wineName) {
+                                    continue;
+                                }
+
+                                const wineItem = document.createElement('li');
+                                wineItem.className = 'taste-profile-wine-item';
+
+                                const wineNameNode = document.createElement('span');
+                                wineNameNode.className = 'taste-profile-wine-name';
+                                wineNameNode.textContent = wineName;
+                                wineItem.appendChild(wineNameNode);
+
+                                const detailSegments = [];
+                                const vintageText = toText(wine.vintage || wine.Vintage);
+                                if (vintageText) {
+                                    detailSegments.push(vintageText);
+                                }
+
+                                const colorText = toText(wine.color || wine.Color);
+                                if (colorText) {
+                                    detailSegments.push(colorText);
+                                }
+
+                                const varietyText = toText(wine.variety || wine.Variety);
+                                if (varietyText) {
+                                    detailSegments.push(varietyText);
+                                }
+
+                                const subText = toText(wine.subAppellation || wine.subAppellationName || wine.SubAppellation);
+                                if (subText) {
+                                    detailSegments.push(subText);
+                                }
+
+                                if (detailSegments.length > 0) {
+                                    const wineDetailsNode = document.createElement('span');
+                                    wineDetailsNode.className = 'taste-profile-wine-details';
+                                    wineDetailsNode.textContent = detailSegments.join(' • ');
+                                    wineItem.appendChild(wineDetailsNode);
+                                }
+
+                                winesList.appendChild(wineItem);
+                            }
+
+                            if (winesList.children.length > 0) {
+                                item.appendChild(winesList);
+                            }
                         }
 
                         fragment.appendChild(item);

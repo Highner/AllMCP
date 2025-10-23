@@ -21,6 +21,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Appellation> Appellations { get; set; }
     public DbSet<SubAppellation> SubAppellations { get; set; }
     public DbSet<SuggestedAppellation> SuggestedAppellations { get; set; }
+    public DbSet<SuggestedWine> SuggestedWines { get; set; }
     public DbSet<Wine> Wines { get; set; }
     public DbSet<WineVintage> WineVintages { get; set; }
     public DbSet<WineVintageEvolutionScore> WineVintageEvolutionScores { get; set; }
@@ -169,6 +170,25 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Cascade);
 
             e.HasIndex(suggested => new { suggested.UserId, suggested.SubAppellationId })
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<SuggestedWine>(e =>
+        {
+            e.Property(wine => wine.Vintage)
+                .HasMaxLength(32);
+
+            e.HasOne(wine => wine.SuggestedAppellation)
+                .WithMany(appellation => appellation.SuggestedWines)
+                .HasForeignKey(wine => wine.SuggestedAppellationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(wine => wine.Wine)
+                .WithMany(existing => existing.SuggestedWines)
+                .HasForeignKey(wine => wine.WineId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(wine => new { wine.SuggestedAppellationId, wine.WineId })
                 .IsUnique();
         });
 

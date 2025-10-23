@@ -134,10 +134,11 @@ public class WineSurferController : Controller
     private const string TasteProfileStatusTempDataKey = "WineSurfer.TasteProfile.Status";
     private const string TasteProfileErrorTempDataKey = "WineSurfer.TasteProfile.Error";
     private const string TasteProfileGenerationSystemPrompt =
-        "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\"},{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\"}]}. " +
+        "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\",\"wines\":[{\"name\":\"...\",\"color\":\"Red\",\"variety\":\"...\",\"subAppellation\":null,\"vintage\":\"2019\"},{\"name\":\"...\",\"color\":\"White\",\"variety\":null,\"subAppellation\":null,\"vintage\":\"NV\"}]}]}. " +
         "The summary must be 200 characters or fewer and offer a concise descriptor of the user's palate. " +
         "The profile must be 3-5 sentences, 1500 characters or fewer, written in the second person, and describe styles, structure, and flavor preferences without recommending specific new wines. " +
         "The suggestedAppellations array must contain exactly two entries describing appellations or sub-appellations that fit the profile, each with country, region, appellation strings, subAppellation set to a string or null, and a single-sentence reason of 200 characters or fewer explaining the match. " +
+        "For each suggested appellation, include a wines array with two or three entries highlighting wines from that location. Each wine must provide the full label name (producer and cuvée), a color of Red, White, or Rose, an optional variety string or null, an optional subAppellation or null, and a vintage string that is either a 4-digit year or \"NV\". " +
         "Do not include markdown, bullet lists, code fences, or any explanatory text outside the JSON object.";
     private static readonly JsonDocumentOptions TasteProfileJsonDocumentOptions = new()
     {
@@ -729,7 +730,16 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 suggestion.RegionName,
                 suggestion.AppellationName,
                 suggestion.SubAppellationName,
-                suggestion.Reason ?? string.Empty))
+                suggestion.Reason ?? string.Empty,
+                suggestion.Wines
+                    .Select(wine => new GenerateTasteProfileWine(
+                        wine.WineId,
+                        wine.Name,
+                        wine.Color,
+                        wine.Variety,
+                        wine.Vintage,
+                        wine.SubAppellationName))
+                    .ToList()))
             .ToList();
 
         return Json(new GenerateTasteProfileResponse(summary, profile, responseSuggestions));
@@ -4801,7 +4811,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
         builder.AppendLine("Use only the provided information and avoid recommending specific new bottles.");
         builder.AppendLine("Write the taste profile in the second person.");
         builder.AppendLine("Also include exactly two suggested appellations or sub-appellations that match the palate, providing country, region, appellation, an optional subAppellation (use null when unknown), and a single-sentence reason under 200 characters explaining the fit. Suggest only appellations that are not already in use.");
-        builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\"},{...}]}. No markdown or commentary.");
+        builder.AppendLine("For each suggested appellation list two or three representative wines from that location, giving the full label name, color (Red, White, or Rose), an optional variety, an optional subAppellation, and a vintage string that is either a four-digit year or \"NV\".");
+        builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\",\"wines\":[{\"name\":\"...\",\"color\":\"Red\",\"variety\":\"...\",\"subAppellation\":null,\"vintage\":\"2019\"}]}]}. No markdown or commentary.");
 
         return builder.ToString();
     }
@@ -5067,7 +5078,18 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 continue;
             }
 
-            replacements.Add(new SuggestedAppellationReplacement(subAppellation.Id, normalizedReason));
+            var (resolvedWines, wineReplacements) = await ResolveSuggestedWinesAsync(
+                suggestion,
+                country,
+                region,
+                appellation,
+                subAppellation,
+                cancellationToken);
+
+            replacements.Add(new SuggestedAppellationReplacement(
+                subAppellation.Id,
+                normalizedReason,
+                wineReplacements));
 
             var subName = string.IsNullOrWhiteSpace(subAppellation.Name)
                 ? null
@@ -5080,7 +5102,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 appellation.Name?.Trim() ?? string.Empty,
                 region.Name?.Trim() ?? string.Empty,
                 country.Name?.Trim() ?? string.Empty,
-                normalizedReason));
+                normalizedReason,
+                resolvedWines));
         }
 
         await _suggestedAppellationRepository.ReplaceSuggestionsAsync(userId, replacements, cancellationToken);
@@ -5127,6 +5150,221 @@ Each suggestion must be a short dish description followed by a concise reason, a
         }
 
         return await ResolveSubAppellationAsync(suggestion.SubAppellation.Trim(), appellation, cancellationToken);
+    }
+
+    private async Task<(IReadOnlyList<WineSurferSuggestedWine> Wines, IReadOnlyList<SuggestedWineReplacement> Replacements)>
+        ResolveSuggestedWinesAsync(
+            GeneratedAppellationSuggestion suggestion,
+            Country country,
+            Region region,
+            Appellation appellation,
+            SubAppellation subAppellation,
+            CancellationToken cancellationToken)
+    {
+        if (suggestion.Wines is null || suggestion.Wines.Count == 0)
+        {
+            return (Array.Empty<WineSurferSuggestedWine>(), Array.Empty<SuggestedWineReplacement>());
+        }
+
+        var resolved = new List<WineSurferSuggestedWine>(Math.Min(suggestion.Wines.Count, 3));
+        var replacements = new List<SuggestedWineReplacement>(Math.Min(suggestion.Wines.Count, 3));
+        var seen = new HashSet<Guid>();
+
+        var countryName = country.Name?.Trim();
+        var regionName = region.Name?.Trim();
+        var appellationName = appellation.Name?.Trim();
+
+        foreach (var generatedWine in suggestion.Wines.Take(3))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (generatedWine is null)
+            {
+                continue;
+            }
+
+            var ensured = await EnsureSuggestedWineAsync(
+                generatedWine,
+                countryName,
+                regionName,
+                appellationName,
+                subAppellation,
+                cancellationToken);
+
+            if (ensured.Wine is null)
+            {
+                continue;
+            }
+
+            if (!seen.Add(ensured.Wine.Id))
+            {
+                continue;
+            }
+
+            var displayName = string.IsNullOrWhiteSpace(ensured.Wine.Name)
+                ? NormalizeSuggestedWineName(generatedWine.Name)
+                : ensured.Wine.Name.Trim();
+
+            if (string.IsNullOrWhiteSpace(displayName))
+            {
+                continue;
+            }
+
+            var normalizedVariety = string.IsNullOrWhiteSpace(ensured.Wine.GrapeVariety)
+                ? NormalizeSuggestedWineVariety(generatedWine.Variety)
+                : NormalizeSuggestedWineVariety(ensured.Wine.GrapeVariety);
+
+            var subAppellationName = ensured.Wine.SubAppellation?.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(subAppellationName))
+            {
+                subAppellationName = NormalizeSuggestedWineSubAppellation(generatedWine.SubAppellation);
+            }
+
+            var normalizedVintage = NormalizeSuggestedWineVintage(ensured.Vintage ?? generatedWine.Vintage);
+
+            replacements.Add(new SuggestedWineReplacement(ensured.Wine.Id, normalizedVintage));
+
+            resolved.Add(new WineSurferSuggestedWine(
+                ensured.Wine.Id,
+                displayName!,
+                ensured.Wine.Color.ToString(),
+                normalizedVariety,
+                normalizedVintage,
+                subAppellationName));
+        }
+
+        return (
+            resolved.Count == 0 ? Array.Empty<WineSurferSuggestedWine>() : resolved,
+            replacements.Count == 0 ? Array.Empty<SuggestedWineReplacement>() : replacements);
+    }
+
+    private async Task<(Wine? Wine, string? Vintage)> EnsureSuggestedWineAsync(
+        GeneratedSuggestedWine generatedWine,
+        string? countryName,
+        string? regionName,
+        string? appellationName,
+        SubAppellation resolvedSubAppellation,
+        CancellationToken cancellationToken)
+    {
+        var name = NormalizeSuggestedWineName(generatedWine.Name);
+        var color = NormalizeSuggestedWineColor(generatedWine.Color);
+
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(color))
+        {
+            return default;
+        }
+
+        var subAppellationName = NormalizeSuggestedWineSubAppellation(
+            string.IsNullOrWhiteSpace(generatedWine.SubAppellation)
+                ? resolvedSubAppellation.Name
+                : generatedWine.SubAppellation);
+
+        var variety = NormalizeSuggestedWineVariety(generatedWine.Variety);
+        var vintage = NormalizeSuggestedWineVintage(generatedWine.Vintage);
+
+        try
+        {
+            var request = new WineCatalogRequest(
+                name,
+                color,
+                countryName,
+                regionName,
+                appellationName,
+                subAppellationName,
+                variety);
+
+            var result = await _wineCatalogService.EnsureWineAsync(request, cancellationToken);
+            if (result.IsSuccess && result.Wine is not null)
+            {
+                return (result.Wine, vintage);
+            }
+        }
+        catch
+        {
+            // Ignore catalog failures and continue with any other candidates.
+        }
+
+        return default;
+    }
+
+    private static string? NormalizeSuggestedWineName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        var trimmed = name.Trim();
+        if (trimmed.Length <= 256)
+        {
+            return trimmed;
+        }
+
+        return trimmed[..256].TrimEnd();
+    }
+
+    private static string? NormalizeSuggestedWineColor(string? color)
+    {
+        if (string.IsNullOrWhiteSpace(color))
+        {
+            return null;
+        }
+
+        var trimmed = color.Trim();
+        if (trimmed.Length <= 32)
+        {
+            return trimmed;
+        }
+
+        return trimmed[..32].TrimEnd();
+    }
+
+    private static string? NormalizeSuggestedWineVariety(string? variety)
+    {
+        if (string.IsNullOrWhiteSpace(variety))
+        {
+            return null;
+        }
+
+        var trimmed = variety.Trim();
+        if (trimmed.Length <= 128)
+        {
+            return trimmed;
+        }
+
+        return trimmed[..128].TrimEnd();
+    }
+
+    private static string? NormalizeSuggestedWineSubAppellation(string? subAppellation)
+    {
+        if (string.IsNullOrWhiteSpace(subAppellation))
+        {
+            return null;
+        }
+
+        var trimmed = subAppellation.Trim();
+        if (trimmed.Length <= 256)
+        {
+            return trimmed;
+        }
+
+        return trimmed[..256].TrimEnd();
+    }
+
+    private static string? NormalizeSuggestedWineVintage(string? vintage)
+    {
+        if (string.IsNullOrWhiteSpace(vintage))
+        {
+            return null;
+        }
+
+        var trimmed = vintage.Trim();
+        if (trimmed.Length <= 32)
+        {
+            return trimmed;
+        }
+
+        return trimmed[..32].TrimEnd();
     }
 
     private async Task<Country?> ResolveCountryAsync(string countryName, CancellationToken cancellationToken)
@@ -5302,6 +5540,43 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 ? null
                 : subAppellation.Name.Trim();
 
+            var wines = new List<WineSurferSuggestedWine>();
+            if (suggestion.SuggestedWines is not null && suggestion.SuggestedWines.Count > 0)
+            {
+                foreach (var stored in suggestion.SuggestedWines)
+                {
+                    if (stored?.Wine is null)
+                    {
+                        continue;
+                    }
+
+                    var displayName = NormalizeSuggestedWineName(stored.Wine.Name);
+                    if (string.IsNullOrWhiteSpace(displayName))
+                    {
+                        continue;
+                    }
+
+                    var variety = NormalizeSuggestedWineVariety(stored.Wine.GrapeVariety);
+                    var vintage = NormalizeSuggestedWineVintage(stored.Vintage);
+                    var storedSubName = stored.Wine.SubAppellation?.Name?.Trim();
+
+                    wines.Add(new WineSurferSuggestedWine(
+                        stored.WineId,
+                        displayName!,
+                        stored.Wine.Color.ToString(),
+                        variety,
+                        vintage,
+                        string.IsNullOrWhiteSpace(storedSubName) ? null : storedSubName));
+
+                    if (wines.Count == 3)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            var wineResults = wines.Count == 0 ? Array.Empty<WineSurferSuggestedWine>() : wines;
+
             var reason = NormalizeSuggestedReason(suggestion.Reason);
 
             results.Add(new WineSurferSuggestedAppellation(
@@ -5311,7 +5586,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 appellation.Name?.Trim() ?? string.Empty,
                 region.Name?.Trim() ?? string.Empty,
                 country.Name?.Trim() ?? string.Empty,
-                reason));
+                reason,
+                wineResults));
         }
 
         return results.Count == 0 ? Array.Empty<WineSurferSuggestedAppellation>() : results;
@@ -5456,7 +5732,56 @@ Each suggestion must be a short dish description followed by a concise reason, a
                         continue;
                     }
 
-                    parsed.Add(new GeneratedAppellationSuggestion(country!, region!, appellation!, subAppellation, reason!));
+                    IReadOnlyList<GeneratedSuggestedWine> wines = Array.Empty<GeneratedSuggestedWine>();
+                    if (suggestionElement.TryGetProperty("wines", out var winesElement)
+                        && winesElement.ValueKind == JsonValueKind.Array)
+                    {
+                        var parsedWines = new List<GeneratedSuggestedWine>();
+                        foreach (var wineElement in winesElement.EnumerateArray())
+                        {
+                            if (wineElement.ValueKind != JsonValueKind.Object)
+                            {
+                                continue;
+                            }
+
+                            var wineName = GetTrimmedJsonString(wineElement, "name");
+                            var wineColor = GetTrimmedJsonString(wineElement, "color");
+
+                            if (string.IsNullOrWhiteSpace(wineName) || string.IsNullOrWhiteSpace(wineColor))
+                            {
+                                continue;
+                            }
+
+                            var wineVariety = GetTrimmedJsonString(wineElement, "variety");
+                            var wineSubAppellation = GetTrimmedJsonString(wineElement, "subAppellation");
+                            var wineVintage = GetTrimmedJsonString(wineElement, "vintage");
+
+                            parsedWines.Add(new GeneratedSuggestedWine(
+                                wineName!,
+                                wineColor!,
+                                wineVariety,
+                                wineSubAppellation,
+                                wineVintage));
+
+                            if (parsedWines.Count == 3)
+                            {
+                                break;
+                            }
+                        }
+
+                        if (parsedWines.Count > 0)
+                        {
+                            wines = parsedWines.ToArray();
+                        }
+                    }
+
+                    parsed.Add(new GeneratedAppellationSuggestion(
+                        country!,
+                        region!,
+                        appellation!,
+                        subAppellation,
+                        reason!,
+                        wines));
 
                     if (parsed.Count == 2)
                     {
@@ -5857,7 +6182,15 @@ Each suggestion must be a short dish description followed by a concise reason, a
         string? Region,
         string? Appellation,
         string? SubAppellation,
-        string? Reason);
+        string? Reason,
+        IReadOnlyList<GeneratedSuggestedWine> Wines);
+
+    private sealed record GeneratedSuggestedWine(
+        string Name,
+        string Color,
+        string? Variety,
+        string? SubAppellation,
+        string? Vintage);
 
 private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(
     IEnumerable<SipSessionBottle>? sessionBottles,
@@ -6149,7 +6482,16 @@ public record GenerateTasteProfileSuggestion(
     string Region,
     string Appellation,
     string? SubAppellation,
-    string Reason);
+    string Reason,
+    IReadOnlyList<GenerateTasteProfileWine> Wines);
+
+public record GenerateTasteProfileWine(
+    Guid WineId,
+    string Name,
+    string? Color,
+    string? Variety,
+    string? Vintage,
+    string? SubAppellation);
 
 public record GenerateTasteProfileError(string Error);
 
@@ -6172,7 +6514,16 @@ public record WineSurferSuggestedAppellation(
     string AppellationName,
     string RegionName,
     string CountryName,
-    string? Reason);
+    string? Reason,
+    IReadOnlyList<WineSurferSuggestedWine> Wines);
+
+public record WineSurferSuggestedWine(
+    Guid WineId,
+    string Name,
+    string? Color,
+    string? Variety,
+    string? Vintage,
+    string? SubAppellationName);
 
 public record WineSurferTerroirManagementViewModel(
     WineSurferCurrentUser? CurrentUser,
