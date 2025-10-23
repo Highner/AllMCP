@@ -5996,14 +5996,15 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
         if (!string.IsNullOrWhiteSpace(region.Name) && RegionCoordinates.TryGetValue(region.Name, out var regionCoord))
         {
             return new MapHighlightPoint(
-                region.Name,
-                countryName ?? string.Empty,
-                regionCoord.Latitude,
-                regionCoord.Longitude,
-                metrics.BottlesCellared,
-                metrics.BottlesConsumed,
-                metrics.AverageScore,
-                metrics.UserAverageScores);
+                Label: region.Name,
+                Country: countryName ?? string.Empty,
+                Latitude: regionCoord.Latitude,
+                Longitude: regionCoord.Longitude,
+                BottlesCellared: metrics.BottlesCellared,
+                BottlesConsumed: metrics.BottlesConsumed,
+                AverageScore: metrics.AverageScore,
+                UserAverageScores: metrics.UserAverageScores,
+                RegionName: region.Name);
         }
 
         if (!string.IsNullOrWhiteSpace(countryName) && CountryCoordinates.TryGetValue(countryName, out var countryCoord))
@@ -6012,14 +6013,15 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
                 ? countryName
                 : $"{region.Name}, {countryName}";
             return new MapHighlightPoint(
-                label,
-                countryName,
-                countryCoord.Latitude,
-                countryCoord.Longitude,
-                metrics.BottlesCellared,
-                metrics.BottlesConsumed,
-                metrics.AverageScore,
-                metrics.UserAverageScores);
+                Label: label,
+                Country: countryName,
+                Latitude: countryCoord.Latitude,
+                Longitude: countryCoord.Longitude,
+                BottlesCellared: metrics.BottlesCellared,
+                BottlesConsumed: metrics.BottlesConsumed,
+                AverageScore: metrics.AverageScore,
+                UserAverageScores: metrics.UserAverageScores,
+                RegionName: region.Name);
         }
 
         return null;
@@ -6054,6 +6056,9 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
         var countryName = string.IsNullOrWhiteSpace(suggestion.CountryName)
             ? null
             : suggestion.CountryName.Trim();
+        var suggestionReason = string.IsNullOrWhiteSpace(suggestion.Reason)
+            ? null
+            : suggestion.Reason.Trim();
 
         static string BuildSubtitle(string? regionValue, string? countryValue)
         {
@@ -6076,29 +6081,33 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
         if (!string.IsNullOrWhiteSpace(regionName) && RegionCoordinates.TryGetValue(regionName, out var regionCoord))
         {
             return new MapHighlightPoint(
-                label,
-                subtitle,
-                regionCoord.Latitude,
-                regionCoord.Longitude,
-                0,
-                0,
-                null,
-                Array.Empty<RegionUserAverageScore>(),
-                true);
+                Label: label,
+                Country: subtitle,
+                Latitude: regionCoord.Latitude,
+                Longitude: regionCoord.Longitude,
+                BottlesCellared: 0,
+                BottlesConsumed: 0,
+                AverageScore: null,
+                UserAverageScores: Array.Empty<RegionUserAverageScore>(),
+                IsSuggested: true,
+                RegionName: regionName,
+                SuggestionReason: suggestionReason);
         }
 
         if (!string.IsNullOrWhiteSpace(countryName) && CountryCoordinates.TryGetValue(countryName, out var countryCoord))
         {
             return new MapHighlightPoint(
-                label,
-                subtitle,
-                countryCoord.Latitude,
-                countryCoord.Longitude,
-                0,
-                0,
-                null,
-                Array.Empty<RegionUserAverageScore>(),
-                true);
+                Label: label,
+                Country: subtitle,
+                Latitude: countryCoord.Latitude,
+                Longitude: countryCoord.Longitude,
+                BottlesCellared: 0,
+                BottlesConsumed: 0,
+                AverageScore: null,
+                UserAverageScores: Array.Empty<RegionUserAverageScore>(),
+                IsSuggested: true,
+                RegionName: regionName,
+                SuggestionReason: suggestionReason);
         }
 
         return null;
@@ -6562,7 +6571,9 @@ public record MapHighlightPoint(
     int BottlesConsumed,
     decimal? AverageScore,
     IReadOnlyList<RegionUserAverageScore> UserAverageScores,
-    bool IsSuggested = false);
+    bool IsSuggested = false,
+    string? RegionName = null,
+    string? SuggestionReason = null);
 
 public record WineSurferIncomingSisterhoodInvitation(
     Guid Id,
