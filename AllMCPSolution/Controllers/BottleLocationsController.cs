@@ -8,6 +8,27 @@ public class BottleLocationsController : ControllerBase
 {
     private readonly IBottleLocationRepository _locations;
     private readonly IUserRepository _users;
+    private const int MaxCapacity = 10000;
+
+    private static (int? Value, string? Error) NormalizeCapacity(int? capacity)
+    {
+        if (!capacity.HasValue)
+        {
+            return (null, null);
+        }
+
+        if (capacity.Value < 0)
+        {
+            return (null, "Location capacity must be zero or greater.");
+        }
+
+        if (capacity.Value > MaxCapacity)
+        {
+            return (null, $"Location capacity cannot exceed {MaxCapacity} bottles.");
+        }
+
+        return (capacity.Value, null);
+    }
 
     public BottleLocationsController(IBottleLocationRepository locations, IUserRepository users)
     {
@@ -24,6 +45,7 @@ public class BottleLocationsController : ControllerBase
             {
                 l.Id,
                 l.Name,
+                l.Capacity,
                 l.UserId,
                 UserName = l.User?.Name
             })
@@ -45,6 +67,7 @@ public class BottleLocationsController : ControllerBase
         {
             location.Id,
             location.Name,
+            location.Capacity,
             location.UserId,
             UserName = location.User?.Name
         });
@@ -54,6 +77,7 @@ public class BottleLocationsController : ControllerBase
     {
         public string? Name { get; set; }
         public Guid? UserId { get; set; }
+        public int? Capacity { get; set; }
     }
 
     [HttpPost]
@@ -86,10 +110,17 @@ public class BottleLocationsController : ControllerBase
             });
         }
 
+        var (capacity, capacityError) = NormalizeCapacity(request.Capacity);
+        if (capacityError is not null)
+        {
+            return BadRequest(new { message = capacityError });
+        }
+
         var location = new BottleLocation
         {
             Id = Guid.NewGuid(),
             Name = trimmedName,
+            Capacity = capacity,
             UserId = user.Id
         };
 
@@ -99,6 +130,7 @@ public class BottleLocationsController : ControllerBase
         {
             location.Id,
             location.Name,
+            location.Capacity,
             location.UserId,
             UserName = user.Name
         });
@@ -108,6 +140,7 @@ public class BottleLocationsController : ControllerBase
     {
         public string? Name { get; set; }
         public Guid? UserId { get; set; }
+        public int? Capacity { get; set; }
     }
 
     [HttpPut("{id:guid}")]
@@ -148,12 +181,20 @@ public class BottleLocationsController : ControllerBase
 
         existing.Name = trimmedName;
         existing.UserId = user.Id;
+        var (capacity, capacityError) = NormalizeCapacity(request.Capacity);
+        if (capacityError is not null)
+        {
+            return BadRequest(new { message = capacityError });
+        }
+
+        existing.Capacity = capacity;
         await _locations.UpdateAsync(existing, ct);
 
         return Ok(new
         {
             existing.Id,
             existing.Name,
+            existing.Capacity,
             existing.UserId,
             UserName = user.Name
         });

@@ -2016,6 +2016,12 @@ tbody tr:hover {
     gap: 6px;
 }
 
+.location-edit-hint {
+    font-size: 12px;
+    color: rgba(244, 241, 234, 0.6);
+    letter-spacing: 0.8px;
+}
+
 .location-edit-input {
     width: 100%;
     padding: 12px 14px;
