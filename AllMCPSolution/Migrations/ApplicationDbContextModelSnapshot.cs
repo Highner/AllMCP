@@ -281,6 +281,9 @@ namespace AllMCPSolution.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int?>("Capacity")
+                        .HasColumnType("int");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -380,6 +383,10 @@ namespace AllMCPSolution.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(2048)
                         .HasColumnType("nvarchar(2048)");
+
+                    b.Property<string>("FoodSuggestion")
+                        .HasMaxLength(4096)
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Location")
                         .IsRequired()
