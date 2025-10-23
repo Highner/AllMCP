@@ -6014,7 +6014,10 @@ Each suggestion must be a short dish description followed by a concise reason, a
                         TryGetTrimmedString(wineElement, "subAppellation") ?? TryGetTrimmedString(wineElement, "sub_appellation"),
                         TryGetTrimmedString(wineElement, "variety"),
                         TryGetTrimmedString(wineElement, "color"),
-                        TryGetTrimmedString(wineElement, "vintage"),
+                        TryGetTrimmedString(wineElement, "vintage")
+                            ?? TryGetTrimmedString(wineElement, "vintageYear")
+                            ?? TryGetTrimmedString(wineElement, "vintage_year")
+                            ?? TryGetTrimmedString(wineElement, "year"),
                         alignmentScore,
                         TryGetTrimmedString(wineElement, "alignmentSummary") ?? "",
                         confidence,
@@ -6111,13 +6114,35 @@ Each suggestion must be a short dish description followed by a concise reason, a
 
     private static string? TryGetTrimmedString(JsonElement element, string propertyName)
     {
-        if (element.TryGetProperty(propertyName, out var property))
+        if (!element.TryGetProperty(propertyName, out var property))
         {
-            if (property.ValueKind == JsonValueKind.String)
+            return null;
+        }
+
+        if (property.ValueKind == JsonValueKind.String)
+        {
+            var value = property.GetString();
+            if (string.IsNullOrWhiteSpace(value))
             {
-                var value = property.GetString();
-                return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+                return null;
             }
+
+            var trimmed = value.Trim();
+            return string.Equals(trimmed, "null", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : trimmed;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number)
+        {
+            if (property.TryGetInt64(out var integer))
+            {
+                return integer.ToString(CultureInfo.InvariantCulture);
+            }
+
+            var raw = property.GetRawText();
+            var trimmedRaw = raw.Trim();
+            return trimmedRaw.Length == 0 ? null : trimmedRaw;
         }
 
         return null;
