@@ -100,8 +100,8 @@ public sealed class ChatGptService : IChatGptService
             throw;
         }
 
-        try
-        {
+        //try
+        //{
             await foreach (var update in response.WithCancellation(ct).ConfigureAwait(false))
             {
                 if (update?.ContentUpdate is not { Count: > 0 })
@@ -117,25 +117,21 @@ public sealed class ChatGptService : IChatGptService
                     }
                 }
             }
-        }
-        catch (ClientResultException ex)
-        {
-            _logger.LogError(
-                ex,
-                "ChatGPT streaming enumeration failed with status {StatusCode}: {Message}",
-                ex.Status,
-                ex.Message);
-            throw;
-        }
+        //}
+       // catch (ClientResultException ex)
+       // {
+       //     _logger.LogError(
+        //        ex,
+         //       "ChatGPT streaming enumeration failed with status {StatusCode}: {Message}",
+         //       ex.Status,
+         //       ex.Message);
+         //   throw;
+        //}
     }
 
     private static ChatCompletionOptions CreateCompletionOptions(double? temperature)
     {
         var options = new ChatCompletionOptions();
-        if (temperature.HasValue)
-        {
-            options.Temperature = temperature.Value;
-        }
 
         return options;
     }
