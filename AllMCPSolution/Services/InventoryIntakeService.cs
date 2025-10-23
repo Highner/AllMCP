@@ -427,9 +427,10 @@ public sealed class InventoryIntakeService
             var bottleId = ParameterHelpers.GetGuidParameter(normalized, "bottleId", "bottle_id");
 
             var errors = new List<string>();
-            if (string.IsNullOrWhiteSpace(note))
+            var hasNote = !string.IsNullOrWhiteSpace(note);
+            if (!hasNote && score is null)
             {
-                errors.Add("'note' is required.");
+                errors.Add("Either 'note' or 'score' must be provided.");
             }
 
             if (bottleId is null)
@@ -477,7 +478,7 @@ public sealed class InventoryIntakeService
             var entity = new TastingNote
             {
                 Id = Guid.NewGuid(),
-                Note = note!,
+                Note = hasNote ? note! : string.Empty,
                 Score = score,
                 BottleId = bottle.Id,
                 UserId = userResolution.User!.Id,

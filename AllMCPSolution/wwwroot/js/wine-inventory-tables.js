@@ -778,17 +778,17 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 const noteValue = drinkNoteInput?.value?.trim() ?? '';
-                if (!noteValue) {
-                    showDrinkError('Enter a tasting note.');
-                    drinkNoteInput?.focus();
-                    return;
-                }
-
                 const scoreRawValue = getDrinkScoreRawValue();
                 const parsedScore = parseScore(scoreRawValue);
                 if (parsedScore === undefined) {
                     showDrinkError('Score must be between 0 and 10.');
                     drinkScoreInput?.focus();
+                    return;
+                }
+
+                if (!noteValue && parsedScore == null) {
+                    showDrinkError('Add a tasting note or score.');
+                    (drinkNoteInput ?? drinkScoreInput)?.focus();
                     return;
                 }
 
