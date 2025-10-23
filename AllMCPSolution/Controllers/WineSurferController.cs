@@ -772,6 +772,32 @@ public class WineSurferController : Controller
             profile,
             BuildTasteProfileSuggestions(resolvedSuggestions));
 
+        try
+        {
+            var savedProfile = await _userRepository.AddGeneratedTasteProfileAsync(
+                userId,
+                profile,
+                summary,
+                cancellationToken);
+
+            if (savedProfile is null)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new GenerateTasteProfileError(TasteProfileGenerationGenericErrorMessage));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                new GenerateTasteProfileError(TasteProfileGenerationGenericErrorMessage));
+        }
+
         return Json(response);
     }
 
@@ -911,6 +937,36 @@ public class WineSurferController : Controller
                 summary,
                 profile,
                 BuildTasteProfileSuggestions(resolvedSuggestions));
+
+            try
+            {
+                var savedProfile = await _userRepository.AddGeneratedTasteProfileAsync(
+                    userId,
+                    profile,
+                    summary,
+                    cancellationToken);
+
+                if (savedProfile is null)
+                {
+                    await WriteTasteProfileEventAsync(
+                        response,
+                        new { type = "error", message = TasteProfileGenerationGenericErrorMessage },
+                        cancellationToken);
+                    return new EmptyResult();
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                await WriteTasteProfileEventAsync(
+                    response,
+                    new { type = "error", message = TasteProfileGenerationGenericErrorMessage },
+                    cancellationToken);
+                return new EmptyResult();
+            }
 
             await WriteTasteProfileEventAsync(
                 response,

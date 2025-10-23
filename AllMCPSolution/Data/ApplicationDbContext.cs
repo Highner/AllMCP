@@ -34,6 +34,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<SipSession> SipSessions { get; set; }
     public DbSet<SipSessionBottle> SipSessionBottles { get; set; }
     public DbSet<WineSurferNotificationDismissal> WineSurferNotificationDismissals { get; set; }
+    public DbSet<TasteProfile> TasteProfiles { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,6 +53,28 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
             entity.Property(u => u.IsAdmin)
                 .HasDefaultValue(false);
+        });
+
+        modelBuilder.Entity<TasteProfile>(entity =>
+        {
+            entity.Property(profile => profile.Profile)
+                .HasMaxLength(4096);
+
+            entity.Property(profile => profile.Summary)
+                .HasMaxLength(512);
+
+            entity.Property(profile => profile.CreatedAt)
+                .HasColumnType("datetime2")
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+
+            entity.HasOne(profile => profile.User)
+                .WithMany(user => user.TasteProfiles)
+                .HasForeignKey(profile => profile.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(profile => new { profile.UserId, profile.InUse })
+                .HasFilter("[InUse] = 1")
+                .IsUnique();
         });
 
         foreach (var property in modelBuilder.Model
