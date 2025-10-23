@@ -7,6 +7,8 @@ using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
@@ -39,6 +41,14 @@ public class WineInventoryController : Controller
     private readonly IWineImportService _wineImportService;
     private readonly IChatGptService _chatGptService;
     private const string WineSurferSystemPrompt = "You are Wine Surfer, an expert wine research assistant. Respond ONLY with minified JSON matching {\"wines\":[{\"name\":\"...\",\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":\"...\",\"color\":\"Red\"}]}. List up to six likely matches, order them by relevance, limit color to Red, White, or Rose, and use null for any field you cannot determine. In case of Burgundy wines, include the climat and the classification (1er Cru or Grand Cru) where applicable.";
+    private const string WineSurferStreamMediaType = "application/x-ndjson";
+    private const string WineSurferDiscoveryErrorMessage = "Wine Surfer could not reach the discovery service. Please try again.";
+    private const string WineSurferGenericErrorMessage = "Wine Surfer is unavailable right now. Please try again.";
+    private const string WineSurferUnexpectedResponseMessage = "Wine Surfer returned an unexpected response. Please try again.";
+    private static readonly JsonSerializerOptions WineSurferStreamSerializerOptions = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     public WineInventoryController(
         IBottleRepository bottleRepository,
@@ -434,9 +444,23 @@ public class WineInventoryController : Controller
     public async Task<IActionResult> GetWineSurferMatches([FromQuery(Name = "query")] string? query, CancellationToken cancellationToken)
     {
         var trimmedQuery = query?.Trim();
+        var wantsStream = AcceptsWineSurferStream(Request);
+
         if (string.IsNullOrWhiteSpace(trimmedQuery) || trimmedQuery.Length < 3)
         {
+            if (wantsStream)
+            {
+                await SendImmediateWineSurferResponseAsync(Array.Empty<WineSurferLookupResult>(), cancellationToken);
+                return new EmptyResult();
+            }
+
             return Json(new WineSurferLookupResponse(Array.Empty<WineSurferLookupResult>()));
+        }
+
+        if (wantsStream)
+        {
+            await StreamWineSurferMatchesAsync(trimmedQuery, cancellationToken);
+            return new EmptyResult();
         }
 
         ChatCompletion completion;
@@ -453,17 +477,17 @@ public class WineInventoryController : Controller
         }
         catch (ClientResultException)
         {
-            return StatusCode(StatusCodes.Status502BadGateway, new WineSurferLookupError("Wine Surfer could not reach the discovery service. Please try again."));
+            return StatusCode(StatusCodes.Status502BadGateway, new WineSurferLookupError(WineSurferDiscoveryErrorMessage));
         }
         catch (Exception)
         {
-            return StatusCode(StatusCodes.Status500InternalServerError, new WineSurferLookupError("Wine Surfer is unavailable right now. Please try again."));
+            return StatusCode(StatusCodes.Status500InternalServerError, new WineSurferLookupError(WineSurferGenericErrorMessage));
         }
 
         var completionText = ExtractCompletionText(completion);
         if (!WineSurferResultParser.TryParse(completionText, out var matches))
         {
-            return StatusCode(StatusCodes.Status502BadGateway, new WineSurferLookupError("Wine Surfer returned an unexpected response. Please try again."));
+            return StatusCode(StatusCodes.Status502BadGateway, new WineSurferLookupError(WineSurferUnexpectedResponseMessage));
         }
 
         return Json(new WineSurferLookupResponse(matches));
@@ -1462,6 +1486,181 @@ public class WineInventoryController : Controller
     private static string? NormalizeDisplayName(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    private static bool AcceptsWineSurferStream(HttpRequest request)
+    {
+        if (request is null)
+        {
+            return false;
+        }
+
+        foreach (var header in request.Headers.Accept)
+        {
+            if (!string.IsNullOrWhiteSpace(header) && header.Contains(WineSurferStreamMediaType, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private async Task StreamWineSurferMatchesAsync(string query, CancellationToken cancellationToken)
+    {
+        var response = Response;
+        response.StatusCode = StatusCodes.Status200OK;
+        response.ContentType = WineSurferStreamMediaType;
+        response.Headers["Cache-Control"] = "no-cache";
+        response.Headers["X-Accel-Buffering"] = "no";
+
+        await response.StartAsync(cancellationToken);
+
+        var builder = new StringBuilder();
+        var hasPublishedMatches = false;
+        IReadOnlyList<WineSurferLookupResult> lastPublishedMatches = Array.Empty<WineSurferLookupResult>();
+
+        try
+        {
+            await foreach (var chunk in _chatGptService
+                .StreamChatCompletionAsync(
+                    new ChatMessage[]
+                    {
+                        new SystemChatMessage(WineSurferSystemPrompt),
+                        new UserChatMessage(BuildWineSurferUserPrompt(query))
+                    },
+                    temperature: 0.2,
+                    ct: cancellationToken)
+                .WithCancellation(cancellationToken))
+            {
+                if (string.IsNullOrEmpty(chunk))
+                {
+                    continue;
+                }
+
+                builder.Append(chunk);
+                await WriteWineSurferEventAsync(response, new { type = "delta", content = chunk }, cancellationToken);
+
+                var snapshot = builder.ToString();
+                if (WineSurferResultParser.TryParse(snapshot, out var matches)
+                    && (!hasPublishedMatches || !MatchesEqual(matches, lastPublishedMatches)))
+                {
+                    await WriteWineSurferEventAsync(response, new { type = "matches", wines = matches }, cancellationToken);
+                    lastPublishedMatches = matches;
+                    hasPublishedMatches = true;
+                }
+            }
+
+            if (!hasPublishedMatches)
+            {
+                var completionText = builder.ToString();
+                if (WineSurferResultParser.TryParse(completionText, out var matches))
+                {
+                    await WriteWineSurferEventAsync(response, new { type = "matches", wines = matches }, cancellationToken);
+                    lastPublishedMatches = matches;
+                    hasPublishedMatches = true;
+                }
+                else
+                {
+                    await WriteWineSurferEventAsync(
+                        response,
+                        new { type = "error", message = WineSurferUnexpectedResponseMessage },
+                        cancellationToken);
+                    return;
+                }
+            }
+
+            await WriteWineSurferEventAsync(
+                response,
+                new { type = "complete", wines = lastPublishedMatches },
+                cancellationToken);
+        }
+        catch (ClientResultException)
+        {
+            await WriteWineSurferEventAsync(
+                response,
+                new { type = "error", message = WineSurferDiscoveryErrorMessage },
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Request was aborted by the caller; do not emit an error payload.
+        }
+        catch (Exception)
+        {
+            await WriteWineSurferEventAsync(
+                response,
+                new { type = "error", message = WineSurferGenericErrorMessage },
+                cancellationToken);
+        }
+        finally
+        {
+            try
+            {
+                await response.BodyWriter.FlushAsync(CancellationToken.None);
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore flush failures caused by disconnected clients.
+            }
+        }
+    }
+
+    private async Task SendImmediateWineSurferResponseAsync(
+        IReadOnlyList<WineSurferLookupResult> matches,
+        CancellationToken cancellationToken)
+    {
+        var response = Response;
+        response.StatusCode = StatusCodes.Status200OK;
+        response.ContentType = WineSurferStreamMediaType;
+        response.Headers["Cache-Control"] = "no-cache";
+        response.Headers["X-Accel-Buffering"] = "no";
+
+        await response.StartAsync(cancellationToken);
+        await WriteWineSurferEventAsync(response, new { type = "matches", wines = matches }, cancellationToken);
+        await WriteWineSurferEventAsync(response, new { type = "complete", wines = matches }, cancellationToken);
+
+        try
+        {
+            await response.BodyWriter.FlushAsync(CancellationToken.None);
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore flush failures triggered by client disconnects.
+        }
+    }
+
+    private static async Task WriteWineSurferEventAsync(HttpResponse response, object payload, CancellationToken cancellationToken)
+    {
+        var json = JsonSerializer.Serialize(payload, WineSurferStreamSerializerOptions);
+        var encoded = Encoding.UTF8.GetBytes(json + "\n");
+        await response.BodyWriter.WriteAsync(encoded, cancellationToken);
+        await response.BodyWriter.FlushAsync(cancellationToken);
+    }
+
+    private static bool MatchesEqual(
+        IReadOnlyList<WineSurferLookupResult> left,
+        IReadOnlyList<WineSurferLookupResult> right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < left.Count; index++)
+        {
+            if (left[index] != right[index])
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string? ExtractCompletionText(ChatCompletion completion)

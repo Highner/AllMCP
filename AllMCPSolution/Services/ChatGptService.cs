@@ -1,6 +1,7 @@
 using System.ClientModel;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using OpenAI.Chat;
 
 namespace AllMCPSolution.Services;
@@ -8,6 +9,12 @@ namespace AllMCPSolution.Services;
 public interface IChatGptService
 {
     Task<ChatCompletion> GetChatCompletionAsync(
+        IEnumerable<ChatMessage> messages,
+        string? model = null,
+        double? temperature = null,
+        CancellationToken ct = default);
+
+    IAsyncEnumerable<string> StreamChatCompletionAsync(
         IEnumerable<ChatMessage> messages,
         string? model = null,
         double? temperature = null,
@@ -47,6 +54,94 @@ public sealed class ChatGptService : IChatGptService
         double? temperature = null,
         CancellationToken ct = default)
     {
+        var materializedMessages = MaterializeMessages(messages);
+        var completionOptions = CreateCompletionOptions(temperature);
+        var client = ResolveClient(model);
+
+        try
+        {
+            return await client
+                .CompleteChatAsync(materializedMessages, completionOptions, ct)
+                .ConfigureAwait(false);
+        }
+        catch (ClientResultException ex)
+        {
+            _logger.LogError(
+                ex,
+                "ChatGPT API request failed with status {StatusCode}: {Message}",
+                ex.Status,
+                ex.Message);
+            throw;
+        }
+    }
+
+    public async IAsyncEnumerable<string> StreamChatCompletionAsync(
+        IEnumerable<ChatMessage> messages,
+        string? model = null,
+        double? temperature = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var materializedMessages = MaterializeMessages(messages);
+        var completionOptions = CreateCompletionOptions(temperature);
+        var client = ResolveClient(model);
+
+        AsyncCollectionResult<StreamingChatCompletionUpdate> response;
+        try
+        {
+            response = client.CompleteChatStreamingAsync(materializedMessages, completionOptions, ct);
+        }
+        catch (ClientResultException ex)
+        {
+            _logger.LogError(
+                ex,
+                "ChatGPT streaming request failed with status {StatusCode}: {Message}",
+                ex.Status,
+                ex.Message);
+            throw;
+        }
+
+        try
+        {
+            await foreach (var update in response.WithCancellation(ct).ConfigureAwait(false))
+            {
+                if (update?.ContentUpdate is not { Count: > 0 })
+                {
+                    continue;
+                }
+
+                foreach (var part in update.ContentUpdate)
+                {
+                    if (part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrEmpty(part.Text))
+                    {
+                        yield return part.Text!;
+                    }
+                }
+            }
+        }
+        catch (ClientResultException ex)
+        {
+            _logger.LogError(
+                ex,
+                "ChatGPT streaming enumeration failed with status {StatusCode}: {Message}",
+                ex.Status,
+                ex.Message);
+            throw;
+        }
+    }
+
+    private static ChatCompletionOptions CreateCompletionOptions(double? temperature)
+    {
+        var options = new ChatCompletionOptions();
+        if (temperature.HasValue)
+        {
+            options.Temperature = temperature.Value;
+        }
+
+        return options;
+    }
+
+    private static ChatMessage[] MaterializeMessages(IEnumerable<ChatMessage> messages)
+    {
         if (messages is null)
         {
             throw new ArgumentNullException(nameof(messages));
@@ -67,30 +162,17 @@ public sealed class ChatGptService : IChatGptService
             throw new ArgumentException("At least one chat message is required.", nameof(messages));
         }
 
-        var completionOptions = new ChatCompletionOptions();
+        return materializedMessages;
+    }
 
-        // Select appropriate client based on requested model. The model is configured at the client level.
-        var client = _chatClient;
+    private ChatClient ResolveClient(string? model)
+    {
         if (!string.IsNullOrWhiteSpace(model) && !string.Equals(model, _defaultModel, StringComparison.Ordinal))
         {
-            client = new ChatClient(model!, _apiKey);
+            return new ChatClient(model!, _apiKey);
         }
 
-        try
-        {
-            return await client
-                .CompleteChatAsync(materializedMessages, completionOptions, ct)
-                .ConfigureAwait(false);
-        }
-        catch (ClientResultException ex)
-        {
-            _logger.LogError(
-                ex,
-                "ChatGPT API request failed with status {StatusCode}: {Message}",
-                ex.Status,
-                ex.Message);
-            throw;
-        }
+        return _chatClient;
     }
 }
 
