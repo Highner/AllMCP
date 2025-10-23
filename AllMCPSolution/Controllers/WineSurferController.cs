@@ -1293,6 +1293,9 @@ public class WineSurferController : Controller
         return Json(response);
     }
 
+    private const string TerroirHighlightSectionKey = "HighlightSection";
+    private const string TerroirHighlightIdKey = "HighlightId";
+
     [Authorize]
     [HttpGet("terroir")]
     public async Task<IActionResult> ManageTerroir(CancellationToken cancellationToken)
@@ -1407,15 +1410,30 @@ public class WineSurferController : Controller
             ? TempData["ErrorMessage"] as string
             : null;
 
+        var highlightSection = TempData.ContainsKey(TerroirHighlightSectionKey)
+            ? TempData[TerroirHighlightSectionKey] as string
+            : null;
+        var highlightId = TempData.ContainsKey(TerroirHighlightIdKey)
+            ? TempData[TerroirHighlightIdKey] as string
+            : null;
+
         var viewModel = await BuildTerroirManagementViewModel(
             currentUser,
             incomingInvitations,
             sentInvitationNotifications,
             statusMessage,
             errorMessage,
+            highlightSection,
+            highlightId,
             cancellationToken);
 
         return View("ManageTerroir", viewModel);
+    }
+
+    private void SetTerroirHighlight(string section, Guid id)
+    {
+        TempData[TerroirHighlightSectionKey] = section;
+        TempData[TerroirHighlightIdKey] = id.ToString();
     }
 
     [Authorize]
@@ -1449,6 +1467,8 @@ public class WineSurferController : Controller
         };
 
         await _countryRepository.AddAsync(country, cancellationToken);
+
+        SetTerroirHighlight("country", country.Id);
 
         TempData["StatusMessage"] = $"Country '{country.Name}' was created.";
         return RedirectToAction(nameof(ManageTerroir));
@@ -1488,6 +1508,8 @@ public class WineSurferController : Controller
         existing.Name = trimmedName;
 
         await _countryRepository.UpdateAsync(existing, cancellationToken);
+
+        SetTerroirHighlight("country", existing.Id);
 
         TempData["StatusMessage"] = $"Country '{existing.Name}' was updated.";
         return RedirectToAction(nameof(ManageTerroir));
@@ -1568,6 +1590,8 @@ public class WineSurferController : Controller
 
         await _regionRepository.AddAsync(region, cancellationToken);
 
+        SetTerroirHighlight("region", region.Id);
+
         TempData["StatusMessage"] = $"Region '{region.Name}' was created.";
         return RedirectToAction(nameof(ManageTerroir));
     }
@@ -1620,6 +1644,8 @@ public class WineSurferController : Controller
         existing.CountryId = country.Id;
 
         await _regionRepository.UpdateAsync(existing, cancellationToken);
+
+        SetTerroirHighlight("region", existing.Id);
 
         TempData["StatusMessage"] = $"Region '{existing.Name}' was updated.";
         return RedirectToAction(nameof(ManageTerroir));
@@ -1700,6 +1726,8 @@ public class WineSurferController : Controller
 
         await _appellationRepository.AddAsync(appellation, cancellationToken);
 
+        SetTerroirHighlight("appellation", appellation.Id);
+
         TempData["StatusMessage"] = $"Appellation '{appellation.Name}' was created.";
         return RedirectToAction(nameof(ManageTerroir));
     }
@@ -1752,6 +1780,8 @@ public class WineSurferController : Controller
         existing.RegionId = region.Id;
 
         await _appellationRepository.UpdateAsync(existing, cancellationToken);
+
+        SetTerroirHighlight("appellation", existing.Id);
 
         TempData["StatusMessage"] = $"Appellation '{existing.Name}' was updated.";
         return RedirectToAction(nameof(ManageTerroir));
@@ -1829,6 +1859,8 @@ public class WineSurferController : Controller
 
         await _subAppellationRepository.AddAsync(subAppellation, cancellationToken);
 
+        SetTerroirHighlight("sub-appellation", subAppellation.Id);
+
         var displayName = string.IsNullOrWhiteSpace(trimmedName) ? "Unknown sub-appellation" : trimmedName;
         TempData["StatusMessage"] = $"Sub-appellation '{displayName}' was created.";
         return RedirectToAction(nameof(ManageTerroir));
@@ -1879,6 +1911,8 @@ public class WineSurferController : Controller
         existing.AppellationId = appellation.Id;
 
         await _subAppellationRepository.UpdateAsync(existing, cancellationToken);
+
+        SetTerroirHighlight("sub-appellation", existing.Id);
 
         var displayName = string.IsNullOrWhiteSpace(trimmedName) ? "Unknown sub-appellation" : trimmedName;
         TempData["StatusMessage"] = $"Sub-appellation '{displayName}' was updated.";
@@ -1966,6 +2000,8 @@ public class WineSurferController : Controller
 
         await _wineRepository.AddAsync(wine, cancellationToken);
 
+        SetTerroirHighlight("wine", wine.Id);
+
         TempData["StatusMessage"] = $"Wine '{wine.Name}' was created.";
         return RedirectToAction(nameof(ManageTerroir));
     }
@@ -2022,6 +2058,8 @@ public class WineSurferController : Controller
         existing.SubAppellationId = subAppellation.Id;
 
         await _wineRepository.UpdateAsync(existing, cancellationToken);
+
+        SetTerroirHighlight("wine", existing.Id);
 
         TempData["StatusMessage"] = $"Wine '{existing.Name}' was updated.";
         return RedirectToAction(nameof(ManageTerroir));
@@ -4439,6 +4477,8 @@ public class WineSurferController : Controller
         IReadOnlyList<WineSurferSentInvitationNotification> sentInvitationNotifications,
         string? statusMessage,
         string? errorMessage,
+        string? highlightSection,
+        string? highlightId,
         CancellationToken cancellationToken)
     {
         var countries = await _countryRepository.GetAllAsync(cancellationToken);
@@ -4605,7 +4645,9 @@ public class WineSurferController : Controller
             subAppellationModels,
             wineModels,
             statusMessage,
-            errorMessage);
+            errorMessage,
+            highlightSection,
+            highlightId);
     }
 
     private static WineSurferSisterhoodFavoriteRegion? CalculateFavoriteRegion(Sisterhood sisterhood)
@@ -6682,7 +6724,9 @@ public record WineSurferTerroirManagementViewModel(
     IReadOnlyList<WineSurferTerroirSubAppellation> SubAppellations,
     IReadOnlyList<WineSurferTerroirWine> Wines,
     string? StatusMessage,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    string? HighlightSection,
+    string? HighlightId);
 
 public record WineSurferTerroirCountry(
     Guid Id,
