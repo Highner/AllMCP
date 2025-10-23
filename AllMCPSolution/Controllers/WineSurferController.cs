@@ -5391,7 +5391,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
 
                 if (parsed.Count > 0)
                 {
-                    suggestions = parsed;
+                    suggestions = parsed.ToArray();
                 }
             }
 

@@ -114,7 +114,17 @@ builder.Services.AddCors(options =>
 });
 
 
-// Register the MCP server and handlers
+var apiKey = builder.Configuration["OpenAI:ApiKey"];
+ if (string.IsNullOrEmpty(apiKey))
+ {
+     builder.Logging.AddConsole();
+     Console.WriteLine("⚠️ OpenAI API key not found in configuration");
+ }
+ else
+ {
+     Console.WriteLine("✅ OpenAI API key detected"); 
+ }
+ 
 
 // Scan and register all IMcpTool implementers so they can receive DI (scoped)
 var asm = Assembly.GetExecutingAssembly();
