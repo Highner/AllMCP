@@ -133,6 +133,15 @@ public class WineSurferController : Controller
     private const int TasteProfileSummaryMaxLength = 512;
     private const string TasteProfileStatusTempDataKey = "WineSurfer.TasteProfile.Status";
     private const string TasteProfileErrorTempDataKey = "WineSurfer.TasteProfile.Error";
+    private const string TasteProfileStreamMediaType = "application/x-ndjson";
+    private const string TasteProfileStreamingStartMessage = "Contacting the taste profile assistant…";
+    private const string TasteProfileStreamingFinalizeMessage = "Finalizing your taste profile…";
+    private const string TasteProfileStreamingSuggestionsMessage = "Matching appellations to your palate…";
+    private const string TasteProfileStreamingSuccessMessage = "We generated a new taste profile. Review and save it when you’re ready.";
+    private const string TasteProfileAssistantUnavailableErrorMessage = "We couldn't reach the taste profile assistant. Please try again.";
+    private const string TasteProfileGenerationGenericErrorMessage = "We couldn't generate a taste profile right now. Please try again.";
+    private const string TasteProfileAssistantUnexpectedResponseMessage = "We couldn't understand the taste profile assistant's response. Please try again.";
+    private const string TasteProfileInsufficientDataErrorMessage = "Add scores to a few bottles before generating a taste profile.";
     private const string TasteProfileGenerationSystemPrompt =
         "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\",\"wines\":[{\"name\":\"...\",\"color\":\"Red\",\"variety\":\"...\",\"subAppellation\":null,\"vintage\":\"2019\"},{\"name\":\"...\",\"color\":\"White\",\"variety\":null,\"subAppellation\":null,\"vintage\":\"NV\"}]}]}. " +
         "The summary must be 200 characters or fewer and offer a concise descriptor of the user's palate. " +
@@ -144,6 +153,10 @@ public class WineSurferController : Controller
     {
         AllowTrailingCommas = true,
         CommentHandling = JsonCommentHandling.Skip
+    };
+    private static readonly JsonSerializerOptions TasteProfileStreamSerializerOptions = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
     private const double SuggestedAppellationFuzzyThreshold = 0.35;
     private const long SurfEyeMaxUploadBytes = 8 * 1024 * 1024;
@@ -645,6 +658,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
             return Unauthorized();
         }
 
+        var prefersStreaming = RequestPrefersTasteProfileStreaming();
+
         var bottles = await _bottleRepository.GetForUserAsync(userId.Value, cancellationToken);
         var scoredBottles = bottles
             .Select(bottle =>
@@ -661,11 +676,47 @@ Each suggestion must be a short dish description followed by a concise reason, a
 
         if (scoredBottles.Count == 0)
         {
-            return BadRequest(new GenerateTasteProfileError("Add scores to a few bottles before generating a taste profile."));
+            return BadRequest(new GenerateTasteProfileError(TasteProfileInsufficientDataErrorMessage));
         }
 
         var prompt = BuildTasteProfilePrompt(scoredBottles);
+        if (prefersStreaming)
+        {
+            return await StreamTasteProfileGenerationAsync(userId.Value, prompt, cancellationToken);
+        }
 
+        return await GenerateTasteProfileJsonAsync(userId.Value, prompt, cancellationToken);
+    }
+
+    private bool RequestPrefersTasteProfileStreaming()
+    {
+        if (Request?.Headers is null)
+        {
+            return false;
+        }
+
+        if (!Request.Headers.TryGetValue("Accept", out var acceptValues))
+        {
+            return false;
+        }
+
+        foreach (var value in acceptValues)
+        {
+            if (!string.IsNullOrWhiteSpace(value)
+                && value.IndexOf(TasteProfileStreamMediaType, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private async Task<IActionResult> GenerateTasteProfileJsonAsync(
+        int userId,
+        string prompt,
+        CancellationToken cancellationToken)
+    {
         ChatCompletion completion;
         try
         {
@@ -675,76 +726,424 @@ Each suggestion must be a short dish description followed by a concise reason, a
                     new SystemChatMessage(TasteProfileGenerationSystemPrompt),
                     new UserChatMessage(prompt)
                 },
-
                 ct: cancellationToken);
         }
         catch (ClientResultException)
         {
-            return StatusCode(StatusCodes.Status502BadGateway, new GenerateTasteProfileError("We couldn't reach the taste profile assistant. Please try again."));
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new GenerateTasteProfileError(TasteProfileAssistantUnavailableErrorMessage));
         }
         catch (Exception)
         {
-            return StatusCode(StatusCodes.Status500InternalServerError, new GenerateTasteProfileError("We couldn't generate a taste profile right now. Please try again."));
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                new GenerateTasteProfileError(TasteProfileGenerationGenericErrorMessage));
         }
 
-        string? content = null;
-        if (completion.Content is { Count: > 0 })
+        var content = ExtractChatCompletionContent(completion);
+        if (!TryParseGeneratedTasteProfile(content, out var generatedProfile))
         {
-            var builder = new StringBuilder();
-            foreach (var part in completion.Content)
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new GenerateTasteProfileError(TasteProfileAssistantUnexpectedResponseMessage));
+        }
+
+        if (!TryNormalizeGeneratedTasteProfile(generatedProfile, out var summary, out var profile, out var normalizationError))
+        {
+            var errorMessage = normalizationError ?? TasteProfileGenerationGenericErrorMessage;
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new GenerateTasteProfileError(errorMessage));
+        }
+
+        var resolvedSuggestions = await ResolveSuggestedAppellationsAsync(
+            userId,
+            generatedProfile.Suggestions,
+            cancellationToken);
+
+        var response = new GenerateTasteProfileResponse(
+            summary,
+            profile,
+            BuildTasteProfileSuggestions(resolvedSuggestions));
+
+        return Json(response);
+    }
+
+    private async Task<IActionResult> StreamTasteProfileGenerationAsync(
+        int userId,
+        string prompt,
+        CancellationToken cancellationToken)
+    {
+        var response = Response;
+        response.StatusCode = StatusCodes.Status200OK;
+        response.ContentType = TasteProfileStreamMediaType;
+        response.Headers["Cache-Control"] = "no-cache";
+        response.Headers["X-Accel-Buffering"] = "no";
+
+        await response.StartAsync(cancellationToken);
+
+        await WriteTasteProfileEventAsync(
+            response,
+            new { type = "status", stage = "starting", message = TasteProfileStreamingStartMessage },
+            cancellationToken);
+
+        var accumulator = new TasteProfileStreamAccumulator();
+        string? lastSummary = null;
+        string? lastProfile = null;
+
+        try
+        {
+            await foreach (var chunk in _chatGptService
+                .StreamChatCompletionAsync(
+                    new ChatMessage[]
+                    {
+                        new SystemChatMessage(TasteProfileGenerationSystemPrompt),
+                        new UserChatMessage(prompt)
+                    },
+                    ct: cancellationToken)
+                .WithCancellation(cancellationToken))
             {
-                if (part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
+                if (string.IsNullOrEmpty(chunk))
                 {
-                    builder.Append(part.Text);
+                    continue;
+                }
+
+                var update = accumulator.Append(chunk);
+
+                if (update.HasSummaryUpdate && !string.IsNullOrWhiteSpace(update.Summary))
+                {
+                    lastSummary = update.Summary;
+                    await WriteTasteProfileEventAsync(
+                        response,
+                        new { type = "summary", text = update.Summary, complete = false },
+                        cancellationToken);
+                }
+
+                if (update.HasProfileUpdate && !string.IsNullOrWhiteSpace(update.Profile))
+                {
+                    lastProfile = update.Profile;
+                    await WriteTasteProfileEventAsync(
+                        response,
+                        new { type = "profile", text = update.Profile, complete = false },
+                        cancellationToken);
                 }
             }
 
-            if (builder.Length > 0)
+            var finalUpdate = accumulator.Complete();
+
+            if (finalUpdate.HasSummaryUpdate && !string.IsNullOrWhiteSpace(finalUpdate.Summary))
             {
-                content = builder.ToString();
+                lastSummary = finalUpdate.Summary;
+                await WriteTasteProfileEventAsync(
+                    response,
+                    new { type = "summary", text = finalUpdate.Summary, complete = true },
+                    cancellationToken);
+            }
+
+            if (finalUpdate.HasProfileUpdate && !string.IsNullOrWhiteSpace(finalUpdate.Profile))
+            {
+                lastProfile = finalUpdate.Profile;
+                await WriteTasteProfileEventAsync(
+                    response,
+                    new { type = "profile", text = finalUpdate.Profile, complete = true },
+                    cancellationToken);
+            }
+
+            if (!finalUpdate.IsFinalPayloadReady
+                || !TryParseGeneratedTasteProfile(finalUpdate.FinalContent, out var generatedProfile))
+            {
+                await WriteTasteProfileEventAsync(
+                    response,
+                    new { type = "error", message = TasteProfileAssistantUnexpectedResponseMessage },
+                    cancellationToken);
+                return new EmptyResult();
+            }
+
+            await WriteTasteProfileEventAsync(
+                response,
+                new { type = "status", stage = "finalizing", message = TasteProfileStreamingFinalizeMessage },
+                cancellationToken);
+
+            if (!TryNormalizeGeneratedTasteProfile(generatedProfile, out var summary, out var profile, out var normalizationError))
+            {
+                await WriteTasteProfileEventAsync(
+                    response,
+                    new { type = "error", message = normalizationError ?? TasteProfileGenerationGenericErrorMessage },
+                    cancellationToken);
+                return new EmptyResult();
+            }
+
+            if (!string.IsNullOrWhiteSpace(summary)
+                && !string.Equals(lastSummary, summary, StringComparison.Ordinal))
+            {
+                await WriteTasteProfileEventAsync(
+                    response,
+                    new { type = "summary", text = summary, complete = true },
+                    cancellationToken);
+            }
+
+            if (!string.IsNullOrWhiteSpace(profile)
+                && !string.Equals(lastProfile, profile, StringComparison.Ordinal))
+            {
+                await WriteTasteProfileEventAsync(
+                    response,
+                    new { type = "profile", text = profile, complete = true },
+                    cancellationToken);
+            }
+
+            await WriteTasteProfileEventAsync(
+                response,
+                new { type = "status", stage = "resolving", message = TasteProfileStreamingSuggestionsMessage },
+                cancellationToken);
+
+            var resolvedSuggestions = await ResolveSuggestedAppellationsAsync(
+                userId,
+                generatedProfile.Suggestions,
+                cancellationToken);
+
+            var payload = new GenerateTasteProfileResponse(
+                summary,
+                profile,
+                BuildTasteProfileSuggestions(resolvedSuggestions));
+
+            await WriteTasteProfileEventAsync(
+                response,
+                new
+                {
+                    type = "complete",
+                    message = TasteProfileStreamingSuccessMessage,
+                    payload
+                },
+                cancellationToken);
+        }
+        catch (ClientResultException)
+        {
+            await WriteTasteProfileEventAsync(
+                response,
+                new { type = "error", message = TasteProfileAssistantUnavailableErrorMessage },
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Client disconnected; no further payloads are required.
+        }
+        catch (Exception)
+        {
+            await WriteTasteProfileEventAsync(
+                response,
+                new { type = "error", message = TasteProfileGenerationGenericErrorMessage },
+                cancellationToken);
+        }
+        finally
+        {
+            try
+            {
+                await response.BodyWriter.FlushAsync(CancellationToken.None);
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore flush failures triggered by disconnected clients.
             }
         }
-        if (!TryParseGeneratedTasteProfile(content, out var generatedProfile))
+
+        return new EmptyResult();
+    }
+
+    private static async Task WriteTasteProfileEventAsync(
+        HttpResponse response,
+        object payload,
+        CancellationToken cancellationToken)
+    {
+        var json = JsonSerializer.Serialize(payload, TasteProfileStreamSerializerOptions);
+        var encoded = Encoding.UTF8.GetBytes(json + "\n");
+        await response.BodyWriter.WriteAsync(encoded, cancellationToken);
+        await response.BodyWriter.FlushAsync(cancellationToken);
+    }
+
+    private static string? ExtractChatCompletionContent(ChatCompletion completion)
+    {
+        if (completion?.Content is not { Count: > 0 })
         {
-            return StatusCode(StatusCodes.Status502BadGateway, new GenerateTasteProfileError("We couldn't understand the taste profile assistant's response. Please try again."));
+            return null;
         }
 
-        var profile = NormalizeGeneratedText(generatedProfile.Profile, TasteProfileMaxLength);
+        var builder = new StringBuilder();
+        foreach (var part in completion.Content)
+        {
+            if (part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
+            {
+                builder.Append(part.Text);
+            }
+        }
+
+        return builder.Length > 0 ? builder.ToString() : null;
+    }
+
+    private bool TryNormalizeGeneratedTasteProfile(
+        GeneratedTasteProfile generatedProfile,
+        out string summary,
+        out string profile,
+        out string? errorMessage)
+    {
+        profile = NormalizeGeneratedText(generatedProfile.Profile, TasteProfileMaxLength);
         if (string.IsNullOrWhiteSpace(profile))
         {
-            return StatusCode(StatusCodes.Status502BadGateway, new GenerateTasteProfileError("We couldn't generate a taste profile right now. Please try again."));
+            summary = string.Empty;
+            errorMessage = TasteProfileGenerationGenericErrorMessage;
+            return false;
         }
 
-        var summary = NormalizeGeneratedText(generatedProfile.Summary, TasteProfileSummaryMaxLength);
+        summary = NormalizeGeneratedText(generatedProfile.Summary, TasteProfileSummaryMaxLength);
         if (string.IsNullOrWhiteSpace(summary))
         {
             summary = BuildSummaryFallback(profile, TasteProfileSummaryMaxLength);
         }
 
-        var resolvedSuggestions = await ResolveSuggestedAppellationsAsync(
-            userId.Value,
-            generatedProfile.Suggestions,
-            cancellationToken);
+        errorMessage = null;
+        return true;
+    }
 
-        var responseSuggestions = resolvedSuggestions
-            .Select(suggestion => new GenerateTasteProfileSuggestion(
+    private static List<GenerateTasteProfileSuggestion> BuildTasteProfileSuggestions(
+        IReadOnlyList<WineSurferSuggestedAppellation> resolvedSuggestions)
+    {
+        if (resolvedSuggestions is null || resolvedSuggestions.Count == 0)
+        {
+            return new List<GenerateTasteProfileSuggestion>();
+        }
+
+        var suggestions = new List<GenerateTasteProfileSuggestion>(resolvedSuggestions.Count);
+        foreach (var suggestion in resolvedSuggestions)
+        {
+            if (suggestion is null)
+            {
+                continue;
+            }
+
+            var wines = suggestion.Wines?.Select(wine => new GenerateTasteProfileWine(
+                    wine.WineId,
+                    wine.Name,
+                    wine.Color,
+                    wine.Variety,
+                    wine.Vintage,
+                    wine.SubAppellationName))
+                .ToList() ?? new List<GenerateTasteProfileWine>();
+
+            suggestions.Add(new GenerateTasteProfileSuggestion(
                 suggestion.CountryName,
                 suggestion.RegionName,
                 suggestion.AppellationName,
                 suggestion.SubAppellationName,
                 suggestion.Reason ?? string.Empty,
-                suggestion.Wines
-                    .Select(wine => new GenerateTasteProfileWine(
-                        wine.WineId,
-                        wine.Name,
-                        wine.Color,
-                        wine.Variety,
-                        wine.Vintage,
-                        wine.SubAppellationName))
-                    .ToList()))
-            .ToList();
+                wines));
+        }
 
-        return Json(new GenerateTasteProfileResponse(summary, profile, responseSuggestions));
+        return suggestions;
+    }
+
+    private sealed class TasteProfileStreamAccumulator
+    {
+        private readonly StringBuilder _builder = new();
+        private readonly JsonReaderOptions _readerOptions = new()
+        {
+            AllowTrailingCommas = true,
+            CommentHandling = JsonCommentHandling.Skip
+        };
+        private string? _lastSummary;
+        private string? _lastProfile;
+
+        public TasteProfileStreamUpdate Append(string chunk)
+        {
+            if (!string.IsNullOrEmpty(chunk))
+            {
+                _builder.Append(chunk);
+            }
+
+            return ParseSnapshot(isFinal: false);
+        }
+
+        public TasteProfileStreamUpdate Complete()
+        {
+            return ParseSnapshot(isFinal: true);
+        }
+
+        private TasteProfileStreamUpdate ParseSnapshot(bool isFinal)
+        {
+            var update = new TasteProfileStreamUpdate();
+
+            if (_builder.Length == 0)
+            {
+                return update;
+            }
+
+            var snapshot = _builder.ToString();
+            var bytes = Encoding.UTF8.GetBytes(snapshot);
+            var reader = new Utf8JsonReader(bytes, isFinal, new JsonReaderState(_readerOptions));
+            string? currentProperty = null;
+
+            try
+            {
+                while (reader.Read())
+                {
+                    switch (reader.TokenType)
+                    {
+                        case JsonTokenType.PropertyName:
+                            currentProperty = reader.GetString();
+                            break;
+                        case JsonTokenType.String:
+                            if (string.Equals(currentProperty, "summary", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var value = reader.GetString();
+                                if (!string.IsNullOrWhiteSpace(value)
+                                    && !string.Equals(value, _lastSummary, StringComparison.Ordinal))
+                                {
+                                    _lastSummary = value.Trim();
+                                    update.Summary = _lastSummary;
+                                    update.HasSummaryUpdate = true;
+                                }
+                            }
+                            else if (string.Equals(currentProperty, "profile", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var value = reader.GetString();
+                                if (!string.IsNullOrWhiteSpace(value)
+                                    && !string.Equals(value, _lastProfile, StringComparison.Ordinal))
+                                {
+                                    _lastProfile = value.Trim();
+                                    update.Profile = _lastProfile;
+                                    update.HasProfileUpdate = true;
+                                }
+                            }
+                            break;
+                    }
+                }
+
+                if (isFinal)
+                {
+                    update.IsFinalPayloadReady = true;
+                    update.FinalContent = snapshot;
+                }
+            }
+            catch (JsonException)
+            {
+                if (isFinal)
+                {
+                    update.IsFinalPayloadReady = true;
+                    update.FinalContent = snapshot;
+                }
+            }
+
+            return update;
+        }
+    }
+
+    private sealed class TasteProfileStreamUpdate
+    {
+        public bool HasSummaryUpdate { get; set; }
+        public string? Summary { get; set; }
+        public bool HasProfileUpdate { get; set; }
+        public string? Profile { get; set; }
+        public bool IsFinalPayloadReady { get; set; }
+        public string? FinalContent { get; set; }
     }
 
     [Authorize]
