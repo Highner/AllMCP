@@ -1004,11 +1004,15 @@
                             {
                                 <form method="post"
                                       action="@suggestFoodAction"
-                                      class="bottle-section__action-form">
+                                      class="bottle-section__action-form"
+                                      data-suggest-food-form>
                                     @Html.AntiForgeryToken()
                                     <button type="submit"
                                             class="sisterhood-button sisterhood-button--ghost"
                                             title="@(canRequestFoodSuggestions ? "Ask the pairing assistant for dishes that match these wines." : "Add bottles before requesting food pairings.")"
+                                            data-suggest-food-button
+                                            data-state="ready"
+                                            aria-busy="false"
                                             @(canRequestFoodSuggestions ? null : "disabled")>
                                         Suggest food
                                     </button>
