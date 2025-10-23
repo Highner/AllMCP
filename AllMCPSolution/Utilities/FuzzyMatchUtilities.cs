@@ -107,4 +107,19 @@ public static class FuzzyMatchUtilities
             .Select(x => x.item)
             .ToList();
     }
+
+    public static double CalculateNormalizedDistance(string? source, string? target)
+    {
+        var sourceValue = (source ?? string.Empty).Trim();
+        var targetValue = (target ?? string.Empty).Trim();
+
+        if (sourceValue.Length == 0 && targetValue.Length == 0)
+        {
+            return 0d;
+        }
+
+        var distance = CalculateLevenshteinDistance(sourceValue.ToLowerInvariant(), targetValue.ToLowerInvariant());
+        var maxLength = Math.Max(sourceValue.Length, targetValue.Length);
+        return maxLength == 0 ? 0d : (double)distance / maxLength;
+    }
 }
