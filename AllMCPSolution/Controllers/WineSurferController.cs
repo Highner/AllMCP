@@ -5229,7 +5229,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
         builder.AppendLine("Use only the provided information and avoid recommending specific new bottles.");
         builder.AppendLine("Write the taste profile in the second person.");
         builder.AppendLine("Also include exactly two suggested appellations or sub-appellations that match the palate, providing country, region, appellation, an optional subAppellation (use null when unknown), and a single-sentence reason under 200 characters explaining the fit. Suggest only appellations that are not already in use.");
-        builder.AppendLine("For each suggested appellation list two or three representative wines from that location, giving the full label name, color (Red, White, or Rose), an optional variety, an optional subAppellation, and a vintage string that is either a four-digit year or \"NV\".");
+        builder.AppendLine("For each suggested appellation list two or three representative wines from that location, giving the full label name (without the vintage), color (Red, White, or Rose), an optional variety, an optional subAppellation, and a vintage string that is either a four-digit year or \"NV\".");
         builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\",\"wines\":[{\"name\":\"...\",\"color\":\"Red\",\"variety\":\"...\",\"subAppellation\":null,\"vintage\":\"2019\"}]}]}. No markdown or commentary.");
 
         return builder.ToString();
