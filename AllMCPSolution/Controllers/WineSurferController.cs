@@ -109,6 +109,7 @@ public class WineSurferController : Controller
     private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
     private readonly ISipSessionRepository _sipSessionRepository;
     private readonly IBottleRepository _bottleRepository;
+    private readonly IBottleLocationRepository _bottleLocationRepository;
     private readonly ITastingNoteRepository _tastingNoteRepository;
     private readonly ICountryRepository _countryRepository;
     private readonly IRegionRepository _regionRepository;
@@ -167,6 +168,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
         ISisterhoodInvitationRepository sisterhoodInvitationRepository,
         ISipSessionRepository sipSessionRepository,
         IBottleRepository bottleRepository,
+        IBottleLocationRepository bottleLocationRepository,
         ITastingNoteRepository tastingNoteRepository,
         ICountryRepository countryRepository,
         IRegionRepository regionRepository,
@@ -180,6 +182,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
         _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
         _sipSessionRepository = sipSessionRepository;
         _bottleRepository = bottleRepository;
+        _bottleLocationRepository = bottleLocationRepository;
         _tastingNoteRepository = tastingNoteRepository;
         _countryRepository = countryRepository;
         _regionRepository = regionRepository;
@@ -354,6 +357,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
                     .ToList();
             }
         }
+
+        await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken);
 
         var model = new WineSurferLandingViewModel(
             highlightPoints,
@@ -674,6 +679,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
         var tasteProfile = domainUser?.TasteProfile?.Trim() ?? string.Empty;
 
         ViewData["SurfEyeMaxUploadBytes"] = SurfEyeMaxUploadBytes;
+
+        await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken);
 
         var viewModel = new WineSurferSurfEyeViewModel(
             displayName,
@@ -3765,6 +3772,37 @@ Each suggestion must be a short dish description followed by a concise reason, a
 
         var user = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
         return user?.IsAdmin == true;
+    }
+
+    private async Task SetInventoryAddModalViewDataAsync(Guid? currentUserId, CancellationToken cancellationToken)
+    {
+        InventoryAddModalViewModel viewModel;
+
+        if (!currentUserId.HasValue)
+        {
+            viewModel = new InventoryAddModalViewModel();
+        }
+        else
+        {
+            var bottleLocations = await _bottleLocationRepository.GetAllAsync(cancellationToken);
+            var userLocations = bottleLocations
+                .Where(location => location.UserId == currentUserId.Value)
+                .OrderBy(location => location.Name)
+                .Select(location => new BottleLocationOption
+                {
+                    Id = location.Id,
+                    Name = location.Name,
+                    Capacity = location.Capacity
+                })
+                .ToList();
+
+            viewModel = new InventoryAddModalViewModel
+            {
+                Locations = userLocations
+            };
+        }
+
+        ViewData["InventoryAddModal"] = viewModel;
     }
 
     private Guid? GetCurrentUserId()
