@@ -2185,7 +2185,7 @@ tbody tr:hover {
 .location-fill-indicator {
     display: grid;
     gap: 6px;
-    margin-top: 6px;
+    margin-top: 12px;
 }
 
 .location-fill-track {
