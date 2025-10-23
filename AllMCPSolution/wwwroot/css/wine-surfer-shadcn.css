@@ -2170,6 +2170,79 @@ tbody tr:hover {
     justify-content: flex-end;
 }
 
+.location-card-actions {
+    margin-left: auto;
+    align-self: flex-start;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.location-card-status {
+    display: grid;
+    gap: 10px;
+}
+
+.location-fill-indicator {
+    display: grid;
+    gap: 6px;
+}
+
+.location-fill-track {
+    position: relative;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(244, 241, 234, 0.16);
+    overflow: hidden;
+}
+
+.location-fill-bar {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(126, 216, 182, 0.9);
+    transform-origin: left center;
+    transition: width 0.3s ease;
+}
+
+.location-fill-indicator--over .location-fill-bar {
+    background: rgba(214, 104, 86, 0.9);
+}
+
+.location-fill-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(244, 241, 234, 0.78);
+}
+
+.location-fill-percent {
+    font-weight: 600;
+}
+
+.location-fill-indicator--no-capacity .location-fill-track {
+    display: none;
+}
+
+.location-fill-indicator--no-capacity .location-fill-meta {
+    justify-content: flex-start;
+    gap: 8px;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .location-card-header {
     align-items: flex-start;
     gap: 16px;
