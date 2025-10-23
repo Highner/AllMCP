@@ -1,7 +1,15 @@
+@model AllMCPSolution.Models.InventoryAddModalViewModel?
+@using System
 @using System.Collections.Generic
 @using Microsoft.AspNetCore.Html
 @using AllMCPSolution.Models
 @{
+    var locationOptions = Model?.Locations ?? Array.Empty<BottleLocationOption>();
+    string BuildLocationLabel(BottleLocationOption option)
+    {
+        var name = string.IsNullOrWhiteSpace(option.Name) ? option.Id.ToString() : option.Name;
+        return option.Capacity.HasValue ? $"{name} ({option.Capacity.Value} capacity)" : name;
+    }
     var modal = new WineSurferModalShell
     {
         BackdropId = "inventory-add-overlay",
@@ -46,6 +54,10 @@
                 <span class="inventory-add-label">Location</span>
                 <select class="inventory-add-location" aria-label="Bottle location">
                     <option value="">No location</option>
+                    @foreach (var option in locationOptions)
+                    {
+                        <option value="@option.Id">@BuildLocationLabel(option)</option>
+                    }
                 </select>
             </label>
             <label class="inventory-add-field">

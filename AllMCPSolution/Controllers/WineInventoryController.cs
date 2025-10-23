@@ -275,6 +275,17 @@ public class WineInventoryController : Controller
             Bottles = items,
             CurrentUserId = currentUserId,
             Locations = locationSummaries,
+            InventoryAddModal = new InventoryAddModalViewModel
+            {
+                Locations = userLocations
+                    .Select(location => new BottleLocationOption
+                    {
+                        Id = location.Id,
+                        Name = location.Name,
+                        Capacity = location.Capacity
+                    })
+                    .ToList()
+            },
             HasActiveFilters = hasActiveFilters,
             HighlightedLocationIds = highlightedLocationIds,
             StatusOptions = new List<FilterOption>
@@ -1299,6 +1310,7 @@ public class WineInventoryViewModel
     public IReadOnlyList<WineInventoryBottleViewModel> Bottles { get; set; } = Array.Empty<WineInventoryBottleViewModel>();
     public Guid CurrentUserId { get; set; }
     public IReadOnlyList<WineInventoryLocationViewModel> Locations { get; set; } = Array.Empty<WineInventoryLocationViewModel>();
+    public InventoryAddModalViewModel InventoryAddModal { get; set; } = new();
     public bool HasActiveFilters { get; set; }
     public IReadOnlySet<Guid> HighlightedLocationIds { get; set; } = new HashSet<Guid>();
     public IReadOnlyList<FilterOption> StatusOptions { get; set; } = Array.Empty<FilterOption>();
@@ -1493,13 +1505,6 @@ public class SubAppellationOption
 {
     public Guid Id { get; set; }
     public string Label { get; set; } = string.Empty;
-}
-
-public class BottleLocationOption
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public int? Capacity { get; set; }
 }
 
 public class UserOption

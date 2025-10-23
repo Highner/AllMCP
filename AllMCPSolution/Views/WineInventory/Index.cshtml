@@ -442,7 +442,7 @@
         <div id="inventory-view" class="inventory-view" aria-hidden="false">
             @await Html.PartialAsync("_CrudTableTemplate", yourCellarTable)
         </div>
-        @await Html.PartialAsync("_InventoryAddModal")
+        @await Html.PartialAsync("_InventoryAddModal", Model.InventoryAddModal)
 
         @await Html.PartialAsync("_DrinkBottleModal", AllMCPSolution.Models.DrinkBottleModalViewModel.Default)
 

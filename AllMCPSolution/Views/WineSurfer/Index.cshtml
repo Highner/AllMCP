@@ -1,11 +1,14 @@
 @model AllMCPSolution.Controllers.WineSurferLandingViewModel
 @using AllMCPSolution.Controllers
+@using AllMCPSolution.Models
 @using System.Linq
 @using System.Text.Json
 @using System.Text.Json.Serialization
 @using System.Globalization
-@{ 
+@{
     Layout = null;
+    var inventoryAddModalModel = ViewData["InventoryAddModal"] as InventoryAddModalViewModel
+        ?? new InventoryAddModalViewModel();
 }
 
 @functions {
@@ -1010,7 +1013,7 @@
             </section>
             @if (isAuthenticated)
             {
-                @await Html.PartialAsync("_InventoryAddModal")
+                @await Html.PartialAsync("_InventoryAddModal", inventoryAddModalModel)
             }
             <section class="map-shell" aria-label="World map highlighting wine regions">
                 <div id="map" class="world-map" role="img" aria-hidden="true"></div>
