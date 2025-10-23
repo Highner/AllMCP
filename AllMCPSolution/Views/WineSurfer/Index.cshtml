@@ -1,10 +1,12 @@
 @model AllMCPSolution.Controllers.WineSurferLandingViewModel
 @using AllMCPSolution.Controllers
 @using AllMCPSolution.Models
+@using System.Collections.Generic
+@using System.Globalization
 @using System.Linq
+@using System.Net
 @using System.Text.Json
 @using System.Text.Json.Serialization
-@using System.Globalization
 @{
     Layout = null;
     var inventoryAddModalModel = ViewData["InventoryAddModal"] as InventoryAddModalViewModel
@@ -44,6 +46,89 @@
         return value.HasValue
             ? value.Value.ToString("0.0", CultureInfo.InvariantCulture)
             : "—";
+    }
+
+    private static string CreateSuggestedWineMetadata(WineSurferSuggestedWine wine)
+    {
+        if (wine is null)
+        {
+            return string.Empty;
+        }
+
+        var parts = new List<string>(3);
+
+        if (!string.IsNullOrWhiteSpace(wine.Color))
+        {
+            parts.Add(wine.Color.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(wine.Variety))
+        {
+            parts.Add(wine.Variety.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(wine.Vintage))
+        {
+            parts.Add(wine.Vintage.Trim());
+        }
+
+        return parts.Count == 0 ? string.Empty : string.Join(" • ", parts);
+    }
+
+    private static string CreateWineSearcherUrl(WineSurferSuggestedAppellation suggestion, WineSurferSuggestedWine wine)
+    {
+        if (suggestion is null || wine is null)
+        {
+            return "https://www.wine-searcher.com/";
+        }
+
+        var segments = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(wine.Name))
+        {
+            segments.Add(wine.Name.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(wine.SubAppellationName))
+        {
+            segments.Add(wine.SubAppellationName.Trim());
+        }
+        else if (!string.IsNullOrWhiteSpace(suggestion.SubAppellationName))
+        {
+            segments.Add(suggestion.SubAppellationName.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(suggestion.AppellationName))
+        {
+            segments.Add(suggestion.AppellationName.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(suggestion.RegionName))
+        {
+            segments.Add(suggestion.RegionName.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(suggestion.CountryName))
+        {
+            segments.Add(suggestion.CountryName.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(wine.Vintage) &&
+            !string.Equals(wine.Vintage.Trim(), "NV", StringComparison.OrdinalIgnoreCase))
+        {
+            segments.Add(wine.Vintage.Trim());
+        }
+
+        if (segments.Count == 0)
+        {
+            return "https://www.wine-searcher.com/";
+        }
+
+        var query = string.Join(' ', segments);
+        var encoded = WebUtility.UrlEncode(query);
+        return string.IsNullOrWhiteSpace(encoded)
+            ? "https://www.wine-searcher.com/"
+            : $"https://www.wine-searcher.com/find/{encoded}";
     }
 }
 <!DOCTYPE html>
@@ -890,6 +975,115 @@
             color: rgba(244, 241, 234, 0.7);
         }
 
+        .suggested-wines {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            margin: 48px 0;
+            width: min(100%, var(--wine-surfer-card-max-width));
+        }
+
+        .suggested-wines-header {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .suggested-wines-subtitle {
+            margin: 0;
+            font-size: 12px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.55);
+        }
+
+        .suggested-wines-empty {
+            margin: 0;
+            font-size: 14px;
+            letter-spacing: 1.4px;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        .suggested-wine-groups {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .suggested-wine-group {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .suggested-wine-group__header {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .suggested-wine-group__eyebrow {
+            margin: 0;
+            font-size: 12px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.55);
+        }
+
+        .suggested-wine-group__title {
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: 3px;
+        }
+
+        .suggested-wine-group__reason {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.6;
+            color: rgba(244, 241, 234, 0.75);
+        }
+
+        .suggested-wine-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .suggested-wine-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .suggested-wine-item__content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .suggested-wine-item__name {
+            margin: 0;
+            font-size: 16px;
+            letter-spacing: 1.4px;
+        }
+
+        .suggested-wine-item__meta {
+            margin: 0;
+            font-size: 13px;
+            letter-spacing: 1.2px;
+            color: rgba(244, 241, 234, 0.68);
+        }
+
+        .suggested-wine-item__action {
+            flex-shrink: 0;
+        }
+
         
         @@media (max-width: 768px) {
             .top-bar {
@@ -916,6 +1110,15 @@
 
             .highlight-label {
                 font-size: 9px;
+            }
+
+            .suggested-wine-item {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .suggested-wine-item__action {
+                width: 100%;
             }
         }
     </style>
@@ -946,6 +1149,11 @@
     var manageableSisterhoods = Model.ManageableSisterhoods ?? Array.Empty<WineSurferSisterhoodOption>();
     var canCreateSipSession = manageableSisterhoods.Count > 0;
     var isAuthenticated = Model.CurrentUser is not null;
+    var suggestedAppellations = Model.SuggestedAppellations ?? Array.Empty<WineSurferSuggestedAppellation>();
+    var suggestionsWithWines = suggestedAppellations
+        .Where(suggestion => suggestion.Wines.Count > 0)
+        .ToList();
+    var hasSuggestedWines = suggestionsWithWines.Count > 0;
     var createSipSessionUrl = Url.Action("PlanSipSession", "WineSurfer") ?? "/wine-surfer/sessions/create";
 }
 <body class="wine-app @bodyClass">
@@ -1004,6 +1212,92 @@
                 else
                 {
                     <p class="favorite-wines-empty" role="status">Rate a few bottles to light up your favourites.</p>
+                }
+            </section>
+            <section class="suggested-wines" aria-label="Suggested wines">
+                <div class="suggested-wines-header">
+                    <h2 class="section-title">Suggested wines</h2>
+                    <p class="suggested-wines-subtitle">Curated from your taste profile</p>
+                </div>
+                @if (!isAuthenticated)
+                {
+                    <p class="suggested-wines-empty" role="status">Sign in to unlock tailored wine suggestions.</p>
+                }
+                else if (!hasSuggestedWines)
+                {
+                    <p class="suggested-wines-empty" role="status">Build your taste profile to receive personalised wine recommendations.</p>
+                }
+                else
+                {
+                    <div class="suggested-wine-groups" role="list">
+                        @foreach (var suggestion in suggestionsWithWines)
+                        {
+                            var wines = suggestion.Wines ?? Array.Empty<WineSurferSuggestedWine>();
+                            var headline = string.IsNullOrWhiteSpace(suggestion.SubAppellationName)
+                                ? suggestion.AppellationName
+                                : suggestion.SubAppellationName!;
+                            headline = string.IsNullOrWhiteSpace(headline)
+                                ? suggestion.AppellationName
+                                : headline;
+                            var eyebrowParts = new List<string>();
+                            if (!string.IsNullOrWhiteSpace(suggestion.AppellationName) &&
+                                !string.Equals(suggestion.AppellationName, headline, StringComparison.OrdinalIgnoreCase))
+                            {
+                                eyebrowParts.Add(suggestion.AppellationName);
+                            }
+                            if (!string.IsNullOrWhiteSpace(suggestion.RegionName))
+                            {
+                                eyebrowParts.Add(suggestion.RegionName);
+                            }
+                            if (!string.IsNullOrWhiteSpace(suggestion.CountryName))
+                            {
+                                eyebrowParts.Add(suggestion.CountryName);
+                            }
+                            var eyebrow = eyebrowParts.Count == 0 ? null : string.Join(" • ", eyebrowParts);
+                            <article class="suggested-wine-group wine-surfer-card wine-surface wine-surface-border" role="listitem">
+                                <header class="suggested-wine-group__header">
+                                    @if (!string.IsNullOrWhiteSpace(eyebrow))
+                                    {
+                                        <p class="suggested-wine-group__eyebrow">@eyebrow</p>
+                                    }
+                                    <h3 class="suggested-wine-group__title">@headline</h3>
+                                    @if (!string.IsNullOrWhiteSpace(suggestion.Reason))
+                                    {
+                                        <p class="suggested-wine-group__reason">@suggestion.Reason</p>
+                                    }
+                                </header>
+                                <ul class="suggested-wine-list" role="list">
+                                    @foreach (var wine in wines)
+                                    {
+                                        var wineMeta = CreateSuggestedWineMetadata(wine);
+                                        var searchUrl = CreateWineSearcherUrl(suggestion, wine);
+                                        var showWineSubApp = !string.IsNullOrWhiteSpace(wine.SubAppellationName) &&
+                                            !string.Equals(wine.SubAppellationName, headline, StringComparison.OrdinalIgnoreCase);
+                                        <li class="suggested-wine-item" role="listitem">
+                                            <div class="suggested-wine-item__content">
+                                                <p class="suggested-wine-item__name">@wine.Name</p>
+                                                @if (showWineSubApp)
+                                                {
+                                                    <p class="suggested-wine-item__meta">@wine.SubAppellationName</p>
+                                                }
+                                                @if (!string.IsNullOrEmpty(wineMeta))
+                                                {
+                                                    <p class="suggested-wine-item__meta">@wineMeta</p>
+                                                }
+                                            </div>
+                                            <a class="sisterhood-button sisterhood-button--primary suggested-wine-item__action"
+                                               href="@searchUrl"
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                               aria-label="Find @wine.Name on Wine-Searcher">
+                                                Find on Wine-Searcher
+                                            </a>
+                                        </li>
+                                    }
+                                </ul>
+                            </article>
+                        }
+                    </div>
                 }
             </section>
             <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
