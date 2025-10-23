@@ -5575,7 +5575,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 }
             }
 
-            var wineResults = wines.Count == 0 ? Array.Empty<WineSurferSuggestedWine>() : wines;
+            var wineResults = wines.Count == 0 ? Array.Empty<WineSurferSuggestedWine>() : wines.ToArray();
 
             var reason = NormalizeSuggestedReason(suggestion.Reason);
 

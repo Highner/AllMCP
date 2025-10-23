@@ -568,6 +568,32 @@ namespace AllMCPSolution.Migrations
                     b.ToTable("SuggestedAppellations");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.SuggestedWine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SuggestedAppellationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Vintage")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<Guid>("WineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WineId");
+
+                    b.HasIndex("SuggestedAppellationId", "WineId")
+                        .IsUnique();
+
+                    b.ToTable("SuggestedWines");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.TastingNote", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1015,6 +1041,25 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.SuggestedWine", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.SuggestedAppellation", "SuggestedAppellation")
+                        .WithMany("SuggestedWines")
+                        .HasForeignKey("SuggestedAppellationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AllMCPSolution.Models.Wine", "Wine")
+                        .WithMany("SuggestedWines")
+                        .HasForeignKey("WineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SuggestedAppellation");
+
+                    b.Navigation("Wine");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.TastingNote", b =>
                 {
                     b.HasOne("AllMCPSolution.Models.Bottle", "Bottle")
@@ -1209,8 +1254,15 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("Wines");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.SuggestedAppellation", b =>
+                {
+                    b.Navigation("SuggestedWines");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>
                 {
+                    b.Navigation("SuggestedWines");
+
                     b.Navigation("WineVintages");
                 });
 

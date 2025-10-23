@@ -38,7 +38,7 @@ public class WineInventoryController : Controller
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IWineImportService _wineImportService;
     private readonly IChatGptService _chatGptService;
-    private const string WineSurferSystemPrompt = "You are Wine Surfer, an expert wine research assistant. Respond ONLY with minified JSON matching {\"wines\":[{\"name\":\"...\",\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":\"...\",\"color\":\"Red\"}]}. List up to six likely matches, order them by relevance, limit color to Red, White, or Rose, and use null for any field you cannot determine. In case of Burgundy wines, include the climat and the classification (1er Cru or Grand Cru) where applicable.";
+    private const string WineSurferSystemPrompt = "You are Wine Surfer, an expert wine research assistant. Respond ONLY with minified JSON matching {\"wines\":[{\"name\":\"...\",\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":\"...\",\"color\":\"Red\"}]}. List up to six likely matches, order them by relevance, limit color to Red, White, or Rose, and use null for any field you cannot determine. In case of Burgundy wines, include the producer, the climat and the classification (1er Cru or Grand Cru) where applicable. Stay factual and do not make up any wines you did not find.";
 
     public WineInventoryController(
         IBottleRepository bottleRepository,
