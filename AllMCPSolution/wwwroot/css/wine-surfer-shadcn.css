@@ -1984,6 +1984,17 @@ tbody tr:hover {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.location-card--highlight {
+    box-shadow: 0 0 0 1px rgba(244, 241, 234, 0.28), 0 0 22px rgba(244, 241, 234, 0.18);
+    transform: translate3d(0, -2px, 0);
+}
+
+.location-card--highlight.wine-card-hover::after {
+    opacity: 1;
+    background: var(--wine-surface-highlight-strong);
 }
 
 .location-card .wine-card__actions {
