@@ -65,6 +65,7 @@ builder.Services.AddScoped<InventoryIntakeService>();
 builder.Services.AddScoped<IWineSurferTopBarService, WineSurferTopBarService>();
 builder.Services.AddScoped<IWineImportService, WineImportService>();
 builder.Services.AddScoped<IChatGptService, ChatGptService>();
+builder.Services.AddScoped<IChatGptPromptService, ChatGptPromptService>();
 builder.Services.AddScoped<IWineCatalogService, WineCatalogService>();
 
 builder.Services
