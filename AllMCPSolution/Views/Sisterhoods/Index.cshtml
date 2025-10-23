@@ -65,6 +65,40 @@
         return localDateTime.HasValue ? localDateTime.Value.ToString("HH:mm") : string.Empty;
     }
 
+    private static bool IsPastSipSession(AllMCPSolution.Controllers.WineSurferSipSessionSummary session)
+    {
+        var localDateTime = NormalizeDateTime(session.ScheduledAtUtc);
+        if (localDateTime.HasValue)
+        {
+            return localDateTime.Value < DateTime.Now;
+        }
+
+        var localDate = NormalizeDateTime(session.Date);
+        if (localDate.HasValue)
+        {
+            return localDate.Value.Date < DateTime.Today;
+        }
+
+        return false;
+    }
+
+    private static string FormatSipSessionPastDateLabel(AllMCPSolution.Controllers.WineSurferSipSessionSummary session)
+    {
+        var localDateTime = NormalizeDateTime(session.ScheduledAtUtc);
+        if (localDateTime.HasValue)
+        {
+            return localDateTime.Value.ToString("MMM d, yyyy");
+        }
+
+        var localDate = NormalizeDateTime(session.Date);
+        if (localDate.HasValue)
+        {
+            return localDate.Value.ToString("MMM d, yyyy");
+        }
+
+        return "Schedule TBD";
+    }
+
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -931,6 +965,61 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+        }
+
+        .sip-session-card--past {
+            flex-direction: row;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(244, 241, 234, 0.08);
+            background: rgba(244, 241, 234, 0.03);
+        }
+
+        .sip-session-card--past .sip-session-name {
+            margin: 0;
+            font-size: 16px;
+            letter-spacing: 3px;
+        }
+
+        .sip-session-past-name {
+            display: inline-flex;
+            align-items: center;
+            flex: 1 1 auto;
+            min-width: 0;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sip-session-past-date {
+            display: inline-flex;
+            align-items: center;
+            flex: 0 0 auto;
+            font-size: 12px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
+            white-space: nowrap;
+        }
+
+        @media (max-width: 600px) {
+            .sip-session-card--past {
+                flex-wrap: wrap;
+                align-items: flex-start;
+                gap: 6px;
+            }
+
+            .sip-session-past-name,
+            .sip-session-past-date {
+                white-space: normal;
+            }
         }
 
         .sip-session-item {
@@ -2010,23 +2099,48 @@
                                     {
                                         var editFormId = $"sip-session-edit-{session.Id}";
                                         var editContainerId = $"sip-session-edit-container-{session.Id}";
-                                        var scheduleLabel = FormatSipSessionSchedule(session);
-                                        var locationLabel = string.IsNullOrWhiteSpace(session.Location) ? "Location TBD" : session.Location;
                                         var scheduledDateValue = FormatSipSessionDateValue(session);
                                         var scheduledTimeValue = FormatSipSessionTimeValue(session);
-                                        var hostLabel = string.IsNullOrWhiteSpace(sisterhood.Name) ? null : sisterhood.Name;
                                         var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Id })
                                             ?? $"/wine-surfer/sessions/{session.Id:D}";
                                         var ariaLabel = $"Sip session: {session.Name}";
-                                        var cardModel = new WineSurferSipSessionCardModel(
-                                            session,
-                                            scheduleLabel,
-                                            locationLabel,
-                                            sessionUrl,
-                                            ariaLabel,
-                                            hostLabel);
-                                        <li data-sip-session-item id="sip-session-@session.Id">
-                                            @await Html.PartialAsync("_WineSurferSipSessionCard", cardModel)
+                                        var isPastSession = IsPastSipSession(session);
+                                        string? pastDateLabel = null;
+                                        if (isPastSession)
+                                        {
+                                            pastDateLabel = FormatSipSessionPastDateLabel(session);
+                                            if (!string.IsNullOrWhiteSpace(pastDateLabel) && !string.Equals(pastDateLabel, "Schedule TBD", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                ariaLabel = $"{ariaLabel} on {pastDateLabel}";
+                                            }
+                                        }
+
+                                        var pastAttribute = isPastSession ? " data-sip-session-status=\"past\"" : string.Empty;
+                                        <li data-sip-session-item id="sip-session-@session.Id"@Html.Raw(pastAttribute)>
+                                            @if (isPastSession)
+                                            {
+                                                var compactDateLabel = string.IsNullOrWhiteSpace(pastDateLabel) ? "Schedule TBD" : pastDateLabel;
+                                                <a class="sip-session-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card sip-session-card--past"
+                                                   href="@sessionUrl"
+                                                   aria-label="@ariaLabel">
+                                                    <span class="sip-session-name sip-session-past-name">@session.Name</span>
+                                                    <span class="sip-session-past-date">@compactDateLabel</span>
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                var scheduleLabel = FormatSipSessionSchedule(session);
+                                                var locationLabel = string.IsNullOrWhiteSpace(session.Location) ? "Location TBD" : session.Location;
+                                                var hostLabel = string.IsNullOrWhiteSpace(sisterhood.Name) ? null : sisterhood.Name;
+                                                var cardModel = new WineSurferSipSessionCardModel(
+                                                    session,
+                                                    scheduleLabel,
+                                                    locationLabel,
+                                                    sessionUrl,
+                                                    ariaLabel,
+                                                    hostLabel);
+                                                @await Html.PartialAsync("_WineSurferSipSessionCard", cardModel)
+                                            }
                                             @if (sisterhood.CanManage)
                                             {
                                                 <div id="@editContainerId"
