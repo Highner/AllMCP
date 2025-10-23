@@ -18,4 +18,5 @@ public class ApplicationUser : IdentityUser<Guid>
     public ICollection<WineSurferNotificationDismissal> NotificationDismissals { get; set; } = [];
     public ICollection<WineVintageEvolutionScore> WineVintageEvolutionScores { get; set; } = [];
     public ICollection<SuggestedAppellation> SuggestedAppellations { get; set; } = [];
+    public ICollection<TasteProfile> TasteProfiles { get; set; } = [];
 }
