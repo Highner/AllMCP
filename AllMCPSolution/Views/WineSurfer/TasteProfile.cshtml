@@ -752,18 +752,229 @@
                 }
             };
 
+            const dispatchInputEvent = (node) => {
+                if (node) {
+                    node.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            };
+
+            const defaultSuccessMessage = 'We generated a new taste profile. Review and save it when you’re ready.';
+            const defaultErrorMessage = 'We couldn’t generate a taste profile right now. Please try again.';
+            const streamingStartMessage = 'Contacting the taste profile assistant…';
+
+            const applyTasteProfilePayload = (payload) => {
+                if (!payload || typeof payload !== 'object') {
+                    return false;
+                }
+
+                let updated = false;
+
+                if (typeof payload.summary === 'string') {
+                    summaryField.value = payload.summary;
+                    dispatchInputEvent(summaryField);
+                    updated = true;
+                }
+
+                if (typeof payload.profile === 'string') {
+                    profileField.value = payload.profile;
+                    dispatchInputEvent(profileField);
+                    updated = true;
+                }
+
+                if (Array.isArray(payload.suggestions)) {
+                    updateSuggestions(payload.suggestions);
+                }
+
+                return updated;
+            };
+
+            const consumeNdjsonBuffer = (buffer, onEvent) => {
+                if (typeof buffer !== 'string' || typeof onEvent !== 'function') {
+                    return '';
+                }
+
+                let working = buffer;
+                let newlineIndex = working.indexOf('\n');
+                while (newlineIndex >= 0) {
+                    const line = working.slice(0, newlineIndex).trim();
+                    working = working.slice(newlineIndex + 1);
+                    if (line) {
+                        try {
+                            const event = JSON.parse(line);
+                            onEvent(event);
+                        } catch (error) {
+                            // Ignore malformed lines.
+                        }
+                    }
+
+                    newlineIndex = working.indexOf('\n');
+                }
+
+                return working;
+            };
+
+            const processNdjsonText = (text, onEvent) => {
+                if (typeof text !== 'string' || text.length === 0) {
+                    return;
+                }
+
+                const normalized = text.endsWith('\n') ? text : `${text}\n`;
+                consumeNdjsonBuffer(normalized, onEvent);
+            };
+
+            const readNdjsonStream = async (reader, onEvent) => {
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) {
+                        if (value) {
+                            buffer += decoder.decode(value, { stream: false });
+                        } else {
+                            buffer += decoder.decode();
+                        }
+                        break;
+                    }
+
+                    if (value) {
+                        buffer += decoder.decode(value, { stream: true });
+                        buffer = consumeNdjsonBuffer(buffer, onEvent);
+                    }
+                }
+
+                if (buffer) {
+                    processNdjsonText(buffer, onEvent);
+                }
+            };
+
+            const handleTasteProfileEvent = (event, state) => {
+                if (!event || typeof event !== 'object') {
+                    return;
+                }
+
+                const type = typeof event.type === 'string' ? event.type : '';
+                switch (type) {
+                    case 'status': {
+                        const statusMessage = typeof event.message === 'string'
+                            ? event.message
+                            : (typeof event.stage === 'string' ? event.stage : '');
+                        if (statusMessage) {
+                            setGeneratorMessage(null, statusMessage);
+                        }
+                        break;
+                    }
+                    case 'summary': {
+                        if (typeof event.text === 'string') {
+                            summaryField.value = event.text;
+                            dispatchInputEvent(summaryField);
+                        }
+                        break;
+                    }
+                    case 'profile': {
+                        if (typeof event.text === 'string') {
+                            profileField.value = event.text;
+                            dispatchInputEvent(profileField);
+                        }
+                        break;
+                    }
+                    case 'complete': {
+                        state.completed = true;
+                        const payload = event && typeof event.payload === 'object' ? event.payload : event;
+                        applyTasteProfilePayload(payload);
+                        const successMessage = typeof event.message === 'string' && event.message.trim()
+                            ? event.message
+                            : defaultSuccessMessage;
+                        setGeneratorMessage('success', successMessage);
+                        break;
+                    }
+                    case 'error': {
+                        state.error = true;
+                        const errorMessage = typeof event.message === 'string' && event.message.trim()
+                            ? event.message
+                            : defaultErrorMessage;
+                        setGeneratorMessage('error', errorMessage);
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            };
+
+            const extractErrorMessage = async (response, contentType) => {
+                const normalizedType = contentType || '';
+                if (normalizedType.includes('application/x-ndjson')) {
+                    const text = await response.text().catch(() => '');
+                    let extracted = null;
+                    processNdjsonText(text, (event) => {
+                        if (!extracted && event && typeof event === 'object' && typeof event.message === 'string') {
+                            extracted = event.message.trim();
+                        }
+                    });
+                    return extracted || defaultErrorMessage;
+                }
+
+                if (normalizedType.includes('application/json')) {
+                    const payload = await response.json().catch(() => null);
+                    if (payload && typeof payload.error === 'string' && payload.error.trim()) {
+                        return payload.error.trim();
+                    }
+                    if (payload && typeof payload.message === 'string' && payload.message.trim()) {
+                        return payload.message.trim();
+                    }
+                    return defaultErrorMessage;
+                }
+
+                const text = await response.text().catch(() => '');
+                if (text) {
+                    try {
+                        const payload = JSON.parse(text);
+                        if (payload && typeof payload.error === 'string' && payload.error.trim()) {
+                            return payload.error.trim();
+                        }
+                    } catch (error) {
+                        // Ignore parsing errors.
+                    }
+                }
+
+                return defaultErrorMessage;
+            };
+
+            const readJsonPayload = async (response, contentType) => {
+                const normalizedType = contentType || '';
+                if (normalizedType.includes('application/json')) {
+                    return await response.json().catch(() => null);
+                }
+
+                const text = await response.text().catch(() => '');
+                if (!text) {
+                    return null;
+                }
+
+                try {
+                    return JSON.parse(text);
+                } catch (error) {
+                    return null;
+                }
+            };
+
             generatorButton.addEventListener('click', async () => {
                 if (generatorButton.disabled) {
                     return;
                 }
 
-                setGeneratorMessage(null, '');
+                setGeneratorMessage(null, streamingStartMessage);
                 const originalLabel = (generatorButton.textContent || '').trim() || 'Generate profile';
                 generatorButton.disabled = true;
                 generatorButton.textContent = 'Generating…';
 
+                const state = { completed: false, error: false };
+
                 try {
-                    const headers = { 'Content-Type': 'application/json' };
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/x-ndjson'
+                    };
                     const tokenValue = tokenInput ? tokenInput.value : null;
                     if (tokenValue) {
                         headers['RequestVerificationToken'] = tokenValue;
@@ -776,45 +987,48 @@
                         credentials: 'same-origin'
                     });
 
-                    const responseText = await response.text();
-                    let payload = null;
+                    const contentType = (response.headers.get('Content-Type') || '').toLowerCase();
 
-                    if (responseText) {
-                        try {
-                            payload = JSON.parse(responseText);
-                        } catch (error) {
-                            payload = null;
-                        }
-                    }
-
-                    if (!response.ok || !payload) {
-                        const errorMessage = payload && typeof payload.error === 'string'
-                            ? payload.error
-                            : 'We couldn’t generate a taste profile right now. Please try again.';
+                    if (!response.ok) {
+                        const errorMessage = await extractErrorMessage(response, contentType);
+                        state.error = true;
                         setGeneratorMessage('error', errorMessage);
                         return;
                     }
 
-                    if (typeof payload.summary === 'string') {
-                        summaryField.value = payload.summary;
-                        summaryField.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
+                    if (contentType.includes('application/x-ndjson')) {
+                        const handleEvent = (event) => handleTasteProfileEvent(event, state);
+                        const body = response.body;
+                        const forceFallback = typeof window !== 'undefined' && window.__forceTasteProfileTextFallback === true;
+                        if (!forceFallback && body && typeof body.getReader === 'function') {
+                            await readNdjsonStream(body.getReader(), handleEvent);
+                        } else {
+                            const text = await response.text().catch(() => '');
+                            processNdjsonText(text, handleEvent);
+                        }
+                    } else {
+                        const payload = await readJsonPayload(response, contentType);
+                        if (!payload) {
+                            state.error = true;
+                            setGeneratorMessage('error', defaultErrorMessage);
+                            return;
+                        }
 
-                    if (typeof payload.profile === 'string') {
-                        profileField.value = payload.profile;
-                        profileField.dispatchEvent(new Event('input', { bubbles: true }));
+                        applyTasteProfilePayload(payload);
+                        setGeneratorMessage('success', defaultSuccessMessage);
+                        state.completed = true;
                     }
-
-                    if (Array.isArray(payload.suggestions)) {
-                        updateSuggestions(payload.suggestions);
-                    }
-
-                    setGeneratorMessage('success', 'We generated a new taste profile. Review and save it when you’re ready.');
                 } catch (error) {
-                    setGeneratorMessage('error', 'We couldn’t generate a taste profile right now. Please try again.');
+                    if (!state.error) {
+                        state.error = true;
+                        setGeneratorMessage('error', defaultErrorMessage);
+                    }
                 } finally {
                     generatorButton.disabled = false;
                     generatorButton.textContent = originalLabel;
+                    if (!state.completed && !state.error) {
+                        setGeneratorMessage('error', defaultErrorMessage);
+                    }
                 }
             });
         })();
