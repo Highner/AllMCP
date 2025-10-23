@@ -196,19 +196,19 @@
         .terroir-table__header,
         .terroir-table__row {
             display: grid;
-            grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1.8fr) minmax(0, 1.2fr);
+            grid-template-columns: minmax(0, 48px) minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1.8fr) minmax(0, 1.2fr);
             gap: 12px;
             align-items: center;
         }
 
         .terroir-table--countries .terroir-table__header,
         .terroir-table--countries .terroir-table__row {
-            grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
+            grid-template-columns: minmax(0, 48px) minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
         }
 
         .terroir-table--wines .terroir-table__header,
         .terroir-table--wines .terroir-table__row {
-            grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.2fr);
+            grid-template-columns: minmax(0, 48px) minmax(0, 2fr) minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.2fr);
         }
 
         .terroir-table__header {
@@ -224,6 +224,33 @@
             border-radius: 16px;
             border: 1px solid hsla(var(--border) / 0.55);
             background: hsla(var(--accent) / 0.22);
+        }
+
+        .terroir-table__select-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .terroir-table__cell--select {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .terroir-select {
+            width: 18px;
+            height: 18px;
+            border-radius: 6px;
+            border: 1px solid hsla(var(--border) / 0.6);
+            background: hsla(var(--background) / 0.75);
+            cursor: pointer;
+        }
+
+        .terroir-select:focus-visible {
+            outline: 2px solid hsla(var(--ring) / 0.9);
+            outline-offset: 2px;
+            border-color: hsla(var(--ring) / 0.9);
         }
 
         .terroir-table__row--highlight {
@@ -295,6 +322,97 @@
             justify-content: flex-end;
         }
 
+        .terroir-merge-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+
+        .terroir-merge-actions[hidden] {
+            display: none;
+        }
+
+        .terroir-merge-form {
+            display: none;
+        }
+
+        .terroir-merge-dialog[hidden] {
+            display: none;
+        }
+
+        .terroir-merge-dialog {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            z-index: 999;
+        }
+
+        .terroir-merge-dialog__backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.55);
+        }
+
+        .terroir-merge-dialog__card {
+            position: relative;
+            width: min(420px, 92vw);
+            background: hsla(var(--background) / 0.96);
+            border-radius: 18px;
+            padding: 24px;
+            border: 1px solid hsla(var(--border) / 0.6);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .terroir-merge-dialog__title {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 0.6px;
+        }
+
+        .terroir-merge-dialog__description {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.5;
+            color: hsla(var(--muted-foreground) / 0.85);
+        }
+
+        .terroir-merge-dialog__list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .terroir-merge-dialog__leader {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid hsla(var(--border) / 0.55);
+            background: hsla(var(--accent) / 0.28);
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .terroir-merge-dialog__leader:hover,
+        .terroir-merge-dialog__leader:focus-visible {
+            outline: none;
+            background: hsla(var(--accent) / 0.42);
+            border-color: hsla(var(--accent) / 0.68);
+        }
+
+        .terroir-merge-dialog__footer {
+            display: flex;
+            justify-content: flex-end;
+        }
+
         .terroir-empty {
             margin: 0;
             padding: 20px;
@@ -326,6 +444,10 @@
             }
 
             .terroir-actions {
+                justify-content: flex-start;
+            }
+
+            .terroir-table__cell--select {
                 justify-content: flex-start;
             }
         }
@@ -364,8 +486,12 @@
                     </div>
                     <button type="submit" class="terroir-button terroir-button--primary">Create country</button>
                 </form>
+                <div class="terroir-merge-actions" data-terroir-merge-actions="country" hidden>
+                    <button type="button" class="terroir-button" data-terroir-merge-trigger="country">Merge selected countries</button>
+                </div>
                 <div class="terroir-table terroir-table--countries" role="table" aria-label="Existing countries">
                     <div class="terroir-table__header" role="row">
+                        <span role="columnheader" class="terroir-table__select-header"><span class="sr-only">Select</span></span>
                         <span role="columnheader">Country</span>
                         <span role="columnheader">Stats</span>
                         <span role="columnheader">Actions</span>
@@ -375,6 +501,8 @@
                         var updateCountryUrl = Url.Action("UpdateCountry", "WineSurfer", new { id = country.Id });
                         var deleteCountryUrl = Url.Action("DeleteCountry", "WineSurfer", new { id = country.Id });
                         var countryNameId = $"country-name-{country.Id:N}";
+                        var countrySelectId = $"country-select-{country.Id:N}";
+                        var countryLabel = string.IsNullOrWhiteSpace(country.Name) ? "Unnamed country" : country.Name;
                         <form method="post"
                               action="@updateCountryUrl"
                               class="terroir-table__row"
@@ -383,6 +511,16 @@
                               data-terroir-item="country"
                               data-terroir-id="@country.Id">
                             @Html.AntiForgeryToken()
+                            <div class="terroir-table__cell terroir-table__cell--select" role="cell">
+                                <input id="@countrySelectId"
+                                       type="checkbox"
+                                       class="terroir-select"
+                                       value="@country.Id"
+                                       data-terroir-select="country"
+                                       data-terroir-id="@country.Id"
+                                       data-terroir-name="@countryLabel" />
+                                <label class="sr-only" for="@countrySelectId">Select country @countryLabel</label>
+                            </div>
                             <div class="terroir-row-field" role="cell">
                                 <label class="sr-only" for="@countryNameId">Country name</label>
                                 <input id="@countryNameId" name="Name" type="text" value="@country.Name" maxlength="256" required />
@@ -410,6 +548,14 @@
                         <div class="terroir-empty" role="row">No countries recorded yet.</div>
                     }
                 </div>
+                <form method="post"
+                      action="@Url.Action("MergeCountries", "WineSurfer")"
+                      class="terroir-merge-form"
+                      data-terroir-merge-form="country">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="LeaderId" value="" data-terroir-merge-leader="country" />
+                    <div data-terroir-merge-ids="country"></div>
+                </form>
             </section>
 
             <section class="terroir-section" aria-labelledby="regions-title">
@@ -437,8 +583,12 @@
                     </div>
                     <button type="submit" class="terroir-button terroir-button--primary">Create region</button>
                 </form>
+                <div class="terroir-merge-actions" data-terroir-merge-actions="region" hidden>
+                    <button type="button" class="terroir-button" data-terroir-merge-trigger="region">Merge selected regions</button>
+                </div>
                 <div class="terroir-table terroir-table--regions" role="table" aria-label="Existing regions">
                     <div class="terroir-table__header" role="row">
+                        <span role="columnheader" class="terroir-table__select-header"><span class="sr-only">Select</span></span>
                         <span role="columnheader">Region</span>
                         <span role="columnheader">Country</span>
                         <span role="columnheader">Stats</span>
@@ -450,6 +600,8 @@
                         var deleteRegionUrl = Url.Action("DeleteRegion", "WineSurfer", new { id = region.Id });
                         var regionNameId = $"region-name-{region.Id:N}";
                         var regionCountryId = $"region-country-{region.Id:N}";
+                        var regionSelectId = $"region-select-{region.Id:N}";
+                        var regionLabel = string.IsNullOrWhiteSpace(region.Name) ? "Unnamed region" : region.Name;
                         <form method="post"
                               action="@updateRegionUrl"
                               class="terroir-table__row"
@@ -458,6 +610,16 @@
                               data-terroir-item="region"
                               data-terroir-id="@region.Id">
                             @Html.AntiForgeryToken()
+                            <div class="terroir-table__cell terroir-table__cell--select" role="cell">
+                                <input id="@regionSelectId"
+                                       type="checkbox"
+                                       class="terroir-select"
+                                       value="@region.Id"
+                                       data-terroir-select="region"
+                                       data-terroir-id="@region.Id"
+                                       data-terroir-name="@regionLabel" />
+                                <label class="sr-only" for="@regionSelectId">Select region @regionLabel</label>
+                            </div>
                             <div class="terroir-row-field" role="cell">
                                 <label class="sr-only" for="@regionNameId">Region name</label>
                                 <input id="@regionNameId" name="Name" type="text" value="@region.Name" maxlength="256" required />
@@ -493,6 +655,14 @@
                         <div class="terroir-empty" role="row">No regions recorded yet.</div>
                     }
                 </div>
+                <form method="post"
+                      action="@Url.Action("MergeRegions", "WineSurfer")"
+                      class="terroir-merge-form"
+                      data-terroir-merge-form="region">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="LeaderId" value="" data-terroir-merge-leader="region" />
+                    <div data-terroir-merge-ids="region"></div>
+                </form>
             </section>
 
             <section class="terroir-section" aria-labelledby="appellations-title">
@@ -520,8 +690,12 @@
                     </div>
                     <button type="submit" class="terroir-button terroir-button--primary">Create appellation</button>
                 </form>
+                <div class="terroir-merge-actions" data-terroir-merge-actions="appellation" hidden>
+                    <button type="button" class="terroir-button" data-terroir-merge-trigger="appellation">Merge selected appellations</button>
+                </div>
                 <div class="terroir-table terroir-table--appellations" role="table" aria-label="Existing appellations">
                     <div class="terroir-table__header" role="row">
+                        <span role="columnheader" class="terroir-table__select-header"><span class="sr-only">Select</span></span>
                         <span role="columnheader">Appellation</span>
                         <span role="columnheader">Region</span>
                         <span role="columnheader">Stats</span>
@@ -533,6 +707,8 @@
                         var deleteAppellationUrl = Url.Action("DeleteAppellation", "WineSurfer", new { id = appellation.Id });
                         var appellationNameId = $"appellation-name-{appellation.Id:N}";
                         var appellationRegionId = $"appellation-region-{appellation.Id:N}";
+                        var appellationSelectId = $"appellation-select-{appellation.Id:N}";
+                        var appellationLabel = string.IsNullOrWhiteSpace(appellation.Name) ? "Unnamed appellation" : appellation.Name;
                         <form method="post"
                               action="@updateAppellationUrl"
                               class="terroir-table__row"
@@ -541,6 +717,16 @@
                               data-terroir-item="appellation"
                               data-terroir-id="@appellation.Id">
                             @Html.AntiForgeryToken()
+                            <div class="terroir-table__cell terroir-table__cell--select" role="cell">
+                                <input id="@appellationSelectId"
+                                       type="checkbox"
+                                       class="terroir-select"
+                                       value="@appellation.Id"
+                                       data-terroir-select="appellation"
+                                       data-terroir-id="@appellation.Id"
+                                       data-terroir-name="@appellationLabel" />
+                                <label class="sr-only" for="@appellationSelectId">Select appellation @appellationLabel</label>
+                            </div>
                             <div class="terroir-row-field" role="cell">
                                 <label class="sr-only" for="@appellationNameId">Appellation name</label>
                                 <input id="@appellationNameId" name="Name" type="text" value="@appellation.Name" maxlength="256" required />
@@ -577,6 +763,14 @@
                         <div class="terroir-empty" role="row">No appellations recorded yet.</div>
                     }
                 </div>
+                <form method="post"
+                      action="@Url.Action("MergeAppellations", "WineSurfer")"
+                      class="terroir-merge-form"
+                      data-terroir-merge-form="appellation">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="LeaderId" value="" data-terroir-merge-leader="appellation" />
+                    <div data-terroir-merge-ids="appellation"></div>
+                </form>
             </section>
 
             <section class="terroir-section" aria-labelledby="subappellations-title">
@@ -604,8 +798,12 @@
                     </div>
                     <button type="submit" class="terroir-button terroir-button--primary">Create sub-appellation</button>
                 </form>
+                <div class="terroir-merge-actions" data-terroir-merge-actions="sub-appellation" hidden>
+                    <button type="button" class="terroir-button" data-terroir-merge-trigger="sub-appellation">Merge selected sub-appellations</button>
+                </div>
                 <div class="terroir-table terroir-table--subappellations" role="table" aria-label="Existing sub-appellations">
                     <div class="terroir-table__header" role="row">
+                        <span role="columnheader" class="terroir-table__select-header"><span class="sr-only">Select</span></span>
                         <span role="columnheader">Sub-appellation</span>
                         <span role="columnheader">Appellation</span>
                         <span role="columnheader">Stats</span>
@@ -616,8 +814,10 @@
                         var updateSubUrl = Url.Action("UpdateSubAppellation", "WineSurfer", new { id = subAppellation.Id });
                         var deleteSubUrl = Url.Action("DeleteSubAppellation", "WineSurfer", new { id = subAppellation.Id });
                         var subNameId = $"subappellation-name-{subAppellation.Id:N}";
-                        var subAppellationSelectId = $"subappellation-parent-{subAppellation.Id:N}";
-                        var displayName = string.IsNullOrWhiteSpace(subAppellation.Name) ? "" : subAppellation.Name;
+                        var subAppellationParentSelectId = $"subappellation-parent-{subAppellation.Id:N}";
+                        var subCheckboxId = $"subappellation-select-{subAppellation.Id:N}";
+                        var inputValue = string.IsNullOrWhiteSpace(subAppellation.Name) ? string.Empty : subAppellation.Name;
+                        var subLabel = string.IsNullOrWhiteSpace(subAppellation.Name) ? "Unknown sub-appellation" : subAppellation.Name!;
                         <form method="post"
                               action="@updateSubUrl"
                               class="terroir-table__row"
@@ -626,13 +826,23 @@
                               data-terroir-item="sub-appellation"
                               data-terroir-id="@subAppellation.Id">
                             @Html.AntiForgeryToken()
-                            <div class="terroir-row-field" role="cell">
-                                <label class="sr-only" for="@subNameId">Sub-appellation name</label>
-                                <input id="@subNameId" name="Name" type="text" value="@displayName" maxlength="256" />
+                            <div class="terroir-table__cell terroir-table__cell--select" role="cell">
+                                <input id="@subCheckboxId"
+                                       type="checkbox"
+                                       class="terroir-select"
+                                       value="@subAppellation.Id"
+                                       data-terroir-select="sub-appellation"
+                                       data-terroir-id="@subAppellation.Id"
+                                       data-terroir-name="@subLabel" />
+                                <label class="sr-only" for="@subCheckboxId">Select sub-appellation @subLabel</label>
                             </div>
                             <div class="terroir-row-field" role="cell">
-                                <label class="sr-only" for="@subAppellationSelectId">Appellation</label>
-                                <select id="@subAppellationSelectId" name="AppellationId" required>
+                                <label class="sr-only" for="@subNameId">Sub-appellation name</label>
+                                <input id="@subNameId" name="Name" type="text" value="@inputValue" maxlength="256" />
+                            </div>
+                            <div class="terroir-row-field" role="cell">
+                                <label class="sr-only" for="@subAppellationParentSelectId">Appellation</label>
+                                <select id="@subAppellationParentSelectId" name="AppellationId" required>
                                     @foreach (var appellation in Model.Appellations)
                                     {
                                         <option value="@appellation.Id" @(appellation.Id == subAppellation.AppellationId ? "selected" : null)>
@@ -661,6 +871,14 @@
                         <div class="terroir-empty" role="row">No sub-appellations recorded yet.</div>
                     }
                 </div>
+                <form method="post"
+                      action="@Url.Action("MergeSubAppellations", "WineSurfer")"
+                      class="terroir-merge-form"
+                      data-terroir-merge-form="sub-appellation">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="LeaderId" value="" data-terroir-merge-leader="sub-appellation" />
+                    <div data-terroir-merge-ids="sub-appellation"></div>
+                </form>
             </section>
 
             <section class="terroir-section" aria-labelledby="wines-title">
@@ -704,8 +922,12 @@
                     </div>
                     <button type="submit" class="terroir-button terroir-button--primary">Create wine</button>
                 </form>
+                <div class="terroir-merge-actions" data-terroir-merge-actions="wine" hidden>
+                    <button type="button" class="terroir-button" data-terroir-merge-trigger="wine">Merge selected wines</button>
+                </div>
                 <div class="terroir-table terroir-table--wines" role="table" aria-label="Existing wines">
                     <div class="terroir-table__header" role="row">
+                        <span role="columnheader" class="terroir-table__select-header"><span class="sr-only">Select</span></span>
                         <span role="columnheader">Wine</span>
                         <span role="columnheader">Sub-appellation</span>
                         <span role="columnheader">Color</span>
@@ -720,6 +942,8 @@
                         var wineSubId = $"wine-sub-{wine.Id:N}";
                         var wineColorId = $"wine-color-{wine.Id:N}";
                         var wineGrapeId = $"wine-grape-{wine.Id:N}";
+                        var wineSelectId = $"wine-select-{wine.Id:N}";
+                        var wineLabel = string.IsNullOrWhiteSpace(wine.Name) ? "Unnamed wine" : wine.Name;
                         <form method="post"
                               action="@updateWineUrl"
                               class="terroir-table__row"
@@ -728,6 +952,16 @@
                               data-terroir-item="wine"
                               data-terroir-id="@wine.Id">
                             @Html.AntiForgeryToken()
+                            <div class="terroir-table__cell terroir-table__cell--select" role="cell">
+                                <input id="@wineSelectId"
+                                       type="checkbox"
+                                       class="terroir-select"
+                                       value="@wine.Id"
+                                       data-terroir-select="wine"
+                                       data-terroir-id="@wine.Id"
+                                       data-terroir-name="@wineLabel" />
+                                <label class="sr-only" for="@wineSelectId">Select wine @wineLabel</label>
+                            </div>
                             <div class="terroir-row-field" role="cell">
                                 <label class="sr-only" for="@wineNameId">Wine name</label>
                                 <input id="@wineNameId" name="Name" type="text" value="@wine.Name" maxlength="256" required />
@@ -774,8 +1008,29 @@
                         <div class="terroir-empty" role="row">No wines recorded yet.</div>
                     }
                 </div>
+                <form method="post"
+                      action="@Url.Action("MergeWines", "WineSurfer")"
+                      class="terroir-merge-form"
+                      data-terroir-merge-form="wine">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="LeaderId" value="" data-terroir-merge-leader="wine" />
+                    <div data-terroir-merge-ids="wine"></div>
+                </form>
             </section>
         </main>
+        <div class="terroir-merge-dialog" data-terroir-merge-dialog hidden>
+            <div class="terroir-merge-dialog__backdrop" data-terroir-merge-dismiss></div>
+            <div class="terroir-merge-dialog__card" role="dialog" aria-modal="true" aria-labelledby="terroir-merge-title">
+                <div>
+                    <h2 id="terroir-merge-title" class="terroir-merge-dialog__title">Merge selected items</h2>
+                    <p class="terroir-merge-dialog__description" data-terroir-merge-description></p>
+                </div>
+                <ul class="terroir-merge-dialog__list" data-terroir-merge-list></ul>
+                <div class="terroir-merge-dialog__footer">
+                    <button type="button" class="terroir-button" data-terroir-merge-dismiss>Cancel</button>
+                </div>
+            </div>
+        </div>
     </div>
     <script>
         (function () {
@@ -806,6 +1061,195 @@
                     target.classList.remove('terroir-table__row--highlight');
                 }, 1200);
             });
+        })();
+
+        (function () {
+            const labels = {
+                'country': { singular: 'country', plural: 'countries' },
+                'region': { singular: 'region', plural: 'regions' },
+                'appellation': { singular: 'appellation', plural: 'appellations' },
+                'sub-appellation': { singular: 'sub-appellation', plural: 'sub-appellations' },
+                'wine': { singular: 'wine', plural: 'wines' }
+            };
+
+            const selectionState = new Map();
+            const mergeActions = new Map();
+            document.querySelectorAll('[data-terroir-merge-actions]').forEach(element => {
+                const section = element.getAttribute('data-terroir-merge-actions');
+                if (section) {
+                    mergeActions.set(section, element);
+                }
+            });
+
+            const mergeForms = new Map();
+            document.querySelectorAll('[data-terroir-merge-form]').forEach(form => {
+                const section = form.getAttribute('data-terroir-merge-form');
+                if (!section) {
+                    return;
+                }
+
+                const leaderInput = form.querySelector('[data-terroir-merge-leader]');
+                const idsContainer = form.querySelector('[data-terroir-merge-ids]');
+                if (!leaderInput || !idsContainer) {
+                    return;
+                }
+
+                mergeForms.set(section, { form, leaderInput, idsContainer });
+            });
+
+            const dialog = document.querySelector('[data-terroir-merge-dialog]');
+            if (!dialog) {
+                return;
+            }
+
+            const list = dialog.querySelector('[data-terroir-merge-list]');
+            const description = dialog.querySelector('[data-terroir-merge-description]');
+            const dismissElements = dialog.querySelectorAll('[data-terroir-merge-dismiss]');
+            let activeSection = null;
+            let returnFocus = null;
+
+            function ensureSectionState(section) {
+                let state = selectionState.get(section);
+                if (!state) {
+                    state = new Map();
+                    selectionState.set(section, state);
+                }
+
+                return state;
+            }
+
+            function updateActionVisibility(section) {
+                const state = ensureSectionState(section);
+                const container = mergeActions.get(section);
+                if (!container) {
+                    return;
+                }
+
+                const button = container.querySelector('[data-terroir-merge-trigger]');
+                if (state.size > 1) {
+                    container.hidden = false;
+                    if (button) {
+                        const label = labels[section] || { singular: 'item', plural: 'items' };
+                        const noun = state.size === 1 ? label.singular : label.plural;
+                        button.textContent = `Merge ${state.size} selected ${noun}`;
+                    }
+                } else {
+                    container.hidden = true;
+                }
+            }
+
+            document.querySelectorAll('[data-terroir-select]').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    const section = checkbox.getAttribute('data-terroir-select');
+                    const id = checkbox.getAttribute('data-terroir-id');
+                    const name = checkbox.getAttribute('data-terroir-name') || 'Selected item';
+                    if (!section || !id) {
+                        return;
+                    }
+
+                    const state = ensureSectionState(section);
+                    if (checkbox.checked) {
+                        state.set(id, { id, name, checkbox });
+                    } else {
+                        state.delete(id);
+                    }
+
+                    updateActionVisibility(section);
+                });
+            });
+
+            document.querySelectorAll('[data-terroir-merge-trigger]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const section = button.getAttribute('data-terroir-merge-trigger');
+                    if (!section) {
+                        return;
+                    }
+
+                    openDialog(section, button);
+                });
+            });
+
+            dismissElements.forEach(element => {
+                element.addEventListener('click', closeDialog);
+            });
+
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape' && !dialog.hasAttribute('hidden')) {
+                    closeDialog();
+                }
+            });
+
+            function openDialog(section, trigger) {
+                const state = ensureSectionState(section);
+                if (state.size < 2) {
+                    return;
+                }
+
+                activeSection = section;
+                returnFocus = trigger instanceof HTMLElement ? trigger : null;
+
+                const label = labels[section] || { singular: 'item', plural: 'items' };
+                if (description) {
+                    description.textContent = `Select the leading ${label.singular}. It keeps its parent connections and absorbs the others.`;
+                }
+
+                if (list) {
+                    list.innerHTML = '';
+                    state.forEach(entry => {
+                        const listItem = document.createElement('li');
+                        const leaderButton = document.createElement('button');
+                        leaderButton.type = 'button';
+                        leaderButton.className = 'terroir-merge-dialog__leader';
+                        leaderButton.textContent = entry.name;
+                        leaderButton.addEventListener('click', () => {
+                            submitMerge(section, entry.id);
+                        });
+                        listItem.appendChild(leaderButton);
+                        list.appendChild(listItem);
+                    });
+
+                    const firstButton = list.querySelector('button');
+                    if (firstButton) {
+                        window.requestAnimationFrame(() => firstButton.focus());
+                    }
+                }
+
+                dialog.hidden = false;
+            }
+
+            function closeDialog() {
+                if (dialog.hidden) {
+                    return;
+                }
+
+                dialog.hidden = true;
+                activeSection = null;
+                if (returnFocus && typeof returnFocus.focus === 'function') {
+                    returnFocus.focus();
+                }
+            }
+
+            function submitMerge(section, leaderId) {
+                const formData = mergeForms.get(section);
+                const state = ensureSectionState(section);
+                if (!formData || !leaderId || state.size < 2) {
+                    closeDialog();
+                    return;
+                }
+
+                formData.leaderInput.value = leaderId;
+                formData.idsContainer.innerHTML = '';
+                state.forEach(entry => {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'EntityIds';
+                    hiddenInput.value = entry.id;
+                    formData.idsContainer.appendChild(hiddenInput);
+                });
+
+                closeDialog();
+                formData.form.submit();
+            }
         })();
     </script>
 </body>
