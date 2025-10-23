@@ -363,6 +363,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
 
         IReadOnlyList<WineSurferSisterhoodOption> manageableSisterhoods = Array.Empty<WineSurferSisterhoodOption>();
         IReadOnlyList<WineSurferSipSessionBottle> favoriteBottles = Array.Empty<WineSurferSipSessionBottle>();
+        IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
         if (currentUserId.HasValue)
         {
             var adminSisterhoods = await _sisterhoodRepository.GetAdminForUserAsync(currentUserId.Value, cancellationToken);
@@ -383,7 +384,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
                     .ToList();
             }
 
-            var suggestedAppellations = await GetSuggestedAppellationsForUserAsync(currentUserId.Value, cancellationToken);
+            suggestedAppellations = await GetSuggestedAppellationsForUserAsync(currentUserId.Value, cancellationToken);
             if (suggestedAppellations.Count > 0)
             {
                 var suggestionHighlights = new List<MapHighlightPoint>(suggestedAppellations.Count);
@@ -422,7 +423,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
             upcomingSipSessions,
             sentInvitationNotifications,
             manageableSisterhoods,
-            favoriteBottles);
+            favoriteBottles,
+            suggestedAppellations);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
     }
@@ -6599,7 +6601,8 @@ public record WineSurferLandingViewModel(
     IReadOnlyList<WineSurferUpcomingSipSession> UpcomingSipSessions,
     IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
     IReadOnlyList<WineSurferSisterhoodOption> ManageableSisterhoods,
-    IReadOnlyList<WineSurferSipSessionBottle> FavoriteBottles);
+    IReadOnlyList<WineSurferSipSessionBottle> FavoriteBottles,
+    IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations);
 
 public record WineSurferUpcomingSipSession(
     Guid SisterhoodId,
