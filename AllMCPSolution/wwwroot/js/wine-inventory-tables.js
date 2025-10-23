@@ -64,10 +64,12 @@ window.WineInventoryTables.initialize = function () {
             const locationCreateCard = locationSection?.querySelector('[data-location-create]');
             const locationCreateForm = locationCreateCard?.querySelector('[data-location-create-form]');
             const locationCreateInput = locationCreateForm?.querySelector('[data-location-input]');
+            const locationCreateCapacity = locationCreateForm?.querySelector('[data-location-capacity-input]');
             const locationCreateCancel = locationCreateForm?.querySelector('[data-location-cancel]');
             const locationAddButton = locationSection?.querySelector('[data-location-add]');
             const currentUserId = locationSection?.dataset?.currentUserId ?? locationSection?.getAttribute('data-current-user-id') ?? '';
             const notesEnabled = Boolean(notesPanel && notesTable && notesBody && notesAddRow && notesEmptyRow && notesAddUserDisplay && notesAddScore && notesAddText && notesAddButton && notesMessage && notesTitle && notesSubtitle && notesCloseButton);
+            const MAX_LOCATION_CAPACITY = 10000;
 
             if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner) {
                 return;
@@ -1030,6 +1032,9 @@ window.WineInventoryTables.initialize = function () {
                     locationCreateInput.value = '';
                     locationCreateInput.focus();
                 }
+                if (locationCreateCapacity) {
+                    locationCreateCapacity.value = '';
+                }
                 updateLocationEmptyState();
             }
 
@@ -1042,6 +1047,9 @@ window.WineInventoryTables.initialize = function () {
                 if (locationCreateInput) {
                     locationCreateInput.value = '';
                 }
+                if (locationCreateCapacity) {
+                    locationCreateCapacity.value = '';
+                }
                 setLocationFormLoading(locationCreateForm, false);
                 setLocationError(locationCreateForm, '');
                 updateLocationEmptyState();
@@ -1053,6 +1061,7 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 const nameField = locationCreateForm.querySelector('[data-location-input]');
+                const capacityField = locationCreateForm.querySelector('[data-location-capacity-input]');
                 const proposedName = (nameField?.value ?? '').trim();
                 if (!proposedName) {
                     setLocationError(locationCreateForm, 'Location name is required.');
@@ -1066,12 +1075,27 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 setLocationError(locationCreateForm, '');
+                const { value: parsedCapacity, error: capacityError } = parseCapacityInputValue(capacityField?.value);
+                if (capacityError) {
+                    setLocationError(locationCreateForm, capacityError);
+                    if (capacityField) {
+                        capacityField.focus();
+                        capacityField.select?.();
+                    }
+                    return;
+                }
+
                 setLocationFormLoading(locationCreateForm, true);
 
                 try {
+                    const payload = {
+                        name: proposedName,
+                        userId: currentUserId,
+                        capacity: parsedCapacity
+                    };
                     const response = await sendJson('/api/BottleLocations', {
                         method: 'POST',
-                        body: JSON.stringify({ name: proposedName, userId: currentUserId })
+                        body: JSON.stringify(payload)
                     });
                     const normalized = normalizeLocation(response);
                     if (!normalized) {
@@ -1109,6 +1133,7 @@ window.WineInventoryTables.initialize = function () {
                 const form = card.querySelector('[data-location-edit-form]');
                 const cancelButton = form?.querySelector('[data-location-cancel]');
                 const input = form?.querySelector('[data-location-input]');
+                const capacityInput = form?.querySelector('[data-location-capacity-input]');
 
                 editButton?.addEventListener('click', (event) => {
                     event.preventDefault();
@@ -1123,7 +1148,7 @@ window.WineInventoryTables.initialize = function () {
                 if (form && input) {
                     form.addEventListener('submit', (event) => {
                         event.preventDefault();
-                        handleLocationUpdate(card, form, input);
+                        handleLocationUpdate(card, form, input, capacityInput);
                     });
                 }
 
@@ -1141,6 +1166,7 @@ window.WineInventoryTables.initialize = function () {
                 const view = card.querySelector('[data-location-view]');
                 const form = card.querySelector('[data-location-edit-form]');
                 const input = form?.querySelector('[data-location-input]');
+                const capacityInput = form?.querySelector('[data-location-capacity-input]');
                 if (!form || !view) {
                     return;
                 }
@@ -1153,6 +1179,10 @@ window.WineInventoryTables.initialize = function () {
                     input.focus();
                     input.select();
                 }
+                if (capacityInput) {
+                    const capacity = getLocationCapacity(card);
+                    capacityInput.value = capacity != null ? String(capacity) : '';
+                }
             }
 
             function closeLocationEdit(card) {
@@ -1163,6 +1193,7 @@ window.WineInventoryTables.initialize = function () {
                 const view = card.querySelector('[data-location-view]');
                 const form = card.querySelector('[data-location-edit-form]');
                 const input = form?.querySelector('[data-location-input]');
+                const capacityInput = form?.querySelector('[data-location-capacity-input]');
                 if (!form || !view) {
                     return;
                 }
@@ -1173,9 +1204,13 @@ window.WineInventoryTables.initialize = function () {
                 if (input) {
                     input.value = card.dataset.locationName ?? '';
                 }
+                if (capacityInput) {
+                    const capacity = getLocationCapacity(card);
+                    capacityInput.value = capacity != null ? String(capacity) : '';
+                }
             }
 
-            async function handleLocationUpdate(card, form, input) {
+            async function handleLocationUpdate(card, form, input, capacityInput) {
                 const locationId = card?.dataset?.locationId ?? '';
                 if (!locationId) {
                     setLocationError(form, 'Location identifier is missing.');
@@ -1195,27 +1230,54 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 const currentName = (card.dataset.locationName ?? '').trim();
-                if (currentName && currentName === proposedName) {
+                setLocationError(form, '');
+                const { value: parsedCapacity, error: capacityError } = parseCapacityInputValue(capacityInput?.value);
+                if (capacityError) {
+                    setLocationError(form, capacityError);
+                    if (capacityInput) {
+                        capacityInput.focus();
+                        capacityInput.select?.();
+                    }
+                    return;
+                }
+
+                const currentCapacity = getLocationCapacity(card);
+                const hasSameName = currentName === proposedName;
+                const hasSameCapacity = (currentCapacity ?? null) === (parsedCapacity ?? null);
+                if (hasSameName && hasSameCapacity) {
                     closeLocationEdit(card);
                     return;
                 }
 
-                setLocationError(form, '');
                 setLocationFormLoading(form, true);
                 setLocationCardLoading(card, true);
 
                 try {
+                    const payload = {
+                        name: proposedName,
+                        userId: currentUserId,
+                        capacity: parsedCapacity
+                    };
                     const response = await sendJson(`/api/BottleLocations/${encodeURIComponent(locationId)}`, {
                         method: 'PUT',
-                        body: JSON.stringify({ name: proposedName, userId: currentUserId })
+                        body: JSON.stringify(payload)
                     });
-                    const normalized = normalizeLocation(response) ?? { id: locationId, name: proposedName };
+                    const normalized = normalizeLocation(response) ?? { id: locationId, name: proposedName, capacity: parsedCapacity };
+                    const resolvedName = normalized.name ?? proposedName;
+                    const resolvedCapacity = normalizeCapacityValue(normalized.capacity ?? parsedCapacity);
 
-                    updateLocationCardName(card, normalized.name ?? proposedName);
+                    updateLocationCardName(card, resolvedName);
+                    setLocationCapacity(card, resolvedCapacity);
+                    updateLocationCardCounts(card);
+                    if (resolvedCapacity == null) {
+                        delete normalized.capacity;
+                    } else {
+                        normalized.capacity = resolvedCapacity;
+                    }
                     closeLocationEdit(card);
                     reorderLocationCard(card);
                     updateReferenceLocation(normalized);
-                    setLocationMessage(`Location renamed to '${normalized.name ?? proposedName}'.`, 'success');
+                    setLocationMessage(`Location '${resolvedName}' updated.`, 'success');
                 } catch (error) {
                     setLocationError(form, error?.message ?? String(error));
                 } finally {
@@ -1262,6 +1324,7 @@ window.WineInventoryTables.initialize = function () {
 
                 updateLocationCardName(card, location.name ?? '');
                 card.dataset.locationId = location.id ?? '';
+                setLocationCapacity(card, location.capacity);
                 setLocationDatasetCounts(card, counts ?? {});
                 updateLocationCardCounts(card);
                 bindLocationCard(card);
@@ -1354,10 +1417,14 @@ window.WineInventoryTables.initialize = function () {
                 const uniqueCount = Number(card.dataset.uniqueCount ?? '0') || 0;
                 const drunkCount = Number(card.dataset.drunkCount ?? '0') || 0;
                 const cellaredCount = Number(card.dataset.cellaredCount ?? String(bottleCount - drunkCount)) || 0;
+                const capacity = getLocationCapacity(card);
 
                 const bottleLabel = `${bottleCount} bottle${bottleCount === 1 ? '' : 's'}`;
                 const uniqueLabel = uniqueCount > 0
                     ? `· ${uniqueCount} unique wine${uniqueCount === 1 ? '' : 's'}`
+                    : '';
+                const capacityLabel = capacity != null
+                    ? `· Capacity: ${capacity}`
                     : '';
 
                 const bottleTarget = card.querySelector('[data-location-bottle-count]');
@@ -1370,11 +1437,39 @@ window.WineInventoryTables.initialize = function () {
                     uniqueTarget.textContent = uniqueLabel;
                 }
 
+                const capacityTarget = card.querySelector('[data-location-capacity]');
+                if (capacityTarget) {
+                    capacityTarget.textContent = capacityLabel;
+                }
+
                 const descriptionTarget = card.querySelector('[data-location-description]');
                 if (descriptionTarget) {
                     if (bottleCount > 0) {
                         const safeCellared = Math.max(cellaredCount, 0);
-                        descriptionTarget.textContent = `${safeCellared} cellared · ${drunkCount} enjoyed`;
+                        let description = `${safeCellared} cellared · ${drunkCount} enjoyed`;
+                        if (capacity != null) {
+                            const remaining = capacity - bottleCount;
+                            const capacitySummary = remaining > 0
+                                ? `${remaining} open slot${remaining === 1 ? '' : 's'} remaining`
+                                : remaining === 0
+                                    ? 'At capacity'
+                                    : `Over capacity by ${Math.abs(remaining)} bottle${Math.abs(remaining) === 1 ? '' : 's'}`;
+                            description = `${description} · ${capacitySummary}`;
+                        }
+                        descriptionTarget.textContent = description;
+                    } else if (capacity != null) {
+                        const remaining = capacity - bottleCount;
+                        const base = `Capacity ${capacity} bottle${capacity === 1 ? '' : 's'}.`;
+                        let capacitySummary;
+                        if (remaining > 0) {
+                            capacitySummary = `${remaining} open slot${remaining === 1 ? '' : 's'} available.`;
+                        } else if (remaining === 0) {
+                            capacitySummary = 'At capacity.';
+                        } else {
+                            const over = Math.abs(remaining);
+                            capacitySummary = `Over capacity by ${over} bottle${over === 1 ? '' : 's'}.`;
+                        }
+                        descriptionTarget.textContent = `${base} ${capacitySummary}`.trim();
                     } else {
                         descriptionTarget.textContent = 'No bottles stored here yet.';
                     }
@@ -1440,6 +1535,79 @@ window.WineInventoryTables.initialize = function () {
 
                 const elements = form.querySelectorAll('input, button, textarea, select');
                 elements.forEach(element => toggleDisabledWithMemory(element, state));
+            }
+
+            function parseCapacityInputValue(value) {
+                if (value == null) {
+                    return { value: null, error: null };
+                }
+
+                const text = String(value).trim();
+                if (text === '') {
+                    return { value: null, error: null };
+                }
+
+                if (!/^-?\d+$/.test(text)) {
+                    return { value: null, error: 'Capacity must be a whole number.' };
+                }
+
+                const parsed = Number(text);
+                if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+                    return { value: null, error: 'Capacity must be a whole number.' };
+                }
+
+                if (parsed < 0) {
+                    return { value: null, error: 'Capacity must be zero or greater.' };
+                }
+
+                if (parsed > MAX_LOCATION_CAPACITY) {
+                    return {
+                        value: null,
+                        error: `Capacity cannot exceed ${MAX_LOCATION_CAPACITY} bottles.`
+                    };
+                }
+
+                return { value: parsed, error: null };
+            }
+
+            function normalizeCapacityValue(raw) {
+                if (raw == null || raw === '') {
+                    return null;
+                }
+
+                const numeric = Number(raw);
+                if (!Number.isFinite(numeric)) {
+                    return null;
+                }
+
+                const integer = Math.trunc(numeric);
+                if (!Number.isFinite(integer) || integer < 0) {
+                    return null;
+                }
+
+                return integer;
+            }
+
+            function setLocationCapacity(card, capacity) {
+                if (!card) {
+                    return;
+                }
+
+                const normalized = normalizeCapacityValue(capacity);
+                if (normalized == null) {
+                    delete card.dataset.locationCapacity;
+                    return;
+                }
+
+                card.dataset.locationCapacity = String(normalized);
+            }
+
+            function getLocationCapacity(card) {
+                if (!card) {
+                    return null;
+                }
+
+                return normalizeCapacityValue(card.dataset?.locationCapacity ?? null);
             }
 
             function setLocationCardLoading(card, state) {
@@ -1532,12 +1700,17 @@ window.WineInventoryTables.initialize = function () {
 
                 const nameValue = raw.name ?? raw.Name ?? raw.label ?? raw.Label ?? '';
                 const userValue = raw.userId ?? raw.UserId ?? raw.ownerId ?? raw.OwnerId ?? '';
+                const capacityValue = raw.capacity ?? raw.Capacity ?? raw.maxCapacity ?? raw.MaxCapacity;
                 const normalized = {
                     id: String(id),
                     name: typeof nameValue === 'string' ? nameValue : String(nameValue ?? id)
                 };
                 if (userValue) {
                     normalized.userId = String(userValue);
+                }
+                const normalizedCapacity = normalizeCapacityValue(capacityValue);
+                if (normalizedCapacity != null) {
+                    normalized.capacity = normalizedCapacity;
                 }
                 return normalized;
             }
@@ -1636,15 +1809,17 @@ window.WineInventoryTables.initialize = function () {
                 select.appendChild(placeholder);
 
                 referenceData.bottleLocations.forEach(option => {
-                    const id = option?.id ?? option?.Id;
-                    const name = option?.name ?? option?.Name;
-                    if (!id) {
+                    const normalized = normalizeLocation(option);
+                    if (!normalized?.id) {
                         return;
                     }
 
                     const opt = document.createElement('option');
-                    opt.value = id;
-                    opt.textContent = name ?? id;
+                    opt.value = normalized.id;
+                    const label = normalized.name ?? normalized.id;
+                    const capacity = normalizeCapacityValue(normalized.capacity);
+                    const suffix = capacity != null ? ` (${capacity} capacity)` : '';
+                    opt.textContent = `${label}${suffix}`;
                     select.appendChild(opt);
                 });
 

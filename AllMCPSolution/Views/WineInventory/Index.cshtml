@@ -257,6 +257,17 @@
                                    placeholder="e.g., Main Cellar"
                                    maxlength="128" />
                         </label>
+                        <label class="location-edit-label">
+                            <span class="wine-card__meta">Capacity (optional)</span>
+                            <input type="number"
+                                   class="location-edit-input"
+                                   data-location-capacity-input
+                                   placeholder="Leave blank for unlimited"
+                                   min="0"
+                                   max="10000"
+                                   inputmode="numeric" />
+                            <span class="location-edit-hint">How many bottles fit in this location.</span>
+                        </label>
                         <div class="location-edit-actions">
                             <button type="button" class="sisterhood-button sisterhood-button--ghost" data-location-cancel>Cancel</button>
                             <button type="submit" class="sisterhood-button sisterhood-button--primary" data-location-submit>Create</button>
@@ -269,13 +280,49 @@
                     var bottleLabel = $"{location.BottleCount} bottle{(location.BottleCount == 1 ? string.Empty : "s")}";
                     var uniqueLabel = location.UniqueWineCount > 0
                         ? $"· {location.UniqueWineCount} unique wine{(location.UniqueWineCount == 1 ? string.Empty : "s")}" : string.Empty;
-                    var statusLabel = location.BottleCount > 0
-                        ? $"{location.CellaredBottleCount} cellared · {location.DrunkBottleCount} enjoyed"
-                        : "No bottles stored here yet.";
+                    var hasCapacity = location.Capacity.HasValue && location.Capacity.Value >= 0;
+                    var capacityValue = location.Capacity ?? 0;
+                    var capacityLabel = hasCapacity
+                        ? $"· Capacity: {capacityValue}"
+                        : string.Empty;
+                    var remainingCapacity = hasCapacity ? capacityValue - location.BottleCount : 0;
+                    string statusLabel;
+                    if (location.BottleCount > 0)
+                    {
+                        var summary = $"{location.CellaredBottleCount} cellared · {location.DrunkBottleCount} enjoyed";
+                        if (hasCapacity)
+                        {
+                            var capacitySummary = remainingCapacity > 0
+                                ? $"{remainingCapacity} open slot{(remainingCapacity == 1 ? string.Empty : "s")} remaining"
+                                : remainingCapacity == 0
+                                    ? "At capacity"
+                                    : $"Over capacity by {Math.Abs(remainingCapacity)} bottle{(Math.Abs(remainingCapacity) == 1 ? string.Empty : "s")}";
+                            statusLabel = $"{summary} · {capacitySummary}";
+                        }
+                        else
+                        {
+                            statusLabel = summary;
+                        }
+                    }
+                    else if (hasCapacity)
+                    {
+                        var capacitySummary = remainingCapacity > 0
+                            ? $"{remainingCapacity} open slot{(remainingCapacity == 1 ? string.Empty : "s")} available."
+                            : remainingCapacity == 0
+                                ? "At capacity."
+                                : $"Over capacity by {Math.Abs(remainingCapacity)} bottle{(Math.Abs(remainingCapacity) == 1 ? string.Empty : "s")}.";
+                        statusLabel = $"Capacity {capacityValue} bottle{(capacityValue == 1 ? string.Empty : "s")}. {capacitySummary}".Trim();
+                    }
+                    else
+                    {
+                        statusLabel = "No bottles stored here yet.";
+                        capacityLabel = string.Empty;
+                    }
                     <article class="wine-card wine-surface wine-surface-border wine-card-hover location-card"
                              data-location-card
                              data-location-id="@location.Id"
                              data-location-name="@location.Name"
+                             data-location-capacity="@(location.Capacity?.ToString() ?? string.Empty)"
                              data-bottle-count="@location.BottleCount"
                              data-unique-count="@location.UniqueWineCount"
                              data-cellared-count="@location.CellaredBottleCount"
@@ -287,6 +334,7 @@
                                     <p class="wine-card__subtitle location-card-subtitle">
                                         <span data-location-bottle-count>@bottleLabel</span>
                                         <span data-location-wine-count>@uniqueLabel</span>
+                                        <span data-location-capacity>@capacityLabel</span>
                                     </p>
                                 </div>
                                 <div class="wine-card__actions location-card-actions">
@@ -306,6 +354,18 @@
                                        maxlength="128"
                                        required />
                             </label>
+                            <label class="location-edit-label">
+                                <span class="wine-card__meta">Capacity (optional)</span>
+                                <input type="number"
+                                       class="location-edit-input"
+                                       data-location-capacity-input
+                                       value="@(location.Capacity?.ToString() ?? string.Empty)"
+                                       placeholder="Leave blank for unlimited"
+                                       min="0"
+                                       max="10000"
+                                       inputmode="numeric" />
+                                <span class="location-edit-hint">Use whole numbers only.</span>
+                            </label>
                             <div class="location-edit-actions">
                                 <button type="button" class="sisterhood-button sisterhood-button--ghost" data-location-cancel>Cancel</button>
                                 <button type="submit" class="sisterhood-button sisterhood-button--primary" data-location-submit>Save</button>
@@ -323,6 +383,7 @@
                          data-location-card
                          data-location-id=""
                          data-location-name=""
+                         data-location-capacity=""
                          data-bottle-count="0"
                          data-unique-count="0"
                          data-cellared-count="0"
@@ -334,6 +395,7 @@
                                 <p class="wine-card__subtitle location-card-subtitle">
                                     <span data-location-bottle-count></span>
                                     <span data-location-wine-count></span>
+                                    <span data-location-capacity></span>
                                 </p>
                             </div>
                             <div class="wine-card__actions location-card-actions">
@@ -347,6 +409,17 @@
                         <label class="location-edit-label">
                             <span class="wine-card__meta">Location name</span>
                             <input type="text" class="location-edit-input" data-location-input maxlength="128" required />
+                        </label>
+                        <label class="location-edit-label">
+                            <span class="wine-card__meta">Capacity (optional)</span>
+                            <input type="number"
+                                   class="location-edit-input"
+                                   data-location-capacity-input
+                                   placeholder="Leave blank for unlimited"
+                                   min="0"
+                                   max="10000"
+                                   inputmode="numeric" />
+                            <span class="location-edit-hint">Use whole numbers only.</span>
                         </label>
                         <div class="location-edit-actions">
                             <button type="button" class="sisterhood-button sisterhood-button--ghost" data-location-cancel>Cancel</button>

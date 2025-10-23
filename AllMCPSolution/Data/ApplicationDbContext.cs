@@ -197,6 +197,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .HasMaxLength(128)
                 .IsRequired();
 
+            e.Property(bl => bl.Capacity)
+                .HasColumnType("int")
+                .IsRequired(false);
+
             e.HasOne(bl => bl.User)
                 .WithMany(u => u.BottleLocations)
                 .HasForeignKey(bl => bl.UserId)

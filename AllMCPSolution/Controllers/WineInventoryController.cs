@@ -225,6 +225,7 @@ public class WineInventoryController : Controller
                     {
                         Id = location.Id,
                         Name = location.Name,
+                        Capacity = location.Capacity,
                         BottleCount = 0,
                         UniqueWineCount = 0,
                         CellaredBottleCount = 0,
@@ -238,6 +239,7 @@ public class WineInventoryController : Controller
                 {
                     Id = location.Id,
                     Name = location.Name,
+                    Capacity = location.Capacity,
                     BottleCount = summary.BottleCount,
                     UniqueWineCount = summary.UniqueWineCount,
                     CellaredBottleCount = Math.Max(cellaredCount, 0),
@@ -383,7 +385,8 @@ public class WineInventoryController : Controller
                 .Select(bl => new BottleLocationOption
                 {
                     Id = bl.Id,
-                    Name = bl.Name
+                    Name = bl.Name,
+                    Capacity = bl.Capacity
                 })
                 .ToList(),
             Users = users
@@ -1309,6 +1312,7 @@ public class WineInventoryLocationViewModel
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public int? Capacity { get; set; }
     public int BottleCount { get; set; }
     public int UniqueWineCount { get; set; }
     public int CellaredBottleCount { get; set; }
@@ -1461,6 +1465,7 @@ public class BottleLocationOption
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public int? Capacity { get; set; }
 }
 
 public class UserOption
