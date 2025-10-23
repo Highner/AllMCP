@@ -576,6 +576,17 @@ public class WineInventoryController : Controller
             return Unauthorized("You must be signed in to add wine to your inventory.");
         }
 
+        BottleLocation? bottleLocation = null;
+        if (request.BottleLocationId.HasValue)
+        {
+            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            if (bottleLocation is null)
+            {
+                ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
+                return ValidationProblem(ModelState);
+            }
+        }
+
         var wineVintage = await _wineVintageRepository.GetOrCreateAsync(wine.Id, request.Vintage, cancellationToken);
 
         var quantity = request.Quantity;
@@ -597,7 +608,7 @@ public class WineInventoryController : Controller
                 Price = null,
                 IsDrunk = false,
                 DrunkAt = null,
-                BottleLocationId = null,
+                BottleLocationId = bottleLocation?.Id,
                 UserId = user.Id
             };
 
@@ -1401,6 +1412,8 @@ public class AddWineToInventoryRequest
 
     [Range(1, 12)]
     public int Quantity { get; set; } = 1;
+
+    public Guid? BottleLocationId { get; set; }
 }
 
 public class InventoryReferenceDataResponse

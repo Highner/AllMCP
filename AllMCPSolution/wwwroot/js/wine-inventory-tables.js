@@ -81,6 +81,7 @@ window.WineInventoryTables.initialize = function () {
             const addWineForm = addWinePopover?.querySelector('.inventory-add-form');
             const addWineSelect = addWinePopover?.querySelector('.inventory-add-wine');
             const addWineVintage = addWinePopover?.querySelector('.inventory-add-vintage');
+            const addWineLocation = addWinePopover?.querySelector('.inventory-add-location');
             const addWineQuantity = addWinePopover?.querySelector('.inventory-add-quantity');
             const addWineSummary = addWinePopover?.querySelector('.inventory-add-summary');
             const addWineHint = addWinePopover?.querySelector('.inventory-add-vintage-hint');
@@ -268,6 +269,10 @@ window.WineInventoryTables.initialize = function () {
                     showAddWineError('');
                 });
 
+                addWineLocation?.addEventListener('change', () => {
+                    showAddWineError('');
+                });
+
                 document.addEventListener('keydown', (event) => {
                     if (event.key === 'Escape' && addWineOverlay && !addWineOverlay.hidden) {
                         closeAddWinePopover();
@@ -290,9 +295,14 @@ window.WineInventoryTables.initialize = function () {
 
                 try {
                     await ensureWineOptionsLoaded();
+                    await referenceDataPromise;
                     populateWineSelect();
+                    populateLocationSelect(addWineLocation, addWineLocation?.value ?? '');
                     if (addWineVintage) {
                         addWineVintage.value = '';
+                    }
+                    if (addWineLocation) {
+                        addWineLocation.value = '';
                     }
                     if (addWineQuantity) {
                         addWineQuantity.value = '1';
@@ -325,6 +335,9 @@ window.WineInventoryTables.initialize = function () {
                 if (addWineVintage) {
                     addWineVintage.value = '';
                 }
+                if (addWineLocation) {
+                    addWineLocation.value = '';
+                }
                 if (addWineQuantity) {
                     addWineQuantity.value = '1';
                 }
@@ -342,6 +355,7 @@ window.WineInventoryTables.initialize = function () {
                 const wineId = addWineSelect?.value ?? '';
                 const vintageValue = Number(addWineVintage?.value ?? '');
                 const quantityValue = Number(addWineQuantity?.value ?? '1');
+                const locationValue = addWineLocation?.value ?? '';
 
                 if (!wineId) {
                     showAddWineError('Select a wine to add to your inventory.');
@@ -366,7 +380,8 @@ window.WineInventoryTables.initialize = function () {
                 const payload = {
                     wineId,
                     vintage: vintageValue,
-                    quantity: quantityValue
+                    quantity: quantityValue,
+                    bottleLocationId: locationValue || null
                 };
 
                 try {
@@ -1676,6 +1691,10 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function refreshLocationOptions() {
+                if (addWineLocation) {
+                    populateLocationSelect(addWineLocation, addWineLocation.value ?? '');
+                }
+
                 if (detailAddLocation) {
                     populateLocationSelect(detailAddLocation, detailAddLocation.value ?? '');
                 }

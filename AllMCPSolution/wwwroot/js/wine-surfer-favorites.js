@@ -153,6 +153,7 @@
         const form = popover.querySelector('.inventory-add-form');
         const select = popover.querySelector('.inventory-add-wine');
         const vintage = popover.querySelector('.inventory-add-vintage');
+        const locationSelect = popover.querySelector('.inventory-add-location');
         const quantity = popover.querySelector('.inventory-add-quantity');
         const summary = popover.querySelector('.inventory-add-summary');
         const hint = popover.querySelector('.inventory-add-vintage-hint');
@@ -164,6 +165,8 @@
 
         let wineOptions = [];
         let wineOptionsPromise = null;
+        let bottleLocations = [];
+        let bottleLocationsPromise = null;
         let modalLoading = false;
 
         const triggerSelector = '[data-add-wine-trigger="favorites"], [data-add-wine-trigger="surf-eye"]';
@@ -244,6 +247,10 @@
             showError('');
         });
 
+        locationSelect?.addEventListener('change', () => {
+            showError('');
+        });
+
         form?.addEventListener('submit', handleSubmit);
 
         function showStatus(message, state) {
@@ -278,6 +285,9 @@
             if (vintage) {
                 vintage.disabled = state;
             }
+            if (locationSelect) {
+                locationSelect.disabled = state;
+            }
             if (quantity) {
                 quantity.disabled = state;
             }
@@ -296,6 +306,11 @@
             setModalLoading(true);
             try {
                 await ensureWineOptions();
+                await ensureBottleLocations();
+                populateLocationSelect('');
+                if (locationSelect) {
+                    locationSelect.value = '';
+                }
                 const matchedOption = findBestWineOptionMatch(normalizedContext);
                 const selectedId = matchedOption?.id ?? '';
                 populateSelect(selectedId);
@@ -458,6 +473,9 @@
             if (vintage) {
                 vintage.value = '';
             }
+            if (locationSelect) {
+                locationSelect.value = '';
+            }
             if (quantity) {
                 quantity.value = '1';
             }
@@ -474,6 +492,7 @@
             const wineId = select?.value ?? '';
             const vintageValue = Number(vintage?.value ?? '');
             const quantityValue = Number(quantity?.value ?? '1');
+            const locationValue = locationSelect?.value ?? '';
 
             if (!wineId) {
                 showError('Select a wine to add to your inventory.');
@@ -499,7 +518,7 @@
                 setModalLoading(true);
                 await sendJson('/wine-manager/inventory', {
                     method: 'POST',
-                    body: JSON.stringify({ wineId, vintage: vintageValue, quantity: quantityValue })
+                    body: JSON.stringify({ wineId, vintage: vintageValue, quantity: quantityValue, bottleLocationId: locationValue || null })
                 });
                 closeModal();
                 const message = quantityValue === 1
@@ -543,6 +562,132 @@
             }
 
             await wineOptionsPromise;
+        }
+
+        async function ensureBottleLocations() {
+            if (!locationSelect) {
+                return;
+            }
+
+            if (bottleLocations.length > 0) {
+                populateLocationSelect(locationSelect.value ?? '');
+                return;
+            }
+
+            if (!bottleLocationsPromise) {
+                bottleLocationsPromise = sendJson('/wine-manager/options', { method: 'GET' })
+                    .then(data => {
+                        const locations = Array.isArray(data?.bottleLocations)
+                            ? data.bottleLocations
+                            : Array.isArray(data?.BottleLocations)
+                                ? data.BottleLocations
+                                : [];
+                        bottleLocations = sortLocations(locations);
+                    })
+                    .finally(() => {
+                        bottleLocationsPromise = null;
+                    });
+            }
+
+            await bottleLocationsPromise;
+            populateLocationSelect(locationSelect.value ?? '');
+        }
+
+        function populateLocationSelect(selectedId) {
+            if (!locationSelect) {
+                return;
+            }
+
+            const previous = selectedId ?? locationSelect.value ?? '';
+            locationSelect.innerHTML = '';
+
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'No location';
+            locationSelect.appendChild(placeholder);
+
+            bottleLocations.forEach(option => {
+                if (!option?.id) {
+                    return;
+                }
+
+                const element = document.createElement('option');
+                element.value = option.id;
+                const label = option.name ?? option.id;
+                const capacity = normalizeCapacityValue(option.capacity);
+                const suffix = capacity != null ? ` (${capacity} capacity)` : '';
+                element.textContent = `${label}${suffix}`;
+                locationSelect.appendChild(element);
+            });
+
+            if (previous) {
+                locationSelect.value = previous;
+            }
+        }
+
+        function sortLocations(list) {
+            const seen = new Map();
+            list.forEach(item => {
+                const normalized = normalizeLocation(item);
+                if (normalized?.id) {
+                    seen.set(normalized.id, normalized);
+                }
+            });
+
+            return Array.from(seen.values()).sort((a, b) => {
+                const nameA = (a?.name ?? '').toString().toLowerCase();
+                const nameB = (b?.name ?? '').toString().toLowerCase();
+                if (nameA === nameB) {
+                    const idA = (a?.id ?? '').toString();
+                    const idB = (b?.id ?? '').toString();
+                    return idA.localeCompare(idB);
+                }
+
+                return nameA.localeCompare(nameB);
+            });
+        }
+
+        function normalizeLocation(raw) {
+            if (!raw) {
+                return null;
+            }
+
+            const id = raw.id ?? raw.Id ?? raw.locationId ?? raw.LocationId;
+            if (!id) {
+                return null;
+            }
+
+            const nameValue = raw.name ?? raw.Name ?? raw.label ?? raw.Label ?? '';
+            const capacityValue = raw.capacity ?? raw.Capacity ?? raw.maxCapacity ?? raw.MaxCapacity;
+            const normalized = {
+                id: String(id),
+                name: typeof nameValue === 'string' ? nameValue : String(nameValue ?? id)
+            };
+
+            const normalizedCapacity = normalizeCapacityValue(capacityValue);
+            if (normalizedCapacity != null) {
+                normalized.capacity = normalizedCapacity;
+            }
+
+            return normalized;
+        }
+
+        function normalizeCapacityValue(value) {
+            if (value == null || value === '') {
+                return null;
+            }
+
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) {
+                return null;
+            }
+
+            const integer = Math.trunc(numeric);
+            if (!Number.isFinite(integer) || integer < 0) {
+                return null;
+            }
+
+            return integer;
         }
 
         function populateSelect(selectedId) {
