@@ -1303,7 +1303,7 @@
                                         var showWineSubApp = !string.IsNullOrWhiteSpace(wine.SubAppellationName) &&
                                             !string.Equals(wine.SubAppellationName, headline, StringComparison.OrdinalIgnoreCase);
                                         var isInInventory = inventoryWineIds.Contains(wine.WineId);
-                                        var addButtonLabel = isInInventory ? "In Inventory" : "Add to Inventory";
+                                        var addButtonLabel = isInInventory ? "In Inventory" : "add";
                                         var addButtonAriaLabel = isInInventory
                                             ? $"{wine.Name} is already in your inventory"
                                             : $"Add {wine.Name} to your inventory";
@@ -1325,7 +1325,7 @@
                                             </div>
                                             <div class="suggested-wine-item__actions">
                                                 <button type="button"
-                                                        class="sisterhood-button sisterhood-button--primary suggested-wine-item__action"
+                                                        class="sisterhood-button suggested-wine-item__action"
                                                         data-suggested-add-button
                                                         data-wine-id="@wine.WineId"
                                                         data-wine-name="@wine.Name"
@@ -1344,8 +1344,8 @@
                                                    href="@searchUrl"
                                                    target="_blank"
                                                    rel="noopener noreferrer"
-                                                   aria-label="Find @wine.Name on Wine-Searcher">
-                                                    Find on Wine-Searcher
+                                                   aria-label="Buy @wine.Name on Wine-Searcher">
+                                                    buy
                                                 </a>
                                             </div>
                                         </li>
