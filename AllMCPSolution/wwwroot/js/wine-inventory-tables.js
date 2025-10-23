@@ -1491,6 +1491,64 @@ window.WineInventoryTables.initialize = function () {
                 }
             }
 
+            function updateLocationCardsFromResponse(data) {
+                if (!locationList) {
+                    return;
+                }
+
+                const rawLocations = Array.isArray(data?.locations)
+                    ? data.locations
+                    : Array.isArray(data?.Locations)
+                        ? data.Locations
+                        : null;
+
+                if (!Array.isArray(rawLocations)) {
+                    return;
+                }
+
+                const normalizedLocations = rawLocations
+                    .map(normalizeLocationSummary)
+                    .filter(location => location && location.id);
+
+                if (normalizedLocations.length === 0) {
+                    updateLocationEmptyState();
+                    return;
+                }
+
+                const existingCards = new Map();
+                const cards = Array.from(locationList.querySelectorAll('[data-location-card]'));
+                cards.forEach(card => {
+                    const identifier = card.dataset.locationId;
+                    if (identifier) {
+                        existingCards.set(identifier, card);
+                    }
+                });
+
+                normalizedLocations.forEach(location => {
+                    const counts = {
+                        bottleCount: location.bottleCount,
+                        uniqueCount: location.uniqueWineCount,
+                        cellaredCount: location.cellaredBottleCount,
+                        drunkCount: location.drunkBottleCount
+                    };
+
+                    const card = existingCards.get(location.id);
+                    if (card) {
+                        updateLocationCardName(card, location.name ?? '');
+                        setLocationCapacity(card, location.capacity);
+                        setLocationDatasetCounts(card, counts);
+                        updateLocationCardCounts(card);
+                    } else {
+                        const newCard = createLocationCardElement(location, counts);
+                        if (newCard) {
+                            insertLocationCard(newCard);
+                        }
+                    }
+                });
+
+                updateLocationEmptyState();
+            }
+
             function setLocationMessage(message, variant = 'info') {
                 if (!locationMessage) {
                     return;
@@ -1705,6 +1763,41 @@ window.WineInventoryTables.initialize = function () {
                         populateLocationSelect(select, select.value ?? '');
                     });
                 }
+            }
+
+            function normalizeLocationSummary(raw) {
+                if (!raw) {
+                    return null;
+                }
+
+                const idValue = raw.id ?? raw.Id ?? raw.locationId ?? raw.LocationId;
+                if (!idValue) {
+                    return null;
+                }
+
+                const normalized = {
+                    id: String(idValue)
+                };
+
+                const nameValue = raw.name ?? raw.Name ?? '';
+                if (typeof nameValue === 'string' && nameValue.trim()) {
+                    normalized.name = nameValue;
+                } else if (nameValue != null) {
+                    normalized.name = String(nameValue);
+                }
+
+                const capacityValue = raw.capacity ?? raw.Capacity ?? null;
+                const normalizedCapacity = normalizeCapacityValue(capacityValue);
+                if (normalizedCapacity != null) {
+                    normalized.capacity = normalizedCapacity;
+                }
+
+                normalized.bottleCount = Number(raw.bottleCount ?? raw.BottleCount ?? 0) || 0;
+                normalized.uniqueWineCount = Number(raw.uniqueWineCount ?? raw.UniqueWineCount ?? 0) || 0;
+                normalized.cellaredBottleCount = Number(raw.cellaredBottleCount ?? raw.CellaredBottleCount ?? 0) || 0;
+                normalized.drunkBottleCount = Number(raw.drunkBottleCount ?? raw.DrunkBottleCount ?? 0) || 0;
+
+                return normalized;
             }
 
             function normalizeLocation(raw) {
@@ -2285,6 +2378,8 @@ window.WineInventoryTables.initialize = function () {
                         closeNotesPanel();
                     }
                 }
+
+                updateLocationCardsFromResponse(data);
 
                 if (shouldUpdateRow) {
                     updateSummaryRow(summary ?? null);
