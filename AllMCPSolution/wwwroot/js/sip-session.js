@@ -61,23 +61,30 @@
         const allCards = Array.from(document.querySelectorAll('[data-sip-session-bottle-card]'));
         const revealButtons = Array.from(document.querySelectorAll('[data-sip-session-reveal-button]'));
         const revealForms = Array.from(document.querySelectorAll('[data-sip-session-reveal-form]'));
+        const removeButtons = Array.from(document.querySelectorAll('[data-sip-session-remove-button]'));
+        const removeForms = Array.from(document.querySelectorAll('[data-sip-session-remove-form]'));
         const interactiveCards = allCards.filter(card => card.dataset.bottleInteractive !== 'false');
 
-        revealButtons.forEach(button => {
-            button.addEventListener('click', (event) => {
-                event.stopPropagation();
+        const attachBottleActionGuards = (buttons, forms) => {
+            buttons.forEach(button => {
+                button.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                });
+
+                button.addEventListener('keydown', (event) => {
+                    event.stopPropagation();
+                });
             });
 
-            button.addEventListener('keydown', (event) => {
-                event.stopPropagation();
+            forms.forEach(formElement => {
+                formElement.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                });
             });
-        });
+        };
 
-        revealForms.forEach(revealForm => {
-            revealForm.addEventListener('click', (event) => {
-                event.stopPropagation();
-            });
-        });
+        attachBottleActionGuards(revealButtons, revealForms);
+        attachBottleActionGuards(removeButtons, removeForms);
 
         if (!overlay || !popover || !form || interactiveCards.length === 0) {
             return;

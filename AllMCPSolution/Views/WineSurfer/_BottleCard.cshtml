@@ -24,10 +24,15 @@
         string guidValue when Guid.TryParse(guidValue, out var parsed) => parsed,
         _ => null
     };
+    string? returnUrl = ViewData["ReturnUrl"] as string;
     var isOwnedByCurrentUser = Model.IsOwnedByCurrentUser;
     var isRevealed = Model.IsRevealed;
     var label = string.IsNullOrWhiteSpace(Model.Label) ? Model.WineName : Model.Label;
     var trimmedLabel = string.IsNullOrWhiteSpace(label) ? "Bottle" : label.Trim();
+    var removeConfirmMessage = $"Remove {trimmedLabel} from this sip session?";
+    var removeConfirmAttribute = removeConfirmMessage
+        .Replace("\\", "\\\\")
+        .Replace("'", "\\'");
     var normalizedNote = string.IsNullOrWhiteSpace(Model.CurrentUserNote) ? string.Empty : Model.CurrentUserNote!.Trim();
     var noteDisplay = string.IsNullOrEmpty(normalizedNote)
         ? (isInteractive ? "No tasting note yet." : "Sign in to add your tasting note.")
@@ -59,6 +64,8 @@
         ? Model.CurrentUserScore.Value.ToString("0.0", CultureInfo.InvariantCulture)
         : string.Empty;
     var noteIdAttribute = Model.CurrentUserNoteId.HasValue ? Model.CurrentUserNoteId.Value.ToString() : string.Empty;
+    var canManageBottle = isOwnedByCurrentUser && sisterhoodId.HasValue && sipSessionId.HasValue;
+    var canRevealBottle = canManageBottle && !isRevealed;
 }
 <article class="bottle-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card"
          data-sip-session-bottle-card
@@ -104,21 +111,42 @@
     {
         <p class="bottle-prompt" data-bottle-prompt>@promptText</p>
     }
-    @if (isOwnedByCurrentUser && !isRevealed && sisterhoodId.HasValue && sipSessionId.HasValue)
+    @if (canManageBottle)
     {
         <footer class="wine-card__actions bottle-card-actions">
+            @if (canRevealBottle)
+            {
+                <form method="post"
+                      action="@Url.Action("RevealSipSessionBottle", "WineSurfer")"
+                      class="bottle-card-reveal-form"
+                      data-sip-session-reveal-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="SisterhoodId" value="@sisterhoodId.Value" />
+                    <input type="hidden" name="SipSessionId" value="@sipSessionId.Value" />
+                    <input type="hidden" name="BottleId" value="@Model.Id" />
+                    <button type="submit"
+                            class="sisterhood-button bottle-reveal-button"
+                            data-sip-session-reveal-button>
+                        Reveal bottle
+                    </button>
+                </form>
+            }
             <form method="post"
-                  action="@Url.Action("RevealSipSessionBottle", "WineSurfer")"
-                  class="bottle-card-reveal-form"
-                  data-sip-session-reveal-form>
+                  action="@Url.Action("RemoveSipSessionBottle", "WineSurfer")"
+                  data-sip-session-remove-form
+                  onsubmit="return confirm('@removeConfirmAttribute');">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="SisterhoodId" value="@sisterhoodId.Value" />
                 <input type="hidden" name="SipSessionId" value="@sipSessionId.Value" />
                 <input type="hidden" name="BottleId" value="@Model.Id" />
+                @if (!string.IsNullOrWhiteSpace(returnUrl))
+                {
+                    <input type="hidden" name="ReturnUrl" value="@returnUrl" />
+                }
                 <button type="submit"
-                        class="sisterhood-button bottle-reveal-button"
-                        data-sip-session-reveal-button>
-                    Reveal bottle
+                        class="sisterhood-button sisterhood-button--danger"
+                        data-sip-session-remove-button>
+                    Remove bottle
                 </button>
             </form>
         </footer>
