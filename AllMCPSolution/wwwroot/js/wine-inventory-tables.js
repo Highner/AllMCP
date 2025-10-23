@@ -3420,8 +3420,8 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 row.innerHTML = `
-                    <td></td>
-                    <td><input type="number" step="0.01" min="0" class="detail-price" value="${detail.price ?? detail.Price ?? ''}" placeholder="0.00" /></td>
+                    <td class="detail-location-cell"></td>
+                    <td class="detail-price-cell"><input type="number" step="0.01" min="0" class="detail-price" value="${detail.price ?? detail.Price ?? ''}" placeholder="0.00" /></td>
                     <td class="detail-average">${formatScore(detail.averageScore ?? detail.AverageScore)}</td>
                     <td class="detail-enjoyed-at">${escapeHtml(enjoyedAtDisplay)}</td>
                     <td class="actions">
@@ -3430,11 +3430,11 @@ window.WineInventoryTables.initialize = function () {
                         <button type="button" class="crud-table__action-button secondary delete">Remove</button>
                     </td>`;
 
-                const locationCell = row.children[0];
+                const locationCell = row.querySelector('.detail-location-cell');
                 const locationSelect = document.createElement('select');
                 locationSelect.className = 'detail-location';
                 populateLocationSelect(locationSelect, detail.bottleLocationId ?? detail.BottleLocationId ?? '');
-                locationCell.appendChild(locationSelect);
+                locationCell?.appendChild(locationSelect);
 
                 const drinkButton = row.querySelector('.drink-bottle-trigger');
                 const saveButton = row.querySelector('.save');
