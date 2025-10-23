@@ -39,6 +39,22 @@
     };
 
     document.addEventListener('DOMContentLoaded', () => {
+        const suggestFoodForm = document.querySelector('[data-suggest-food-form]');
+        if (suggestFoodForm) {
+            const suggestFoodButton = suggestFoodForm.querySelector('[data-suggest-food-button]');
+            if (suggestFoodButton) {
+                suggestFoodForm.addEventListener('submit', () => {
+                    if (suggestFoodButton.disabled || suggestFoodButton.dataset.state === 'loading') {
+                        return;
+                    }
+
+                    suggestFoodButton.disabled = true;
+                    suggestFoodButton.dataset.state = 'loading';
+                    suggestFoodButton.setAttribute('aria-busy', 'true');
+                });
+            }
+        }
+
         const overlay = document.getElementById('drink-bottle-overlay');
         const popover = document.getElementById('drink-bottle-popover');
         const form = popover?.querySelector('.drink-bottle-form');
