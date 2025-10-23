@@ -363,6 +363,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
 
         IReadOnlyList<WineSurferSisterhoodOption> manageableSisterhoods = Array.Empty<WineSurferSisterhoodOption>();
         IReadOnlyList<WineSurferSipSessionBottle> favoriteBottles = Array.Empty<WineSurferSipSessionBottle>();
+        IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
         if (currentUserId.HasValue)
         {
             var adminSisterhoods = await _sisterhoodRepository.GetAdminForUserAsync(currentUserId.Value, cancellationToken);
@@ -383,7 +384,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
                     .ToList();
             }
 
-            var suggestedAppellations = await GetSuggestedAppellationsForUserAsync(currentUserId.Value, cancellationToken);
+            suggestedAppellations = await GetSuggestedAppellationsForUserAsync(currentUserId.Value, cancellationToken);
             if (suggestedAppellations.Count > 0)
             {
                 var suggestionHighlights = new List<MapHighlightPoint>(suggestedAppellations.Count);
@@ -422,7 +423,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
             upcomingSipSessions,
             sentInvitationNotifications,
             manageableSisterhoods,
-            favoriteBottles);
+            favoriteBottles,
+            suggestedAppellations);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
     }
@@ -5575,7 +5577,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 }
             }
 
-            var wineResults = wines.Count == 0 ? Array.Empty<WineSurferSuggestedWine>() : wines;
+            var wineResults = wines.Count == 0 ? Array.Empty<WineSurferSuggestedWine>() : wines.ToArray();
 
             var reason = NormalizeSuggestedReason(suggestion.Reason);
 
@@ -6014,7 +6016,10 @@ Each suggestion must be a short dish description followed by a concise reason, a
                         TryGetTrimmedString(wineElement, "subAppellation") ?? TryGetTrimmedString(wineElement, "sub_appellation"),
                         TryGetTrimmedString(wineElement, "variety"),
                         TryGetTrimmedString(wineElement, "color"),
-                        TryGetTrimmedString(wineElement, "vintage"),
+                        TryGetTrimmedString(wineElement, "vintage")
+                            ?? TryGetTrimmedString(wineElement, "vintageYear")
+                            ?? TryGetTrimmedString(wineElement, "vintage_year")
+                            ?? TryGetTrimmedString(wineElement, "year"),
                         alignmentScore,
                         TryGetTrimmedString(wineElement, "alignmentSummary") ?? "",
                         confidence,
@@ -6111,13 +6116,35 @@ Each suggestion must be a short dish description followed by a concise reason, a
 
     private static string? TryGetTrimmedString(JsonElement element, string propertyName)
     {
-        if (element.TryGetProperty(propertyName, out var property))
+        if (!element.TryGetProperty(propertyName, out var property))
         {
-            if (property.ValueKind == JsonValueKind.String)
+            return null;
+        }
+
+        if (property.ValueKind == JsonValueKind.String)
+        {
+            var value = property.GetString();
+            if (string.IsNullOrWhiteSpace(value))
             {
-                var value = property.GetString();
-                return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+                return null;
             }
+
+            var trimmed = value.Trim();
+            return string.Equals(trimmed, "null", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : trimmed;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number)
+        {
+            if (property.TryGetInt64(out var integer))
+            {
+                return integer.ToString(CultureInfo.InvariantCulture);
+            }
+
+            var raw = property.GetRawText();
+            var trimmedRaw = raw.Trim();
+            return trimmedRaw.Length == 0 ? null : trimmedRaw;
         }
 
         return null;
@@ -6599,7 +6626,8 @@ public record WineSurferLandingViewModel(
     IReadOnlyList<WineSurferUpcomingSipSession> UpcomingSipSessions,
     IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
     IReadOnlyList<WineSurferSisterhoodOption> ManageableSisterhoods,
-    IReadOnlyList<WineSurferSipSessionBottle> FavoriteBottles);
+    IReadOnlyList<WineSurferSipSessionBottle> FavoriteBottles,
+    IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations);
 
 public record WineSurferUpcomingSipSession(
     Guid SisterhoodId,
