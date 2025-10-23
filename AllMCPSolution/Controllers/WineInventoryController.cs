@@ -34,7 +34,7 @@ public class WineInventoryController : Controller
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IWineImportService _wineImportService;
     private readonly IChatGptService _chatGptService;
-    private const string WineSurferSystemPrompt = "You are Wine Surfer, an expert wine research assistant. Respond ONLY with minified JSON matching {\"wines\":[{\"name\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":\"...\"}]}. List up to six likely matches, order them by relevance, and use null for any field you cannot determine.");
+    private const string WineSurferSystemPrompt = "You are Wine Surfer, an expert wine research assistant. Respond ONLY with minified JSON matching {\"wines\":[{\"name\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":\"...\"}]}. List up to six likely matches, order them by relevance, and use null for any field you cannot determine.";
 
     public WineInventoryController(
         IBottleRepository bottleRepository,
