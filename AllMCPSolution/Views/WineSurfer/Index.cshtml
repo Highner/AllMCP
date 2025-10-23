@@ -876,6 +876,73 @@
             text-transform: uppercase;
         }
 
+        .taste-profile-summary {
+            width: min(100%, var(--wine-surfer-card-max-width));
+            margin: 24px 0 48px;
+        }
+
+        .taste-profile-summary-card {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 24px;
+            background: linear-gradient(135deg, rgba(89, 20, 38, 0.65), rgba(28, 10, 18, 0.85));
+            border: 1px solid rgba(244, 241, 234, 0.18);
+            border-radius: 24px;
+            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.35);
+        }
+
+        .taste-profile-summary-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .taste-profile-summary-heading {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .taste-profile-summary-action {
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .taste-profile-summary-caption {
+            margin: 0;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.72);
+        }
+
+        .taste-profile-summary-text {
+            margin: 0;
+            font-size: 17px;
+            line-height: 1.6;
+            color: #f4f1ea;
+        }
+
+        .taste-profile-summary-empty {
+            margin: 0;
+            font-size: 14px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        .taste-profile-summary-empty a {
+            color: inherit;
+        }
+
+        .taste-profile-summary-empty a:hover,
+        .taste-profile-summary-empty a:focus-visible {
+            text-decoration: underline;
+        }
+
         .upcoming-sessions {
             display: flex;
             flex-direction: column;
@@ -1144,6 +1211,23 @@
                 letter-spacing: 4px;
             }
 
+            .taste-profile-summary {
+                margin: 18px 0 36px;
+            }
+
+            .taste-profile-summary-card {
+                padding: 20px;
+            }
+
+            .taste-profile-summary-text {
+                font-size: 15px;
+            }
+
+            .taste-profile-summary-action {
+                width: 100%;
+                justify-content: center;
+            }
+
             .highlight-label {
                 font-size: 9px;
             }
@@ -1191,6 +1275,9 @@
         .ToList();
     var hasSuggestedWines = suggestionsWithWines.Count > 0;
     var createSipSessionUrl = Url.Action("PlanSipSession", "WineSurfer") ?? "/wine-surfer/sessions/create";
+    var tasteProfileSummary = Model.CurrentUser?.TasteProfileSummary?.Trim();
+    var hasTasteProfileSummary = !string.IsNullOrWhiteSpace(tasteProfileSummary);
+    var tasteProfileUrl = Url.Action("TasteProfile", "WineSurfer") ?? "/wine-surfer/taste-profile";
 }
 <body class="wine-app @bodyClass">
     <div class="page-content">
@@ -1200,6 +1287,32 @@
             {
                 <p class="auth-callout" role="status">Sign in from the menu to view your tasting history and personalize region scores.</p>
             }
+            <section class="taste-profile-summary" aria-label="Taste profile summary">
+                <div class="taste-profile-summary-card wine-surfer-card">
+                    <div class="taste-profile-summary-header">
+                        <div class="taste-profile-summary-heading">
+                            <h2 class="section-title">Taste profile</h2>
+                            <p class="taste-profile-summary-caption">Your palate at a glance</p>
+                        </div>
+                        @if (isAuthenticated)
+                        {
+                            <a class="sisterhood-button taste-profile-summary-action" href="@tasteProfileUrl">View taste profile</a>
+                        }
+                    </div>
+                    @if (!isAuthenticated)
+                    {
+                        <p class="taste-profile-summary-empty" role="status">Sign in to build your taste profile summary and unlock personalised surfing.</p>
+                    }
+                    else if (hasTasteProfileSummary)
+                    {
+                        <p class="taste-profile-summary-text">@tasteProfileSummary</p>
+                    }
+                    else
+                    {
+                        <p class="taste-profile-summary-empty" role="status">Add a taste profile summary on the <a href="@tasteProfileUrl">Taste Profile page</a> to guide your next recommendations.</p>
+                    }
+                </div>
+            </section>
             <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
                 <div class="upcoming-sessions-header">
                     <h2 class="section-title">Upcoming sip sessions</h2>
