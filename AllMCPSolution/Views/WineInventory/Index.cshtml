@@ -203,7 +203,7 @@
         <form method="get" class="filters">
             <label>
                 Status
-                <select name="status">
+                <select name="status" data-default-value="all">
                     @foreach (var option in Model.StatusOptions)
                     {
                         var isSelected = string.Equals(option.Value, Model.Status, StringComparison.OrdinalIgnoreCase) ||
@@ -214,7 +214,7 @@
             </label>
             <label>
                 Color
-                <select name="color">
+                <select name="color" data-default-value="">
                     @foreach (var option in Model.ColorOptions)
                     {
                         var currentColor = Model.Color ?? string.Empty;
@@ -225,11 +225,12 @@
             </label>
             <label>
                 Search
-                <input type="text" name="search" value="@Model.Search" placeholder="Wine, appellation, vintage" />
+                <input type="text" name="search" value="@Model.Search" placeholder="Wine, appellation, vintage" data-default-value="" />
             </label>
-            <input type="hidden" name="sortField" value="@Model.SortField" />
-            <input type="hidden" name="sortDir" value="@Model.SortDirection" />
+            <input type="hidden" name="sortField" value="@Model.SortField" data-default-value="wine" />
+            <input type="hidden" name="sortDir" value="@Model.SortDirection" data-default-value="asc" />
             <button type="submit">Apply</button>
+            <button type="button" class="secondary filters__clear-button" data-clear-filters>Clear filters</button>
         </form>
 
         @if (!hasBottles)

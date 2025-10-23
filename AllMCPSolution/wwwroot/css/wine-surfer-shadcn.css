@@ -995,6 +995,17 @@ textarea:focus {
     padding: 10px 16px;
 }
 
+.filters button.secondary {
+    background: transparent;
+    border: 1px solid hsla(var(--border) / 0.45);
+    color: hsl(var(--foreground));
+}
+
+.filters button.secondary:hover,
+.filters button.secondary:focus-visible {
+    background: hsla(var(--accent) / 0.18);
+}
+
 .filters button:hover,
 .details-controls button:hover,
 .details-table button:hover,

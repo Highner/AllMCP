@@ -6,6 +6,34 @@ window.WineInventoryTables.initialize = function () {
 
             window.WineInventoryTables.__initialized = true;
 
+            const filtersForm = document.querySelector('form.filters');
+            const clearFiltersButton = filtersForm?.querySelector('[data-clear-filters]');
+
+            if (filtersForm && clearFiltersButton) {
+                clearFiltersButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const controls = Array.from(filtersForm.querySelectorAll('[data-default-value]'));
+
+                    controls.forEach((control) => {
+                        const defaultValue = control.getAttribute('data-default-value');
+
+                        if (defaultValue == null) {
+                            return;
+                        }
+
+                        if (control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement) {
+                            control.value = defaultValue;
+                        }
+                    });
+
+                    if (typeof filtersForm.requestSubmit === 'function') {
+                        filtersForm.requestSubmit();
+                    } else {
+                        filtersForm.submit();
+                    }
+                });
+            }
+
             const inventoryTable = document.getElementById('inventory-table');
             const detailsTable = document.getElementById('details-table');
             const detailsBody = detailsTable?.querySelector('#details-table-body');
