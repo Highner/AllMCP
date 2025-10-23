@@ -105,6 +105,9 @@ public class WineInventoryController : Controller
         var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
         var normalizedSortField = string.IsNullOrWhiteSpace(sortField) ? "wine" : sortField.Trim().ToLowerInvariant();
         var normalizedSortDir = string.IsNullOrWhiteSpace(sortDir) ? "asc" : sortDir.Trim().ToLowerInvariant();
+        var hasActiveFilters = !string.Equals(normalizedStatus, "all", StringComparison.Ordinal)
+            || filterColor.HasValue
+            || !string.IsNullOrWhiteSpace(normalizedSearch);
 
         IEnumerable<Bottle> query = bottles;
 
@@ -130,28 +133,31 @@ public class WineInventoryController : Controller
         }
 
         var descending = string.Equals(normalizedSortDir, "desc", StringComparison.OrdinalIgnoreCase);
+        var filteredBottles = query.ToList();
+        var sortSource = filteredBottles.AsEnumerable();
+
         IOrderedEnumerable<Bottle> ordered = normalizedSortField switch
         {
             "appellation" => descending
-                ? query.OrderByDescending(b => b.WineVintage.Wine.SubAppellation?.Appellation?.Name)
+                ? sortSource.OrderByDescending(b => b.WineVintage.Wine.SubAppellation?.Appellation?.Name)
                     .ThenByDescending(b => b.WineVintage.Wine.SubAppellation?.Name)
-                : query.OrderBy(b => b.WineVintage.Wine.SubAppellation?.Appellation?.Name)
+                : sortSource.OrderBy(b => b.WineVintage.Wine.SubAppellation?.Appellation?.Name)
                     .ThenBy(b => b.WineVintage.Wine.SubAppellation?.Name),
             "vintage" => descending
-                ? query.OrderByDescending(b => b.WineVintage.Vintage)
-                : query.OrderBy(b => b.WineVintage.Vintage),
+                ? sortSource.OrderByDescending(b => b.WineVintage.Vintage)
+                : sortSource.OrderBy(b => b.WineVintage.Vintage),
             "color" => descending
-                ? query.OrderByDescending(b => b.WineVintage.Wine.Color)
-                : query.OrderBy(b => b.WineVintage.Wine.Color),
+                ? sortSource.OrderByDescending(b => b.WineVintage.Wine.Color)
+                : sortSource.OrderBy(b => b.WineVintage.Wine.Color),
             "status" => descending
-                ? query.OrderByDescending(b => b.IsDrunk)
-                : query.OrderBy(b => b.IsDrunk),
+                ? sortSource.OrderByDescending(b => b.IsDrunk)
+                : sortSource.OrderBy(b => b.IsDrunk),
             "score" => descending
-                ? query.OrderByDescending(b => GetAverageScore(b.WineVintageId))
-                : query.OrderBy(b => GetAverageScore(b.WineVintageId)),
+                ? sortSource.OrderByDescending(b => GetAverageScore(b.WineVintageId))
+                : sortSource.OrderBy(b => GetAverageScore(b.WineVintageId)),
             _ => descending
-                ? query.OrderByDescending(b => b.WineVintage.Wine.Name)
-                : query.OrderBy(b => b.WineVintage.Wine.Name)
+                ? sortSource.OrderByDescending(b => b.WineVintage.Wine.Name)
+                : sortSource.OrderBy(b => b.WineVintage.Wine.Name)
         };
 
         var orderedWithTies = ordered
@@ -200,6 +206,9 @@ public class WineInventoryController : Controller
             .Where(location => location.UserId == currentUserId)
             .OrderBy(location => location.Name)
             .ToList();
+        var userLocationIds = userLocations
+            .Select(location => location.Id)
+            .ToHashSet();
 
         var bottlesByLocation = bottles
             .Where(bottle => bottle.BottleLocationId.HasValue)
@@ -248,6 +257,14 @@ public class WineInventoryController : Controller
             })
             .ToList();
 
+        var highlightedLocationIds = hasActiveFilters
+            ? filteredBottles
+                .Where(bottle => bottle.BottleLocationId.HasValue
+                    && userLocationIds.Contains(bottle.BottleLocationId.Value))
+                .Select(bottle => bottle.BottleLocationId!.Value)
+                .ToHashSet()
+            : new HashSet<Guid>();
+
         var viewModel = new WineInventoryViewModel
         {
             Status = normalizedStatus,
@@ -258,6 +275,8 @@ public class WineInventoryController : Controller
             Bottles = items,
             CurrentUserId = currentUserId,
             Locations = locationSummaries,
+            HasActiveFilters = hasActiveFilters,
+            HighlightedLocationIds = highlightedLocationIds,
             StatusOptions = new List<FilterOption>
             {
                 new("all", "All Bottles"),
@@ -1269,6 +1288,8 @@ public class WineInventoryViewModel
     public IReadOnlyList<WineInventoryBottleViewModel> Bottles { get; set; } = Array.Empty<WineInventoryBottleViewModel>();
     public Guid CurrentUserId { get; set; }
     public IReadOnlyList<WineInventoryLocationViewModel> Locations { get; set; } = Array.Empty<WineInventoryLocationViewModel>();
+    public bool HasActiveFilters { get; set; }
+    public IReadOnlySet<Guid> HighlightedLocationIds { get; set; } = new HashSet<Guid>();
     public IReadOnlyList<FilterOption> StatusOptions { get; set; } = Array.Empty<FilterOption>();
     public IReadOnlyList<FilterOption> ColorOptions { get; set; } = Array.Empty<FilterOption>();
 }
