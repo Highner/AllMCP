@@ -371,7 +371,7 @@ a.wine-card:focus {
 .sip-session-bottles {
     margin: 8px 0 0;
     padding: 12px 16px;
-    border-radius: 12px;
+    border-radius: 18px;
     border: 1px solid rgba(244, 241, 234, 0.08);
     background: rgba(244, 241, 234, 0.05);
     display: flex;
