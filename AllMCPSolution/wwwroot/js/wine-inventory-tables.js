@@ -706,15 +706,22 @@ window.WineInventoryTables.initialize = function () {
                 closeWineResults();
             }
 
-            function setSelectedWine(option) {
+            function setSelectedWine(option, { preserveSearchValue = false } = {}) {
                 selectedWineOption = option ?? null;
                 if (addWineHiddenInput) {
                     addWineHiddenInput.value = option?.id ?? '';
                 }
                 if (addWineSearch) {
-                    const label = option?.label ?? option?.name ?? '';
-                    addWineSearch.value = label;
-                    currentWineQuery = label.trim();
+                    if (option) {
+                        const label = option?.label ?? option?.name ?? '';
+                        addWineSearch.value = label;
+                        currentWineQuery = label.trim();
+                    } else if (preserveSearchValue) {
+                        currentWineQuery = addWineSearch.value.trim();
+                    } else {
+                        addWineSearch.value = '';
+                        currentWineQuery = '';
+                    }
                 }
                 updateSelectedWineSummary(option);
                 updateVintageHint(option);
@@ -734,10 +741,7 @@ window.WineInventoryTables.initialize = function () {
                 currentWineQuery = value.trim();
 
                 if (!valueMatchesSelected(value)) {
-                    setSelectedWine(null);
-                    if (addWineHiddenInput) {
-                        addWineHiddenInput.value = '';
-                    }
+                    setSelectedWine(null, { preserveSearchValue: true });
                 }
 
                 wineSearchError = '';

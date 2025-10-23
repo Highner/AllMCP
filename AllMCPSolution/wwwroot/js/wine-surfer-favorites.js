@@ -364,7 +364,7 @@
                 }
 
                 if (!matchedOption) {
-                    setSelectedWine(null);
+                    setSelectedWine(null, { preserveSearchValue: true });
                 }
 
                 if (normalizedContext?.source === 'surf-eye') {
@@ -872,15 +872,22 @@
             closeWineResults();
         }
 
-        function setSelectedWine(option) {
+        function setSelectedWine(option, { preserveSearchValue = false } = {}) {
             selectedWineOption = option ?? null;
             if (wineIdInput) {
                 wineIdInput.value = option?.id ?? '';
             }
             if (wineSearch) {
-                const label = option?.label ?? option?.name ?? '';
-                wineSearch.value = label;
-                currentWineQuery = label.trim();
+                if (option) {
+                    const label = option?.label ?? option?.name ?? '';
+                    wineSearch.value = label;
+                    currentWineQuery = label.trim();
+                } else if (preserveSearchValue) {
+                    currentWineQuery = wineSearch.value.trim();
+                } else {
+                    wineSearch.value = '';
+                    currentWineQuery = '';
+                }
             }
             updateSummary(option);
             updateHint(option);
@@ -900,10 +907,7 @@
             currentWineQuery = value.trim();
 
             if (!valueMatchesSelected(value)) {
-                setSelectedWine(null);
-                if (wineIdInput) {
-                    wineIdInput.value = '';
-                }
+                setSelectedWine(null, { preserveSearchValue: true });
             }
 
             wineSearchError = '';
