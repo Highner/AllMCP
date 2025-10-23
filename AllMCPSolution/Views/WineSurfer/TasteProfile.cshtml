@@ -5,12 +5,13 @@
     var requestPath = Context.Request.Path.HasValue ? Context.Request.Path.Value : string.Empty;
     var requestQuery = Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value : string.Empty;
     var currentLocation = string.Concat(requestPath, requestQuery);
-    var topBarModel = WineSurferTopBarModel.CreateFromSisterhoodData(
-        currentLocation,
-        Model.IncomingInvitations,
-        Model.SentInvitationNotifications,
-        displayName: Model.CurrentUser?.DisplayName,
-        isAdmin: Model.CurrentUser?.IsAdmin == true);
+    var topBarModel = (ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel)
+        ?? WineSurferTopBarModel.CreateFromSisterhoodData(
+            currentLocation,
+            Model.IncomingInvitations,
+            Model.SentInvitationNotifications,
+            displayName: Model.CurrentUser?.DisplayName,
+            isAdmin: Model.CurrentUser?.IsAdmin == true);
     var tasteProfileSummary = Model.TasteProfileSummary ?? string.Empty;
     var summaryMaxLength = Model.SummaryMaxLength;
     var tasteProfile = Model.TasteProfile ?? string.Empty;

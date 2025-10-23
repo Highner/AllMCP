@@ -902,12 +902,13 @@
     var requestPath = Context.Request.Path.HasValue ? Context.Request.Path.Value : string.Empty;
     var requestQuery = Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value : string.Empty;
     var currentLocation = string.Concat(requestPath, requestQuery);
-    var topBarModel = WineSurferTopBarModel.CreateFromSisterhoodData(
-        currentLocation,
-        Model.IncomingInvitations,
-        Model.SentInvitationNotifications,
-        displayName: Model.CurrentUser?.DisplayName,
-        isAdmin: Model.CurrentUser?.IsAdmin == true);
+    var topBarModel = (ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel)
+        ?? WineSurferTopBarModel.CreateFromSisterhoodData(
+            currentLocation,
+            Model.IncomingInvitations,
+            Model.SentInvitationNotifications,
+            displayName: Model.CurrentUser?.DisplayName,
+            isAdmin: Model.CurrentUser?.IsAdmin == true);
     ViewData["WineSurferPageTitle"] = "Wine Surfer";
     var manageableSisterhoods = Model.ManageableSisterhoods ?? Array.Empty<WineSurferSisterhoodOption>();
     var canCreateSipSession = manageableSisterhoods.Count > 0;

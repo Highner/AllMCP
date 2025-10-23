@@ -161,6 +161,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
         "image/webp"
     };
 
+    private readonly IWineSurferTopBarService _topBarService;
+
     public WineSurferController(
         IWineRepository wineRepository,
         IUserRepository userRepository,
@@ -174,7 +176,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
         IRegionRepository regionRepository,
         IAppellationRepository appellationRepository,
         ISubAppellationRepository subAppellationRepository,
-        IChatGptService chatGptService)
+        IChatGptService chatGptService,
+        IWineSurferTopBarService topBarService)
     {
         _wineRepository = wineRepository;
         _userRepository = userRepository;
@@ -189,11 +192,15 @@ Each suggestion must be a short dish description followed by a concise reason, a
         _appellationRepository = appellationRepository;
         _subAppellationRepository = subAppellationRepository;
         _chatGptService = chatGptService;
+        _topBarService = topBarService;
     }
 
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
+        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
+        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
+
         var wines = await _wineRepository.GetAllAsync(cancellationToken);
 
         var highlightPoints = wines
@@ -376,6 +383,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
     [HttpGet("taste-profile")]
     public async Task<IActionResult> TasteProfile(CancellationToken cancellationToken)
     {
+        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
+        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
         Response.ContentType = "text/html; charset=utf-8";
 
         var now = DateTime.UtcNow;
@@ -662,6 +671,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
     [HttpGet("surf-eye")]
     public async Task<IActionResult> SurfEye(CancellationToken cancellationToken)
     {
+        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
+        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
         Response.ContentType = "text/html; charset=utf-8";
 
         var identityName = User?.Identity?.Name;
@@ -804,6 +815,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
     [HttpGet("terroir")]
     public async Task<IActionResult> ManageTerroir(CancellationToken cancellationToken)
     {
+        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
+        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
         Response.ContentType = "text/html; charset=utf-8";
 
         var now = DateTime.UtcNow;
@@ -1454,6 +1467,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
     [HttpGet("sessions/{sipSessionId:guid}")]
     public async Task<IActionResult> SipSession(Guid sipSessionId, CancellationToken cancellationToken)
     {
+        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
+        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
         var session = await _sipSessionRepository.GetByIdAsync(sipSessionId, cancellationToken);
         if (session is null)
         {
@@ -1941,6 +1956,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
     [HttpGet("sisterhoods")]
     public async Task<IActionResult> Sisterhoods(CancellationToken cancellationToken)
     {
+        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
+        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
         Response.ContentType = "text/html; charset=utf-8";
 
         var statusMessage = TempData["SisterhoodStatus"] as string;
