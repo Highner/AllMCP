@@ -3,6 +3,7 @@
 @using AllMCPSolution.Models
 @using Microsoft.AspNetCore.WebUtilities
 @using System.Collections.Generic
+@using System.Globalization
 @using System.Linq
 @{
     Layout = null;
@@ -321,6 +322,46 @@
                         statusLabel = "No bottles stored here yet.";
                         capacityLabel = string.Empty;
                     }
+                    var fillIndicatorClass = hasCapacity ? string.Empty : " location-fill-indicator--no-capacity";
+                    int fillPercentValue;
+                    if (hasCapacity)
+                    {
+                        var baseRatio = capacityValue <= 0
+                            ? (location.BottleCount > 0 ? 1d : 0d)
+                            : (double)location.BottleCount / capacityValue;
+                        var clampedRatio = Math.Max(0d, Math.Min(1d, baseRatio));
+                        fillPercentValue = (int)Math.Round(clampedRatio * 100, MidpointRounding.AwayFromZero);
+                        if (remainingCapacity < 0)
+                        {
+                            fillIndicatorClass += " location-fill-indicator--over";
+                        }
+                    }
+                    else
+                    {
+                        fillPercentValue = location.BottleCount > 0 ? 100 : 0;
+                    }
+
+                    var fillPercentStyle = hasCapacity
+                        ? $"{Math.Max(0, Math.Min(100, fillPercentValue)).ToString(CultureInfo.InvariantCulture)}%"
+                        : "0%";
+                    var fillPercentLabel = hasCapacity
+                        ? $"{fillPercentValue}% full"
+                        : "Capacity not set";
+                    string fillSummaryLabel;
+                    if (hasCapacity)
+                    {
+                        fillSummaryLabel = remainingCapacity > 0
+                            ? $"{remainingCapacity} open"
+                            : remainingCapacity == 0
+                                ? "At capacity"
+                                : $"Over by {Math.Abs(remainingCapacity)}";
+                    }
+                    else
+                    {
+                        fillSummaryLabel = location.BottleCount > 0
+                            ? $"{location.CellaredBottleCount} cellared · {location.DrunkBottleCount} enjoyed"
+                            : "Add a capacity to track fill";
+                    }
                     <article class="wine-card wine-surface wine-surface-border wine-card-hover location-card@highlightClass"
                              data-location-card
                              data-location-id="@location.Id"
@@ -341,11 +382,22 @@
                                     </p>
                                 </div>
                                 <div class="wine-card__actions location-card-actions">
-                                    <button type="button" class="sisterhood-button" data-location-edit>Rename</button>
+                                    <button type="button" class="sisterhood-button" data-location-edit>Edit</button>
                                     <button type="button" class="sisterhood-button sisterhood-button--ghost-danger" data-location-delete>Delete</button>
                                 </div>
                             </div>
-                            <p class="wine-card__description location-card-description" data-location-description>@statusLabel</p>
+                            <div class="location-card-status">
+                                <div class="location-fill-indicator@fillIndicatorClass" data-location-fill-indicator>
+                                    <div class="location-fill-track">
+                                        <div class="location-fill-bar" data-location-fill-bar style="width: @fillPercentStyle;"></div>
+                                    </div>
+                                    <div class="location-fill-meta">
+                                        <span class="location-fill-percent" data-location-fill-percent>@fillPercentLabel</span>
+                                        <span class="location-fill-remaining" data-location-fill-remaining>@fillSummaryLabel</span>
+                                    </div>
+                                </div>
+                                <p class="wine-card__description location-card-description visually-hidden" data-location-description>@statusLabel</p>
+                            </div>
                         </div>
                         <form class="location-edit-form" data-location-edit-form hidden>
                             <label class="location-edit-label">
@@ -402,11 +454,22 @@
                                 </p>
                             </div>
                             <div class="wine-card__actions location-card-actions">
-                                <button type="button" class="sisterhood-button" data-location-edit>Rename</button>
+                                <button type="button" class="sisterhood-button" data-location-edit>Edit</button>
                                 <button type="button" class="sisterhood-button sisterhood-button--ghost-danger" data-location-delete>Delete</button>
                             </div>
                         </div>
-                        <p class="wine-card__description location-card-description" data-location-description></p>
+                        <div class="location-card-status">
+                            <div class="location-fill-indicator location-fill-indicator--no-capacity" data-location-fill-indicator>
+                                <div class="location-fill-track">
+                                    <div class="location-fill-bar" data-location-fill-bar style="width: 0%;"></div>
+                                </div>
+                                <div class="location-fill-meta">
+                                    <span class="location-fill-percent" data-location-fill-percent>Capacity not set</span>
+                                    <span class="location-fill-remaining" data-location-fill-remaining>Add a capacity to track fill</span>
+                                </div>
+                            </div>
+                            <p class="wine-card__description location-card-description visually-hidden" data-location-description></p>
+                        </div>
                     </div>
                     <form class="location-edit-form" data-location-edit-form hidden>
                         <label class="location-edit-label">

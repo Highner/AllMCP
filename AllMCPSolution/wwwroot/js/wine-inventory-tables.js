@@ -2137,6 +2137,68 @@ window.WineInventoryTables.initialize = function () {
                     capacityTarget.textContent = capacityLabel;
                 }
 
+                const fillIndicator = card.querySelector('[data-location-fill-indicator]');
+                if (fillIndicator) {
+                    const fillBar = fillIndicator.querySelector('[data-location-fill-bar]');
+                    const percentTarget = fillIndicator.querySelector('[data-location-fill-percent]');
+                    const remainingTarget = fillIndicator.querySelector('[data-location-fill-remaining]');
+                    const hasCapacity = capacity != null;
+
+                    fillIndicator.classList.toggle('location-fill-indicator--no-capacity', !hasCapacity);
+
+                    if (hasCapacity) {
+                        const numericCapacity = Number(capacity) || 0;
+                        const baseRatio = numericCapacity <= 0
+                            ? (bottleCount > 0 ? 1 : 0)
+                            : bottleCount / numericCapacity;
+                        const clampedRatio = Math.min(Math.max(baseRatio, 0), 1);
+                        const percent = Math.round(clampedRatio * 100);
+
+                        if (fillBar) {
+                            fillBar.style.width = `${percent}%`;
+                        }
+
+                        if (percentTarget) {
+                            percentTarget.textContent = `${percent}% full`;
+                        }
+
+                        const remaining = numericCapacity - bottleCount;
+                        let fillSummary;
+                        if (remaining > 0) {
+                            fillSummary = `${remaining} open`;
+                        } else if (remaining === 0) {
+                            fillSummary = 'At capacity';
+                        } else {
+                            const over = Math.abs(remaining);
+                            fillSummary = `Over by ${over}`;
+                        }
+
+                        if (remainingTarget) {
+                            remainingTarget.textContent = fillSummary;
+                        }
+
+                        fillIndicator.classList.toggle('location-fill-indicator--over', remaining < 0);
+                    } else {
+                        if (fillBar) {
+                            fillBar.style.width = bottleCount > 0 ? '100%' : '0%';
+                        }
+
+                        if (percentTarget) {
+                            percentTarget.textContent = 'Capacity not set';
+                        }
+
+                        const fillSummary = bottleCount > 0
+                            ? `${cellaredCount} cellared · ${drunkCount} enjoyed`
+                            : 'Add a capacity to track fill';
+
+                        if (remainingTarget) {
+                            remainingTarget.textContent = fillSummary;
+                        }
+
+                        fillIndicator.classList.remove('location-fill-indicator--over');
+                    }
+                }
+
                 const descriptionTarget = card.querySelector('[data-location-description]');
                 if (descriptionTarget) {
                     if (bottleCount > 0) {
