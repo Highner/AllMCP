@@ -717,6 +717,17 @@
             color: rgba(244, 241, 234, 0.78);
         }
 
+        .region-card__suggested-reason {
+            display: block;
+            font-weight: 600;
+            color: #f4f1ea;
+            margin-bottom: 4px;
+        }
+
+        .region-card__suggested-instructions {
+            display: block;
+        }
+
         .region-card .label {
             letter-spacing: 2px;
             font-size: 14px;
@@ -1049,6 +1060,8 @@
                         index,
                         point.Label,
                         point.Country,
+                        point.RegionName,
+                        point.SuggestionReason,
                         point.Latitude,
                         point.Longitude,
                         point.BottlesCellared,
@@ -1096,7 +1109,20 @@
                         }
                         else
                         {
-                            <p class="region-card__suggested-note">Suggested by your taste profile. Zoom the map to explore this appellation.</p>
+                            var suggestionReason = string.IsNullOrWhiteSpace(point.SuggestionReason)
+                                ? null
+                                : point.SuggestionReason.Trim();
+                            <p class="region-card__suggested-note">
+                                @if (suggestionReason is not null)
+                                {
+                                    <span class="region-card__suggested-reason">@suggestionReason</span>
+                                }
+                                else
+                                {
+                                    <span>Suggested by your taste profile.</span>
+                                }
+                                <span class="region-card__suggested-instructions">Zoom the map to explore this appellation.</span>
+                            </p>
                         }
                     </article>
                 }
@@ -1127,6 +1153,18 @@
 
             window.wineSurferHighlightData = Array.isArray(highlightData) ? highlightData : [];
             highlightDataElement?.remove();
+
+            const formatHighlightLabel = (point) => {
+                if (!point?.label) {
+                    return '';
+                }
+
+                if (point.isSuggested && point.regionName) {
+                    return `${point.label} (${point.regionName})`;
+                }
+
+                return point.label;
+            };
 
             const regionAverageElements = new Map();
             document.querySelectorAll('.region-card').forEach(card => {
@@ -1307,15 +1345,16 @@
                         .attr('class', 'highlight-label')
                         .attr('y', 16)
                         .attr('text-anchor', 'middle')
-                        .text(d => d.label ?? '');
+                        .text(d => formatHighlightLabel(d));
 
                     highlightPoints.append('title')
                         .text(d => {
-                            if (!d?.label) {
+                            const formattedLabel = formatHighlightLabel(d);
+                            if (!formattedLabel) {
                                 return '';
                             }
 
-                            return d.isSuggested ? `${d.label} (Suggested appellation)` : d.label;
+                            return d.isSuggested ? `${formattedLabel} (Suggested appellation)` : formattedLabel;
                         });
 
                     const regionCards = Array.from(document.querySelectorAll('.region-card'));
