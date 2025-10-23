@@ -730,7 +730,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
     }
 
     private async Task<IActionResult> GenerateTasteProfileJsonAsync(
-        int userId,
+        Guid userId,
         string prompt,
         CancellationToken cancellationToken)
     {
@@ -788,7 +788,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
     }
 
     private async Task<IActionResult> StreamTasteProfileGenerationAsync(
-        int userId,
+        Guid userId,
         string prompt,
         CancellationToken cancellationToken)
     {

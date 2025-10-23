@@ -1256,7 +1256,7 @@
                 }
                 else
                 {
-                    @{ var inventoryWineIds = Model.InventoryWineIds ?? Array.Empty<Guid>(); }
+                    var inventoryWineIds = Model.InventoryWineIds ?? Array.Empty<Guid>();
                     <p class="suggested-wines-message" data-suggested-message hidden role="status"></p>
                     <div class="suggested-wine-groups" role="list">
                         @foreach (var suggestion in suggestionsWithWines)
