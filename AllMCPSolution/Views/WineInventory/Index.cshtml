@@ -283,9 +283,6 @@
                         ? $"· {location.UniqueWineCount} unique wine{(location.UniqueWineCount == 1 ? string.Empty : "s")}" : string.Empty;
                     var hasCapacity = location.Capacity.HasValue && location.Capacity.Value >= 0;
                     var capacityValue = location.Capacity ?? 0;
-                    var capacityLabel = hasCapacity
-                        ? $"· Capacity: {capacityValue}"
-                        : string.Empty;
                     var highlightClass = Model.HasActiveFilters && Model.HighlightedLocationIds.Contains(location.Id)
                         ? " location-card--highlight"
                         : string.Empty;
@@ -320,7 +317,6 @@
                     else
                     {
                         statusLabel = "No bottles stored here yet.";
-                        capacityLabel = string.Empty;
                     }
                     var fillIndicatorClass = hasCapacity ? string.Empty : " location-fill-indicator--no-capacity";
                     int fillPercentValue;
@@ -378,7 +374,6 @@
                                     <p class="wine-card__subtitle location-card-subtitle">
                                         <span data-location-bottle-count>@bottleLabel</span>
                                         <span data-location-wine-count>@uniqueLabel</span>
-                                        <span data-location-capacity>@capacityLabel</span>
                                     </p>
                                 </div>
                                 <div class="wine-card__actions location-card-actions">
@@ -450,7 +445,6 @@
                                 <p class="wine-card__subtitle location-card-subtitle">
                                     <span data-location-bottle-count></span>
                                     <span data-location-wine-count></span>
-                                    <span data-location-capacity></span>
                                 </p>
                             </div>
                             <div class="wine-card__actions location-card-actions">

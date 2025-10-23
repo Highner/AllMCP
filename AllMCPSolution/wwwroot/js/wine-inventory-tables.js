@@ -2118,10 +2118,6 @@ window.WineInventoryTables.initialize = function () {
                 const uniqueLabel = uniqueCount > 0
                     ? `· ${uniqueCount} unique wine${uniqueCount === 1 ? '' : 's'}`
                     : '';
-                const capacityLabel = capacity != null
-                    ? `· Capacity: ${capacity}`
-                    : '';
-
                 const bottleTarget = card.querySelector('[data-location-bottle-count]');
                 if (bottleTarget) {
                     bottleTarget.textContent = bottleLabel;
@@ -2130,11 +2126,6 @@ window.WineInventoryTables.initialize = function () {
                 const uniqueTarget = card.querySelector('[data-location-wine-count]');
                 if (uniqueTarget) {
                     uniqueTarget.textContent = uniqueLabel;
-                }
-
-                const capacityTarget = card.querySelector('[data-location-capacity]');
-                if (capacityTarget) {
-                    capacityTarget.textContent = capacityLabel;
                 }
 
                 const fillIndicator = card.querySelector('[data-location-fill-indicator]');
