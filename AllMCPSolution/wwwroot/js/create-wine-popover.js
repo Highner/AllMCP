@@ -102,7 +102,13 @@
             },
             onValueChanged: (valueChanged) => {
                 const trimmed = valueChanged.trim();
-                const changed = !equalsIgnoreCase(selections.country.name, trimmed) || selections.country.id !== null;
+                const existing = selections.country;
+                const matchesExisting = equalsIgnoreCase(existing.name, trimmed);
+                if (matchesExisting && existing.id !== null) {
+                    return;
+                }
+
+                const changed = !matchesExisting || existing.id !== null;
                 selections.country = { id: null, name: trimmed };
                 if (changed) {
                     clearRegionSelection();
@@ -156,7 +162,13 @@
             },
             onValueChanged: (valueChanged) => {
                 const trimmed = valueChanged.trim();
-                const changed = !equalsIgnoreCase(selections.region.name, trimmed) || selections.region.id !== null;
+                const existing = selections.region;
+                const matchesExisting = equalsIgnoreCase(existing.name, trimmed);
+                if (matchesExisting && existing.id !== null) {
+                    return;
+                }
+
+                const changed = !matchesExisting || existing.id !== null;
                 selections.region = { id: null, name: trimmed };
                 if (changed) {
                     clearAppellationSelection();
@@ -223,7 +235,13 @@
             },
             onValueChanged: (valueChanged) => {
                 const trimmed = valueChanged.trim();
-                const changed = !equalsIgnoreCase(selections.appellation.name, trimmed) || selections.appellation.id !== null;
+                const existing = selections.appellation;
+                const matchesExisting = equalsIgnoreCase(existing.name, trimmed);
+                if (matchesExisting && existing.id !== null) {
+                    return;
+                }
+
+                const changed = !matchesExisting || existing.id !== null;
                 selections.appellation = { id: null, name: trimmed };
                 if (changed) {
                     clearSubAppellationSelection();
