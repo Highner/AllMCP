@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
+using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -115,6 +116,7 @@ public class WineSurferController : Controller
     private readonly IRegionRepository _regionRepository;
     private readonly IAppellationRepository _appellationRepository;
     private readonly ISubAppellationRepository _subAppellationRepository;
+    private readonly ISuggestedAppellationRepository _suggestedAppellationRepository;
     private readonly IWineCatalogService _wineCatalogService;
     private readonly IChatGptService _chatGptService;
     private static readonly TimeSpan SentInvitationNotificationWindow = TimeSpan.FromDays(7);
@@ -123,15 +125,17 @@ public class WineSurferController : Controller
     private const string TasteProfileStatusTempDataKey = "WineSurfer.TasteProfile.Status";
     private const string TasteProfileErrorTempDataKey = "WineSurfer.TasteProfile.Error";
     private const string TasteProfileGenerationSystemPrompt =
-        "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\"summary\":\"...\",\"profile\":\"...\"}. " +
+        "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null},{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null}]}. " +
         "The summary must be 200 characters or fewer and offer a concise descriptor of the user's palate. " +
         "The profile must be 3-5 sentences, 1500 characters or fewer, written in the second person, and describe styles, structure, and flavor preferences without recommending specific new wines. " +
+        "The suggestedAppellations array must contain exactly two entries describing appellations or sub-appellations that fit the profile, each with country, region, and appellation strings and subAppellation set to a string or null. " +
         "Do not include markdown, bullet lists, code fences, or any explanatory text outside the JSON object.";
     private static readonly JsonDocumentOptions TasteProfileJsonDocumentOptions = new()
     {
         AllowTrailingCommas = true,
         CommentHandling = JsonCommentHandling.Skip
     };
+    private const double SuggestedAppellationFuzzyThreshold = 0.35;
     private const long SurfEyeMaxUploadBytes = 8 * 1024 * 1024;
     private const string SurfEyeSystemPrompt = """
 You are Surf Eye, an expert sommelier and computer vision guide. Use the user's taste profile to rank wines from best to worst alignment.
@@ -177,6 +181,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
         IRegionRepository regionRepository,
         IAppellationRepository appellationRepository,
         ISubAppellationRepository subAppellationRepository,
+        ISuggestedAppellationRepository suggestedAppellationRepository,
         IWineCatalogService wineCatalogService,
         IChatGptService chatGptService,
         IWineSurferTopBarService topBarService)
@@ -193,6 +198,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
         _regionRepository = regionRepository;
         _appellationRepository = appellationRepository;
         _subAppellationRepository = subAppellationRepository;
+        _suggestedAppellationRepository = suggestedAppellationRepository;
         _wineCatalogService = wineCatalogService;
         _chatGptService = chatGptService;
         _topBarService = topBarService;
@@ -493,6 +499,12 @@ Each suggestion must be a short dish description followed by a concise reason, a
 
         var tasteProfileSummary = domainUser?.TasteProfileSummary ?? currentUser?.TasteProfileSummary ?? string.Empty;
         var tasteProfile = domainUser?.TasteProfile ?? currentUser?.TasteProfile ?? string.Empty;
+        IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
+
+        if (currentUserId.HasValue)
+        {
+            suggestedAppellations = await GetSuggestedAppellationsForUserAsync(currentUserId.Value, cancellationToken);
+        }
 
         var viewModel = new WineSurferTasteProfileViewModel(
             currentUser,
@@ -502,6 +514,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
             TasteProfileSummaryMaxLength,
             tasteProfile,
             TasteProfileMaxLength,
+            suggestedAppellations,
             statusMessage,
             errorMessage);
 
@@ -667,7 +680,20 @@ Each suggestion must be a short dish description followed by a concise reason, a
             summary = BuildSummaryFallback(profile, TasteProfileSummaryMaxLength);
         }
 
-        return Json(new GenerateTasteProfileResponse(summary, profile));
+        var resolvedSuggestions = await ResolveSuggestedAppellationsAsync(
+            userId.Value,
+            generatedProfile.Suggestions,
+            cancellationToken);
+
+        var responseSuggestions = resolvedSuggestions
+            .Select(suggestion => new GenerateTasteProfileSuggestion(
+                suggestion.CountryName,
+                suggestion.RegionName,
+                suggestion.AppellationName,
+                suggestion.SubAppellationName))
+            .ToList();
+
+        return Json(new GenerateTasteProfileResponse(summary, profile, responseSuggestions));
     }
 
     [Authorize]
@@ -4735,7 +4761,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
         builder.AppendLine("Identify consistent stylistic preferences, texture, structure, and favored regions or grapes.");
         builder.AppendLine("Use only the provided information and avoid recommending specific new bottles.");
         builder.AppendLine("Write the taste profile in the second person.");
-        builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\"}. No markdown or commentary.");
+        builder.AppendLine("Also include exactly two suggested appellations or sub-appellations that match the palate, providing country, region, and appellation, and set subAppellation to null when unknown.");
+        builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null},{...}]}. No markdown or commentary.");
 
         return builder.ToString();
     }
@@ -4948,6 +4975,296 @@ Each suggestion must be a short dish description followed by a concise reason, a
         parts.Add(trimmed);
     }
 
+    private async Task<IReadOnlyList<WineSurferSuggestedAppellation>> ResolveSuggestedAppellationsAsync(
+        Guid userId,
+        IReadOnlyList<GeneratedAppellationSuggestion> suggestions,
+        CancellationToken cancellationToken)
+    {
+        if (suggestions is null || suggestions.Count == 0)
+        {
+            await _suggestedAppellationRepository.ReplaceSuggestionsAsync(userId, Array.Empty<Guid>(), cancellationToken);
+            return Array.Empty<WineSurferSuggestedAppellation>();
+        }
+
+        var resolved = new List<WineSurferSuggestedAppellation>(Math.Min(suggestions.Count, 2));
+        var subAppellationIds = new List<Guid>(Math.Min(suggestions.Count, 2));
+        var seen = new HashSet<Guid>();
+
+        foreach (var suggestion in suggestions.Take(2))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (suggestion is null)
+            {
+                continue;
+            }
+
+            var subAppellation = await ResolveSuggestedSubAppellationAsync(suggestion, cancellationToken);
+            if (subAppellation is null)
+            {
+                continue;
+            }
+
+            var appellation = subAppellation.Appellation;
+            var region = appellation?.Region;
+            var country = region?.Country;
+
+            if (appellation is null || region is null || country is null)
+            {
+                continue;
+            }
+
+            if (!seen.Add(subAppellation.Id))
+            {
+                continue;
+            }
+
+            subAppellationIds.Add(subAppellation.Id);
+
+            var subName = string.IsNullOrWhiteSpace(subAppellation.Name)
+                ? null
+                : subAppellation.Name.Trim();
+
+            resolved.Add(new WineSurferSuggestedAppellation(
+                subAppellation.Id,
+                subName,
+                appellation.Id,
+                appellation.Name?.Trim() ?? string.Empty,
+                region.Name?.Trim() ?? string.Empty,
+                country.Name?.Trim() ?? string.Empty));
+        }
+
+        await _suggestedAppellationRepository.ReplaceSuggestionsAsync(userId, subAppellationIds, cancellationToken);
+
+        return resolved.Count == 0 ? Array.Empty<WineSurferSuggestedAppellation>() : resolved;
+    }
+
+    private async Task<SubAppellation?> ResolveSuggestedSubAppellationAsync(
+        GeneratedAppellationSuggestion suggestion,
+        CancellationToken cancellationToken)
+    {
+        var countryName = suggestion.Country;
+        var regionName = suggestion.Region;
+        var appellationName = suggestion.Appellation;
+
+        if (string.IsNullOrWhiteSpace(countryName)
+            || string.IsNullOrWhiteSpace(regionName)
+            || string.IsNullOrWhiteSpace(appellationName))
+        {
+            return null;
+        }
+
+        var country = await ResolveCountryAsync(countryName.Trim(), cancellationToken);
+        if (country is null)
+        {
+            return null;
+        }
+
+        var region = await ResolveRegionAsync(regionName.Trim(), country, cancellationToken);
+        if (region is null)
+        {
+            return null;
+        }
+
+        var appellation = await ResolveAppellationAsync(appellationName.Trim(), region, cancellationToken);
+        if (appellation is null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(suggestion.SubAppellation))
+        {
+            return await _subAppellationRepository.GetOrCreateBlankAsync(appellation.Id, cancellationToken);
+        }
+
+        return await ResolveSubAppellationAsync(suggestion.SubAppellation.Trim(), appellation, cancellationToken);
+    }
+
+    private async Task<Country?> ResolveCountryAsync(string countryName, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(countryName))
+        {
+            return null;
+        }
+
+        var trimmed = countryName.Trim();
+        var exact = await _countryRepository.FindByNameAsync(trimmed, cancellationToken);
+        if (exact is not null)
+        {
+            return exact;
+        }
+
+        var candidates = await _countryRepository.SearchByApproximateNameAsync(trimmed, 5, cancellationToken);
+        var best = SelectBestFuzzyMatch(candidates, trimmed, country => country.Name, SuggestedAppellationFuzzyThreshold);
+        if (best is not null)
+        {
+            return best;
+        }
+
+        return await _countryRepository.GetOrCreateAsync(trimmed, cancellationToken);
+    }
+
+    private async Task<Region?> ResolveRegionAsync(string regionName, Country country, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(regionName))
+        {
+            return null;
+        }
+
+        var trimmed = regionName.Trim();
+        var exact = await _regionRepository.FindByNameAndCountryAsync(trimmed, country.Id, cancellationToken);
+        if (exact is not null)
+        {
+            return exact;
+        }
+
+        var candidates = await _regionRepository.SearchByApproximateNameAsync(trimmed, 5, cancellationToken);
+        var sameCountry = candidates.Where(region => region.CountryId == country.Id).ToList();
+        var best = SelectBestFuzzyMatch(sameCountry, trimmed, region => region.Name, SuggestedAppellationFuzzyThreshold);
+
+        if (best is null)
+        {
+            var fallback = SelectBestFuzzyMatch(candidates, trimmed, region => region.Name, SuggestedAppellationFuzzyThreshold);
+            if (fallback is not null && fallback.CountryId == country.Id)
+            {
+                best = fallback;
+            }
+        }
+
+        if (best is not null)
+        {
+            return best;
+        }
+
+        return await _regionRepository.GetOrCreateAsync(trimmed, country, cancellationToken);
+    }
+
+    private async Task<Appellation?> ResolveAppellationAsync(string appellationName, Region region, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(appellationName))
+        {
+            return null;
+        }
+
+        var trimmed = appellationName.Trim();
+        var exact = await _appellationRepository.FindByNameAndRegionAsync(trimmed, region.Id, cancellationToken);
+        if (exact is not null)
+        {
+            return exact;
+        }
+
+        var candidates = await _appellationRepository.SearchByApproximateNameAsync(trimmed, region.Id, 5, cancellationToken);
+        var best = SelectBestFuzzyMatch(candidates, trimmed, appellation => appellation.Name, SuggestedAppellationFuzzyThreshold);
+        if (best is not null)
+        {
+            return best;
+        }
+
+        return await _appellationRepository.GetOrCreateAsync(trimmed, region.Id, cancellationToken);
+    }
+
+    private async Task<SubAppellation> ResolveSubAppellationAsync(string subAppellationName, Appellation appellation, CancellationToken cancellationToken)
+    {
+        var trimmed = subAppellationName.Trim();
+        var exact = await _subAppellationRepository.FindByNameAndAppellationAsync(trimmed, appellation.Id, cancellationToken);
+        if (exact is not null)
+        {
+            return exact;
+        }
+
+        var candidates = await _subAppellationRepository.SearchByApproximateNameAsync(trimmed, appellation.Id, 5, cancellationToken);
+        var best = SelectBestFuzzyMatch(candidates, trimmed, sub => sub.Name ?? string.Empty, SuggestedAppellationFuzzyThreshold);
+        if (best is not null)
+        {
+            return best;
+        }
+
+        return await _subAppellationRepository.GetOrCreateAsync(trimmed, appellation.Id, cancellationToken);
+    }
+
+    private static T? SelectBestFuzzyMatch<T>(
+        IEnumerable<T> candidates,
+        string target,
+        Func<T, string?> selector,
+        double threshold)
+    {
+        if (candidates is null)
+        {
+            return default;
+        }
+
+        var normalizedTarget = (target ?? string.Empty).Trim();
+        if (normalizedTarget.Length == 0)
+        {
+            return default;
+        }
+
+        var bestDistance = double.MaxValue;
+        T? bestCandidate = default;
+
+        foreach (var candidate in candidates)
+        {
+            var value = selector(candidate) ?? string.Empty;
+            var distance = FuzzyMatchUtilities.CalculateNormalizedDistance(value, normalizedTarget);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestCandidate = candidate;
+            }
+
+            if (distance <= 0)
+            {
+                break;
+            }
+        }
+
+        return bestDistance <= threshold ? bestCandidate : default;
+    }
+
+    private async Task<IReadOnlyList<WineSurferSuggestedAppellation>> GetSuggestedAppellationsForUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var suggestions = await _suggestedAppellationRepository.GetForUserAsync(userId, cancellationToken);
+        if (suggestions.Count == 0)
+        {
+            return Array.Empty<WineSurferSuggestedAppellation>();
+        }
+
+        var results = new List<WineSurferSuggestedAppellation>(suggestions.Count);
+        foreach (var suggestion in suggestions)
+        {
+            var subAppellation = suggestion.SubAppellation;
+            if (subAppellation is null)
+            {
+                continue;
+            }
+
+            var appellation = subAppellation.Appellation;
+            var region = appellation?.Region;
+            var country = region?.Country;
+
+            if (appellation is null || region is null || country is null)
+            {
+                continue;
+            }
+
+            var subName = string.IsNullOrWhiteSpace(subAppellation.Name)
+                ? null
+                : subAppellation.Name.Trim();
+
+            results.Add(new WineSurferSuggestedAppellation(
+                subAppellation.Id,
+                subName,
+                appellation.Id,
+                appellation.Name?.Trim() ?? string.Empty,
+                region.Name?.Trim() ?? string.Empty,
+                country.Name?.Trim() ?? string.Empty));
+        }
+
+        return results.Count == 0 ? Array.Empty<WineSurferSuggestedAppellation>() : results;
+    }
+
     private static string NormalizeGeneratedText(string? value, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -5040,13 +5357,69 @@ Each suggestion must be a short dish description followed by a concise reason, a
                 return false;
             }
 
-            result = new GeneratedTasteProfile(summary, profile);
+            var suggestions = Array.Empty<GeneratedAppellationSuggestion>();
+            if (root.TryGetProperty("suggestedAppellations", out var suggestionsElement)
+                && suggestionsElement.ValueKind == JsonValueKind.Array)
+            {
+                var parsed = new List<GeneratedAppellationSuggestion>();
+                foreach (var suggestionElement in suggestionsElement.EnumerateArray())
+                {
+                    if (suggestionElement.ValueKind != JsonValueKind.Object)
+                    {
+                        continue;
+                    }
+
+                    var country = GetTrimmedJsonString(suggestionElement, "country");
+                    var region = GetTrimmedJsonString(suggestionElement, "region");
+                    var appellation = GetTrimmedJsonString(suggestionElement, "appellation");
+                    var subAppellation = GetTrimmedJsonString(suggestionElement, "subAppellation");
+
+                    if (string.IsNullOrWhiteSpace(country)
+                        || string.IsNullOrWhiteSpace(region)
+                        || string.IsNullOrWhiteSpace(appellation))
+                    {
+                        continue;
+                    }
+
+                    parsed.Add(new GeneratedAppellationSuggestion(country!, region!, appellation!, subAppellation));
+
+                    if (parsed.Count == 2)
+                    {
+                        break;
+                    }
+                }
+
+                if (parsed.Count > 0)
+                {
+                    suggestions = parsed;
+                }
+            }
+
+            result = new GeneratedTasteProfile(summary, profile, suggestions);
             return true;
         }
         catch (JsonException)
         {
             return false;
         }
+    }
+
+    private static string? GetTrimmedJsonString(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return null;
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.String =>
+                string.IsNullOrWhiteSpace(property.GetString())
+                    ? null
+                    : property.GetString()!.Trim(),
+            JsonValueKind.Null => null,
+            _ => null
+        };
     }
 
     private sealed record SipSessionFoodSuggestionPayload(
@@ -5399,7 +5772,16 @@ Each suggestion must be a short dish description followed by a concise reason, a
         return trimmed.Trim();
     }
 
-    private sealed record GeneratedTasteProfile(string? Summary, string Profile);
+    private sealed record GeneratedTasteProfile(
+        string? Summary,
+        string Profile,
+        IReadOnlyList<GeneratedAppellationSuggestion> Suggestions);
+
+    private sealed record GeneratedAppellationSuggestion(
+        string? Country,
+        string? Region,
+        string? Appellation,
+        string? SubAppellation);
 
 private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(
     IEnumerable<SipSessionBottle>? sessionBottles,
@@ -5602,7 +5984,16 @@ public record WineSurferSurfEyeViewModel(
     string TasteProfile,
     bool HasTasteProfile);
 
-public record GenerateTasteProfileResponse(string Summary, string Profile);
+public record GenerateTasteProfileResponse(
+    string Summary,
+    string Profile,
+    IReadOnlyList<GenerateTasteProfileSuggestion> Suggestions);
+
+public record GenerateTasteProfileSuggestion(
+    string Country,
+    string Region,
+    string Appellation,
+    string? SubAppellation);
 
 public record GenerateTasteProfileError(string Error);
 
@@ -5614,8 +6005,17 @@ public record WineSurferTasteProfileViewModel(
     int SummaryMaxLength,
     string TasteProfile,
     int MaxLength,
+    IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations,
     string? StatusMessage,
     string? ErrorMessage);
+
+public record WineSurferSuggestedAppellation(
+    Guid SubAppellationId,
+    string? SubAppellationName,
+    Guid AppellationId,
+    string AppellationName,
+    string RegionName,
+    string CountryName);
 
 public record WineSurferTerroirManagementViewModel(
     WineSurferCurrentUser? CurrentUser,

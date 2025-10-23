@@ -1,5 +1,6 @@
 @model AllMCPSolution.Controllers.WineSurferTasteProfileViewModel
 @using AllMCPSolution.Controllers
+@using System.Collections.Generic
 @{
     Layout = null;
     var requestPath = Context.Request.Path.HasValue ? Context.Request.Path.Value : string.Empty;
@@ -18,6 +19,8 @@
     var statusMessage = Model.StatusMessage;
     var errorMessage = Model.ErrorMessage;
     var maxLength = Model.MaxLength;
+    var suggestedAppellations = Model.SuggestedAppellations ?? Array.Empty<WineSurferSuggestedAppellation>();
+    var hasSuggestedAppellations = suggestedAppellations.Count > 0;
     ViewData["WineSurferPageTitle"] = "Taste Profile";
 }
 <!DOCTYPE html>
@@ -196,6 +199,76 @@
             white-space: nowrap;
         }
 
+        .taste-profile-suggestions {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 24px;
+            border-radius: calc(var(--radius) * 0.9);
+            border: 1px solid hsla(var(--border) / 0.55);
+            background: hsla(var(--accent) / 0.18);
+        }
+
+        .taste-profile-suggestions-header {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .taste-profile-suggestions-title {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .taste-profile-suggestions-caption {
+            margin: 0;
+            font-size: 13px;
+            color: hsla(var(--muted-foreground) / 0.8);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .taste-profile-suggestions-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .taste-profile-suggestion-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 12px 16px;
+            border-radius: calc(var(--radius) * 0.85);
+            border: 1px solid hsla(var(--border) / 0.45);
+            background: hsla(var(--accent) / 0.12);
+        }
+
+        .taste-profile-suggestion-name {
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+        }
+
+        .taste-profile-suggestion-location {
+            font-size: 13px;
+            color: hsla(var(--muted-foreground) / 0.85);
+            letter-spacing: 1px;
+        }
+
+        .taste-profile-suggestions-empty {
+            margin: 0;
+            font-size: 13px;
+            color: hsla(var(--muted-foreground) / 0.85);
+            letter-spacing: 1px;
+        }
+
         .taste-profile-generate-button[disabled] {
             cursor: progress;
         }
@@ -214,6 +287,14 @@
 
             .taste-profile-main {
                 padding: 48px 18px 72px;
+            }
+
+            .taste-profile-suggestions {
+                padding: 20px;
+            }
+
+            .taste-profile-suggestion-item {
+                padding: 10px 14px;
             }
 
             .taste-profile-help-row {
@@ -258,6 +339,58 @@
                     <div class="taste-profile-banner taste-profile-banner--error" role="alert">@errorMessage</div>
                 }
                 <div id="tasteProfileGeneratorMessage" class="taste-profile-banner" hidden aria-live="polite"></div>
+                <section class="taste-profile-suggestions" data-suggested-appellations>
+                    <div class="taste-profile-suggestions-header">
+                        <h2 class="taste-profile-suggestions-title">Suggested appellations</h2>
+                        <p class="taste-profile-suggestions-caption">Based on your taste profile</p>
+                    </div>
+                    <ol class="taste-profile-suggestions-list" data-suggested-appellations-list>
+                        @foreach (var suggestion in suggestedAppellations)
+                        {
+                            var hasSub = !string.IsNullOrWhiteSpace(suggestion.SubAppellationName);
+                            var primary = hasSub ? suggestion.SubAppellationName : suggestion.AppellationName;
+                            if (string.IsNullOrWhiteSpace(primary))
+                            {
+                                continue;
+                            }
+
+                            var detailSegments = new List<string>();
+                            if (hasSub && !string.IsNullOrWhiteSpace(suggestion.AppellationName))
+                            {
+                                detailSegments.Add(suggestion.AppellationName);
+                            }
+
+                            var regionCountrySegments = new List<string>();
+                            if (!string.IsNullOrWhiteSpace(suggestion.RegionName))
+                            {
+                                regionCountrySegments.Add(suggestion.RegionName);
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(suggestion.CountryName))
+                            {
+                                regionCountrySegments.Add(suggestion.CountryName);
+                            }
+
+                            if (regionCountrySegments.Count > 0)
+                            {
+                                detailSegments.Add(string.Join(", ", regionCountrySegments));
+                            }
+
+                            var detail = detailSegments.Count > 0 ? string.Join(" • ", detailSegments) : null;
+
+                            <li class="taste-profile-suggestion-item">
+                                <span class="taste-profile-suggestion-name">@primary</span>
+                                @if (!string.IsNullOrWhiteSpace(detail))
+                                {
+                                    <span class="taste-profile-suggestion-location">@detail</span>
+                                }
+                            </li>
+                        }
+                    </ol>
+                    <p class="taste-profile-suggestions-empty" data-suggested-appellations-empty @(hasSuggestedAppellations ? "hidden" : null)>
+                        Generate your taste profile to see tailored appellation ideas.
+                    </p>
+                </section>
                 <form method="post" action="@Url.Action("UpdateTasteProfile", "WineSurfer")" class="taste-profile-form" novalidate>
                     @Html.AntiForgeryToken()
                     <div class="taste-profile-field">
@@ -354,6 +487,77 @@
 
             const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
             const messageNode = document.getElementById('tasteProfileGeneratorMessage');
+            const suggestionsList = document.querySelector('[data-suggested-appellations-list]');
+            const suggestionsEmpty = document.querySelector('[data-suggested-appellations-empty]');
+            const toText = (value) => (typeof value === 'string' ? value.trim() : '');
+
+            const updateSuggestions = (entries) => {
+                if (!suggestionsList || !suggestionsEmpty) {
+                    return;
+                }
+
+                suggestionsList.innerHTML = '';
+                let appended = 0;
+
+                if (Array.isArray(entries)) {
+                    const fragment = document.createDocumentFragment();
+                    for (const entry of entries) {
+                        if (!entry || typeof entry !== 'object') {
+                            continue;
+                        }
+
+                        const subAppellation = toText(entry.subAppellation);
+                        const appellation = toText(entry.appellation);
+                        const region = toText(entry.region);
+                        const country = toText(entry.country);
+                        const primary = subAppellation || appellation;
+
+                        if (!primary) {
+                            continue;
+                        }
+
+                        const detailSegments = [];
+
+                        if (subAppellation && appellation) {
+                            detailSegments.push(appellation);
+                        }
+
+                        const regionCountrySegments = [];
+                        if (region) {
+                            regionCountrySegments.push(region);
+                        }
+                        if (country) {
+                            regionCountrySegments.push(country);
+                        }
+
+                        if (regionCountrySegments.length > 0) {
+                            detailSegments.push(regionCountrySegments.join(', '));
+                        }
+
+                        const item = document.createElement('li');
+                        item.className = 'taste-profile-suggestion-item';
+
+                        const nameNode = document.createElement('span');
+                        nameNode.className = 'taste-profile-suggestion-name';
+                        nameNode.textContent = primary;
+                        item.appendChild(nameNode);
+
+                        if (detailSegments.length > 0) {
+                            const locationNode = document.createElement('span');
+                            locationNode.className = 'taste-profile-suggestion-location';
+                            locationNode.textContent = detailSegments.join(' • ');
+                            item.appendChild(locationNode);
+                        }
+
+                        fragment.appendChild(item);
+                        appended += 1;
+                    }
+
+                    suggestionsList.appendChild(fragment);
+                }
+
+                suggestionsEmpty.hidden = appended > 0;
+            };
 
             const setGeneratorMessage = (kind, text) => {
                 if (!messageNode) {
@@ -431,6 +635,10 @@
                     if (typeof payload.profile === 'string') {
                         profileField.value = payload.profile;
                         profileField.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+
+                    if (Array.isArray(payload.suggestions)) {
+                        updateSuggestions(payload.suggestions);
                     }
 
                     setGeneratorMessage('success', 'We generated a new taste profile. Review and save it when you’re ready.');
