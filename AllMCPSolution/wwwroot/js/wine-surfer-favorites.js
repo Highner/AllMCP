@@ -1,5 +1,6 @@
 (function () {
     let initialized = false;
+    let openModalHandler = null;
 
     function onReady(callback) {
         if (document.readyState === 'loading') {
@@ -167,6 +168,21 @@
 
         const triggerSelector = '[data-add-wine-trigger="favorites"], [data-add-wine-trigger="surf-eye"]';
 
+        const normalizeContext = (context) => {
+            if (!context) {
+                return null;
+            }
+
+            return {
+                source: toTrimmedString(context.source),
+                name: toTrimmedString(context.name),
+                producer: toTrimmedString(context.producer),
+                region: toTrimmedString(context.region),
+                variety: toTrimmedString(context.variety),
+                vintage: toTrimmedString(context.vintage)
+            };
+        };
+
         const handleTriggerClick = (event) => {
             const trigger = event.target.closest(triggerSelector);
             if (!trigger) {
@@ -176,9 +192,7 @@
             event.preventDefault();
             const context = buildContextFromTrigger(trigger);
 
-            openModal(context).catch(err => {
-                showStatus(err?.message ?? 'Unable to open add wine modal.', 'error');
-            });
+            openModalWithStatus(context).catch(() => { /* handled via showStatus */ });
         };
 
         document.addEventListener('click', handleTriggerClick);
@@ -189,14 +203,14 @@
             }
 
             const dataset = trigger.dataset;
-            return {
-                source: toTrimmedString(dataset.addWineTrigger),
-                name: toTrimmedString(dataset.wineName),
-                producer: toTrimmedString(dataset.wineProducer),
-                region: toTrimmedString(dataset.wineRegion),
-                variety: toTrimmedString(dataset.wineVariety),
-                vintage: toTrimmedString(dataset.wineVintage)
-            };
+            return normalizeContext({
+                source: dataset.addWineTrigger,
+                name: dataset.wineName,
+                producer: dataset.wineProducer,
+                region: dataset.wineRegion,
+                variety: dataset.wineVariety,
+                vintage: dataset.wineVintage
+            });
         }
 
         const bindClose = (element) => {
@@ -277,16 +291,7 @@
             overlay.classList.add('is-open');
             document.body.style.overflow = 'hidden';
 
-            const normalizedContext = context
-                ? {
-                    source: toTrimmedString(context.source),
-                    name: toTrimmedString(context.name),
-                    producer: toTrimmedString(context.producer),
-                    region: toTrimmedString(context.region),
-                    variety: toTrimmedString(context.variety),
-                    vintage: toTrimmedString(context.vintage)
-                }
-                : null;
+            const normalizedContext = normalizeContext(context);
 
             setModalLoading(true);
             try {
@@ -333,6 +338,23 @@
 
             select?.focus();
         }
+
+        const openModalWithStatus = async (context = null) => {
+            try {
+                await openModal(context);
+            } catch (error) {
+                showStatus(error?.message ?? 'Unable to open add wine modal.', 'error');
+                throw error;
+            }
+        };
+
+        const handleProgrammaticTrigger = (event) => {
+            openModalWithStatus(event?.detail ?? null).catch(() => { /* handled via showStatus */ });
+        };
+
+        document.addEventListener('wineSurfer:addWine', handleProgrammaticTrigger);
+
+        openModalHandler = openModalWithStatus;
 
         function findBestWineOptionMatch(context) {
             if (!context) {
@@ -619,6 +641,27 @@
             hint.textContent = `Existing vintages: ${vintages.join(', ')}${suffix}`;
         }
     }
+
+    function requestOpenAddWineModal(context = null) {
+        return new Promise((resolve, reject) => {
+            onReady(() => {
+                try {
+                    initializeFavoritesModal();
+                    if (typeof openModalHandler !== 'function') {
+                        throw new Error('Add wine modal is unavailable.');
+                    }
+
+                    Promise.resolve(openModalHandler(context)).then(resolve, reject);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    const globalApi = window.wineSurferFavorites ?? {};
+    globalApi.openAddWineModal = requestOpenAddWineModal;
+    window.wineSurferFavorites = globalApi;
 
     onReady(initializeFavoritesModal);
 })();
