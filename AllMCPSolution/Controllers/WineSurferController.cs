@@ -132,10 +132,20 @@ public class WineSurferController : Controller
     private const long SurfEyeMaxUploadBytes = 8 * 1024 * 1024;
     private const string SurfEyeSystemPrompt = """
 You are Surf Eye, an expert sommelier and computer vision guide. Use the user's taste profile to rank wines from best to worst alignment.
-Respond ONLY with minified JSON matching {"analysisSummary":"...","wines":[{"name":"...","producer":"...","region":"...","variety":"...","vintage":"...","alignmentScore":0,"alignmentSummary":"...","confidence":0.0,"notes":"..."}]}.
+Respond ONLY with minified JSON matching {"analysisSummary":"...","wines":[{"name":"...","producer":"...","region":"...","variety":"...","vintage":"...","alignmentScore":0,"alignmentSummary":"...","confidence":0.0,"notes":"..."}]}. 
 The wines array must be sorted by descending alignmentScore. Include at most five wines. Provide concise notes that justify the ranking with respect to the taste profile. The alignmentScore must be an integer from 0 to 100. Confidence must be a decimal between 0 and 1. If no wine is recognized, return an empty wines array and set analysisSummary to a short explanation. Do not use markdown, newlines, or any commentary outside of the JSON object.
 """;
     private static readonly JsonDocumentOptions SurfEyeJsonDocumentOptions = new()
+    {
+        AllowTrailingCommas = true,
+        CommentHandling = JsonCommentHandling.Skip
+    };
+    private const string SipSessionFoodSuggestionSystemPrompt = """
+You are an expert sommelier assistant. Recommend three distinct food pairings that can be served together with the wines provided by the user.
+Respond ONLY with minified JSON matching {"suggestions":["Suggestion 1","Suggestion 2","Suggestion 3"]}.
+Each suggestion must be a short dish description followed by a concise reason. Do not include numbering, markdown, or any other fields.
+""";
+    private static readonly JsonDocumentOptions SipSessionFoodSuggestionJsonDocumentOptions = new()
     {
         AllowTrailingCommas = true,
         CommentHandling = JsonCommentHandling.Skip
@@ -1441,6 +1451,107 @@ The wines array must be sorted by descending alignmentScore. Include at most fiv
             return NotFound();
         }
 
+        var model = await BuildSipSessionDetailViewModelAsync(session, cancellationToken);
+
+        Response.ContentType = "text/html; charset=utf-8";
+        return View("SipSession", model);
+    }
+
+    [HttpPost("sessions/{sipSessionId:guid}/suggest-food")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SuggestSipSessionFood(Guid sipSessionId, CancellationToken cancellationToken)
+    {
+        var session = await _sipSessionRepository.GetByIdAsync(sipSessionId, cancellationToken);
+        if (session is null)
+        {
+            return NotFound();
+        }
+
+        var sessionBottles = session.Bottles ?? Array.Empty<SipSessionBottle>();
+        if (sessionBottles.Count == 0)
+        {
+            var emptyModel = await BuildSipSessionDetailViewModelAsync(
+                session,
+                cancellationToken,
+                Array.Empty<string>(),
+                "Add bottles to this sip session before requesting food pairings.");
+            Response.ContentType = "text/html; charset=utf-8";
+            return View("SipSession", emptyModel);
+        }
+
+        var prompt = BuildSipSessionFoodSuggestionPrompt(session);
+        if (string.IsNullOrWhiteSpace(prompt))
+        {
+            var fallbackModel = await BuildSipSessionDetailViewModelAsync(
+                session,
+                cancellationToken,
+                Array.Empty<string>(),
+                "We couldn't collect enough information about these wines to suggest pairings.");
+            Response.ContentType = "text/html; charset=utf-8";
+            return View("SipSession", fallbackModel);
+        }
+
+        ChatCompletion completion;
+        try
+        {
+            completion = await _chatGptService.GetChatCompletionAsync(
+                new ChatMessage[]
+                {
+                    new SystemChatMessage(SipSessionFoodSuggestionSystemPrompt),
+                    new UserChatMessage(prompt)
+                },
+                temperature: 0.6,
+                ct: cancellationToken);
+        }
+        catch (ClientResultException)
+        {
+            var errorModel = await BuildSipSessionDetailViewModelAsync(
+                session,
+                cancellationToken,
+                Array.Empty<string>(),
+                "We couldn't reach the pairing assistant. Please try again.");
+            Response.ContentType = "text/html; charset=utf-8";
+            return View("SipSession", errorModel);
+        }
+        catch (Exception)
+        {
+            var errorModel = await BuildSipSessionDetailViewModelAsync(
+                session,
+                cancellationToken,
+                Array.Empty<string>(),
+                "We couldn't request food pairings right now. Please try again.");
+            Response.ContentType = "text/html; charset=utf-8";
+            return View("SipSession", errorModel);
+        }
+
+        var completionText = ExtractCompletionText(completion);
+        if (!TryParseSipSessionFoodSuggestions(completionText, out var suggestions))
+        {
+            var errorModel = await BuildSipSessionDetailViewModelAsync(
+                session,
+                cancellationToken,
+                Array.Empty<string>(),
+                "We couldn't understand the pairing assistant's response. Please try again.");
+            Response.ContentType = "text/html; charset=utf-8";
+            return View("SipSession", errorModel);
+        }
+
+        var model = await BuildSipSessionDetailViewModelAsync(session, cancellationToken, suggestions, null);
+        Response.ContentType = "text/html; charset=utf-8";
+        return View("SipSession", model);
+    }
+
+    private async Task<WineSurferSipSessionDetailViewModel> BuildSipSessionDetailViewModelAsync(
+        SipSession session,
+        CancellationToken cancellationToken,
+        IReadOnlyList<string>? foodSuggestions = null,
+        string? foodSuggestionError = null)
+    {
+        if (session is null)
+        {
+            throw new ArgumentNullException(nameof(session));
+        }
+
         var now = DateTime.UtcNow;
         WineSurferCurrentUser? currentUser = null;
         IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
@@ -1587,7 +1698,46 @@ The wines array must be sorted by descending alignmentScore. Include at most fiv
             session.UpdatedAt,
             CreateBottleSummaries(session.Bottles, currentUserId, sisterhoodAverageScores));
 
-        var model = new WineSurferSipSessionDetailViewModel(
+        IReadOnlyList<string> normalizedSuggestions;
+        if (foodSuggestions is null || foodSuggestions.Count == 0)
+        {
+            normalizedSuggestions = Array.Empty<string>();
+        }
+        else
+        {
+            var list = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var suggestion in foodSuggestions)
+            {
+                var trimmed = suggestion?.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    continue;
+                }
+
+                if (seen.Add(trimmed))
+                {
+                    list.Add(trimmed);
+                    if (list.Count == 3)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            normalizedSuggestions = list;
+        }
+
+        var normalizedFoodSuggestionError = string.IsNullOrWhiteSpace(foodSuggestionError)
+            ? null
+            : foodSuggestionError.Trim();
+
+        if (normalizedSuggestions.Count > 0)
+        {
+            normalizedFoodSuggestionError = null;
+        }
+
+        return new WineSurferSipSessionDetailViewModel(
             summary,
             session.SisterhoodId,
             session.Sisterhood?.Name ?? "Sisterhood",
@@ -1598,10 +1748,9 @@ The wines array must be sorted by descending alignmentScore. Include at most fiv
             sentInvitationNotifications,
             false,
             Array.Empty<WineSurferSisterhoodOption>(),
-            availableBottles);
-
-        Response.ContentType = "text/html; charset=utf-8";
-        return View("SipSession", model);
+            availableBottles,
+            normalizedSuggestions,
+            normalizedFoodSuggestionError);
     }
 
     [Authorize]
@@ -4331,6 +4480,93 @@ The wines array must be sorted by descending alignmentScore. Include at most fiv
         return builder.ToString();
     }
 
+    private static string BuildSipSessionFoodSuggestionPrompt(SipSession session)
+    {
+        if (session is null)
+        {
+            return string.Empty;
+        }
+
+        var bottles = session.Bottles ?? Array.Empty<SipSessionBottle>();
+        if (bottles.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        var sessionName = string.IsNullOrWhiteSpace(session.Name)
+            ? "this sip session"
+            : $"the \"{session.Name.Trim()}\" sip session";
+
+        builder.Append("The following wines will be tasted during ");
+        builder.Append(sessionName);
+        builder.AppendLine(". Recommend three complementary food pairings that guests can enjoy together.");
+
+        if (!string.IsNullOrWhiteSpace(session.Description))
+        {
+            builder.Append("Session context: ");
+            builder.AppendLine(session.Description.Trim());
+            builder.AppendLine();
+        }
+
+        var index = 1;
+        foreach (var link in bottles)
+        {
+            var bottle = link?.Bottle;
+            var wineVintage = bottle?.WineVintage;
+            var wine = wineVintage?.Wine;
+
+            var displayName = BuildWineDisplayName(wineVintage, wine);
+            var origin = BuildWineOrigin(wine);
+            var attributes = BuildWineAttributes(wine);
+
+            builder.Append(index);
+            builder.Append(". ");
+            builder.Append(displayName);
+
+            var details = new List<string>();
+            if (!string.IsNullOrEmpty(origin))
+            {
+                details.Add(origin);
+            }
+
+            if (!string.IsNullOrEmpty(attributes))
+            {
+                details.Add(attributes);
+            }
+
+            if (bottle?.TastingNotes is { Count: > 0 })
+            {
+                var highlights = bottle.TastingNotes
+                    .Where(note => note is not null)
+                    .Select(note => PrepareNoteText(note!.Note))
+                    .Where(note => !string.IsNullOrWhiteSpace(note))
+                    .Take(2)
+                    .ToList();
+
+                if (highlights.Count > 0)
+                {
+                    details.Add($"Notes: {string.Join(" / ", highlights)}");
+                }
+            }
+
+            if (details.Count > 0)
+            {
+                builder.Append(" — ");
+                builder.Append(string.Join(" | ", details));
+            }
+
+            builder.AppendLine();
+            index++;
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("Suggest dishes that harmonize with the overall lineup and briefly explain why each works.");
+        builder.AppendLine("Respond ONLY with JSON shaped as {\"suggestions\":[\"Suggestion 1\",\"Suggestion 2\",\"Suggestion 3\"]}.");
+
+        return builder.ToString();
+    }
+
     private static string BuildWineDisplayName(WineVintage? wineVintage, Wine? wine)
     {
         var name = wine?.Name;
@@ -4543,6 +4779,82 @@ The wines array must be sorted by descending alignmentScore. Include at most fiv
             }
 
             result = new GeneratedTasteProfile(summary, profile);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryParseSipSessionFoodSuggestions(string? content, out IReadOnlyList<string> suggestions)
+    {
+        suggestions = Array.Empty<string>();
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return false;
+        }
+
+        var segment = ExtractJsonSegment(content);
+
+        try
+        {
+            using var document = JsonDocument.Parse(segment, SipSessionFoodSuggestionJsonDocumentOptions);
+            var root = document.RootElement;
+
+            IEnumerable<JsonElement> candidateElements;
+            if (root.ValueKind == JsonValueKind.Object &&
+                root.TryGetProperty("suggestions", out var suggestionsElement) &&
+                suggestionsElement.ValueKind == JsonValueKind.Array)
+            {
+                candidateElements = suggestionsElement.EnumerateArray();
+            }
+            else if (root.ValueKind == JsonValueKind.Array)
+            {
+                candidateElements = root.EnumerateArray();
+            }
+            else
+            {
+                return false;
+            }
+
+            var list = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var element in candidateElements)
+            {
+                if (element.ValueKind != JsonValueKind.String)
+                {
+                    continue;
+                }
+
+                var value = element.GetString();
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    continue;
+                }
+
+                var trimmed = value.Trim();
+                if (trimmed.Length == 0)
+                {
+                    continue;
+                }
+
+                if (seen.Add(trimmed))
+                {
+                    list.Add(trimmed);
+                    if (list.Count == 3)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if (list.Count == 0)
+            {
+                return false;
+            }
+
+            suggestions = list;
             return true;
         }
         catch (JsonException)
@@ -5025,7 +5337,9 @@ public record WineSurferSipSessionDetailViewModel(
     IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
     bool IsCreateMode,
     IReadOnlyList<WineSurferSisterhoodOption> ManageableSisterhoods,
-    IReadOnlyList<WineSurferSipSessionBottle> AvailableBottles);
+    IReadOnlyList<WineSurferSipSessionBottle> AvailableBottles,
+    IReadOnlyList<string>? FoodSuggestions = null,
+    string? FoodSuggestionError = null);
 
 public record WineSurferSisterhoodOption(Guid Id, string Name, string? Description);
 
