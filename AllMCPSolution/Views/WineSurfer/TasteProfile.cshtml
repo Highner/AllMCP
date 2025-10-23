@@ -1,6 +1,8 @@
 @model AllMCPSolution.Controllers.WineSurferTasteProfileViewModel
 @using AllMCPSolution.Controllers
 @using System.Collections.Generic
+@using System.Linq
+@using System.Text.Json
 @{
     Layout = null;
     var requestPath = Context.Request.Path.HasValue ? Context.Request.Path.Value : string.Empty;
@@ -21,6 +23,27 @@
     var maxLength = Model.MaxLength;
     var suggestedAppellations = Model.SuggestedAppellations ?? Array.Empty<WineSurferSuggestedAppellation>();
     var hasSuggestedAppellations = suggestedAppellations.Count > 0;
+    var historyEntries = Model.History ?? Array.Empty<WineSurferTasteProfileHistoryEntry>();
+    var hasHistoryEntries = historyEntries.Count > 0;
+    var historyPayload = historyEntries
+        .Select(entry => new
+        {
+            id = entry.Id,
+            summary = entry.Summary,
+            profile = entry.Profile,
+            createdAt = entry.CreatedAtUtc,
+            inUse = entry.InUse
+        })
+        .ToList();
+    var historyJson = JsonSerializer.Serialize(historyPayload, new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    });
+    var activeHistoryId = Model.ActiveTasteProfileId?.ToString() ?? string.Empty;
+    var initialHistoryEntry = historyEntries.FirstOrDefault(entry => entry.InUse) ?? historyEntries.FirstOrDefault();
+    var initialHistoryLabel = initialHistoryEntry is null
+        ? string.Empty
+        : (initialHistoryEntry.InUse ? "In use profile" : "Saved profile");
     ViewData["WineSurferPageTitle"] = "Taste Profile";
 }
 <!DOCTYPE html>
@@ -183,9 +206,16 @@
         .taste-profile-footer {
             display: flex;
             flex-wrap: wrap;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
             gap: 16px;
+        }
+
+        .taste-profile-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 220px;
         }
 
         .taste-profile-actions {
@@ -197,6 +227,24 @@
 
         .taste-profile-actions .sisterhood-button {
             white-space: nowrap;
+        }
+
+        .taste-profile-history-status {
+            font-size: 12px;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            color: hsla(var(--muted-foreground) / 0.85);
+        }
+
+        .taste-profile-history-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .taste-profile-history-button {
+            padding: 0 14px;
+            min-width: 44px;
         }
 
         .taste-profile-suggestions {
@@ -364,6 +412,14 @@
             .taste-profile-actions .sisterhood-button {
                 width: 100%;
             }
+
+            .taste-profile-meta {
+                width: 100%;
+            }
+
+            .taste-profile-history-controls {
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -525,10 +581,31 @@
                         <p class="taste-profile-help">We recommend highlighting grape varieties, favorite producers, and moments you savor. Update it anytime your palate evolves.</p>
                     </div>
                     <div class="taste-profile-footer">
-                        <span class="taste-profile-counter" data-char-count data-for="tasteProfileInput" data-max-length="@maxLength">
-                            @($"{tasteProfile.Length} / {maxLength} characters")
-                        </span>
+                        <div class="taste-profile-meta">
+                            <span class="taste-profile-counter" data-char-count data-for="tasteProfileInput" data-max-length="@maxLength">
+                                @($"{tasteProfile.Length} / {maxLength} characters")
+                            </span>
+                            <span class="taste-profile-history-status" data-history-status @(hasHistoryEntries ? null : "hidden")>
+                                @initialHistoryLabel
+                            </span>
+                        </div>
                         <div class="taste-profile-actions">
+                            <div class="taste-profile-history-controls" data-history-controls @(hasHistoryEntries ? null : "hidden")>
+                                <button
+                                    type="button"
+                                    class="sisterhood-button taste-profile-history-button"
+                                    data-history-prev
+                                    aria-label="Show previous saved profile">
+                                    &lt;
+                                </button>
+                                <button
+                                    type="button"
+                                    class="sisterhood-button taste-profile-history-button"
+                                    data-history-next
+                                    aria-label="Show next saved profile">
+                                    &gt;
+                                </button>
+                            </div>
                             <button
                                 type="button"
                                 class="sisterhood-button taste-profile-generate-button"
@@ -539,10 +616,12 @@
                             <button type="submit" class="sisterhood-button">Save profile</button>
                         </div>
                     </div>
+                    <input type="hidden" name="TasteProfileId" value="@activeHistoryId" data-history-current-id />
                 </form>
             </section>
         </main>
     </div>
+    <script type="application/json" id="tasteProfileHistoryData">@Html.Raw(historyJson)</script>
     <script>
         (function () {
             const counters = document.querySelectorAll('[data-char-count]');
@@ -758,6 +837,240 @@
                 }
             };
 
+            const historyDataElement = document.getElementById('tasteProfileHistoryData');
+            const historyPrevButton = document.querySelector('[data-history-prev]');
+            const historyNextButton = document.querySelector('[data-history-next]');
+            const historyStatusNode = document.querySelector('[data-history-status]');
+            const historyControlsNode = document.querySelector('[data-history-controls]');
+            const historyIdInput = document.querySelector('[data-history-current-id]');
+
+            let historyEntries = [];
+            let historyIndex = -1;
+
+            const normalizeGuid = (value) => (typeof value === 'string' ? value.trim().toLowerCase() : '');
+
+            const parseHistoryEntries = () => {
+                historyEntries = [];
+                historyIndex = -1;
+
+                if (!historyDataElement) {
+                    return;
+                }
+
+                try {
+                    const raw = historyDataElement.textContent || '[]';
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) {
+                        historyEntries = parsed
+                            .filter((entry) => entry && typeof entry === 'object')
+                            .map((entry) => ({
+                                id: typeof entry.id === 'string' ? entry.id : (entry.id ? String(entry.id) : ''),
+                                summary: typeof entry.summary === 'string' ? entry.summary : '',
+                                profile: typeof entry.profile === 'string' ? entry.profile : '',
+                                createdAt: typeof entry.createdAt === 'string'
+                                    ? entry.createdAt
+                                    : (entry.createdAt ? String(entry.createdAt) : ''),
+                                inUse: entry.inUse === true
+                            }));
+                    }
+                } catch (error) {
+                    historyEntries = [];
+                }
+            };
+
+            const formatHistoryTimestamp = (isoString) => {
+                if (typeof isoString !== 'string' || !isoString) {
+                    return '';
+                }
+
+                try {
+                    const date = new Date(isoString);
+                    if (Number.isNaN(date.getTime())) {
+                        return '';
+                    }
+
+                    if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+                        const formatter = new Intl.DateTimeFormat(undefined, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short'
+                        });
+                        return formatter.format(date);
+                    }
+
+                    return date.toISOString();
+                } catch (error) {
+                    return '';
+                }
+            };
+
+            const updateHistoryStatus = () => {
+                if (!historyStatusNode) {
+                    return;
+                }
+
+                const total = Array.isArray(historyEntries) ? historyEntries.length : 0;
+                if (total === 0 || historyIndex < 0 || historyIndex >= total) {
+                    historyStatusNode.hidden = true;
+                    historyStatusNode.textContent = '';
+                    return;
+                }
+
+                const entry = historyEntries[historyIndex];
+                if (!entry) {
+                    historyStatusNode.hidden = true;
+                    historyStatusNode.textContent = '';
+                    return;
+                }
+
+                const prefix = entry.inUse ? 'Viewing in-use profile' : 'Viewing saved profile';
+                const timestamp = formatHistoryTimestamp(entry.createdAt);
+                historyStatusNode.hidden = false;
+                historyStatusNode.textContent = timestamp ? `${prefix} • ${timestamp}` : prefix;
+            };
+
+            const updateHistoryButtons = () => {
+                const total = Array.isArray(historyEntries) ? historyEntries.length : 0;
+                const hasEntries = total > 0;
+
+                if (historyPrevButton) {
+                    historyPrevButton.disabled = !hasEntries || historyIndex >= total - 1;
+                }
+
+                if (historyNextButton) {
+                    historyNextButton.disabled = !hasEntries || historyIndex <= 0;
+                }
+
+                if (historyControlsNode) {
+                    historyControlsNode.hidden = !hasEntries;
+                }
+            };
+
+            const showHistoryEntry = (index) => {
+                if (!Array.isArray(historyEntries) || historyEntries.length === 0) {
+                    return;
+                }
+
+                const boundedIndex = Math.max(0, Math.min(index, historyEntries.length - 1));
+                const entry = historyEntries[boundedIndex];
+                if (!entry) {
+                    return;
+                }
+
+                historyIndex = boundedIndex;
+
+                if (summaryField) {
+                    summaryField.value = entry.summary || '';
+                    dispatchInputEvent(summaryField);
+                }
+
+                if (profileField) {
+                    profileField.value = entry.profile || '';
+                    dispatchInputEvent(profileField);
+                }
+
+                if (historyIdInput) {
+                    historyIdInput.value = entry.id || '';
+                }
+
+                updateHistoryButtons();
+                updateHistoryStatus();
+            };
+
+            const focusEphemeralHistoryEntry = (summary, profile) => {
+                const normalizedSummary = typeof summary === 'string' ? summary : (summaryField ? summaryField.value : '');
+                const normalizedProfile = typeof profile === 'string' ? profile : (profileField ? profileField.value : '');
+                const timestamp = new Date().toISOString();
+
+                const persistedEntries = Array.isArray(historyEntries)
+                    ? historyEntries.filter((entry) => entry && entry.id)
+                    : [];
+
+                historyEntries = [
+                    {
+                        id: '',
+                        summary: normalizedSummary,
+                        profile: normalizedProfile,
+                        createdAt: timestamp,
+                        inUse: true
+                    },
+                    ...persistedEntries.map((entry) => ({
+                        ...entry,
+                        inUse: false
+                    }))
+                ];
+
+                historyIndex = 0;
+
+                if (historyIdInput) {
+                    historyIdInput.value = '';
+                }
+
+                updateHistoryButtons();
+                updateHistoryStatus();
+            };
+
+            const initializeHistory = () => {
+                parseHistoryEntries();
+
+                if (!Array.isArray(historyEntries) || historyEntries.length === 0) {
+                    if (historyIdInput) {
+                        historyIdInput.value = '';
+                    }
+
+                    updateHistoryButtons();
+                    updateHistoryStatus();
+                    return;
+                }
+
+                const initialId = historyIdInput && typeof historyIdInput.value === 'string'
+                    ? normalizeGuid(historyIdInput.value)
+                    : '';
+
+                let initialIndex = -1;
+
+                if (initialId) {
+                    initialIndex = historyEntries.findIndex((entry) => normalizeGuid(entry.id) === initialId);
+                }
+
+                if (initialIndex < 0) {
+                    initialIndex = historyEntries.findIndex((entry) => entry.inUse);
+                }
+
+                if (initialIndex < 0) {
+                    initialIndex = 0;
+                }
+
+                showHistoryEntry(initialIndex);
+            };
+
+            initializeHistory();
+
+            if (historyPrevButton) {
+                historyPrevButton.addEventListener('click', () => {
+                    if (!Array.isArray(historyEntries) || historyEntries.length === 0) {
+                        return;
+                    }
+
+                    const nextIndex = Math.min(historyIndex + 1, historyEntries.length - 1);
+                    if (nextIndex !== historyIndex) {
+                        showHistoryEntry(nextIndex);
+                    }
+                });
+            }
+
+            if (historyNextButton) {
+                historyNextButton.addEventListener('click', () => {
+                    if (!Array.isArray(historyEntries) || historyEntries.length === 0) {
+                        return;
+                    }
+
+                    const nextIndex = Math.max(historyIndex - 1, 0);
+                    if (nextIndex !== historyIndex) {
+                        showHistoryEntry(nextIndex);
+                    }
+                });
+            }
+
             const defaultSuccessMessage = 'We generated a new taste profile. Review and save it when you’re ready.';
             const defaultErrorMessage = 'We couldn’t generate a taste profile right now. Please try again.';
             const streamingStartMessage = 'Contacting the taste profile assistant…';
@@ -882,6 +1195,7 @@
                         state.completed = true;
                         const payload = event && typeof event.payload === 'object' ? event.payload : event;
                         applyTasteProfilePayload(payload);
+                        focusEphemeralHistoryEntry(summaryField.value, profileField.value);
                         const successMessage = typeof event.message === 'string' && event.message.trim()
                             ? event.message
                             : defaultSuccessMessage;
@@ -1015,6 +1329,7 @@
                         }
 
                         applyTasteProfilePayload(payload);
+                        focusEphemeralHistoryEntry(summaryField.value, profileField.value);
                         setGeneratorMessage('success', defaultSuccessMessage);
                         state.completed = true;
                     }

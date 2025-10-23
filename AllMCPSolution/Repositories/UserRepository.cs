@@ -19,7 +19,7 @@ public interface IUserRepository
     Task AddAsync(ApplicationUser user, CancellationToken ct = default);
     Task UpdateAsync(ApplicationUser user, CancellationToken ct = default);
     Task<ApplicationUser?> UpdateDisplayNameAsync(Guid id, string displayName, CancellationToken ct = default);
-    Task<ApplicationUser?> UpdateTasteProfileAsync(Guid id, string tasteProfile, string? tasteProfileSummary, CancellationToken ct = default);
+    Task<ApplicationUser?> UpdateTasteProfileAsync(Guid id, Guid? tasteProfileId, string tasteProfile, string? tasteProfileSummary, CancellationToken ct = default);
     Task<TasteProfile?> AddGeneratedTasteProfileAsync(Guid id, string tasteProfile, string? tasteProfileSummary, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 }
@@ -266,7 +266,7 @@ public class UserRepository : IUserRepository
         existing.TasteProfile = normalizedProfile;
         existing.TasteProfileSummary = normalizedSummary;
 
-        ApplyManualTasteProfileUpdate(existing, normalizedProfile, normalizedSummary);
+        ApplyManualTasteProfileUpdate(existing, normalizedProfile, normalizedSummary, null);
 
         NormalizeUser(existing);
 
@@ -319,7 +319,7 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.Id == id, ct);
     }
 
-    public async Task<ApplicationUser?> UpdateTasteProfileAsync(Guid id, string tasteProfile, string? tasteProfileSummary, CancellationToken ct = default)
+    public async Task<ApplicationUser?> UpdateTasteProfileAsync(Guid id, Guid? tasteProfileId, string tasteProfile, string? tasteProfileSummary, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -337,7 +337,7 @@ public class UserRepository : IUserRepository
         user.TasteProfile = normalizedProfile;
         user.TasteProfileSummary = normalizedSummary;
 
-        ApplyManualTasteProfileUpdate(user, normalizedProfile, normalizedSummary);
+        ApplyManualTasteProfileUpdate(user, normalizedProfile, normalizedSummary, tasteProfileId);
 
         NormalizeUser(user);
 
@@ -445,12 +445,19 @@ public class UserRepository : IUserRepository
         return newEntry;
     }
 
-    private static TasteProfile ApplyManualTasteProfileUpdate(ApplicationUser user, string profile, string summary)
+    private static TasteProfile ApplyManualTasteProfileUpdate(ApplicationUser user, string profile, string summary, Guid? targetEntryId)
     {
         var collection = user.TasteProfiles ?? new List<TasteProfile>();
         user.TasteProfiles = collection;
 
-        var current = collection.FirstOrDefault(tp => tp.InUse);
+        TasteProfile? current = null;
+
+        if (targetEntryId.HasValue)
+        {
+            current = collection.FirstOrDefault(tp => tp.Id == targetEntryId.Value);
+        }
+
+        current ??= collection.FirstOrDefault(tp => tp.InUse);
 
         if (current is null)
         {
@@ -462,7 +469,9 @@ public class UserRepository : IUserRepository
             {
                 current = new TasteProfile
                 {
-                    Id = Guid.NewGuid(),
+                    Id = targetEntryId.HasValue && targetEntryId.Value != Guid.Empty
+                        ? targetEntryId.Value
+                        : Guid.NewGuid(),
                     UserId = user.Id,
                     User = user,
                     Profile = profile,
@@ -483,6 +492,11 @@ public class UserRepository : IUserRepository
         current.Summary = summary;
         current.UserId = user.Id;
         current.User = user;
+
+        if (current.CreatedAt == default)
+        {
+            current.CreatedAt = DateTime.UtcNow;
+        }
 
         foreach (var entry in collection)
         {
