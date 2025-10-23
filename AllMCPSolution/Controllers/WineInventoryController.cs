@@ -195,6 +195,57 @@ public class WineInventoryController : Controller
             .ThenBy(b => b.Vintage)
             .ToList();
 
+        var bottleLocations = await _bottleLocationRepository.GetAllAsync(cancellationToken);
+        var userLocations = bottleLocations
+            .Where(location => location.UserId == currentUserId)
+            .OrderBy(location => location.Name)
+            .ToList();
+
+        var bottlesByLocation = bottles
+            .Where(bottle => bottle.BottleLocationId.HasValue)
+            .GroupBy(bottle => bottle.BottleLocationId!.Value)
+            .ToDictionary(
+                group => group.Key,
+                group => new
+                {
+                    BottleCount = group.Count(),
+                    UniqueWineCount = group
+                        .Select(bottle => bottle.WineVintageId)
+                        .Distinct()
+                        .Count(),
+                    DrunkBottleCount = group.Count(bottle => bottle.IsDrunk)
+                });
+
+        var locationSummaries = userLocations
+            .Select(location =>
+            {
+                if (!bottlesByLocation.TryGetValue(location.Id, out var summary))
+                {
+                    return new WineInventoryLocationViewModel
+                    {
+                        Id = location.Id,
+                        Name = location.Name,
+                        BottleCount = 0,
+                        UniqueWineCount = 0,
+                        CellaredBottleCount = 0,
+                        DrunkBottleCount = 0
+                    };
+                }
+
+                var cellaredCount = summary.BottleCount - summary.DrunkBottleCount;
+
+                return new WineInventoryLocationViewModel
+                {
+                    Id = location.Id,
+                    Name = location.Name,
+                    BottleCount = summary.BottleCount,
+                    UniqueWineCount = summary.UniqueWineCount,
+                    CellaredBottleCount = Math.Max(cellaredCount, 0),
+                    DrunkBottleCount = summary.DrunkBottleCount
+                };
+            })
+            .ToList();
+
         var viewModel = new WineInventoryViewModel
         {
             Status = normalizedStatus,
@@ -203,6 +254,8 @@ public class WineInventoryController : Controller
             SortField = normalizedSortField,
             SortDirection = descending ? "desc" : "asc",
             Bottles = items,
+            CurrentUserId = currentUserId,
+            Locations = locationSummaries,
             StatusOptions = new List<FilterOption>
             {
                 new("all", "All Bottles"),
@@ -304,8 +357,17 @@ public class WineInventoryController : Controller
     [HttpGet("options")]
     public async Task<IActionResult> GetReferenceData(CancellationToken cancellationToken)
     {
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
         var subAppellations = await _subAppellationRepository.GetAllAsync(cancellationToken);
         var bottleLocations = await _bottleLocationRepository.GetAllAsync(cancellationToken);
+        var userLocations = bottleLocations
+            .Where(location => location.UserId == currentUserId)
+            .OrderBy(location => location.Name)
+            .ToList();
         var users = await _userRepository.GetAllAsync(cancellationToken);
 
         var response = new InventoryReferenceDataResponse
@@ -317,7 +379,7 @@ public class WineInventoryController : Controller
                     Label = BuildSubAppellationLabel(sa)
                 })
                 .ToList(),
-            BottleLocations = bottleLocations
+            BottleLocations = userLocations
                 .Select(bl => new BottleLocationOption
                 {
                     Id = bl.Id,
@@ -1202,6 +1264,8 @@ public class WineInventoryViewModel
     public string SortField { get; set; } = "wine";
     public string SortDirection { get; set; } = "asc";
     public IReadOnlyList<WineInventoryBottleViewModel> Bottles { get; set; } = Array.Empty<WineInventoryBottleViewModel>();
+    public Guid CurrentUserId { get; set; }
+    public IReadOnlyList<WineInventoryLocationViewModel> Locations { get; set; } = Array.Empty<WineInventoryLocationViewModel>();
     public IReadOnlyList<FilterOption> StatusOptions { get; set; } = Array.Empty<FilterOption>();
     public IReadOnlyList<FilterOption> ColorOptions { get; set; } = Array.Empty<FilterOption>();
 }
@@ -1239,6 +1303,16 @@ public class WineInventoryBottleDetailViewModel
     public Guid? CurrentUserNoteId { get; set; }
     public string? CurrentUserNote { get; set; }
     public decimal? CurrentUserScore { get; set; }
+}
+
+public class WineInventoryLocationViewModel
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int BottleCount { get; set; }
+    public int UniqueWineCount { get; set; }
+    public int CellaredBottleCount { get; set; }
+    public int DrunkBottleCount { get; set; }
 }
 
 public class BottleGroupDetailsResponse
