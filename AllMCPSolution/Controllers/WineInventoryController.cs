@@ -421,9 +421,15 @@ public class WineInventoryController : Controller
     }
 
     [HttpGet("wines")]
-    public async Task<IActionResult> GetWineOptions(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetWineOptions([FromQuery(Name = "search")] string? search, CancellationToken cancellationToken)
     {
-        var wineOptions = await _wineRepository.GetInventoryOptionsAsync(cancellationToken);
+        var trimmedSearch = search?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedSearch) || trimmedSearch.Length < 3)
+        {
+            return Json(Array.Empty<WineInventoryWineOption>());
+        }
+
+        var wineOptions = await _wineRepository.SearchInventoryOptionsAsync(trimmedSearch, 20, cancellationToken);
 
         var response = wineOptions
             .Select(option => new WineInventoryWineOption
@@ -437,8 +443,6 @@ public class WineInventoryController : Controller
                 Country = option.Country,
                 Vintages = option.Vintages.ToList()
             })
-            .OrderBy(option => option.Name)
-            .ThenBy(option => option.SubAppellation)
             .ToList();
 
         return Json(response);
