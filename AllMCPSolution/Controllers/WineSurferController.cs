@@ -556,8 +556,28 @@ public class WineSurferController : Controller
             ? TempData[TasteProfileErrorTempDataKey] as string
             : null;
 
-        var tasteProfileSummary = domainUser?.TasteProfileSummary ?? currentUser?.TasteProfileSummary ?? string.Empty;
-        var tasteProfile = domainUser?.TasteProfile ?? currentUser?.TasteProfile ?? string.Empty;
+        var tasteProfileHistory = domainUser?.TasteProfiles
+            ?.OrderByDescending(profile => profile.CreatedAt)
+            .Select(profile => new WineSurferTasteProfileHistoryEntry(
+                profile.Id,
+                profile.Summary ?? string.Empty,
+                profile.Profile ?? string.Empty,
+                DateTime.SpecifyKind(profile.CreatedAt, DateTimeKind.Utc),
+                profile.InUse))
+            .ToList()
+            ?? new List<WineSurferTasteProfileHistoryEntry>();
+
+        var activeHistoryEntry = tasteProfileHistory.FirstOrDefault(entry => entry.InUse)
+            ?? tasteProfileHistory.FirstOrDefault();
+
+        var tasteProfileSummary = activeHistoryEntry?.Summary
+            ?? domainUser?.TasteProfileSummary
+            ?? currentUser?.TasteProfileSummary
+            ?? string.Empty;
+        var tasteProfile = activeHistoryEntry?.Profile
+            ?? domainUser?.TasteProfile
+            ?? currentUser?.TasteProfile
+            ?? string.Empty;
         IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
 
         if (currentUserId.HasValue)
@@ -575,7 +595,9 @@ public class WineSurferController : Controller
             TasteProfileMaxLength,
             suggestedAppellations,
             statusMessage,
-            errorMessage);
+            errorMessage,
+            activeHistoryEntry?.Id,
+            tasteProfileHistory);
 
         return View("TasteProfile", viewModel);
     }
@@ -632,6 +654,7 @@ public class WineSurferController : Controller
         {
             var updatedUser = await _userRepository.UpdateTasteProfileAsync(
                 userId.Value,
+                request.TasteProfileId,
                 trimmedTasteProfile,
                 trimmedSummary,
                 cancellationToken);
@@ -5030,6 +5053,8 @@ public class WineSurferController : Controller
 
     public sealed class UpdateTasteProfileRequest
     {
+        public Guid? TasteProfileId { get; set; }
+
         [StringLength(TasteProfileSummaryMaxLength)]
         public string? TasteProfileSummary { get; set; }
 
@@ -7010,7 +7035,16 @@ public record WineSurferTasteProfileViewModel(
     int MaxLength,
     IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations,
     string? StatusMessage,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    Guid? ActiveTasteProfileId,
+    IReadOnlyList<WineSurferTasteProfileHistoryEntry> History);
+
+public record WineSurferTasteProfileHistoryEntry(
+    Guid Id,
+    string Summary,
+    string Profile,
+    DateTime CreatedAtUtc,
+    bool InUse);
 
 public record WineSurferSuggestedAppellation(
     Guid SubAppellationId,
