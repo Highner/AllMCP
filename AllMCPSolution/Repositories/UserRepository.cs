@@ -27,12 +27,14 @@ public interface IUserRepository
 public class UserRepository : IUserRepository
 {
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ITasteProfileRepository _tasteProfileRepository;
     private const int TasteProfileMaxLength = 4096;
     private const int TasteProfileSummaryMaxLength = 512;
 
-    public UserRepository(UserManager<ApplicationUser> userManager)
+    public UserRepository(UserManager<ApplicationUser> userManager, ITasteProfileRepository tasteProfileRepository)
     {
         _userManager = userManager;
+        _tasteProfileRepository = tasteProfileRepository;
     }
 
     public async Task<List<ApplicationUser>> GetAllAsync(CancellationToken ct = default)
@@ -349,25 +351,12 @@ public class UserRepository : IUserRepository
     {
         ct.ThrowIfCancellationRequested();
 
-        var user = await _userManager.Users
-            .Include(u => u.TasteProfiles)
-            .FirstOrDefaultAsync(u => u.Id == id, ct);
-
-        if (user is null)
-        {
-            return null;
-        }
-
-        var (normalizedProfile, normalizedSummary) = NormalizeTasteProfileValues(tasteProfile, tasteProfileSummary);
-
-        var newEntry = ApplyGeneratedTasteProfileUpdate(user, normalizedProfile, normalizedSummary);
-
-        NormalizeUser(user);
-
-        var result = await _userManager.UpdateAsync(user);
-        EnsureSucceeded(result, $"Failed to update user '{user.Id}'.");
-
-        return newEntry;
+        return await _tasteProfileRepository.SaveGeneratedProfileAsync(
+            id,
+            tasteProfile,
+            tasteProfileSummary,
+            suggestions: null,
+            ct);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
@@ -405,32 +394,6 @@ public class UserRepository : IUserRepository
         }
 
         return (normalizedProfile, normalizedSummary);
-    }
-
-    private static TasteProfile ApplyGeneratedTasteProfileUpdate(ApplicationUser user, string profile, string summary)
-    {
-        var collection = user.TasteProfiles ?? new List<TasteProfile>();
-        user.TasteProfiles = collection;
-
-        foreach (var entry in collection)
-        {
-            entry.InUse = false;
-        }
-
-        var newEntry = new TasteProfile
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            User = user,
-            Profile = profile,
-            Summary = summary,
-            CreatedAt = DateTime.UtcNow,
-            InUse = true
-        };
-
-        collection.Add(newEntry);
-
-        return newEntry;
     }
 
     private static TasteProfile ApplyManualTasteProfileUpdate(ApplicationUser user, string profile, string summary, Guid? targetEntryId)
