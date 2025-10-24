@@ -326,7 +326,7 @@ public class WineSurferController : WineSurferControllerBase
 
    
 
-    [HttpGet("sessions/{sipSessionId:guid}")]
+    [NonAction]
     public async Task<IActionResult> SipSession(Guid sipSessionId, CancellationToken cancellationToken)
     {
         var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
@@ -343,8 +343,7 @@ public class WineSurferController : WineSurferControllerBase
         return View("SipSession", model);
     }
 
-    [HttpPost("sessions/{sipSessionId:guid}/suggest-food")]
-    [ValidateAntiForgeryToken]
+    [NonAction]
     public async Task<IActionResult> SuggestSipSessionFood(Guid sipSessionId, CancellationToken cancellationToken)
     {
         var session = await _sipSessionRepository.GetByIdAsync(sipSessionId, cancellationToken);

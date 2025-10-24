@@ -52,6 +52,7 @@ builder.Services.AddScoped<ISipSessionRepository, SipSessionRepository>();
 builder.Services.AddScoped<IWineSurferNotificationDismissalRepository, WineSurferNotificationDismissalRepository>();
 builder.Services.AddScoped<ITerroirMergeRepository, TerroirMergeRepository>();
 builder.Services.AddScoped<IWineSurferTopBarService, WineSurferTopBarService>();
+builder.Services.AddScoped<IBottleSummaryService, BottleSummaryService>();
 builder.Services.AddScoped<IWineImportService, WineImportService>();
 builder.Services.AddScoped<IChatGptService, ChatGptService>();
 builder.Services.AddScoped<IChatGptPromptService, ChatGptPromptService>();
