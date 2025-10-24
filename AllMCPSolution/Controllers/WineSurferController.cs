@@ -326,21 +326,15 @@ public class WineSurferController : WineSurferControllerBase
 
    
 
-    [NonAction]
-    public async Task<IActionResult> SipSession(Guid sipSessionId, CancellationToken cancellationToken)
+    [HttpGet("SipSession")]
+    public IActionResult SipSession(Guid sipSessionId)
     {
-        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
-        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
-        var session = await _sipSessionRepository.GetByIdAsync(sipSessionId, cancellationToken);
-        if (session is null)
+        if (sipSessionId == Guid.Empty)
         {
-            return NotFound();
+            return RedirectToAction(nameof(Index));
         }
 
-        var model = await BuildSipSessionDetailViewModelAsync(session, cancellationToken);
-
-        Response.ContentType = "text/html; charset=utf-8";
-        return View("~/Views/SipSession/Index.cshtml", model);
+        return RedirectToAction(nameof(SipSessionController.Index), "SipSession", new { sipSessionId });
     }
 
     [NonAction]
@@ -2050,7 +2044,7 @@ public class WineSurferController : WineSurferControllerBase
             TempData["SisterhoodError"] = "We couldn't add those bottles right now. Please try again.";
         }
 
-        return RedirectToAction(nameof(SipSession), new { sipSessionId = request.SipSessionId });
+        return RedirectToAction(nameof(SipSessionController.Index), "SipSession", new { sipSessionId = request.SipSessionId });
     }
 
     [Authorize]
@@ -2179,7 +2173,7 @@ public class WineSurferController : WineSurferControllerBase
             TempData["SisterhoodError"] = "We couldn't reveal that bottle right now. Please try again.";
         }
 
-        return RedirectToAction(nameof(SipSession), new { sipSessionId = request.SipSessionId });
+        return RedirectToAction(nameof(SipSessionController.Index), "SipSession", new { sipSessionId = request.SipSessionId });
     }
 
     [Authorize]
