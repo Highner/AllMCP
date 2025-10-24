@@ -74,42 +74,359 @@
     <style>
         :root {
             color-scheme: dark;
-            --wine-surfer-card-max-width: 960px;
+            --wine-surfer-card-max-width: 1100px;
         }
 
         body {
             margin: 0;
             min-height: 100vh;
             background: var(--wine-app-background);
-            color: #f4f1ea;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        .wine-surfer-card {
-            width: min(100%, var(--wine-surfer-card-max-width));
-            max-width: var(--wine-surfer-card-max-width);
+            color: hsl(var(--foreground));
+            font-family: var(--font-sans, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
+            display: flex;
+            flex-direction: column;
         }
 
         .page-content {
-            min-height: 100vh;
+            flex: 1;
             display: flex;
             flex-direction: column;
         }
 
         .session-main {
-            width: min(var(--wine-surfer-card-max-width), 100%);
-            margin: 0 auto;
-            padding: 120px 32px 96px;
+            flex: 1;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            padding: 120px 20px 96px;
+        }
+
+        .session-container {
+            width: min(100%, var(--wine-surfer-card-max-width));
             display: flex;
             flex-direction: column;
-            gap: 48px;
-            --session-content-max-width: min(var(--wine-surfer-card-max-width), 100%);
+            gap: 24px;
+        }
+
+        .session-card {
+            background: hsla(var(--card) / 0.9);
+            border: 1px solid hsla(var(--border) / 0.45);
+            border-radius: 28px;
+            padding: clamp(24px, 3vw, 42px);
+            box-shadow: 0 30px 60px -45px rgba(0, 0, 0, 0.9);
         }
 
         .session-feedback {
             display: flex;
             flex-direction: column;
             gap: 12px;
+        }
+
+        .status-banner {
+            padding: 16px 20px;
+            border-radius: 18px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .status-banner.success {
+            background: hsla(var(--accent) / 0.4);
+            border: 1px solid hsla(var(--border) / 0.35);
+        }
+
+        .status-banner.error {
+            background: hsla(var(--destructive) / 0.2);
+            border: 1px solid hsla(var(--destructive) / 0.4);
+        }
+
+        .session-overview {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .session-overview-header {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        @media (min-width: 768px) {
+            .session-overview-header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: flex-end;
+            }
+        }
+
+        .session-overview-header-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .session-kicker {
+            margin: 0;
+            font-size: 0.75rem;
+            letter-spacing: 0.32em;
+            text-transform: uppercase;
+            color: hsla(var(--muted-foreground) / 0.85);
+        }
+
+        .session-title {
+            margin: 0;
+            font-size: clamp(2.5rem, 4vw, 3.75rem);
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            line-height: 1;
+        }
+
+        .session-overview-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: flex-start;
+        }
+
+        .session-overview-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .session-summary-card {
+            background: hsla(var(--accent) / 0.2);
+            border: 1px solid hsla(var(--border) / 0.35);
+            border-radius: 22px;
+            padding: 20px 24px;
+        }
+
+        .session-summary-content {
+            display: grid;
+            gap: 16px;
+        }
+
+        .session-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin: 0;
+        }
+
+        .session-meta-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.28em;
+            text-transform: uppercase;
+            color: hsla(var(--muted-foreground) / 0.85);
+        }
+
+        .session-meta-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .session-content {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .session-grid {
+            display: grid;
+            gap: 24px;
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        @media (min-width: 1040px) {
+            .session-grid {
+                grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+            }
+        }
+
+        .session-bottles,
+        .session-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 1.5rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+
+        .section-subtitle {
+            margin: 0 0 8px;
+            font-size: 0.95rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: hsla(var(--muted-foreground) / 0.9);
+        }
+
+        .empty-state {
+            margin: 0;
+            padding: 18px 20px;
+            border-radius: 18px;
+            border: 1px dashed hsla(var(--border) / 0.4);
+            background: hsla(var(--accent) / 0.14);
+            text-align: center;
+            letter-spacing: 0.08em;
+        }
+
+        .bottle-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 0;
+            margin: 0;
+        }
+
+        .bottle-item {
+            border-radius: 22px;
+            border: 1px solid hsla(var(--border) / 0.35);
+            background: hsla(var(--background) / 0.7);
+            overflow: hidden;
+        }
+
+        .bottle-card {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .bottle-header {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        @media (min-width: 640px) {
+            .bottle-header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: flex-start;
+            }
+        }
+
+        .bottle-title {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .bottle-name {
+            font-size: 1.35rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .bottle-vintage {
+            font-size: 0.95rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: hsla(var(--muted-foreground) / 0.85);
+        }
+
+        .bottle-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .bottle-meta-label {
+            display: block;
+            font-size: 0.65rem;
+            letter-spacing: 0.32em;
+            text-transform: uppercase;
+            color: hsla(var(--muted-foreground) / 0.7);
+        }
+
+        .bottle-meta-value {
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .bottle-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        @media (min-width: 720px) {
+            .bottle-actions {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+        }
+
+        .bottle-rate {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .rating-form {
+            display: grid;
+            gap: 8px;
+        }
+
+        .rating-form label {
+            font-size: 0.75rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .rating-form input,
+        .rating-form textarea,
+        .rating-form button {
+            width: 100%;
+        }
+
+        .bottle-secondary-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .pairing-form {
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .pairing-suggestions,
+        .cheese-suggestion {
+            background: hsla(var(--accent) / 0.12);
+            border: 1px solid hsla(var(--border) / 0.25);
+            border-radius: 18px;
+            padding: 18px 20px;
+        }
+
+        .suggestion-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 0;
+            padding: 0;
+        }
+
+        .suggestion-item {
+            letter-spacing: 0.06em;
+        }
+
+        .error-banner {
+            padding: 16px 18px;
+            border-radius: 18px;
+            border: 1px solid hsla(var(--destructive) / 0.4);
+            background: hsla(var(--destructive) / 0.16);
         }
 
         .session-edit {
@@ -132,15 +449,15 @@
 
         .session-edit__panel {
             margin-top: 16px;
-            padding: 20px;
-            border-radius: 16px;
-            background: rgba(20, 20, 20, 0.75);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 24px;
+            border-radius: 20px;
+            background: hsla(var(--background) / 0.85);
+            border: 1px solid hsla(var(--border) / 0.35);
         }
 
         .session-edit__form {
             display: grid;
-            gap: 12px;
+            gap: 14px;
         }
 
         .session-edit__form input,
@@ -209,20 +526,21 @@
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="session-main">
-            @if (!string.IsNullOrWhiteSpace(statusMessage) || !string.IsNullOrWhiteSpace(errorMessage))
-            {
-                <section class="session-feedback" aria-live="polite">
-                    @if (!string.IsNullOrWhiteSpace(statusMessage))
-                    {
-                        <div class="status-banner success" role="status">@statusMessage</div>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(errorMessage))
-                    {
-                        <div class="status-banner error" role="alert">@errorMessage</div>
-                    }
-                </section>
-            }
-            <section class="session-overview" aria-label="Sip session details">
+            <div class="session-container">
+                @if (!string.IsNullOrWhiteSpace(statusMessage) || !string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    <section class="session-card session-feedback" aria-live="polite">
+                        @if (!string.IsNullOrWhiteSpace(statusMessage))
+                        {
+                            <div class="status-banner success" role="status">@statusMessage</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(errorMessage))
+                        {
+                            <div class="status-banner error" role="alert">@errorMessage</div>
+                        }
+                    </section>
+                }
+                <section class="session-card session-overview" aria-label="Sip session details">
                 <div class="session-overview-header">
                     <div class="session-overview-header-info">
                         <p class="session-kicker">@sisterhoodName</p>
@@ -447,162 +765,161 @@
                 </div>
             </section>
             <section class="session-content" aria-label="Session content">
-                <div class="session-layout">
-                    <div class="session-bottles" aria-labelledby="session-bottles-title">
-                        <h2 id="session-bottles-title" class="section-title">Bottles</h2>
-                        @if (sessionBottles.Count == 0)
-                        {
-                            <p class="empty-state">No bottles added yet.</p>
-                        }
-                        else
-                        {
-                            <ul class="bottle-list">
-                                @foreach (var bottle in sessionBottles)
-                                {
-                                    var bottleId = $"bottle-{bottle.Id}";
-                                    var scoreId = $"bottle-score-{bottle.Id}";
-                                    var commentId = $"bottle-comment-{bottle.Id}";
-                                    var ratingFormId = $"rate-{bottle.Id}";
-                                    var revealFormId = $"reveal-{bottle.Id}";
-                                    var drinkFormId = $"drink-{bottle.Id}";
-                                    var removeFormId = $"remove-{bottle.Id}";
-                                    var deleteNoteFormId = $"delete-note-{bottle.Id}";
-                                    var revealAction = Url.Action("RevealSipSessionBottle", "WineSurfer");
-                                    var drinkAction = Url.Action("DrinkSipSessionBottle", "WineSurfer");
-                                    var rateAction = Url.Action("RateSipSessionBottle", "WineSurfer");
-                                    var removeAction = Url.Action("RemoveSipSessionBottle", "WineSurfer");
-                                    var deleteNoteAction = Url.Action("DeleteSipSessionBottleNote", "WineSurfer");
-                                    var userScore = bottle.CurrentUserScore.HasValue ? bottle.CurrentUserScore.Value.ToString("0.0") : string.Empty;
-                                    <li id="@bottleId" class="bottle-item @(bottle.IsRevealed ? "revealed" : "masked")" data-bottle-id="@bottle.Id">
-                                        <div class="bottle-card">
-                                            <div class="bottle-content">
-                                                <div class="bottle-header">
-                                                    <div class="bottle-title">
-                                                        <a class="bottle-name" href="@Url.Action("GetBottle", "WineInventory", new { id = bottle.Id })">
+                    <div class="session-grid">
+                        <div class="session-card session-bottles" aria-labelledby="session-bottles-title">
+                            <h2 id="session-bottles-title" class="section-title">Bottles</h2>
+                            @if (sessionBottles.Count == 0)
+                            {
+                                <p class="empty-state">No bottles added yet.</p>
+                            }
+                            else
+                            {
+                                <ul class="bottle-list">
+                                    @foreach (var bottle in sessionBottles)
+                                    {
+                                        var bottleId = $"bottle-{bottle.Id}";
+                                        var scoreId = $"bottle-score-{bottle.Id}";
+                                        var commentId = $"bottle-comment-{bottle.Id}";
+                                        var ratingFormId = $"rate-{bottle.Id}";
+                                        var revealFormId = $"reveal-{bottle.Id}";
+                                        var drinkFormId = $"drink-{bottle.Id}";
+                                        var removeFormId = $"remove-{bottle.Id}";
+                                        var deleteNoteFormId = $"delete-note-{bottle.Id}";
+                                        var revealAction = Url.Action("RevealSipSessionBottle", "WineSurfer");
+                                        var drinkAction = Url.Action("DrinkSipSessionBottle", "WineSurfer");
+                                        var rateAction = Url.Action("RateSipSessionBottle", "WineSurfer");
+                                        var removeAction = Url.Action("RemoveSipSessionBottle", "WineSurfer");
+                                        var deleteNoteAction = Url.Action("DeleteSipSessionBottleNote", "WineSurfer");
+                                        var userScore = bottle.CurrentUserScore.HasValue ? bottle.CurrentUserScore.Value.ToString("0.0") : string.Empty;
+                                        <li id="@bottleId" class="bottle-item @(bottle.IsRevealed ? "revealed" : "masked")" data-bottle-id="@bottle.Id">
+                                            <div class="bottle-card">
+                                                <div class="bottle-content">
+                                                    <div class="bottle-header">
+                                                        <div class="bottle-title">
+                                                            <a class="bottle-name" href="@Url.Action("GetBottle", "WineInventory", new { id = bottle.Id })">
+                                                                @if (bottle.IsRevealed)
+                                                                {
+                                                                    @bottle.Label
+                                                                }
+                                                                else
+                                                                {
+                                                                    @("Mystery Bottle")
+                                                                }
+                                                            </a>
+                                                            @if (bottle.IsRevealed && bottle.Vintage.HasValue)
+                                                            {
+                                                                <span class="bottle-vintage">@bottle.Vintage.Value</span>
+                                                            }
+                                                        </div>
+                                                        <div class="bottle-meta">
                                                             @if (bottle.IsRevealed)
                                                             {
-                                                                @bottle.Label
-                                                            }
-                                                            else
-                                                            {
-                                                                @("Mystery Bottle")
-                                                            }
-                                                        </a>
-                                                        @if (bottle.IsRevealed && bottle.Vintage.HasValue)
-                                                        {
-                                                            <span class="bottle-vintage">@bottle.Vintage.Value</span>
-                                                        }
-                                                    </div>
-                                                    <div class="bottle-meta">
-                                                        @if (bottle.IsRevealed)
-                                                        {
-                                                            <span class="bottle-meta-field">
-                                                                <span class="bottle-meta-label">Average score</span>
-                                                                <span class="bottle-meta-value">@string.Format("{0:0.0}", bottle.SisterhoodAverageScore)
+                                                                <span class="bottle-meta-field">
+                                                                    <span class="bottle-meta-label">Average score</span>
+                                                                    <span class="bottle-meta-value">@string.Format("{0:0.0}", bottle.SisterhoodAverageScore)</span>
                                                                 </span>
-                                                            </span>
-                                                        }
+                                                            }
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div class="bottle-actions">
-                                                    <div class="bottle-rate">
-                                                        <form id="@ratingFormId" method="post" action="@rateAction" class="rating-form">
-                                                            @Html.AntiForgeryToken()
-                                                            <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
-                                                            <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
-                                                            <input type="hidden" name="BottleId" value="@bottle.Id" />
-                                                            <label for="@scoreId">Your score</label>
-                                                            <input id="@scoreId" type="number" step="0.1" min="0" max="10" name="Score" value="@userScore" placeholder="e.g., 8.5" />
-                                                            <label for="@commentId">Comment (optional)</label>
-                                                            <input id="@commentId" type="text" name="Comment" placeholder="Add a note..." value="@bottle.CurrentUserNote" />
-                                                            <button type="submit" class="sisterhood-button">Save</button>
-                                                        </form>
-                                                    </div>
-                                                    <div class="bottle-secondary-actions">
-                                                        @if (!bottle.IsRevealed && bottle.IsOwnedByCurrentUser)
-                                                        {
-                                                            <form id="@revealFormId" method="post" action="@revealAction" class="reveal-form">
+                                                    <div class="bottle-actions">
+                                                        <div class="bottle-rate">
+                                                            <form id="@ratingFormId" method="post" action="@rateAction" class="rating-form">
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
                                                                 <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
                                                                 <input type="hidden" name="BottleId" value="@bottle.Id" />
-                                                                <button type="submit" class="sisterhood-button">Reveal</button>
+                                                                <label for="@scoreId">Your score</label>
+                                                                <input id="@scoreId" type="number" step="0.1" min="0" max="10" name="Score" value="@userScore" placeholder="e.g., 8.5" />
+                                                                <label for="@commentId">Comment (optional)</label>
+                                                                <input id="@commentId" type="text" name="Comment" placeholder="Add a note..." value="@bottle.CurrentUserNote" />
+                                                                <button type="submit" class="sisterhood-button">Save</button>
                                                             </form>
-                                                        }
-                                                        <form id="@drinkFormId" method="post" action="@drinkAction" class="drink-form">
-                                                            @Html.AntiForgeryToken()
-                                                            <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
-                                                            <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
-                                                            <input type="hidden" name="BottleId" value="@bottle.Id" />
-                                                            <button type="submit" class="sisterhood-button">Drink</button>
-                                                        </form>
-                                                        @if (bottle.IsOwnedByCurrentUser)
-                                                        {
-                                                            <form id="@removeFormId" method="post" action="@removeAction" class="remove-form">
+                                                        </div>
+                                                        <div class="bottle-secondary-actions">
+                                                            @if (!bottle.IsRevealed && bottle.IsOwnedByCurrentUser)
+                                                            {
+                                                                <form id="@revealFormId" method="post" action="@revealAction" class="reveal-form">
+                                                                    @Html.AntiForgeryToken()
+                                                                    <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+                                                                    <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                                                    <input type="hidden" name="BottleId" value="@bottle.Id" />
+                                                                    <button type="submit" class="sisterhood-button">Reveal</button>
+                                                                </form>
+                                                            }
+                                                            <form id="@drinkFormId" method="post" action="@drinkAction" class="drink-form">
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
                                                                 <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
                                                                 <input type="hidden" name="BottleId" value="@bottle.Id" />
-                                                                <input type="hidden" name="ReturnUrl" value="@currentLocation" />
-                                                                <button type="submit" class="sisterhood-button">Remove</button>
+                                                                <button type="submit" class="sisterhood-button">Drink</button>
                                                             </form>
-                                                        }
-                                                        @if (bottle.CurrentUserNoteId.HasValue)
-                                                        {
-                                                            <form id="@deleteNoteFormId" method="post" action="@deleteNoteAction" class="delete-note-form">
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
-                                                                <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
-                                                                <input type="hidden" name="TastingNoteId" value="@bottle.CurrentUserNoteId.Value" />
-                                                                <button type="submit" class="sisterhood-button">Delete note</button>
-                                                            </form>
-                                                        }
+                                                            @if (bottle.IsOwnedByCurrentUser)
+                                                            {
+                                                                <form id="@removeFormId" method="post" action="@removeAction" class="remove-form">
+                                                                    @Html.AntiForgeryToken()
+                                                                    <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+                                                                    <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                                                    <input type="hidden" name="BottleId" value="@bottle.Id" />
+                                                                    <input type="hidden" name="ReturnUrl" value="@currentLocation" />
+                                                                    <button type="submit" class="sisterhood-button">Remove</button>
+                                                                </form>
+                                                            }
+                                                            @if (bottle.CurrentUserNoteId.HasValue)
+                                                            {
+                                                                <form id="@deleteNoteFormId" method="post" action="@deleteNoteAction" class="delete-note-form">
+                                                                    @Html.AntiForgeryToken()
+                                                                    <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+                                                                    <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                                                    <input type="hidden" name="TastingNoteId" value="@bottle.CurrentUserNoteId.Value" />
+                                                                    <button type="submit" class="sisterhood-button">Delete note</button>
+                                                                </form>
+                                                            }
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </li>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                        <aside class="session-card session-sidebar" aria-labelledby="session-sidebar-title">
+                            <h2 id="session-sidebar-title" class="section-title">Pairing ideas</h2>
+                            @if (canShowFoodButton && !string.IsNullOrEmpty(suggestFoodAction))
+                            {
+                                <form method="post" action="@suggestFoodAction" class="pairing-form" data-suggest-food-form>
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="sisterhood-button" data-suggest-food-button @(canRequestFoodSuggestions ? null : "disabled")>Suggest food</button>
+                                </form>
+                            }
+                            @if (hasPairingContent)
+                            {
+                                @if (hasFoodSuggestions)
+                                {
+                                    <section class="pairing-suggestions" aria-label="Food suggestions">
+                                        <ul class="suggestion-list">
+                                            @foreach (var suggestion in foodSuggestions)
+                                            {
+                                                <li class="suggestion-item">@suggestion</li>
+                                            }
+                                        </ul>
+                                    </section>
                                 }
-                            </ul>
-                        }
+                                @if (hasCheeseSuggestion)
+                                {
+                                    <section class="cheese-suggestion" aria-label="Cheese suggestion">
+                                        <h3 class="section-subtitle">Cheese to bring</h3>
+                                        <p>@cheeseSuggestion</p>
+                                    </section>
+                                }
+                            }
+                            else if (!string.IsNullOrEmpty(foodSuggestionError))
+                            {
+                                <div class="error-banner" role="alert">@foodSuggestionError</div>
+                            }
+                        </aside>
                     </div>
-                    <aside class="session-sidebar" aria-labelledby="session-sidebar-title">
-                        <h2 id="session-sidebar-title" class="section-title">Pairing ideas</h2>
-                        @if (canShowFoodButton && !string.IsNullOrEmpty(suggestFoodAction))
-                        {
-                            <form method="post" action="@suggestFoodAction" class="pairing-form" data-suggest-food-form>
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="sisterhood-button" data-suggest-food-button @(canRequestFoodSuggestions ? null : "disabled")>Suggest food</button>
-                            </form>
-                        }
-                        @if (hasPairingContent)
-                        {
-                            @if (hasFoodSuggestions)
-                            {
-                                <section class="pairing-suggestions" aria-label="Food suggestions">
-                                    <ul class="suggestion-list">
-                                        @foreach (var suggestion in foodSuggestions)
-                                        {
-                                            <li class="suggestion-item">@suggestion</li>
-                                        }
-                                    </ul>
-                                </section>
-                            }
-                            @if (hasCheeseSuggestion)
-                            {
-                                <section class="cheese-suggestion" aria-label="Cheese suggestion">
-                                    <h3 class="section-subtitle">Cheese to bring</h3>
-                                    <p>@cheeseSuggestion</p>
-                                </section>
-                            }
-                        }
-                        else if (!string.IsNullOrEmpty(foodSuggestionError))
-                        {
-                            <div class="error-banner" role="alert">@foodSuggestionError</div>
-                        }
-                    </aside>
-                </div>
-            </section>
+                </section>
 
             @if (showContributeButton)
             {
@@ -648,6 +965,7 @@
                     </div>
                 </div>
             }
+            </div>
         </main>
     </div>
     <script defer src="/js/sip-session.js"></script>
