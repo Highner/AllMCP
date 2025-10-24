@@ -108,7 +108,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Wine Surfer · Sisterhoods</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#050505" />
     <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
+    <script defer src="/js/pwa.js"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -1756,6 +1759,7 @@
         @@media (max-width: 768px) {
             .top-bar {
                 padding: 18px 20px;
+                gap: 12px;
             }
 
             .brand {
@@ -1763,14 +1767,86 @@
                 letter-spacing: 3px;
             }
 
+            .top-bar-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
             main {
-                padding-top: 60px;
+                padding: 60px 20px 32px;
+            }
+
+            .wine-surfer-page-header {
+                gap: 16px;
+                text-align: center;
             }
 
             .wine-surfer-page-header .wine-surfer-page-header__title {
                 letter-spacing: 6px;
+                font-size: 20px;
             }
 
+            .wine-surfer-page-header .wine-surfer-page-header__subtitle,
+            .lead {
+                font-size: 14px;
+                line-height: 1.7;
+            }
+
+            .sisterhood-grid {
+                width: 100%;
+                gap: 20px;
+            }
+
+            .action-bar {
+                margin-top: 20px;
+            }
+
+            .create-sisterhood-form,
+            .pending-invitations {
+                padding: 20px;
+            }
+        }
+
+        @@media (max-width: 640px) {
+            .top-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .top-bar-actions {
+                justify-content: flex-end;
+            }
+
+            .wine-surfer-page-header {
+                align-items: center;
+            }
+
+            .sisterhood-card {
+                padding: 20px;
+            }
+
+            .sisterhood-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .sisterhood-actions {
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+                gap: 10px;
+            }
+
+            .sisterhood-actions .inline-form {
+                display: block;
+                width: 100%;
+            }
+
+            .sisterhood-actions .sisterhood-button {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />

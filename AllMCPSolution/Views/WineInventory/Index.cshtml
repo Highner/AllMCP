@@ -157,7 +157,11 @@
         TitleContent = @<text>
             <div class="details-header-main">
                 <div class="details-header-titles">
-                    <h2 id="details-title" class="crud-table__title">Bottles</h2>
+                    <h2 id="details-title" class="crud-table__title">
+                        <span id="details-title-name" class="details-title__name">Bottles</span>
+                        <span id="details-title-separator" class="details-title__separator" aria-hidden="true">•</span>
+                        <span id="details-title-vintage" class="details-title__vintage"></span>
+                    </h2>
                     <p id="details-subtitle" class="crud-table__description"></p>
                 </div>
                 <button type="button" id="details-close-button" class="details-close-button" aria-label="Close bottle details">
@@ -196,8 +200,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Wine Surfer</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#050505" />
     <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+    <script defer src="/js/pwa.js"></script>
 </head>
 <body class="wine-app">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
