@@ -10,20 +10,12 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
-using AllMCPSolution.Models;
-using AllMCPSolution.Repositories;
-using AllMCPSolution.Services;
 using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Identity;
 using OpenAI.Chat;
-using AllMCPSolution.Services;
 
 namespace AllMCPSolution.Controllers;
 
