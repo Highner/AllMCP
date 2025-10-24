@@ -3,7 +3,6 @@ using AllMCPSolution.Models;
 using AllMCPSolution.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,16 +24,7 @@ builder.Services
     });
 
 builder.Services
-    .AddControllersWithViews(options =>
-    {
-        // Disable caching for all MVC views to prevent showing stale user data after sign out
-        options.Filters.Add(new Microsoft.AspNetCore.Mvc.ResponseCacheAttribute
-        {
-            NoStore = true,
-            Location = Microsoft.AspNetCore.Mvc.ResponseCacheLocation.None,
-            Duration = 0
-        });
-    })
+    .AddControllersWithViews()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -106,38 +96,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
-
-// Treat the very first page after logout as anonymous (even if a stale cookie is sent)
-app.Use(async (Microsoft.AspNetCore.Http.HttpContext context, System.Func<System.Threading.Tasks.Task> next) =>
-{
-    if (context.Request.Query.ContainsKey("signedOut"))
-    {
-        await context.SignOutAsync(IdentityConstants.ApplicationScheme);
-        await context.SignOutAsync(IdentityConstants.ExternalScheme);
-        context.User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity());
-        context.Response.Headers["Cache-Control"] = "no-store, no-cache, max-age=0";
-        context.Response.Headers["Pragma"] = "no-cache";
-        context.Response.Headers["Expires"] = "Thu, 01 Jan 1970 00:00:00 GMT";
-    }
-
-    await next();
-});
-
 app.UseAuthorization();
-
-// Ensure no authenticated HTML pages are cached by the browser or proxies
-app.Use(async (context, next) =>
-{
-    await next();
-
-    var contentType = context.Response.ContentType ?? string.Empty;
-    if (contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
-    {
-        context.Response.Headers["Cache-Control"] = "no-store, no-cache, max-age=0";
-        context.Response.Headers["Pragma"] = "no-cache";
-        context.Response.Headers["Expires"] = "Thu, 01 Jan 1970 00:00:00 GMT";
-    }
-});
 
 app.MapControllerRoute(
     name: "default",

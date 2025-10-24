@@ -392,89 +392,14 @@ public class AccountController : Controller
         return Challenge(properties, provider.Name);
     }
 
-    [AllowAnonymous]
-    [HttpGet("logout")]
-    public async Task<IActionResult> LogoutGet([FromQuery] string? returnUrl = null)
-    {
-        var redirectUrl = Url.Content("~/wine-surfer?signedOut=1");
-
-        // Sign out of Identity (application and external) explicitly
-        await _signInManager.SignOutAsync();
-        await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
-        await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-
-        // Best-effort explicit cookie cleanup to ensure no stale auth remains (ensure Path=/)
-        var cookiesToDelete = new[]
-        {
-            ".AspNetCore.Identity.Application",
-            ".AspNetCore.Identity.External",
-            ".AspNetCore.Cookies",
-            "Identity.TwoFactorUserId"
-        };
-        foreach (var cookie in cookiesToDelete)
-        {
-            if (Request.Cookies.ContainsKey(cookie))
-            {
-                Response.Cookies.Delete(cookie, new CookieOptions
-                {
-                    Path = "/",
-                    Expires = DateTimeOffset.UnixEpoch,
-                    HttpOnly = true,
-                    Secure = HttpContext.Request.IsHttps
-                });
-            }
-        }
-
-        Response.Headers["Cache-Control"] = "no-store, no-cache, max-age=0";
-        Response.Headers["Pragma"] = "no-cache";
-
-        return LocalRedirect(redirectUrl);
-    }
-
-    [AllowAnonymous]
+    [Authorize]
     [HttpPost("logout")]
-    [IgnoreAntiforgeryToken]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout([FromForm] string? returnUrl = null)
     {
-        var redirectUrl = Url.Content("~/wine-surfer?signedOut=1");
-
-        // Sign out of Identity (application and external) explicitly
+        var redirectUrl = ResolveReturnUrl(returnUrl);
         await _signInManager.SignOutAsync();
-        await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
         await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-
-        // Best-effort explicit cookie cleanup to ensure no stale auth remains (ensure Path=/)
-        var cookiesToDelete = new[]
-        {
-            ".AspNetCore.Identity.Application",
-            ".AspNetCore.Identity.External",
-            ".AspNetCore.Cookies",
-            "Identity.TwoFactorUserId"
-        };
-        foreach (var cookie in cookiesToDelete)
-        {
-            if (Request.Cookies.ContainsKey(cookie))
-            {
-                Response.Cookies.Delete(cookie, new CookieOptions
-                {
-                    Path = "/",
-                    Expires = DateTimeOffset.UnixEpoch,
-                    HttpOnly = true,
-                    Secure = HttpContext.Request.IsHttps
-                });
-            }
-        }
-
-        // For safety, instruct clients/proxies not to cache the previous authenticated response
-        Response.Headers["Cache-Control"] = "no-store, no-cache, max-age=0";
-        Response.Headers["Pragma"] = "no-cache";
-
-        // If this is an AJAX request, return a structured payload instead of a redirect
-        var isAjax = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
-        if (isAjax)
-        {
-            return Ok(new { redirectUrl });
-        }
 
         return LocalRedirect(redirectUrl);
     }

@@ -3970,14 +3970,6 @@ public class WineSurferController : Controller
         return RedirectToAction(nameof(Sisterhoods));
     }
 
-    // Handle accidental GET redirects (e.g., after login) to the POST-only create endpoint
-    // by redirecting to the planning page instead of returning 405 Method Not Allowed.
-    [HttpGet("sisterhoods/sessions/create")]
-    public IActionResult CreateSipSessionFallback()
-    {
-        return RedirectToAction(nameof(PlanSipSession));
-    }
-
     [Authorize]
     [HttpPost("sisterhoods/sessions/create")]
     [ValidateAntiForgeryToken]
