@@ -67,8 +67,9 @@ builder.Services
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.LoginPath = "/Account/Login";
-    options.LogoutPath = "/Account/Logout";
+    // Match attribute-routed endpoints in AccountController [Route("account")]
+    options.LoginPath = "/account/login";
+    options.LogoutPath = "/account/logout";
 });
 
 builder.Services.AddAuthorization();
