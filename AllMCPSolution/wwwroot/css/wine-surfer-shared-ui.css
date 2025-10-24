@@ -1,0 +1,198 @@
+body.wine-app .wine-surfer-layout {
+    flex: 1;
+    padding: 80px 24px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+    align-items: center;
+}
+
+body.wine-app .wine-surfer-page-header {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    align-items: center;
+    text-align: center;
+}
+
+body.wine-app .wine-surfer-page-header .wine-surfer-page-header__title {
+    font-size: clamp(40px, 6vw, 88px);
+    margin: 0;
+    letter-spacing: 10px;
+    text-transform: uppercase;
+}
+
+body.wine-app .wine-surfer-page-header .wine-surfer-page-header__subtitle,
+body.wine-app .lead {
+    max-width: 720px;
+    text-align: center;
+    font-size: 18px;
+    line-height: 1.6;
+    color: rgba(244, 241, 234, 0.78);
+    margin: 0;
+}
+
+body.wine-app .action-bar {
+    margin-top: 24px;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+body.wine-app .status-banner {
+    margin-top: 24px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+body.wine-app .status-banner.success {
+    background: rgba(51, 133, 107, 0.16);
+    border: 1px solid rgba(51, 133, 107, 0.35);
+}
+
+body.wine-app .status-banner.error {
+    background: rgba(133, 51, 65, 0.16);
+    border: 1px solid rgba(133, 51, 65, 0.35);
+}
+
+body.wine-app .sisterhood-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(244, 241, 234, 0.18);
+    background: transparent;
+    color: #f4f1ea;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+body.wine-app .sisterhood-button:hover,
+body.wine-app .sisterhood-button:focus-visible {
+    background: rgba(244, 241, 234, 0.12);
+    color: #f4f1ea;
+}
+
+body.wine-app .sisterhood-button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.25);
+}
+
+body.wine-app .sisterhood-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+body.wine-app .sisterhood-button--primary {
+    border-color: rgba(244, 241, 234, 0.28);
+    background: rgba(244, 241, 234, 0.12);
+}
+
+body.wine-app .sisterhood-button--primary:hover,
+body.wine-app .sisterhood-button--primary:focus-visible {
+    background: rgba(244, 241, 234, 0.18);
+    transform: translateY(-1px);
+}
+
+body.wine-app .sisterhood-button--danger {
+    border-color: rgba(181, 65, 65, 0.45);
+    color: #f6dcdc;
+}
+
+body.wine-app .sisterhood-button--danger:hover,
+body.wine-app .sisterhood-button--danger:focus-visible {
+    background: rgba(181, 65, 65, 0.25);
+    color: #ffe3e3;
+}
+
+body.wine-app .sisterhood-button--ghost {
+    color: rgba(244, 241, 234, 0.85);
+}
+
+body.wine-app .sisterhood-button--ghost:hover,
+body.wine-app .sisterhood-button--ghost:focus-visible {
+    color: #f4f1ea;
+}
+
+body.wine-app .sisterhood-button--ghost-danger {
+    border-color: rgba(214, 104, 86, 0.45);
+    color: #f3b0a3;
+}
+
+body.wine-app .sisterhood-button--ghost-danger:hover,
+body.wine-app .sisterhood-button--ghost-danger:focus-visible {
+    background: rgba(214, 104, 86, 0.15);
+    color: #ffd6cc;
+}
+
+body.wine-app .empty-state {
+    width: min(880px, 100%);
+    border-radius: 18px;
+    padding: 36px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    color: rgba(244, 241, 234, 0.78);
+    margin: 0 auto;
+}
+
+body.wine-app .empty-state h2 {
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 6px;
+    font-size: 18px;
+    color: #f4f1ea;
+}
+
+body.wine-app .empty-state p {
+    margin: 0;
+    line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+    body.wine-app .wine-surfer-layout {
+        padding: 60px 20px 32px;
+    }
+
+    body.wine-app .wine-surfer-page-header {
+        gap: 16px;
+    }
+
+    body.wine-app .wine-surfer-page-header .wine-surfer-page-header__title {
+        letter-spacing: 6px;
+        font-size: 20px;
+    }
+
+    body.wine-app .wine-surfer-page-header .wine-surfer-page-header__subtitle,
+    body.wine-app .lead {
+        font-size: 14px;
+        line-height: 1.7;
+    }
+
+    body.wine-app .action-bar {
+        margin-top: 20px;
+    }
+}
+
+@media (max-width: 640px) {
+    body.wine-app .action-bar {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    body.wine-app .action-bar .sisterhood-button {
+        width: 100%;
+        justify-content: center;
+    }
+}

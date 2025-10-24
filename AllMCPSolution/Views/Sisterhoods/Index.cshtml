@@ -111,6 +111,7 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#050505" />
     <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shared-ui.css" />
     <script defer src="/js/pwa.js"></script>
     <style>
         :root {
@@ -473,31 +474,6 @@
             transform: translateX(4px);
         }
 
-        main {
-            flex: 1;
-            padding: 80px 24px 60px;
-            display: flex;
-            flex-direction: column;
-            gap: 48px;
-            align-items: center;
-        }
-
-        .wine-surfer-page-header .wine-surfer-page-header__title {
-            font-size: clamp(40px, 6vw, 88px);
-            margin: 0;
-            letter-spacing: 10px;
-            text-transform: uppercase;
-            text-align: center;
-        }
-
-        .lead {
-            max-width: 720px;
-            text-align: center;
-            font-size: 18px;
-            line-height: 1.6;
-            color: rgba(244, 241, 234, 0.78);
-        }
-
         .invitation-section {
             width: min(1040px, 100%);
             border-radius: 20px;
@@ -632,81 +608,6 @@
             gap: 12px;
         }
 
-        .sisterhood-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 8px 16px;
-            border-radius: 999px;
-            border: 1px solid rgba(244, 241, 234, 0.18);
-            background: transparent;
-            color: #f4f1ea;
-            font-size: 12px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
-        }
-
-        .sisterhood-button:hover,
-        .sisterhood-button:focus-visible {
-            background: rgba(244, 241, 234, 0.12);
-            color: #f4f1ea;
-        }
-
-        .sisterhood-button:focus-visible {
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.25);
-        }
-
-        .sisterhood-button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .sisterhood-button--primary {
-            border-color: rgba(244, 241, 234, 0.28);
-            background: rgba(244, 241, 234, 0.12);
-        }
-
-        .sisterhood-button--primary:hover,
-        .sisterhood-button--primary:focus-visible {
-            background: rgba(244, 241, 234, 0.18);
-            transform: translateY(-1px);
-        }
-
-        .sisterhood-button--danger {
-            border-color: rgba(181, 65, 65, 0.45);
-            color: #f6dcdc;
-        }
-
-        .sisterhood-button--danger:hover,
-        .sisterhood-button--danger:focus-visible {
-            background: rgba(181, 65, 65, 0.25);
-            color: #ffe3e3;
-        }
-
-        .sisterhood-button--ghost {
-            color: rgba(244, 241, 234, 0.85);
-        }
-
-        .sisterhood-button--ghost:hover,
-        .sisterhood-button--ghost:focus-visible {
-            color: #f4f1ea;
-        }
-
-        .sisterhood-button--ghost-danger {
-            border-color: rgba(214, 104, 86, 0.45);
-            color: #f3b0a3;
-        }
-
-        .sisterhood-button--ghost-danger:hover,
-        .sisterhood-button--ghost-danger:focus-visible {
-            background: rgba(214, 104, 86, 0.15);
-            color: #ffd6cc;
-        }
-
         .sisterhood-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -741,54 +642,6 @@
             color: rgba(244, 241, 234, 0.55);
         }
 
-        .empty-state {
-            width: min(880px, 100%);
-            border-radius: 18px;
-            padding: 36px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            color: rgba(244, 241, 234, 0.78);
-            margin: 0 auto;
-        }
-
-        .empty-state h2 {
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 6px;
-            font-size: 18px;
-            color: #f4f1ea;
-        }
-
-        .empty-state p {
-            margin: 0;
-            line-height: 1.6;
-        }
-        .action-bar {
-            margin-top: 24px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .status-banner {
-            margin-top: 24px;
-            padding: 14px 18px;
-            border-radius: 14px;
-            font-size: 14px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        .status-banner.success {
-            background: rgba(51, 133, 107, 0.16);
-            border: 1px solid rgba(51, 133, 107, 0.35);
-        }
-
-        .status-banner.error {
-            background: rgba(133, 51, 65, 0.16);
-            border: 1px solid rgba(133, 51, 65, 0.35);
-        }
 
         .create-sisterhood-form {
             margin-top: 24px;
@@ -1772,33 +1625,9 @@
                 justify-content: space-between;
             }
 
-            main {
-                padding: 60px 20px 32px;
-            }
-
-            .wine-surfer-page-header {
-                gap: 16px;
-                text-align: center;
-            }
-
-            .wine-surfer-page-header .wine-surfer-page-header__title {
-                letter-spacing: 6px;
-                font-size: 20px;
-            }
-
-            .wine-surfer-page-header .wine-surfer-page-header__subtitle,
-            .lead {
-                font-size: 14px;
-                line-height: 1.7;
-            }
-
             .sisterhood-grid {
                 width: 100%;
                 gap: 20px;
-            }
-
-            .action-bar {
-                margin-top: 20px;
             }
 
             .create-sisterhood-form,
@@ -1815,10 +1644,6 @@
 
             .top-bar-actions {
                 justify-content: flex-end;
-            }
-
-            .wine-surfer-page-header {
-                align-items: center;
             }
 
             .sisterhood-card {
@@ -1853,7 +1678,7 @@
 </head>
 <body class="wine-app">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
-    <main>
+    <main class="wine-surfer-layout">
         <section>
             @{
                 var sanitizedDisplayName = string.IsNullOrWhiteSpace(Model.DisplayName) ? null : Model.DisplayName;
