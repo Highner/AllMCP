@@ -1406,6 +1406,8 @@ public class WineSurferController : Controller
         string? normalizedEmail = null;
         ApplicationUser? domainUser = null;
         var isAdmin = false;
+        string domainUserSummary = string.Empty;
+        string domainUserProfile = string.Empty;
 
         if (User?.Identity?.IsAuthenticated == true)
         {
