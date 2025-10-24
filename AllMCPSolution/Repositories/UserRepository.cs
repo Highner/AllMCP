@@ -39,6 +39,7 @@ public class UserRepository : IUserRepository
     {
         return await _userManager.Users
             .AsNoTracking()
+            .Include(u => u.TasteProfiles)
             .OrderBy(u => u.Name)
             .ThenBy(u => u.UserName)
             .ToListAsync(ct);
@@ -64,6 +65,7 @@ public class UserRepository : IUserRepository
 
         return await _userManager.Users
             .AsNoTracking()
+            .Include(u => u.TasteProfiles)
             .FirstOrDefaultAsync(u => u.NormalizedUserName == normalized, ct);
     }
 
@@ -79,6 +81,7 @@ public class UserRepository : IUserRepository
 
         return await _userManager.Users
             .AsNoTracking()
+            .Include(u => u.TasteProfiles)
             .FirstOrDefaultAsync(u => u.NormalizedEmail == normalized, ct);
     }
 
@@ -86,6 +89,7 @@ public class UserRepository : IUserRepository
     {
         var users = await _userManager.Users
             .AsNoTracking()
+            .Include(u => u.TasteProfiles)
             .ToListAsync(ct);
 
         return FuzzyMatchUtilities.FindClosestMatches(users, name, u => u.Name, maxResults);
@@ -108,6 +112,7 @@ public class UserRepository : IUserRepository
 
         var directMatches = await _userManager.Users
             .AsNoTracking()
+            .Include(u => u.TasteProfiles)
             .Where(u =>
                 (!string.IsNullOrEmpty(u.Name) && EF.Functions.Like(u.Name!, likeName, "\\")) ||
                 (!string.IsNullOrEmpty(u.NormalizedUserName) && EF.Functions.Like(u.NormalizedUserName!, likeNormalizedName, "\\")) ||
@@ -193,12 +198,16 @@ public class UserRepository : IUserRepository
         {
             Id = Guid.NewGuid(),
             Name = trimmedName,
-            UserName = trimmedName,
-            TasteProfile = normalizedTasteProfile,
-            TasteProfileSummary = normalizedSummary
+            UserName = trimmedName
         };
 
         await AddAsync(entity, ct);
+
+        if (!string.IsNullOrWhiteSpace(normalizedTasteProfile) || !string.IsNullOrWhiteSpace(normalizedSummary))
+        {
+            await AddGeneratedTasteProfileAsync(entity.Id, normalizedTasteProfile, normalizedSummary, ct);
+        }
+
         return await GetByIdAsync(entity.Id, ct) ?? entity;
     }
 
@@ -221,10 +230,6 @@ public class UserRepository : IUserRepository
         var result = await _userManager.CreateAsync(user);
         EnsureSucceeded(result, $"Failed to create user '{user.Name}'.");
 
-        if (!string.IsNullOrWhiteSpace(user.TasteProfile))
-        {
-            await AddGeneratedTasteProfileAsync(user.Id, user.TasteProfile, user.TasteProfileSummary, ct);
-        }
     }
 
     public async Task UpdateAsync(ApplicationUser user, CancellationToken ct = default)
@@ -259,15 +264,6 @@ public class UserRepository : IUserRepository
             existing.UserName = existing.Name;
         }
 
-        var (normalizedProfile, normalizedSummary) = NormalizeTasteProfileValues(
-            user.TasteProfile,
-            user.TasteProfileSummary);
-
-        existing.TasteProfile = normalizedProfile;
-        existing.TasteProfileSummary = normalizedSummary;
-
-        ApplyManualTasteProfileUpdate(existing, normalizedProfile, normalizedSummary, null);
-
         NormalizeUser(existing);
 
         var result = await _userManager.UpdateAsync(existing);
@@ -299,23 +295,12 @@ public class UserRepository : IUserRepository
             user.UserName = trimmed;
         }
 
-        user.TasteProfile = user.TasteProfile?.Trim() ?? string.Empty;
-        if (user.TasteProfile.Length > TasteProfileMaxLength)
-        {
-            user.TasteProfile = user.TasteProfile[..TasteProfileMaxLength];
-        }
-
-        user.TasteProfileSummary = user.TasteProfileSummary?.Trim() ?? string.Empty;
-        if (user.TasteProfileSummary.Length > TasteProfileSummaryMaxLength)
-        {
-            user.TasteProfileSummary = user.TasteProfileSummary[..TasteProfileSummaryMaxLength];
-        }
-
         var result = await _userManager.UpdateAsync(user);
         EnsureSucceeded(result, $"Failed to update user '{user.Id}'.");
 
         return await _userManager.Users
             .AsNoTracking()
+            .Include(u => u.TasteProfiles)
             .FirstOrDefaultAsync(u => u.Id == id, ct);
     }
 
@@ -333,9 +318,6 @@ public class UserRepository : IUserRepository
         }
 
         var (normalizedProfile, normalizedSummary) = NormalizeTasteProfileValues(tasteProfile, tasteProfileSummary);
-
-        user.TasteProfile = normalizedProfile;
-        user.TasteProfileSummary = normalizedSummary;
 
         ApplyManualTasteProfileUpdate(user, normalizedProfile, normalizedSummary, tasteProfileId);
 
@@ -368,9 +350,6 @@ public class UserRepository : IUserRepository
         }
 
         var (normalizedProfile, normalizedSummary) = NormalizeTasteProfileValues(tasteProfile, tasteProfileSummary);
-
-        user.TasteProfile = normalizedProfile;
-        user.TasteProfileSummary = normalizedSummary;
 
         var newEntry = ApplyGeneratedTasteProfileUpdate(user, normalizedProfile, normalizedSummary);
 
@@ -514,17 +493,9 @@ public class UserRepository : IUserRepository
             user.Name = trimmed;
             user.UserName = trimmed;
         }
-
-        user.TasteProfile = user.TasteProfile?.Trim() ?? string.Empty;
-        if (user.TasteProfile.Length > TasteProfileMaxLength)
+        else if (!string.IsNullOrWhiteSpace(user.UserName))
         {
-            user.TasteProfile = user.TasteProfile[..TasteProfileMaxLength];
-        }
-
-        user.TasteProfileSummary = user.TasteProfileSummary?.Trim() ?? string.Empty;
-        if (user.TasteProfileSummary.Length > TasteProfileSummaryMaxLength)
-        {
-            user.TasteProfileSummary = user.TasteProfileSummary[..TasteProfileSummaryMaxLength];
+            user.UserName = user.UserName.Trim();
         }
     }
 

@@ -55,18 +55,8 @@ public sealed class CreateUserTool : UserToolBase
                 });
         }
 
-        var user = new ApplicationUser
-        {
-            Id = Guid.NewGuid(),
-            Name = name!,
-            UserName = name!,
-            TasteProfile = tasteProfile!,
-            TasteProfileSummary = tasteProfileSummary ?? string.Empty
-        };
-
-        await UserRepository.AddAsync(user, ct);
-        var persisted = await UserRepository.GetByIdAsync(user.Id, ct) ?? user;
-        return Success("create", "User created.", UserResponseMapper.MapUser(persisted));
+        var user = await UserRepository.GetOrCreateAsync(name!, tasteProfile!, tasteProfileSummary, ct);
+        return Success("create", "User created.", UserResponseMapper.MapUser(user));
     }
 
     protected override JsonObject BuildInputSchema()

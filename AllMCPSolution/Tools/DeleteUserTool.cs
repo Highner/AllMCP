@@ -74,8 +74,8 @@ public sealed class DeleteUserTool : UserToolBase
                 {
                     id = user.Id,
                     name = user.Name,
-                    tasteProfileSummary = user.TasteProfileSummary,
-                    tasteProfile = user.TasteProfile
+                    tasteProfileSummary = user.ActiveTasteProfile?.Summary ?? string.Empty,
+                    tasteProfile = user.ActiveTasteProfile?.Profile ?? string.Empty
                 });
         }
 

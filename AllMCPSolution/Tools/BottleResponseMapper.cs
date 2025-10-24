@@ -27,8 +27,8 @@ internal static class BottleResponseMapper
                 {
                     id = bottle.User.Id,
                     name = bottle.User.Name,
-                    tasteProfileSummary = bottle.User.TasteProfileSummary,
-                    tasteProfile = bottle.User.TasteProfile
+                    tasteProfileSummary = bottle.User.ActiveTasteProfile?.Summary ?? string.Empty,
+                    tasteProfile = bottle.User.ActiveTasteProfile?.Profile ?? string.Empty
                 },
             score = latestNote?.Score,
             tastingNote = latestNote?.Note,

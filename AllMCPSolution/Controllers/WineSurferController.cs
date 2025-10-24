@@ -286,8 +286,8 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
-                    domainUser?.TasteProfileSummary,
-                    domainUser?.TasteProfile,
+                    domainUser?.ActiveTasteProfile?.Summary,
+                    domainUser?.ActiveTasteProfile?.Profile,
                     domainUser?.IsAdmin == true);
             }
 
@@ -501,8 +501,8 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
-                    domainUser?.TasteProfileSummary,
-                    domainUser?.TasteProfile,
+                    domainUser?.ActiveTasteProfile?.Summary,
+                    domainUser?.ActiveTasteProfile?.Profile,
                     isAdmin);
             }
 
@@ -571,11 +571,11 @@ public class WineSurferController : Controller
             ?? tasteProfileHistory.FirstOrDefault();
 
         var tasteProfileSummary = activeHistoryEntry?.Summary
-            ?? domainUser?.TasteProfileSummary
+            ?? domainUser?.ActiveTasteProfile?.Summary
             ?? currentUser?.TasteProfileSummary
             ?? string.Empty;
         var tasteProfile = activeHistoryEntry?.Profile
-            ?? domainUser?.TasteProfile
+            ?? domainUser?.ActiveTasteProfile?.Profile
             ?? currentUser?.TasteProfile
             ?? string.Empty;
         IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
@@ -1249,8 +1249,8 @@ public class WineSurferController : Controller
         }
 
         var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
-        var tasteProfileSummary = domainUser?.TasteProfileSummary?.Trim() ?? string.Empty;
-        var tasteProfile = domainUser?.TasteProfile?.Trim() ?? string.Empty;
+        var tasteProfileSummary = domainUser?.ActiveTasteProfile?.Summary?.Trim() ?? string.Empty;
+        var tasteProfile = domainUser?.ActiveTasteProfile?.Profile?.Trim() ?? string.Empty;
 
         ViewData["SurfEyeMaxUploadBytes"] = SurfEyeMaxUploadBytes;
 
@@ -1300,14 +1300,14 @@ public class WineSurferController : Controller
             return Unauthorized();
         }
 
-        var tasteProfile = user.TasteProfile?.Trim();
+        var tasteProfile = user.ActiveTasteProfile?.Profile?.Trim();
         if (string.IsNullOrWhiteSpace(tasteProfile))
         {
             return BadRequest(new SurfEyeAnalysisError("Add a taste profile before using Surf Eye."));
         }
 
         var normalizedTasteProfile = tasteProfile!;
-        var tasteProfileSummary = user.TasteProfileSummary?.Trim();
+        var tasteProfileSummary = user.ActiveTasteProfile?.Summary?.Trim();
 
         byte[] imageBytes;
         await using (var stream = new MemoryStream())
@@ -1437,8 +1437,8 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
-                    domainUser?.TasteProfileSummary,
-                    domainUser?.TasteProfile,
+                    domainUser?.ActiveTasteProfile?.Summary,
+                    domainUser?.ActiveTasteProfile?.Profile,
                     isAdmin);
             }
 
@@ -2583,8 +2583,8 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
-                    domainUser?.TasteProfileSummary,
-                    domainUser?.TasteProfile,
+                    domainUser?.ActiveTasteProfile?.Summary,
+                    domainUser?.ActiveTasteProfile?.Profile,
                     domainUser?.IsAdmin == true);
             }
 
@@ -2810,8 +2810,8 @@ public class WineSurferController : Controller
                 domainUser?.Id,
                 displayName ?? email ?? string.Empty,
                 email,
-                domainUser?.TasteProfileSummary,
-                domainUser?.TasteProfile,
+                domainUser?.ActiveTasteProfile?.Summary,
+                domainUser?.ActiveTasteProfile?.Profile,
                 domainUser?.IsAdmin == true);
         }
 
@@ -3107,12 +3107,16 @@ public class WineSurferController : Controller
         var response = users
             .Where(u => !string.IsNullOrWhiteSpace(u.Name))
             .OrderBy(u => u.Name)
-            .Select(u => new WineSurferUserSummary(
-                u.Id,
-                u.Name,
-                u.Email ?? string.Empty,
-                u.TasteProfileSummary ?? string.Empty,
-                u.TasteProfile ?? string.Empty))
+            .Select(u =>
+            {
+                var activeProfile = u.ActiveTasteProfile;
+                return new WineSurferUserSummary(
+                    u.Id,
+                    u.Name,
+                    u.Email ?? string.Empty,
+                    activeProfile?.Summary ?? string.Empty,
+                    activeProfile?.Profile ?? string.Empty);
+            })
             .ToList();
 
         return Json(response);

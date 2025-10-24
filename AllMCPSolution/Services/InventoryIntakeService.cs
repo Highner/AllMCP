@@ -554,8 +554,8 @@ public sealed class InventoryIntakeService
                     {
                         id = u.Id,
                         name = u.Name,
-                        tasteProfileSummary = u.TasteProfileSummary,
-                        tasteProfile = u.TasteProfile
+                        tasteProfileSummary = u.ActiveTasteProfile?.Summary ?? string.Empty,
+                        tasteProfile = u.ActiveTasteProfile?.Profile ?? string.Empty
                     })
                     .ToArray();
 

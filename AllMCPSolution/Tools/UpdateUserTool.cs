@@ -78,7 +78,10 @@ public sealed class UpdateUserTool : UserToolBase
                 });
         }
 
-        if (!string.IsNullOrWhiteSpace(newName) && !string.Equals(user.Name, newName, StringComparison.OrdinalIgnoreCase))
+        var shouldUpdateName = !string.IsNullOrWhiteSpace(newName)
+            && !string.Equals(user.Name, newName, StringComparison.OrdinalIgnoreCase);
+
+        if (shouldUpdateName)
         {
             var duplicate = await UserRepository.FindByNameAsync(newName!, ct);
             if (duplicate is not null && duplicate.Id != user.Id)
@@ -96,17 +99,33 @@ public sealed class UpdateUserTool : UserToolBase
             user.Name = newName!;
         }
 
-        if (!string.IsNullOrWhiteSpace(newTasteProfile))
+        var hasProfileChange = !string.IsNullOrWhiteSpace(newTasteProfile);
+        var hasSummaryChange = !string.IsNullOrWhiteSpace(newTasteProfileSummary);
+
+        if (shouldUpdateName)
         {
-            user.TasteProfile = newTasteProfile!;
+            await UserRepository.UpdateAsync(user, ct);
         }
 
-        if (!string.IsNullOrWhiteSpace(newTasteProfileSummary))
+        if (hasProfileChange || hasSummaryChange)
         {
-            user.TasteProfileSummary = newTasteProfileSummary!;
+            var currentProfile = user.ActiveTasteProfile?.Profile;
+            var currentSummary = user.ActiveTasteProfile?.Summary;
+            var profileValue = hasProfileChange ? newTasteProfile! : currentProfile ?? string.Empty;
+            var summaryValue = hasSummaryChange ? newTasteProfileSummary : currentSummary;
+
+            var updatedProfileUser = await UserRepository.UpdateTasteProfileAsync(user.Id, null, profileValue, summaryValue, ct);
+            if (updatedProfileUser is not null)
+            {
+                user = updatedProfileUser;
+            }
         }
 
-        await UserRepository.UpdateAsync(user, ct);
+        if (!shouldUpdateName && !(hasProfileChange || hasSummaryChange))
+        {
+            return Success("update", "No changes applied.", UserResponseMapper.MapUser(user));
+        }
+
         var updated = await UserRepository.GetByIdAsync(user.Id, ct) ?? user;
         return Success("update", "User updated.", UserResponseMapper.MapUser(updated));
     }
