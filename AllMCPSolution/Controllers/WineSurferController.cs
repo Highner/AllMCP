@@ -543,6 +543,7 @@ public class WineSurferController : WineSurferControllerBase
             }
         }
 
+        bool isSisterhoodMember = false;
         if (currentUserId.HasValue)
         {
             var availableBottleEntities = await _bottleRepository.GetAvailableForUserAsync(
@@ -556,6 +557,9 @@ public class WineSurferController : WineSurferControllerBase
                 cancellationToken);
 
             sentInvitationNotifications = NotificationService.CreateSentInvitationNotifications(acceptedInvitations);
+
+            var memberships = session.Sisterhood?.Memberships ?? Array.Empty<SisterhoodMembership>();
+            isSisterhoodMember = memberships.Any(membership => membership.UserId == currentUserId.Value);
         }
 
         var canManageSession = false;
@@ -677,6 +681,7 @@ public class WineSurferController : WineSurferControllerBase
             session.Sisterhood?.Name ?? "Sisterhood",
             session.Sisterhood?.Description,
             canManageSession,
+            isSisterhoodMember,
             currentUser,
             incomingInvitations,
             sentInvitationNotifications,
@@ -819,6 +824,7 @@ public class WineSurferController : WineSurferControllerBase
             sisterhoodName,
             sisterhoodDescription,
             manageableSisterhoods.Count > 0,
+            false,
             currentUser,
             incomingInvitations,
             sentInvitationNotifications,
@@ -3557,6 +3563,7 @@ public record WineSurferSipSessionDetailViewModel(
     string SisterhoodName,
     string? SisterhoodDescription,
     bool CanManageSession,
+    bool IsSisterhoodMember,
     WineSurferCurrentUser? CurrentUser,
     IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
     IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
