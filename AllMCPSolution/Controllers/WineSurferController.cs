@@ -275,6 +275,8 @@ public class WineSurferController : Controller
                 normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
             }
 
+            var (domainUserSummary, domainUserProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(domainUser);
+
             if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
             {
                 normalizedEmail = NormalizeEmailCandidate(displayName);
@@ -286,8 +288,8 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
-                    domainUser?.TasteProfileSummary,
-                    domainUser?.TasteProfile,
+                    domainUserSummary,
+                    domainUserProfile,
                     domainUser?.IsAdmin == true);
             }
 
@@ -463,6 +465,8 @@ public class WineSurferController : Controller
         string? normalizedEmail = null;
         ApplicationUser? domainUser = null;
         var isAdmin = false;
+        string domainUserSummary = string.Empty;
+        string domainUserProfile = string.Empty;
 
         if (User?.Identity?.IsAuthenticated == true)
         {
@@ -480,6 +484,10 @@ public class WineSurferController : Controller
             {
                 domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
             }
+
+            var (resolvedSummary, resolvedProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(domainUser);
+            domainUserSummary = resolvedSummary;
+            domainUserProfile = resolvedProfile;
 
             var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
 
@@ -501,8 +509,8 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
-                    domainUser?.TasteProfileSummary,
-                    domainUser?.TasteProfile,
+                    domainUserSummary,
+                    domainUserProfile,
                     isAdmin);
             }
 
@@ -571,11 +579,11 @@ public class WineSurferController : Controller
             ?? tasteProfileHistory.FirstOrDefault();
 
         var tasteProfileSummary = activeHistoryEntry?.Summary
-            ?? domainUser?.TasteProfileSummary
+            ?? domainUserSummary
             ?? currentUser?.TasteProfileSummary
             ?? string.Empty;
         var tasteProfile = activeHistoryEntry?.Profile
-            ?? domainUser?.TasteProfile
+            ?? domainUserProfile
             ?? currentUser?.TasteProfile
             ?? string.Empty;
         IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
@@ -1249,8 +1257,7 @@ public class WineSurferController : Controller
         }
 
         var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
-        var tasteProfileSummary = domainUser?.TasteProfileSummary?.Trim() ?? string.Empty;
-        var tasteProfile = domainUser?.TasteProfile?.Trim() ?? string.Empty;
+        var (tasteProfileSummary, tasteProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(domainUser);
 
         ViewData["SurfEyeMaxUploadBytes"] = SurfEyeMaxUploadBytes;
 
@@ -1300,14 +1307,14 @@ public class WineSurferController : Controller
             return Unauthorized();
         }
 
-        var tasteProfile = user.TasteProfile?.Trim();
-        if (string.IsNullOrWhiteSpace(tasteProfile))
+        var (activeSummary, activeProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(user);
+        if (string.IsNullOrWhiteSpace(activeProfile))
         {
             return BadRequest(new SurfEyeAnalysisError("Add a taste profile before using Surf Eye."));
         }
 
-        var normalizedTasteProfile = tasteProfile!;
-        var tasteProfileSummary = user.TasteProfileSummary?.Trim();
+        var normalizedTasteProfile = activeProfile;
+        var tasteProfileSummary = string.IsNullOrWhiteSpace(activeSummary) ? null : activeSummary;
 
         byte[] imageBytes;
         await using (var stream = new MemoryStream())
@@ -1417,6 +1424,10 @@ public class WineSurferController : Controller
                 domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
             }
 
+            var (resolvedSummary, resolvedProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(domainUser);
+            domainUserSummary = resolvedSummary;
+            domainUserProfile = resolvedProfile;
+
             var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
 
             if (domainUser is not null)
@@ -1437,8 +1448,8 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
-                    domainUser?.TasteProfileSummary,
-                    domainUser?.TasteProfile,
+                    domainUserSummary,
+                    domainUserProfile,
                     isAdmin);
             }
 
@@ -2545,6 +2556,8 @@ public class WineSurferController : Controller
         IReadOnlyList<WineSurferSentInvitationNotification> sentInvitationNotifications = Array.Empty<WineSurferSentInvitationNotification>();
         IReadOnlyList<WineSurferSipSessionBottle> availableBottles = Array.Empty<WineSurferSipSessionBottle>();
         Guid? currentUserId = null;
+        string domainUserSummary = string.Empty;
+        string domainUserProfile = string.Empty;
 
         if (User?.Identity?.IsAuthenticated == true)
         {
@@ -2563,6 +2576,10 @@ public class WineSurferController : Controller
             {
                 domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
             }
+
+            var (resolvedSummary, resolvedProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(domainUser);
+            domainUserSummary = resolvedSummary;
+            domainUserProfile = resolvedProfile;
 
             var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
 
@@ -2583,8 +2600,8 @@ public class WineSurferController : Controller
                     domainUser?.Id,
                     displayName ?? email ?? string.Empty,
                     email,
-                    domainUser?.TasteProfileSummary,
-                    domainUser?.TasteProfile,
+                    domainUserSummary,
+                    domainUserProfile,
                     domainUser?.IsAdmin == true);
             }
 
@@ -2780,6 +2797,8 @@ public class WineSurferController : Controller
         var normalizedEmail = NormalizeEmailCandidate(email);
         var currentUserId = GetCurrentUserId();
         ApplicationUser? domainUser = null;
+        string domainUserSummary = string.Empty;
+        string domainUserProfile = string.Empty;
 
         if (currentUserId.HasValue)
         {
@@ -2790,6 +2809,10 @@ public class WineSurferController : Controller
         {
             domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
         }
+
+        var (resolvedSummary, resolvedProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(domainUser);
+        domainUserSummary = resolvedSummary;
+        domainUserProfile = resolvedProfile;
 
         var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
 
@@ -2810,8 +2833,8 @@ public class WineSurferController : Controller
                 domainUser?.Id,
                 displayName ?? email ?? string.Empty,
                 email,
-                domainUser?.TasteProfileSummary,
-                domainUser?.TasteProfile,
+                domainUserSummary,
+                domainUserProfile,
                 domainUser?.IsAdmin == true);
         }
 
@@ -3107,12 +3130,16 @@ public class WineSurferController : Controller
         var response = users
             .Where(u => !string.IsNullOrWhiteSpace(u.Name))
             .OrderBy(u => u.Name)
-            .Select(u => new WineSurferUserSummary(
-                u.Id,
-                u.Name,
-                u.Email ?? string.Empty,
-                u.TasteProfileSummary ?? string.Empty,
-                u.TasteProfile ?? string.Empty))
+            .Select(u =>
+            {
+                var (summary, profile) = TasteProfileUtilities.GetActiveTasteProfileTexts(u);
+                return new WineSurferUserSummary(
+                    u.Id,
+                    u.Name,
+                    u.Email ?? string.Empty,
+                    summary,
+                    profile);
+            })
             .ToList();
 
         return Json(response);
