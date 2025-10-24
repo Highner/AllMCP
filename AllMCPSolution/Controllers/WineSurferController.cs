@@ -340,7 +340,7 @@ public class WineSurferController : WineSurferControllerBase
         var model = await BuildSipSessionDetailViewModelAsync(session, cancellationToken);
 
         Response.ContentType = "text/html; charset=utf-8";
-        return View("SipSession", model);
+        return View("~/Views/SipSession/Index.cshtml", model);
     }
 
     [NonAction]
@@ -361,7 +361,7 @@ public class WineSurferController : WineSurferControllerBase
                 Array.Empty<string>(),
                 "Add bottles to this sip session before requesting food pairings.");
             Response.ContentType = "text/html; charset=utf-8";
-            return View("SipSession", emptyModel);
+            return View("~/Views/SipSession/Index.cshtml", emptyModel);
         }
 
         var prompt = _chatGptPromptService.BuildSipSessionFoodSuggestionPrompt(session);
@@ -373,7 +373,7 @@ public class WineSurferController : WineSurferControllerBase
                 Array.Empty<string>(),
                 "We couldn't collect enough information about these wines to suggest pairings.");
             Response.ContentType = "text/html; charset=utf-8";
-            return View("SipSession", fallbackModel);
+            return View("~/Views/SipSession/Index.cshtml", fallbackModel);
         }
 
         ChatCompletion completion;
@@ -396,7 +396,7 @@ public class WineSurferController : WineSurferControllerBase
                 Array.Empty<string>(),
                 "Food pairing suggestions are not configured.");
             Response.ContentType = "text/html; charset=utf-8";
-            return View("SipSession", errorModel);
+            return View("~/Views/SipSession/Index.cshtml", errorModel);
         }
         catch (ClientResultException)
         {
@@ -406,7 +406,7 @@ public class WineSurferController : WineSurferControllerBase
                 Array.Empty<string>(),
                 "We couldn't reach the pairing assistant. Please try again.");
             Response.ContentType = "text/html; charset=utf-8";
-            return View("SipSession", errorModel);
+            return View("~/Views/SipSession/Index.cshtml", errorModel);
         }
         catch (Exception)
         {
@@ -416,7 +416,7 @@ public class WineSurferController : WineSurferControllerBase
                 Array.Empty<string>(),
                 "We couldn't request food pairings right now. Please try again.");
             Response.ContentType = "text/html; charset=utf-8";
-            return View("SipSession", errorModel);
+            return View("~/Views/SipSession/Index.cshtml", errorModel);
         }
 
         var completionText = StringUtilities.ExtractCompletionText(completion);
@@ -428,7 +428,7 @@ public class WineSurferController : WineSurferControllerBase
                 Array.Empty<string>(),
                 "We couldn't understand the pairing assistant's response. Please try again.");
             Response.ContentType = "text/html; charset=utf-8";
-            return View("SipSession", errorModel);
+            return View("~/Views/SipSession/Index.cshtml", errorModel);
         }
 
         if (suggestions.Count > 0)
@@ -446,7 +446,7 @@ public class WineSurferController : WineSurferControllerBase
             null,
             cheeseSuggestion);
         Response.ContentType = "text/html; charset=utf-8";
-        return View("SipSession", model);
+        return View("~/Views/SipSession/Index.cshtml", model);
     }
 
     private async Task<WineSurferSipSessionDetailViewModel> BuildSipSessionDetailViewModelAsync(
@@ -833,7 +833,7 @@ public class WineSurferController : WineSurferControllerBase
             Array.Empty<WineSurferSipSessionBottle>());
 
         Response.ContentType = "text/html; charset=utf-8";
-        return View("SipSession", model);
+        return View("~/Views/SipSession/Index.cshtml", model);
     }
 
     [HttpGet("sisterhoods")]

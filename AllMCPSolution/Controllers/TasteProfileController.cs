@@ -255,7 +255,7 @@ public class TasteProfileController: WineSurferControllerBase
             activeHistoryEntry?.Id,
             tasteProfileHistory);
 
-        return View("TasteProfile", viewModel);
+        return View("Index", viewModel);
     }
 
     [Authorize]

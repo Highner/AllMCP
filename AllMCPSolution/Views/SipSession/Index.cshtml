@@ -176,8 +176,366 @@
                     }
                 </section>
             }
-            <!-- Keep the remaining markup identical to the original SipSession.cshtml for consistency -->
-            @await Html.PartialAsync("~/Views/WineSurfer/SipSession.cshtml", Model)
+            <section class="session-overview" aria-label="Sip session details">
+                <div class="session-overview-header">
+                    <div class="session-overview-header-info">
+                        <p class="session-kicker">@sisterhoodName</p>
+                        <h1 class="session-title">@sessionTitle</h1>
+                    </div>
+                    @if (isCreateMode)
+                    {
+                        var scheduledDateValue = FormatSipSessionDateValue(Model.Session);
+                        var scheduledTimeValue = FormatSipSessionTimeValue(Model.Session);
+                        const string createNameId = "sip-session-create-name";
+                        const string createScheduleDateId = "sip-session-create-schedule-date";
+                        const string createScheduleTimeId = "sip-session-create-schedule-time";
+                        const string createLocationId = "sip-session-create-location";
+                        const string createDescriptionId = "sip-session-create-description";
+                        const string createSisterhoodId = "sip-session-create-sisterhood";
+                        <div class="session-overview-actions">
+                            @if (hasManageableSisterhoods)
+                            {
+                                <button type="button"
+                                        class="sisterhood-button"
+                                        data-sip-session-create-toggle
+                                        data-close-label="Cancel"
+                                        data-open-on-load="true"
+                                        aria-expanded="false"
+                                        aria-controls="sip-session-edit-modal">
+                                    Plan sip session
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="button"
+                                        class="sisterhood-button"
+                                        data-sip-session-create-toggle
+                                        aria-expanded="false"
+                                        aria-controls="sip-session-edit-modal"
+                                        disabled>
+                                    Plan sip session
+                                </button>
+                            }
+                        </div>
+                        <div class="sip-session-edit-region" data-sip-session-create-region hidden>
+                            <template data-sip-session-create-template>
+                                <form method="post"
+                                      action="@Url.Action("CreateSipSession", "WineSurfer")"
+                                      class="sip-session-form"
+                                      data-sip-session-edit-form>
+                                    @Html.AntiForgeryToken()
+                                    <label for="@createSisterhoodId">Sisterhood</label>
+                                    <select id="@createSisterhoodId"
+                                            name="SisterhoodId"
+                                            required
+                                            @(hasManageableSisterhoods ? null : "disabled")>
+                                        <option value="" @(Model.SisterhoodId == Guid.Empty ? "selected" : null)>Select a sisterhood</option>
+                                        @foreach (var option in manageableSisterhoods)
+                                        {
+                                            <option value="@option.Id" @(Model.SisterhoodId == option.Id ? "selected" : null)>@option.Name</option>
+                                        }
+                                    </select>
+                                    <label for="@createNameId">Name (optional)</label>
+                                    <input type="text" id="@createNameId" name="Name" value="@Model.Session.Name" placeholder="e.g., Summer Reds Tasting"/>
+                                    <label for="@createScheduleDateId">Date (optional)</label>
+                                    <input type="date" id="@createScheduleDateId" name="ScheduledDate" value="@scheduledDateValue"/>
+                                    <label for="@createScheduleTimeId">Time (optional)</label>
+                                    <input type="time" id="@createScheduleTimeId" name="ScheduledTime" value="@scheduledTimeValue"/>
+                                    <label for="@createLocationId">Location (optional)</label>
+                                    <input type="text" id="@createLocationId" name="Location" value="@Model.Session.Location" placeholder="e.g., Patio, John's House" />
+                                    <label for="@createDescriptionId">Description (optional)</label>
+                                    <textarea id="@createDescriptionId" name="Description" rows="4" placeholder="Describe the theme or notes for this session...">@Model.Session.Description</textarea>
+                                    <div class="form-actions">
+                                        <button type="submit" class="sisterhood-button">
+                                            Create
+                                        </button>
+                                    </div>
+                                </form>
+                            </template>
+                            <div id="sip-session-edit-modal" class="sip-session-edit-modal" role="dialog" aria-labelledby="sip-session-edit-modal-title" aria-modal="true" hidden>
+                                <div class="sip-session-edit-modal__header">
+                                    <h2 id="sip-session-edit-modal-title" class="sip-session-edit-modal__title">Plan sip session</h2>
+                                    <button type="button"
+                                            class="sip-session-edit-modal__close"
+                                            aria-label="Close"
+                                            data-sip-session-create-toggle>
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+                                </div>
+                                <div class="sip-session-edit-modal__content">
+                                    <div class="sip-session-edit-modal__column">
+                                        <p class="session-meta">Choose a sisterhood to host the session.</p>
+                                        <div class="session-form-control">
+                                            <label for="@createSisterhoodId">Sisterhood</label>
+                                            <select id="@createSisterhoodId"
+                                                    name="SisterhoodId"
+                                                    required
+                                                    @(hasManageableSisterhoods ? null : "disabled")>
+                                                <option value="" @(Model.SisterhoodId == Guid.Empty ? "selected" : null)>Select a sisterhood</option>
+                                                @foreach (var option in manageableSisterhoods)
+                                                {
+                                                    <option value="@option.Id" @(Model.SisterhoodId == option.Id ? "selected" : null)>@option.Name</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="session-form-control">
+                                            <label for="@createNameId">Name (optional)</label>
+                                            <input type="text" id="@createNameId" name="Name" value="@Model.Session.Name" placeholder="e.g., Summer Reds Tasting"/>
+                                        </div>
+                                        <div class="session-form-control">
+                                            <label for="@createScheduleDateId">Date (optional)</label>
+                                            <input type="date" id="@createScheduleDateId" name="ScheduledDate" value="@scheduledDateValue"/>
+                                        </div>
+                                        <div class="session-form-control">
+                                            <label for="@createScheduleTimeId">Time (optional)</label>
+                                            <input type="time" id="@createScheduleTimeId" name="ScheduledTime" value="@scheduledTimeValue"/>
+                                        </div>
+                                        <div class="session-form-control">
+                                            <label for="@createLocationId">Location (optional)</label>
+                                            <input type="text" id="@createLocationId" name="Location" value="@Model.Session.Location" placeholder="e.g., Patio, John's House" />
+                                        </div>
+                                        <div class="session-form-control">
+                                            <label for="@createDescriptionId">Description (optional)</label>
+                                            <textarea id="@createDescriptionId" name="Description" rows="4" placeholder="Describe the theme or notes for this session...">@Model.Session.Description</textarea>
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="sisterhood-button">
+                                                Create
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="sip-session-edit-modal__column">
+                                        <h3 class="section-title">About Sessions</h3>
+                                        <p class="session-meta">A sip session is a friendly wine tasting with your Sisterhood. Invite members, bring bottles, and compare notes.</p>
+                                        <ul class="session-meta">
+                                            <li>Give the session a name like "Summer Reds Tasting".</li>
+                                            <li>Optionally schedule a date/time and location.</li>
+                                            <li>Members can contribute bottles ahead of time.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="session-overview-actions">
+                            @if (showContributeButton)
+                            {
+                                <button type="button" class="sisterhood-button" data-open-contribute-modal aria-controls="@contributeModalId" aria-expanded="false">
+                                    Contribute bottles
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="session-overview-summary">
+                    <div class="session-summary-card">
+                        <div class="session-summary-content">
+                            <div class="session-meta">
+                                <span class="session-meta-label">Schedule</span>
+                                <span class="session-meta-value">@scheduleLabel</span>
+                            </div>
+                            <div class="session-meta">
+                                <span class="session-meta-label">Location</span>
+                                <span class="session-meta-value">@locationLabel</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section class="session-content" aria-label="Session content">
+                <div class="session-layout">
+                    <div class="session-bottles" aria-labelledby="session-bottles-title">
+                        <h2 id="session-bottles-title" class="section-title">Bottles</h2>
+                        @if (sessionBottles.Count == 0)
+                        {
+                            <p class="empty-state">No bottles added yet.</p>
+                        }
+                        else
+                        {
+                            <ul class="bottle-list">
+                                @foreach (var bottle in sessionBottles)
+                                {
+                                    var bottleId = $"bottle-{bottle.Id}";
+                                    var scoreId = $"bottle-score-{bottle.Id}";
+                                    var commentId = $"bottle-comment-{bottle.Id}";
+                                    var ratingFormId = $"rate-{bottle.Id}";
+                                    var revealFormId = $"reveal-{bottle.Id}";
+                                    var drinkFormId = $"drink-{bottle.Id}";
+                                    var removeFormId = $"remove-{bottle.Id}";
+                                    var deleteNoteFormId = $"delete-note-{bottle.Id}";
+                                    var revealAction = Url.Action("RevealSipSessionBottle", "WineSurfer");
+                                    var drinkAction = Url.Action("DrinkSipSessionBottle", "WineSurfer");
+                                    var rateAction = Url.Action("RateSipSessionBottle", "WineSurfer");
+                                    var removeAction = Url.Action("RemoveSipSessionBottle", "WineSurfer");
+                                    var deleteNoteAction = Url.Action("DeleteSipSessionBottleNote", "WineSurfer");
+                                    var userScore = bottle.CurrentUserScore.HasValue ? bottle.CurrentUserScore.Value.ToString("0.0") : string.Empty;
+                                    <li id="@bottleId" class="bottle-item @(bottle.IsRevealed ? "revealed" : "masked")" data-bottle-id="@bottle.Id">
+                                        <div class="bottle-card">
+                                            <div class="bottle-content">
+                                                <div class="bottle-header">
+                                                    <div class="bottle-title">
+                                                        <a class="bottle-name" href="@Url.Action("GetBottle", "WineInventory", new { id = bottle.Id })">
+                                                            @if (bottle.IsRevealed)
+                                                            {
+                                                                @bottle.Label
+                                                            }
+                                                            else
+                                                            {
+                                                                @("Mystery Bottle")
+                                                            }
+                                                        </a>
+                                                        @if (bottle.IsRevealed && bottle.Vintage.HasValue)
+                                                        {
+                                                            <span class="bottle-vintage">@bottle.Vintage.Value</span>
+                                                        }
+                                                    </div>
+                                                    <div class="bottle-meta">
+                                                        @if (bottle.IsRevealed)
+                                                        {
+                                                            <span class="bottle-meta-field">
+                                                                <span class="bottle-meta-label">Average score</span>
+                                                                <span class="bottle-meta-value">@string.Format("{0:0.0}", bottle.SisterhoodAverageScore)
+                                                                </span>
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                <div class="bottle-actions">
+                                                    <div class="bottle-rate">
+                                                        <form id="@ratingFormId" method="post" action="@rateAction" class="rating-form">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                                            <input type="hidden" name="BottleId" value="@bottle.Id" />
+                                                            <label for="@scoreId">Your score</label>
+                                                            <input id="@scoreId" type="number" step="0.1" min="0" max="10" name="Score" value="@userScore" placeholder="e.g., 8.5" />
+                                                            <label for="@commentId">Comment (optional)</label>
+                                                            <input id="@commentId" type="text" name="Comment" placeholder="Add a note..." value="@bottle.CurrentUserNote" />
+                                                            <button type="submit" class="sisterhood-button">Save</button>
+                                                        </form>
+                                                    </div>
+                                                    <div class="bottle-secondary-actions">
+                                                        @if (!bottle.IsRevealed)
+                                                        {
+                                                            <form id="@revealFormId" method="post" action="@revealAction" class="reveal-form">
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                                                <input type="hidden" name="BottleId" value="@bottle.Id" />
+                                                                <button type="submit" class="sisterhood-button">Reveal</button>
+                                                            </form>
+                                                        }
+                                                        <form id="@drinkFormId" method="post" action="@drinkAction" class="drink-form">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                                            <input type="hidden" name="BottleId" value="@bottle.Id" />
+                                                            <button type="submit" class="sisterhood-button">Drink</button>
+                                                        </form>
+                                                        <form id="@removeFormId" method="post" action="@removeAction" class="remove-form">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                                            <input type="hidden" name="BottleId" value="@bottle.Id" />
+                                                            <button type="submit" class="sisterhood-button">Remove</button>
+                                                        </form>
+                                                        @if (bottle.CurrentUserNoteId.HasValue)
+                                                        {
+                                                            <form id="@deleteNoteFormId" method="post" action="@deleteNoteAction" class="delete-note-form">
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                                                <input type="hidden" name="TastingNoteId" value="@bottle.CurrentUserNoteId.Value" />
+                                                                <button type="submit" class="sisterhood-button">Delete note</button>
+                                                            </form>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                    <aside class="session-sidebar" aria-labelledby="session-sidebar-title">
+                        <h2 id="session-sidebar-title" class="section-title">Pairing ideas</h2>
+                        @if (canShowFoodButton && !string.IsNullOrEmpty(suggestFoodAction))
+                        {
+                            <form method="post" action="@suggestFoodAction" class="pairing-form">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="sisterhood-button" @(canRequestFoodSuggestions ? null : "disabled")>Suggest food</button>
+                            </form>
+                        }
+                        @if (hasPairingContent)
+                        {
+                            @if (hasFoodSuggestions)
+                            {
+                                <section class="pairing-suggestions" aria-label="Food suggestions">
+                                    <ul class="suggestion-list">
+                                        @foreach (var suggestion in foodSuggestions)
+                                        {
+                                            <li class="suggestion-item">@suggestion</li>
+                                        }
+                                    </ul>
+                                </section>
+                            }
+                            @if (hasCheeseSuggestion)
+                            {
+                                <section class="cheese-suggestion" aria-label="Cheese suggestion">
+                                    <h3 class="section-subtitle">Cheese to bring</h3>
+                                    <p>@cheeseSuggestion</p>
+                                </section>
+                            }
+                        }
+                        else if (!string.IsNullOrEmpty(foodSuggestionError))
+                        {
+                            <div class="error-banner" role="alert">@foodSuggestionError</div>
+                        }
+                    </aside>
+                </div>
+            </section>
+
+            @if (showContributeButton)
+            {
+                var contributeModalTitle = "Contribute bottles";
+                <div id="@contributeModalId" class="contribute-modal" role="dialog" aria-modal="true" aria-labelledby="@contributeModalTitleId" hidden>
+                    <div class="contribute-modal__header">
+                        <h2 id="@contributeModalTitleId" class="contribute-modal__title">@contributeModalTitle</h2>
+                        <button type="button" class="contribute-modal__close" data-close-contribute-modal aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
+                    <div class="contribute-modal__content">
+                        <p class="session-meta">Select bottles to contribute to this session.</p>
+                        @if (!hasContributableBottles)
+                        {
+                            <p class="empty-state">You have no additional bottles to contribute.</p>
+                        }
+                        else
+                        {
+                            <form method="post" action="@Url.Action("ContributeSipSessionBottles", "WineSurfer")" class="contribute-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                <div class="contribute-list" role="group" aria-label="Your bottles">
+                                    @foreach (var candidate in availableBottles)
+                                    {
+                                        if (sessionBottleIds.Contains(candidate.Id)) { continue; }
+                                        var checkboxId = $"contrib-{candidate.Id}";
+                                        <div class="contribute-item">
+                                            <input type="checkbox" id="@checkboxId" name="BottleIds" value="@candidate.Id" />
+                                            <label for="@checkboxId">
+                                                <span class="bottle-inline-name">@candidate.Label</span>
+                                                <span class="bottle-inline-meta">@candidate.WineName</span>
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="sisterhood-button">Contribute</button>
+                                </div>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
         </main>
     </div>
     <script defer src="/js/sip-session.js"></script>

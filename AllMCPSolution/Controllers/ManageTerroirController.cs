@@ -318,7 +318,7 @@ public class ManageTerroirController : WineSurferControllerBase
             highlightId,
             cancellationToken);
 
-        return View("ManageTerroir", viewModel);
+        return View("Index", viewModel);
     }
 
     private void SetTerroirHighlight(string section, Guid id)
