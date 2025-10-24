@@ -516,12 +516,20 @@
         return `${percent}% confidence`;
     };
 
-    const disableAnalyze = (isDisabled) => {
+    const setAnalyzeBusy = (isBusy) => {
         if (!analyzeButton) {
             return;
         }
-        analyzeButton.disabled = Boolean(isDisabled);
-        analyzeButton.dataset.state = isDisabled ? 'loading' : 'ready';
+
+        const busy = Boolean(isBusy);
+        analyzeButton.disabled = busy;
+        analyzeButton.dataset.state = busy ? 'loading' : 'ready';
+
+        if (busy) {
+            analyzeButton.setAttribute('aria-busy', 'true');
+        } else {
+            analyzeButton.removeAttribute('aria-busy');
+        }
     };
 
     const renderWines = (wines) => {
@@ -722,7 +730,7 @@
         });
     };
 
-    disableAnalyze(true);
+    setAnalyzeBusy(false);
 
     photoInput?.addEventListener('change', () => {
         const [file] = photoInput.files ?? [];
@@ -730,7 +738,7 @@
 
         if (!file) {
             clearPreview();
-            disableAnalyze(true);
+            setAnalyzeBusy(false);
             setStatus(hasTasteProfile ? 'Snap a photo to begin.' : 'Add a taste profile to unlock Surf Eye.');
             return;
         }
@@ -739,7 +747,7 @@
             clearPreview();
             photoInput.value = '';
             setStatus(`That file is too large. Keep it under ${(maxBytes / (1024 * 1024)).toFixed(1)} MB.`, 'error');
-            disableAnalyze(true);
+            setAnalyzeBusy(false);
             return;
         }
 
@@ -752,22 +760,24 @@
         previewImage.style.display = 'block';
         placeholder.style.display = 'none';
         setStatus('Photo ready. Tap analyze to see what Surf Eye spots.');
-        disableAnalyze(!hasTasteProfile);
+        setAnalyzeBusy(false);
     });
 
     const submitAnalysis = async () => {
         const [file] = photoInput.files ?? [];
         if (!file) {
             setStatus('Snap a photo before analyzing.', 'error');
+            setAnalyzeBusy(false);
             return;
         }
 
         if (!hasTasteProfile) {
             setStatus('Add a taste profile to unlock Surf Eye.', 'error');
+            setAnalyzeBusy(false);
             return;
         }
 
-        disableAnalyze(true);
+        setAnalyzeBusy(true);
         setStatus('Surf Eye is analyzing your photo…', 'progress');
 
         const formData = new FormData(form);
@@ -792,7 +802,7 @@
                 }
                 setStatus(message, 'error');
                 resultsSection?.classList.remove('is-visible');
-                disableAnalyze(false);
+                setAnalyzeBusy(false);
                 return;
             }
 
@@ -814,12 +824,14 @@
                 resultsSection.classList.add('is-visible');
                 setStatus('Surf Eye finished analyzing your photo.', 'success');
             }
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Surf Eye analysis failed', error);
             setStatus('We lost the connection. Try again in a moment.', 'error');
             resultsSection?.classList.remove('is-visible');
-        } finally {
-            disableAnalyze(false);
+        }
+        finally {
+            setAnalyzeBusy(false);
         }
     };
 
