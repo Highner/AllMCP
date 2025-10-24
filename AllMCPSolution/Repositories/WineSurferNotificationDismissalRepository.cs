@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Data;
 using AllMCPSolution.Models;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace AllMCPSolution.Repositories;
@@ -57,25 +58,32 @@ public class WineSurferNotificationDismissalRepository : IWineSurferNotification
             return EmptyResult;
         }
 
-        var dismissals = await _db.WineSurferNotificationDismissals
-            .AsNoTracking()
-            .Where(dismissal => dismissal.UserId == userId && normalizedCategories.Contains(dismissal.Category))
-            .ToListAsync(ct);
+        try
+        {
+            var dismissals = await _db.WineSurferNotificationDismissals
+                .AsNoTracking()
+                .Where(dismissal => dismissal.UserId == userId && normalizedCategories.Contains(dismissal.Category))
+                .ToListAsync(ct);
 
-        if (dismissals.Count == 0)
+            if (dismissals.Count == 0)
+            {
+                return EmptyResult;
+            }
+
+            return dismissals
+                .GroupBy(dismissal => dismissal.Category, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group => (IReadOnlyCollection<string>)group
+                        .Select(dismissal => dismissal.Stamp)
+                        .Distinct(StringComparer.Ordinal)
+                        .ToList(),
+                    StringComparer.OrdinalIgnoreCase);
+        }
+        catch (SqlException ex) when (IsMissingNotificationDismissalsTable(ex))
         {
             return EmptyResult;
         }
-
-        return dismissals
-            .GroupBy(dismissal => dismissal.Category, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => (IReadOnlyCollection<string>)group
-                    .Select(dismissal => dismissal.Stamp)
-                    .Distinct(StringComparer.Ordinal)
-                    .ToList(),
-                StringComparer.OrdinalIgnoreCase);
     }
 
     public async Task<WineSurferNotificationDismissal> UpsertAsync(
@@ -104,38 +112,70 @@ public class WineSurferNotificationDismissalRepository : IWineSurferNotification
         var normalizedStamp = stamp.Trim();
         var timestamp = dismissedAtUtc?.ToUniversalTime() ?? DateTime.UtcNow;
 
-        var dismissal = await _db.WineSurferNotificationDismissals
-            .FirstOrDefaultAsync(
-                entry => entry.UserId == userId
-                    && entry.Category == normalizedCategory
-                    && entry.Stamp == normalizedStamp,
-                ct);
-
-        if (dismissal is null)
+        try
         {
-            dismissal = new WineSurferNotificationDismissal
+            var dismissal = await _db.WineSurferNotificationDismissals
+                .FirstOrDefaultAsync(
+                    entry => entry.UserId == userId
+                        && entry.Category == normalizedCategory
+                        && entry.Stamp == normalizedStamp,
+                    ct);
+
+            if (dismissal is null)
             {
-                Id = Guid.NewGuid(),
+                dismissal = new WineSurferNotificationDismissal
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    Category = normalizedCategory,
+                    Stamp = normalizedStamp,
+                    DismissedAtUtc = timestamp,
+                };
+
+                await _db.WineSurferNotificationDismissals.AddAsync(dismissal, ct);
+            }
+            else
+            {
+                dismissal.DismissedAtUtc = timestamp;
+            }
+
+            await _db.SaveChangesAsync(ct);
+
+            return dismissal;
+        }
+        catch (SqlException ex) when (IsMissingNotificationDismissalsTable(ex))
+        {
+            return new WineSurferNotificationDismissal
+            {
+                Id = Guid.Empty,
                 UserId = userId,
                 Category = normalizedCategory,
                 Stamp = normalizedStamp,
                 DismissedAtUtc = timestamp,
             };
-
-            await _db.WineSurferNotificationDismissals.AddAsync(dismissal, ct);
         }
-        else
-        {
-            dismissal.DismissedAtUtc = timestamp;
-        }
-
-        await _db.SaveChangesAsync(ct);
-
-        return dismissal;
     }
 
     private static string NormalizeCategory(string category)
     {
         return category.Trim().ToLowerInvariant();
+    }
+
+    private static bool IsMissingNotificationDismissalsTable(SqlException exception)
+    {
+        if (exception is null)
+        {
+            return false;
+        }
+
+        foreach (SqlError error in exception.Errors)
+        {
+            if (error.Number == 208 && error.Message.Contains("WineSurferNotificationDismissals", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
