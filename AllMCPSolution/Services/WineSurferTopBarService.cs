@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using AllMCPSolution.Controllers;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
+using Microsoft.AspNetCore.Identity;
 
 namespace AllMCPSolution.Services;
 
@@ -23,15 +24,18 @@ public class WineSurferTopBarService : IWineSurferTopBarService
     private readonly IUserRepository _userRepository;
     private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
     private readonly IWineSurferNotificationDismissalRepository _notificationDismissalRepository;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public WineSurferTopBarService(
         IUserRepository userRepository,
         ISisterhoodInvitationRepository sisterhoodInvitationRepository,
-        IWineSurferNotificationDismissalRepository notificationDismissalRepository)
+        IWineSurferNotificationDismissalRepository notificationDismissalRepository,
+        UserManager<ApplicationUser> userManager)
     {
         _userRepository = userRepository;
         _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
         _notificationDismissalRepository = notificationDismissalRepository;
+        _userManager = userManager;
     }
 
     public async Task<WineSurferTopBarModel> BuildAsync(ClaimsPrincipal? user, string currentPath, CancellationToken cancellationToken)
@@ -151,10 +155,10 @@ public class WineSurferTopBarService : IWineSurferTopBarService
             isAdmin);
     }
 
-    private static Guid? GetCurrentUserId(ClaimsPrincipal user)
+    private Guid? GetCurrentUserId(ClaimsPrincipal user)
     {
-        var idClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.TryParse(idClaim, out var parsedId) ? parsedId : null;
+        var idValue = _userManager.GetUserId(user);
+        return Guid.TryParse(idValue, out var parsedId) ? parsedId : null;
     }
 
     private static string? ResolveDisplayName(string? domainName, string? identityName, string? email)

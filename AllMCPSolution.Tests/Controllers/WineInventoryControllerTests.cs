@@ -6,9 +6,10 @@ using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
 using FluentAssertions;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using OpenAI.Chat;
 using Moq;
+using OpenAI.Chat;
 using Xunit;
 
 namespace AllMCPSolution.Tests.Controllers;
@@ -23,11 +24,17 @@ public class WineInventoryControllerTests
         var wineRepository = new Mock<IWineRepository>();
         var wineVintageRepository = new Mock<IWineVintageRepository>();
         var subAppellationRepository = new Mock<ISubAppellationRepository>();
+        var appellationRepository = new Mock<IAppellationRepository>();
+        var regionRepository = new Mock<IRegionRepository>();
+        var countryRepository = new Mock<ICountryRepository>();
         var userRepository = new Mock<IUserRepository>();
         var tastingNoteRepository = new Mock<ITastingNoteRepository>();
+        var wineCatalogService = new Mock<IWineCatalogService>();
         var topBarService = new Mock<IWineSurferTopBarService>();
         var wineImportService = new Mock<IWineImportService>();
         var chatService = new Mock<IChatGptService>(MockBehavior.Strict);
+        var userStore = new Mock<IUserStore<ApplicationUser>>();
+        var userManager = new Mock<UserManager<ApplicationUser>>(userStore.Object, null, null, null, null, null, null, null, null);
 
         var controller = new WineInventoryController(
             bottleRepository.Object,
@@ -35,11 +42,16 @@ public class WineInventoryControllerTests
             wineRepository.Object,
             wineVintageRepository.Object,
             subAppellationRepository.Object,
+            appellationRepository.Object,
+            regionRepository.Object,
+            countryRepository.Object,
             userRepository.Object,
             tastingNoteRepository.Object,
+            wineCatalogService.Object,
             topBarService.Object,
             wineImportService.Object,
-            chatService.Object);
+            chatService.Object,
+            userManager.Object);
 
         var result = await controller.GetWineSurferMatches("ab", CancellationToken.None);
 
