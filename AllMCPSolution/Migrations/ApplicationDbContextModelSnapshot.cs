@@ -102,16 +102,6 @@ namespace AllMCPSolution.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("TasteProfile")
-                        .IsRequired()
-                        .HasMaxLength(4096)
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("TasteProfileSummary")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
-
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
@@ -130,114 +120,6 @@ namespace AllMCPSolution.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("AllMCPSolution.Models.Artist", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Artists");
-                });
-
-            modelBuilder.Entity("AllMCPSolution.Models.Artwork", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ArtistId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Height")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Width")
-                        .HasColumnType("int");
-
-                    b.Property<int>("YearCreated")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ArtistId");
-
-                    b.ToTable("Artworks");
-                });
-
-            modelBuilder.Entity("AllMCPSolution.Models.ArtworkSale", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ArtistId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("HammerPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("Height")
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<decimal>("HighEstimate")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("LowEstimate")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<DateTime>("SaleDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("Sold")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Technique")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("Width")
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<int>("YearCreated")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ArtistId");
-
-                    b.HasIndex("Name", "Height", "Width", "HammerPrice", "SaleDate", "ArtistId")
-                        .IsUnique();
-
-                    b.ToTable("ArtworkSales");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
@@ -317,31 +199,6 @@ namespace AllMCPSolution.Migrations
                         .IsUnique();
 
                     b.ToTable("Countries");
-                });
-
-            modelBuilder.Entity("AllMCPSolution.Models.InflationIndex", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("IndexValue")
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<int>("Month")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Year")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Year", "Month")
-                        .IsUnique();
-
-                    b.ToTable("InflationIndices");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Region", b =>
@@ -911,28 +768,6 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("Region");
                 });
 
-            modelBuilder.Entity("AllMCPSolution.Models.Artwork", b =>
-                {
-                    b.HasOne("AllMCPSolution.Models.Artist", "Artist")
-                        .WithMany("Artworks")
-                        .HasForeignKey("ArtistId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Artist");
-                });
-
-            modelBuilder.Entity("AllMCPSolution.Models.ArtworkSale", b =>
-                {
-                    b.HasOne("AllMCPSolution.Models.Artist", "Artist")
-                        .WithMany()
-                        .HasForeignKey("ArtistId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Artist");
-                });
-
             modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
                 {
                     b.HasOne("AllMCPSolution.Models.BottleLocation", "BottleLocation")
@@ -1253,11 +1088,6 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("TastingNotes");
 
                     b.Navigation("WineVintageEvolutionScores");
-                });
-
-            modelBuilder.Entity("AllMCPSolution.Models.Artist", b =>
-                {
-                    b.Navigation("Artworks");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
