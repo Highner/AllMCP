@@ -467,18 +467,19 @@ public class TasteProfileController: WineSurferControllerBase
         }
 
         var resolvedSuggestions = await ResolveSuggestedAppellationsAsync(
-            userId,
             generatedProfile.Suggestions,
             cancellationToken);
 
         var response = new GenerateTasteProfileResponse(
             summary,
             profile,
-            BuildTasteProfileSuggestions(resolvedSuggestions));
+            BuildTasteProfileSuggestions(resolvedSuggestions.Suggestions));
+
+        TasteProfile? savedProfile = null;
 
         try
         {
-            var savedProfile = await _userRepository.AddGeneratedTasteProfileAsync(
+            savedProfile = await _userRepository.AddGeneratedTasteProfileAsync(
                 userId,
                 profile,
                 summary,
@@ -500,6 +501,14 @@ public class TasteProfileController: WineSurferControllerBase
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
                 new GenerateTasteProfileError(TasteProfileGenerationGenericErrorMessage));
+        }
+
+        if (savedProfile is not null)
+        {
+            await _suggestedAppellationRepository.ReplaceSuggestionsAsync(
+                savedProfile.Id,
+                resolvedSuggestions.Replacements,
+                cancellationToken);
         }
 
         return Json(response);
@@ -633,18 +642,19 @@ public class TasteProfileController: WineSurferControllerBase
                 cancellationToken);
 
             var resolvedSuggestions = await ResolveSuggestedAppellationsAsync(
-                userId,
                 generatedProfile.Suggestions,
                 cancellationToken);
 
             var payload = new GenerateTasteProfileResponse(
                 summary,
                 profile,
-                BuildTasteProfileSuggestions(resolvedSuggestions));
+                BuildTasteProfileSuggestions(resolvedSuggestions.Suggestions));
+
+            TasteProfile? savedProfile = null;
 
             try
             {
-                var savedProfile = await _userRepository.AddGeneratedTasteProfileAsync(
+                savedProfile = await _userRepository.AddGeneratedTasteProfileAsync(
                     userId,
                     profile,
                     summary,
@@ -670,6 +680,14 @@ public class TasteProfileController: WineSurferControllerBase
                     new { type = "error", message = TasteProfileGenerationGenericErrorMessage },
                     cancellationToken);
                 return new EmptyResult();
+            }
+
+            if (savedProfile is not null)
+            {
+                await _suggestedAppellationRepository.ReplaceSuggestionsAsync(
+                    savedProfile.Id,
+                    resolvedSuggestions.Replacements,
+                    cancellationToken);
             }
 
             await WriteTasteProfileEventAsync(
@@ -1042,18 +1060,19 @@ public class TasteProfileController: WineSurferControllerBase
         }
     }
 
-     private async Task<IReadOnlyList<WineSurferSuggestedAppellation>> ResolveSuggestedAppellationsAsync(
-        Guid userId,
+    private sealed record ResolvedSuggestedAppellations(
+        IReadOnlyList<WineSurferSuggestedAppellation> Suggestions,
+        IReadOnlyList<SuggestedAppellationReplacement> Replacements);
+
+    private async Task<ResolvedSuggestedAppellations> ResolveSuggestedAppellationsAsync(
         IReadOnlyList<GeneratedAppellationSuggestion> suggestions,
         CancellationToken cancellationToken)
     {
         if (suggestions is null || suggestions.Count == 0)
         {
-            await _suggestedAppellationRepository.ReplaceSuggestionsAsync(
-                userId,
-                Array.Empty<SuggestedAppellationReplacement>(),
-                cancellationToken);
-            return Array.Empty<WineSurferSuggestedAppellation>();
+            return new ResolvedSuggestedAppellations(
+                Array.Empty<WineSurferSuggestedAppellation>(),
+                Array.Empty<SuggestedAppellationReplacement>());
         }
 
         var resolved = new List<WineSurferSuggestedAppellation>(Math.Min(suggestions.Count, 2));
@@ -1123,9 +1142,15 @@ public class TasteProfileController: WineSurferControllerBase
                 resolvedWines));
         }
 
-        await _suggestedAppellationRepository.ReplaceSuggestionsAsync(userId, replacements, cancellationToken);
+        var resolvedResults = resolved.Count == 0
+            ? Array.Empty<WineSurferSuggestedAppellation>()
+            : resolved;
 
-        return resolved.Count == 0 ? Array.Empty<WineSurferSuggestedAppellation>() : resolved;
+        var replacementResults = replacements.Count == 0
+            ? Array.Empty<SuggestedAppellationReplacement>()
+            : replacements;
+
+        return new ResolvedSuggestedAppellations(resolvedResults, replacementResults);
     }
 
     private async Task<SubAppellation?> ResolveSuggestedSubAppellationAsync(

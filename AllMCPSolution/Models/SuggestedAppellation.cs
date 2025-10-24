@@ -7,8 +7,8 @@ public class SuggestedAppellation
     public Guid SubAppellationId { get; set; }
     public SubAppellation SubAppellation { get; set; } = null!;
 
-    public Guid UserId { get; set; }
-    public ApplicationUser User { get; set; } = null!;
+    public Guid TasteProfileId { get; set; }
+    public TasteProfile TasteProfile { get; set; } = null!;
 
     public string? Reason { get; set; }
 
