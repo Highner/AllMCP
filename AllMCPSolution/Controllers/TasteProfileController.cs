@@ -27,7 +27,6 @@ public class TasteProfileController: WineSurferControllerBase
         public string? TasteProfile { get; set; }
     }
     
-    private readonly ISuggestedAppellationRepository _suggestedAppellationRepository;
     private readonly ISuggestedAppellationService _suggestedAppellationService;
     private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
 
@@ -78,7 +77,6 @@ public class TasteProfileController: WineSurferControllerBase
         ISubAppellationRepository subAppellationRepository,
         ITerroirMergeRepository terroirMergeRepository,
         IWineSurferTopBarService topBarService,
-        ISuggestedAppellationRepository suggestedAppellationRepository,
         ISuggestedAppellationService suggestedAppellationService,
         IChatGptPromptService chatGptPromptService,
         IBottleRepository bottleRepository,
@@ -93,7 +91,6 @@ public class TasteProfileController: WineSurferControllerBase
         _appellationRepository = appellationRepository;
         _subAppellationRepository = subAppellationRepository;
         _topBarService = topBarService;
-        _suggestedAppellationRepository = suggestedAppellationRepository;
         _suggestedAppellationService = suggestedAppellationService;
         _chatGptPromptService = chatGptPromptService;
         _bottleRepository = bottleRepository;
@@ -479,10 +476,11 @@ public class TasteProfileController: WineSurferControllerBase
 
         try
         {
-            savedProfile = await _userRepository.AddGeneratedTasteProfileAsync(
+            savedProfile = await _tasteProfileRepository.SaveGeneratedProfileAsync(
                 userId,
                 profile,
                 summary,
+                resolvedSuggestions.Replacements,
                 cancellationToken);
 
             if (savedProfile is null)
@@ -501,14 +499,6 @@ public class TasteProfileController: WineSurferControllerBase
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
                 new GenerateTasteProfileError(TasteProfileGenerationGenericErrorMessage));
-        }
-
-        if (savedProfile is not null)
-        {
-            await _suggestedAppellationRepository.ReplaceSuggestionsAsync(
-                savedProfile.Id,
-                resolvedSuggestions.Replacements,
-                cancellationToken);
         }
 
         return Json(response);
@@ -654,10 +644,11 @@ public class TasteProfileController: WineSurferControllerBase
 
             try
             {
-                savedProfile = await _userRepository.AddGeneratedTasteProfileAsync(
+                savedProfile = await _tasteProfileRepository.SaveGeneratedProfileAsync(
                     userId,
                     profile,
                     summary,
+                    resolvedSuggestions.Replacements,
                     cancellationToken);
 
                 if (savedProfile is null)
@@ -680,14 +671,6 @@ public class TasteProfileController: WineSurferControllerBase
                     new { type = "error", message = TasteProfileGenerationGenericErrorMessage },
                     cancellationToken);
                 return new EmptyResult();
-            }
-
-            if (savedProfile is not null)
-            {
-                await _suggestedAppellationRepository.ReplaceSuggestionsAsync(
-                    savedProfile.Id,
-                    resolvedSuggestions.Replacements,
-                    cancellationToken);
             }
 
             await WriteTasteProfileEventAsync(
