@@ -161,6 +161,9 @@
 }
 
 <header class="top-bar">
+    <div class="top-bar-antiforgery" data-antiforgery-token-cache hidden>
+        @Html.AntiForgeryToken()
+    </div>
     <a class="brand" href="@Url.Content("~/wine-surfer")" aria-label="Wine Surfer home">
         <img src="@Url.Content("~/assets/logo.png")" alt="Wine Surfer" style="height:32px;width:auto;display:block;" />
     </a>
@@ -383,6 +386,7 @@
             }
         </div>
 </nav>
+    <script src="~/js/request-verification.js"></script>
 </header>
 @if (isAuthenticated && !string.IsNullOrEmpty(updateDisplayNameUrl))
 {
