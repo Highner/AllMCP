@@ -764,6 +764,12 @@ public class WineSurferController : Controller
                 },
                 ct: cancellationToken);
         }
+        catch (ChatGptServiceNotConfiguredException)
+        {
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                new GenerateTasteProfileError(TasteProfileAssistantUnavailableErrorMessage));
+        }
         catch (ClientResultException)
         {
             return StatusCode(
@@ -1007,6 +1013,13 @@ public class WineSurferController : Controller
                     message = TasteProfileStreamingSuccessMessage,
                     payload
                 },
+                cancellationToken);
+        }
+        catch (ChatGptServiceNotConfiguredException)
+        {
+            await WriteTasteProfileEventAsync(
+                response,
+                new { type = "error", message = TasteProfileAssistantUnavailableErrorMessage },
                 cancellationToken);
         }
         catch (ClientResultException)
@@ -1348,6 +1361,10 @@ public class WineSurferController : Controller
                     })
                 },
                 ct: cancellationToken);
+        }
+        catch (ChatGptServiceNotConfiguredException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new SurfEyeAnalysisError("Surf Eye is not configured."));
         }
         catch (ClientResultException ex)
         {
@@ -2488,6 +2505,16 @@ public class WineSurferController : Controller
                 },
 
                 ct: cancellationToken);
+        }
+        catch (ChatGptServiceNotConfiguredException)
+        {
+            var errorModel = await BuildSipSessionDetailViewModelAsync(
+                session,
+                cancellationToken,
+                Array.Empty<string>(),
+                "Food pairing suggestions are not configured.");
+            Response.ContentType = "text/html; charset=utf-8";
+            return View("SipSession", errorModel);
         }
         catch (ClientResultException)
         {
