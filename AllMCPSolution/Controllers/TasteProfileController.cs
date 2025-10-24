@@ -5,6 +5,8 @@ using System.Text;
 using System.Text.Json.Serialization;
 using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -511,9 +513,17 @@ public class TasteProfileController: WineSurferControllerBase
     {
         var response = Response;
         response.StatusCode = StatusCodes.Status200OK;
-        response.ContentType = TasteProfileStreamMediaType;
+        response.ContentType = $"{TasteProfileStreamMediaType}; charset=utf-8";
         response.Headers["Cache-Control"] = "no-cache";
         response.Headers["X-Accel-Buffering"] = "no";
+
+        HttpContext.Features
+            .Get<IHttpResponseBodyFeature>()?
+            .DisableBuffering();
+
+        HttpContext.Features
+            .Get<IHttpBufferingFeature>()?
+            .DisableResponseBuffering();
 
         await response.StartAsync(cancellationToken);
 
@@ -712,7 +722,7 @@ public class TasteProfileController: WineSurferControllerBase
         {
             try
             {
-                await response.BodyWriter.FlushAsync(CancellationToken.None);
+                await response.Body.FlushAsync(CancellationToken.None);
             }
             catch (OperationCanceledException)
             {
@@ -729,9 +739,9 @@ public class TasteProfileController: WineSurferControllerBase
         CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(payload, TasteProfileStreamSerializerOptions);
-        var encoded = Encoding.UTF8.GetBytes(json + "\n");
-        await response.BodyWriter.WriteAsync(encoded, cancellationToken);
-        await response.BodyWriter.FlushAsync(cancellationToken);
+        await response.WriteAsync(json, cancellationToken);
+        await response.WriteAsync("\n", cancellationToken);
+        await response.Body.FlushAsync(cancellationToken);
     }
 
     private static string? ExtractChatCompletionContent(ChatCompletion completion)
