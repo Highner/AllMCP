@@ -157,7 +157,11 @@
         TitleContent = @<text>
             <div class="details-header-main">
                 <div class="details-header-titles">
-                    <h2 id="details-title" class="crud-table__title">Bottles</h2>
+                    <h2 id="details-title" class="crud-table__title">
+                        <span id="details-title-name" class="details-title__name">Bottles</span>
+                        <span id="details-title-separator" class="details-title__separator" aria-hidden="true">•</span>
+                        <span id="details-title-vintage" class="details-title__vintage"></span>
+                    </h2>
                     <p id="details-subtitle" class="crud-table__description"></p>
                 </div>
                 <button type="button" id="details-close-button" class="details-close-button" aria-label="Close bottle details">
