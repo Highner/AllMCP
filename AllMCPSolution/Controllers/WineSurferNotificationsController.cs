@@ -5,8 +5,10 @@ using System.Net.Mail;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AllMCPSolution.Controllers;
@@ -20,17 +22,20 @@ public class WineSurferNotificationsController : Controller
     private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
     private readonly ISisterhoodRepository _sisterhoodRepository;
     private readonly IUserRepository _userRepository;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public WineSurferNotificationsController(
         IWineSurferNotificationDismissalRepository dismissalRepository,
         ISisterhoodInvitationRepository sisterhoodInvitationRepository,
         ISisterhoodRepository sisterhoodRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        UserManager<ApplicationUser> userManager)
     {
         _dismissalRepository = dismissalRepository;
         _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
         _sisterhoodRepository = sisterhoodRepository;
         _userRepository = userRepository;
+        _userManager = userManager;
     }
 
     [HttpPost("dismiss")]
@@ -191,10 +196,10 @@ public class WineSurferNotificationsController : Controller
         return Guid.TryParse(idPart, out invitationId);
     }
 
-    private static Guid? GetCurrentUserId(ClaimsPrincipal user)
+    private Guid? GetCurrentUserId(ClaimsPrincipal user)
     {
-        var idClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.TryParse(idClaim, out var parsedId) ? parsedId : null;
+        var idValue = _userManager.GetUserId(user);
+        return Guid.TryParse(idValue, out var parsedId) ? parsedId : null;
     }
 
     private static string NormalizeCategory(string category) => category.Trim().ToLowerInvariant();

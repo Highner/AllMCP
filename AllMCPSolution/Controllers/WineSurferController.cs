@@ -21,6 +21,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.AspNetCore.Identity;
 using OpenAI.Chat;
 
 namespace AllMCPSolution.Controllers;
@@ -174,6 +175,7 @@ public class WineSurferController : Controller
     };
 
     private readonly IWineSurferTopBarService _topBarService;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public WineSurferController(
         IWineRepository wineRepository,
@@ -193,7 +195,8 @@ public class WineSurferController : Controller
         IWineCatalogService wineCatalogService,
         IChatGptService chatGptService,
         IChatGptPromptService chatGptPromptService,
-        IWineSurferTopBarService topBarService)
+        IWineSurferTopBarService topBarService,
+        UserManager<ApplicationUser> userManager)
     {
         _wineRepository = wineRepository;
         _userRepository = userRepository;
@@ -213,6 +216,7 @@ public class WineSurferController : Controller
         _chatGptService = chatGptService;
         _chatGptPromptService = chatGptPromptService;
         _topBarService = topBarService;
+        _userManager = userManager;
     }
 
     [HttpGet("")]
@@ -4835,8 +4839,8 @@ public class WineSurferController : Controller
 
     private Guid? GetCurrentUserId()
     {
-        var idClaim = User?.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.TryParse(idClaim, out var parsedId) ? parsedId : null;
+        var idValue = _userManager.GetUserId(User);
+        return Guid.TryParse(idValue, out var parsedId) ? parsedId : null;
     }
 
     private static string GetAvatarLetter(string? displayName)
