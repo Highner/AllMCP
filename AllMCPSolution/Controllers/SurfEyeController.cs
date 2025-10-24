@@ -44,7 +44,7 @@ public class SurfEyeController: WineSurferControllerBase
     }
     
     [Authorize]
-    [HttpGet("")]
+    [HttpGet("surf-eye")]
     public async Task<IActionResult> SurfEye(CancellationToken cancellationToken)
     {
         var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
