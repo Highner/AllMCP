@@ -1271,7 +1271,7 @@
     var createSipSessionUrl = Url.Action("PlanSipSession", "WineSurfer") ?? "/wine-surfer/sessions/create";
     var tasteProfileSummary = Model.CurrentUser?.TasteProfileSummary?.Trim();
     var hasTasteProfileSummary = !string.IsNullOrWhiteSpace(tasteProfileSummary);
-    var tasteProfileUrl = Url.Action("TasteProfile", "WineSurfer") ?? "/wine-surfer/taste-profile";
+    var tasteProfileUrl = Url.Action("TasteProfile", "TasteProfile") ?? "/wine-surfer/taste-profile";
 }
 <body class="wine-app @bodyClass">
     <div class="page-content">
