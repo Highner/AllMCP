@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 
 namespace AllMCPSolution.Utilities;
 
@@ -66,7 +68,9 @@ public static class FuzzyMatchUtilities
         }
 
         var normalizedQuery = (query ?? string.Empty).Trim();
-        if (normalizedQuery.Length == 0)
+        var foldedQuery = NormalizeForComparison(normalizedQuery);
+
+        if (foldedQuery.Length == 0)
         {
             return items
                 .Select(item => new { item, value = selector(item) ?? string.Empty })
@@ -76,17 +80,15 @@ public static class FuzzyMatchUtilities
                 .ToList();
         }
 
-        var loweredQuery = normalizedQuery.ToLowerInvariant();
-
         return items
             .Select(item =>
             {
                 var value = selector(item) ?? string.Empty;
                 var normalizedValue = value.Trim();
-                var loweredValue = normalizedValue.ToLowerInvariant();
-                var contains = loweredValue.Contains(loweredQuery, StringComparison.Ordinal);
-                var distance = CalculateLevenshteinDistance(loweredQuery, loweredValue);
-                var maxLength = Math.Max(loweredValue.Length, loweredQuery.Length);
+                var foldedValue = NormalizeForComparison(normalizedValue);
+                var contains = foldedValue.Contains(foldedQuery, StringComparison.Ordinal);
+                var distance = CalculateLevenshteinDistance(foldedQuery, foldedValue);
+                var maxLength = Math.Max(foldedValue.Length, foldedQuery.Length);
                 var normalizedDistance = maxLength == 0 ? 0 : (double)distance / maxLength;
                 return new
                 {
@@ -110,16 +112,42 @@ public static class FuzzyMatchUtilities
 
     public static double CalculateNormalizedDistance(string? source, string? target)
     {
-        var sourceValue = (source ?? string.Empty).Trim();
-        var targetValue = (target ?? string.Empty).Trim();
+        var sourceValue = NormalizeForComparison(source);
+        var targetValue = NormalizeForComparison(target);
 
         if (sourceValue.Length == 0 && targetValue.Length == 0)
         {
             return 0d;
         }
 
-        var distance = CalculateLevenshteinDistance(sourceValue.ToLowerInvariant(), targetValue.ToLowerInvariant());
+        var distance = CalculateLevenshteinDistance(sourceValue, targetValue);
         var maxLength = Math.Max(sourceValue.Length, targetValue.Length);
         return maxLength == 0 ? 0d : (double)distance / maxLength;
+    }
+
+    private static string NormalizeForComparison(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = value.Trim();
+        var normalized = trimmed.Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalized.Length);
+
+        foreach (var c in normalized)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(c);
+            if (category != UnicodeCategory.NonSpacingMark && category != UnicodeCategory.SpacingCombiningMark)
+            {
+                builder.Append(c);
+            }
+        }
+
+        return builder
+            .ToString()
+            .Normalize(NormalizationForm.FormC)
+            .ToLowerInvariant();
     }
 }
