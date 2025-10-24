@@ -15,7 +15,7 @@ public interface ISuggestedAppellationRepository
 {
     Task<IReadOnlyList<SuggestedAppellation>> GetForUserAsync(Guid userId, CancellationToken ct = default);
     Task ReplaceSuggestionsAsync(
-        Guid userId,
+        Guid tasteProfileId,
         IReadOnlyList<SuggestedAppellationReplacement>? suggestions,
         CancellationToken ct = default);
 }
@@ -33,7 +33,8 @@ public sealed class SuggestedAppellationRepository : ISuggestedAppellationReposi
     {
         return await _db.SuggestedAppellations
             .AsNoTracking()
-            .Where(suggestion => suggestion.UserId == userId)
+            .Where(suggestion =>
+                suggestion.TasteProfile.UserId == userId && suggestion.TasteProfile.InUse)
             .Include(suggestion => suggestion.SubAppellation)
                 .ThenInclude(sub => sub.Appellation)
                     .ThenInclude(app => app.Region)
@@ -52,12 +53,17 @@ public sealed class SuggestedAppellationRepository : ISuggestedAppellationReposi
     }
 
     public async Task ReplaceSuggestionsAsync(
-        Guid userId,
+        Guid tasteProfileId,
         IReadOnlyList<SuggestedAppellationReplacement>? suggestions,
         CancellationToken ct = default)
     {
+        if (tasteProfileId == Guid.Empty)
+        {
+            return;
+        }
+
         var existing = await _db.SuggestedAppellations
-            .Where(suggestion => suggestion.UserId == userId)
+            .Where(suggestion => suggestion.TasteProfileId == tasteProfileId)
             .ToListAsync(ct);
 
         if (existing.Count > 0)
@@ -66,19 +72,19 @@ public sealed class SuggestedAppellationRepository : ISuggestedAppellationReposi
         }
 
         if (suggestions is not null && suggestions.Count > 0)
-        {
-            var pending = suggestions
-                .Where(entry => entry is not null && entry.SubAppellationId != Guid.Empty)
-                .GroupBy(entry => entry.SubAppellationId)
-                .Select(group => new SuggestedAppellation
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = userId,
-                    SubAppellationId = group.Key,
-                    Reason = NormalizeReason(group.First().Reason),
-                    SuggestedWines = NormalizeWines(group.SelectMany(entry => entry.Wines ?? Array.Empty<SuggestedWineReplacement>()))
-                })
-                .ToList();
+            {
+                var pending = suggestions
+                    .Where(entry => entry is not null && entry.SubAppellationId != Guid.Empty)
+                    .GroupBy(entry => entry.SubAppellationId)
+                    .Select(group => new SuggestedAppellation
+                    {
+                        Id = Guid.NewGuid(),
+                        TasteProfileId = tasteProfileId,
+                        SubAppellationId = group.Key,
+                        Reason = NormalizeReason(group.First().Reason),
+                        SuggestedWines = NormalizeWines(group.SelectMany(entry => entry.Wines ?? Array.Empty<SuggestedWineReplacement>()))
+                    })
+                    .ToList();
 
             if (pending.Count > 0)
             {

@@ -279,7 +279,10 @@ public sealed class TerroirMergeRepository : ITerroirMergeRepository
                     .LoadAsync(ct);
 
                 var wineLookup = BuildWineLookup(leader.Wines);
-                var suggestionLookup = leader.SuggestedAppellations.ToDictionary(s => s.UserId);
+                var suggestionLookup = leader.SuggestedAppellations
+                    .Where(s => s?.TasteProfileId != Guid.Empty)
+                    .GroupBy(s => s!.TasteProfileId)
+                    .ToDictionary(group => group.Key, group => group.First());
 
                 foreach (var follower in followers)
                 {
@@ -306,7 +309,7 @@ public sealed class TerroirMergeRepository : ITerroirMergeRepository
 
                     foreach (var suggestion in follower.SuggestedAppellations.ToList())
                     {
-                        if (suggestionLookup.TryGetValue(suggestion.UserId, out var existingSuggestion))
+                        if (suggestionLookup.TryGetValue(suggestion.TasteProfileId, out var existingSuggestion))
                         {
                             await MergeSuggestedAppellationAsync(existingSuggestion, suggestion, ct);
                         }
@@ -315,7 +318,7 @@ public sealed class TerroirMergeRepository : ITerroirMergeRepository
                             suggestion.SubAppellationId = leader.Id;
                             suggestion.SubAppellation = leader;
                             leader.SuggestedAppellations.Add(suggestion);
-                            suggestionLookup[suggestion.UserId] = suggestion;
+                            suggestionLookup[suggestion.TasteProfileId] = suggestion;
                         }
                     }
 
@@ -524,7 +527,10 @@ public sealed class TerroirMergeRepository : ITerroirMergeRepository
             .LoadAsync(ct);
 
         var wineLookup = BuildWineLookup(leader.Wines);
-        var suggestionLookup = leader.SuggestedAppellations.ToDictionary(s => s.UserId);
+        var suggestionLookup = leader.SuggestedAppellations
+            .Where(s => s?.TasteProfileId != Guid.Empty)
+            .GroupBy(s => s!.TasteProfileId)
+            .ToDictionary(group => group.Key, group => group.First());
 
         foreach (var wine in follower.Wines.ToList())
         {
@@ -544,7 +550,7 @@ public sealed class TerroirMergeRepository : ITerroirMergeRepository
 
         foreach (var suggestion in follower.SuggestedAppellations.ToList())
         {
-            if (suggestionLookup.TryGetValue(suggestion.UserId, out var existingSuggestion))
+            if (suggestionLookup.TryGetValue(suggestion.TasteProfileId, out var existingSuggestion))
             {
                 await MergeSuggestedAppellationAsync(existingSuggestion, suggestion, ct);
             }
@@ -553,7 +559,7 @@ public sealed class TerroirMergeRepository : ITerroirMergeRepository
                 suggestion.SubAppellationId = leader.Id;
                 suggestion.SubAppellation = leader;
                 leader.SuggestedAppellations.Add(suggestion);
-                suggestionLookup[suggestion.UserId] = suggestion;
+                suggestionLookup[suggestion.TasteProfileId] = suggestion;
             }
         }
 

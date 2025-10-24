@@ -17,4 +17,6 @@ public class TasteProfile
 
     public bool InUse { get; set; }
         = false;
+
+    public ICollection<SuggestedAppellation> SuggestedAppellations { get; set; } = [];
 }

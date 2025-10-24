@@ -157,12 +157,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .HasForeignKey(suggested => suggested.SubAppellationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            e.HasOne(suggested => suggested.User)
-                .WithMany(user => user.SuggestedAppellations)
-                .HasForeignKey(suggested => suggested.UserId)
+            e.HasOne(suggested => suggested.TasteProfile)
+                .WithMany(profile => profile.SuggestedAppellations)
+                .HasForeignKey(suggested => suggested.TasteProfileId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            e.HasIndex(suggested => new { suggested.UserId, suggested.SubAppellationId })
+            e.HasIndex(suggested => new { suggested.TasteProfileId, suggested.SubAppellationId })
                 .IsUnique();
         });
 
