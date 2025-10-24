@@ -471,6 +471,28 @@
             display: flex;
             justify-content: flex-end;
         }
+
+        .sip-session-delete-section {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid hsla(var(--border) / 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .sip-session-delete-hint {
+            margin: 0;
+            font-size: 0.875rem;
+            color: hsla(var(--muted-foreground) / 0.85);
+        }
+
+        .sip-session-delete-form {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
     </style>
 </head>
 @{ 
@@ -695,6 +717,8 @@
                                 var editDescriptionId = $"sip-session-edit-description-{Model.Session.Id:N}";
                                 var editDetailsId = $"sip-session-edit-panel-{Model.Session.Id:N}";
                                 var updateAction = Url.Action("UpdateSipSession", "WineSurfer");
+                                var deleteAction = Url.Action("DeleteSipSession", "WineSurfer");
+                                var deleteReturnUrl = Url.Action("Sisterhoods", "WineSurfer") ?? "/wine-surfer/sisterhoods";
                                 <details class="session-edit" data-session-edit>
                                     <summary class="sisterhood-button session-edit__summary" role="button" aria-controls="@editDetailsId">
                                         Edit session
@@ -737,6 +761,19 @@
                                                 <button type="submit" class="sisterhood-button">Save changes</button>
                                             </div>
                                         </form>
+                                        @if (!string.IsNullOrEmpty(deleteAction))
+                                        {
+                                            <div class="sip-session-delete-section">
+                                                <p class="sip-session-delete-hint">Deleting this sip session will remove it for everyone in the sisterhood.</p>
+                                                <form method="post" action="@deleteAction" class="sip-session-delete-form">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+                                                    <input type="hidden" name="SipSessionId" value="@Model.Session.Id" />
+                                                    <input type="hidden" name="ReturnUrl" value="@deleteReturnUrl" />
+                                                    <button type="submit" class="sisterhood-button sisterhood-button--danger">Delete sip session</button>
+                                                </form>
+                                            </div>
+                                        }
                                     </div>
                                 </details>
                             }
