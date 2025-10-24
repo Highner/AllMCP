@@ -186,7 +186,7 @@ public class ManageTerroirController : WineSurferControllerBase
     }
     
     [Authorize]
-    [HttpGet("")]
+    [HttpGet("manage-terroir")]
     public async Task<IActionResult> ManageTerroir(CancellationToken cancellationToken)
     {
         var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;

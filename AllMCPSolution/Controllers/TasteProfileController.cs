@@ -99,6 +99,8 @@ public class TasteProfileController: WineSurferControllerBase
         _wineCatalogService = wineCatalogService;
     }
 
+    [Authorize]
+    [HttpGet("taste-profile")]
     public async Task<IActionResult> TasteProfile(CancellationToken cancellationToken)
     {
         var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
