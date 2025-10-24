@@ -3,26 +3,40 @@
     const safeMethods = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
     let cachedToken = null;
 
+    const updateCachedToken = (value) => {
+        const trimmed = typeof value === 'string' ? value.trim() : '';
+        if (!trimmed) {
+            return null;
+        }
+
+        if (cachedToken !== trimmed) {
+            cachedToken = trimmed;
+        }
+
+        return cachedToken;
+    };
+
     const findTokenInDom = () => {
         const inputs = document.querySelectorAll('input[name="__RequestVerificationToken"]');
         for (const input of inputs) {
             if (input instanceof HTMLInputElement) {
-                const value = input.value?.trim();
-                if (value) {
-                    cachedToken = value;
-                    return value;
+                const next = updateCachedToken(input.value);
+                if (next) {
+                    return next;
                 }
             }
         }
-        return null;
+
+        return cachedToken;
     };
 
     const getRequestVerificationToken = () => {
-        if (cachedToken) {
-            return cachedToken;
+        const token = findTokenInDom();
+        if (token) {
+            return token;
         }
 
-        return findTokenInDom();
+        return cachedToken;
     };
 
     const ensureFormToken = (form) => {
@@ -61,11 +75,47 @@
 
     const originalFetch = window.fetch.bind(window);
 
+    const resolveRequestMethod = (input, init) => {
+        if (init?.method) {
+            return String(init.method).toUpperCase();
+        }
+
+        if (input instanceof Request && input.method) {
+            return String(input.method).toUpperCase();
+        }
+
+        return 'GET';
+    };
+
+    const resolveRequestHeaders = (input, init) => {
+        if (init?.headers) {
+            return new Headers(init.headers);
+        }
+
+        if (input instanceof Request) {
+            return new Headers(input.headers);
+        }
+
+        return new Headers();
+    };
+
+    const resolveRequestCredentials = (input, init) => {
+        if (init && typeof init.credentials !== 'undefined') {
+            return init.credentials;
+        }
+
+        if (input instanceof Request) {
+            return input.credentials;
+        }
+
+        return undefined;
+    };
+
     window.fetch = (input, init) => {
-        const request = new Request(input, init);
-        const method = (request.method || 'GET').toUpperCase();
-        let headers = new Headers(request.headers);
-        let credentials = request.credentials;
+        const method = resolveRequestMethod(input, init);
+        const headers = resolveRequestHeaders(input, init);
+        const originalCredentials = resolveRequestCredentials(input, init);
+        let credentials = originalCredentials;
 
         if (!safeMethods.has(method)) {
             if (!headers.has(headerName)) {
@@ -78,23 +128,26 @@
             if (credentials === undefined || credentials === 'same-origin' || credentials === 'include') {
                 credentials = 'same-origin';
             }
-        }
-        else if (credentials === undefined) {
+        } else if (credentials === undefined) {
             credentials = 'same-origin';
         }
 
-        const cloned = new Request(request, {
-            headers,
-            credentials,
-        });
+        const nextInit = init ? { ...init } : {};
+        nextInit.method = method;
+        nextInit.headers = headers;
+        if (credentials !== undefined) {
+            nextInit.credentials = credentials;
+        }
 
-        return originalFetch(cloned);
+        if (input instanceof Request) {
+            return originalFetch(input, nextInit);
+        }
+
+        return originalFetch(input, nextInit);
     };
 
     const observer = new MutationObserver(() => {
-        if (!cachedToken) {
-            findTokenInDom();
-        }
+        findTokenInDom();
     });
 
     observer.observe(document.documentElement, { childList: true, subtree: true });
