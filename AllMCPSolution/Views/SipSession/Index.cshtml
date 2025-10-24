@@ -1,10 +1,39 @@
 @model AllMCPSolution.Controllers.WineSurferSipSessionDetailViewModel
 @using AllMCPSolution.Controllers
+@using AllMCPSolution.Models
 
 @{
     Layout = null;
 }
 
+@functions {
+    private static DateTime NormalizeDateTime(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value.ToLocalTime(),
+            DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Local),
+            _ => value
+        };
+    }
+
+    private static DateTime? NormalizeDateTime(DateTime? value)
+    {
+        return value.HasValue ? NormalizeDateTime(value.Value) : (DateTime?)null;
+    }
+
+    private static string FormatSipSessionSchedule(WineSurferSipSessionSummary session)
+    {
+        var localDateTime = NormalizeDateTime(session.ScheduledAtUtc);
+        if (localDateTime.HasValue)
+        {
+            return localDateTime.Value.ToString("f");
+        }
+
+        var localDate = NormalizeDateTime(session.Date);
+        return localDate?.ToString("D") ?? "Schedule TBD";
+    }
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,11 +44,16 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#050505" />
     <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shared-ui.css" />
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
     <script defer src="/js/pwa.js"></script>
     <style>
         :root {
             color-scheme: dark;
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
@@ -32,6 +66,10 @@
             flex-direction: column;
         }
 
+        body.no-scroll {
+            overflow: hidden;
+        }
+
         .page-content {
             flex: 1;
             display: flex;
@@ -39,7 +77,134 @@
         }
 
         .session-main {
-            flex: 1;
+            width: 100%;
+        }
+
+        .session-section {
+            width: min(1040px, 100%);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .session-section + .session-section {
+            margin-top: -12px;
+        }
+
+        .session-section__header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .session-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 18px;
+            margin: 0;
+            padding: 0;
+        }
+
+        .session-meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .session-meta-item dt {
+            margin: 0;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .session-meta-item dd {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 0.5px;
+            color: #f4f1ea;
+        }
+
+        .session-description {
+            margin: 0;
+            line-height: 1.6;
+            color: rgba(244, 241, 234, 0.78);
+        }
+
+        .session-timestamps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.55);
+        }
+
+        .session-footnote {
+            margin: 0;
+            font-size: 13px;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
+        .session-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border: 1px solid rgba(244, 241, 234, 0.25);
+            color: rgba(244, 241, 234, 0.78);
+        }
+
+        .session-food-list {
+            margin: 0;
+            padding-left: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            color: rgba(244, 241, 234, 0.85);
+        }
+
+        .session-food-list li {
+            line-height: 1.6;
+        }
+
+        .session-food-empty {
+            margin: 0;
+            color: rgba(244, 241, 234, 0.68);
+        }
+
+        .session-food-cheese {
+            margin: 0;
+            font-size: 14px;
+            color: rgba(244, 241, 234, 0.8);
+        }
+
+        .session-food-form {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .session-bottle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .session-empty-state {
+            align-self: center;
+        }
+
+        @media (max-width: 768px) {
+            .session-meta-grid {
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            }
         }
     </style>
 </head>
@@ -55,15 +220,160 @@
             Model.SentInvitationNotifications,
             displayName: Model.CurrentUser?.DisplayName,
             isAdmin: Model.CurrentUser?.IsAdmin == true);
-    var pageTitle = string.IsNullOrWhiteSpace(Model.Session?.Name)
+    var session = Model.Session ?? throw new InvalidOperationException("Sip session details are required.");
+    var pageTitle = string.IsNullOrWhiteSpace(session.Name)
         ? "Sip Session"
-        : Model.Session!.Name!.Trim();
+        : session.Name!.Trim();
     ViewData["WineSurferPageTitle"] = pageTitle;
+
+    var scheduleLabel = FormatSipSessionSchedule(session);
+    var locationLabel = string.IsNullOrWhiteSpace(session.Location)
+        ? "Location TBD"
+        : session.Location!.Trim();
+    var bottleSummaries = session.Bottles ?? Array.Empty<WineSurferSipSessionBottle>();
+    var bottleCount = bottleSummaries.Count;
+    var sisterhoodListUrl = Url.Action("Sisterhoods", "WineSurfer") ?? "/wine-surfer/sisterhoods";
+    var sisterhoodLink = string.IsNullOrWhiteSpace(Model.SisterhoodName)
+        ? sisterhoodListUrl
+        : $"{sisterhoodListUrl}#sisterhood-{Model.SisterhoodId:D}";
+    var suggestFoodAction = Url.Action("SuggestFood", "SipSession", new { sipSessionId = session.Id });
+    var hasFoodSuggestions = Model.FoodSuggestions is { Count: > 0 };
+    var cheeseSuggestion = Model.CheeseSuggestion;
+    var foodError = Model.FoodSuggestionError;
+    var updatedLabel = session.UpdatedAtUtc.ToLocalTime().ToString("f");
+    var createdLabel = session.CreatedAtUtc.ToLocalTime().ToString("f");
+    var returnUrl = string.Concat(requestPath, requestQuery);
+
+    ViewData["IsAuthenticated"] = Model.CurrentUser is not null;
+    ViewData["SisterhoodId"] = Model.SisterhoodId;
+    ViewData["SipSessionId"] = session.Id;
+    ViewData["ReturnUrl"] = returnUrl;
 }
 <body class="wine-app session-page @bodyClass">
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
-        <main class="session-main" aria-label="Sip session workspace"></main>
+        <main class="wine-surfer-layout session-main" aria-label="Sip session workspace">
+            <header class="wine-surfer-page-header">
+                <h1 class="wine-surfer-page-header__title">@pageTitle</h1>
+                <p class="wine-surfer-page-header__subtitle">
+                    @if (!string.IsNullOrWhiteSpace(Model.SisterhoodName))
+                    {
+                        <text>Gather with @Model.SisterhoodName to explore the wines in this session.</text>
+                    }
+                    else
+                    {
+                        <text>A curated tasting to share with your sisterhood.</text>
+                    }
+                </p>
+            </header>
+            <div class="action-bar" role="navigation" aria-label="Sip session navigation">
+                <a class="sisterhood-button sisterhood-button--ghost" href="@sisterhoodListUrl">All sisterhoods</a>
+                <a class="sisterhood-button" href="@sisterhoodLink">View sisterhood</a>
+                @if (Model.CanManageSession)
+                {
+                    <a class="sisterhood-button sisterhood-button--primary" href="@sisterhoodLink">Manage session</a>
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(foodError))
+            {
+                <div class="status-banner error" role="alert">@foodError</div>
+            }
+            <section class="session-section" id="session-overview" aria-labelledby="session-overview-title">
+                <article class="wine-card wine-surface wine-surface-border wine-card-hover session-overview-card">
+                    <div class="session-section__header wine-card__header">
+                        <h2 id="session-overview-title" class="wine-card__title">Session overview</h2>
+                        @if (!string.IsNullOrWhiteSpace(Model.SisterhoodName))
+                        {
+                            <span class="session-badge">@Model.SisterhoodName</span>
+                        }
+                    </div>
+                    <dl class="session-meta-grid">
+                        <div class="session-meta-item">
+                            <dt>When</dt>
+                            <dd>@scheduleLabel</dd>
+                        </div>
+                        <div class="session-meta-item">
+                            <dt>Where</dt>
+                            <dd>@locationLabel</dd>
+                        </div>
+                        <div class="session-meta-item">
+                            <dt>Planned bottles</dt>
+                            <dd>@bottleCount</dd>
+                        </div>
+                    </dl>
+                    @if (!string.IsNullOrWhiteSpace(session.Description))
+                    {
+                        <p class="session-description">@session.Description</p>
+                    }
+                    <div class="session-timestamps">
+                        <span>Created @createdLabel</span>
+                        <span>Updated @updatedLabel</span>
+                    </div>
+                    @if (Model.CanManageSession)
+                    {
+                        <p class="session-footnote">Manage this session from the sisterhood view to edit details or invite bottles.</p>
+                    }
+                </article>
+            </section>
+            <section class="session-section" id="session-food" aria-labelledby="session-food-title">
+                <article class="wine-card wine-surface wine-surface-border wine-card-hover session-food-card">
+                    <div class="session-section__header wine-card__header">
+                        <h2 id="session-food-title" class="wine-card__title">Food pairings</h2>
+                    </div>
+                    @if (hasFoodSuggestions)
+                    {
+                        <ul class="session-food-list">
+                            @foreach (var suggestion in Model.FoodSuggestions!)
+                            {
+                                <li>@suggestion</li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="session-food-empty">Request suggestions to build a menu around these wines.</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(cheeseSuggestion))
+                    {
+                        <p class="session-food-cheese">🧀 Cheese pairing: @cheeseSuggestion</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(suggestFoodAction) && (Model.CanManageSession || Model.IsSisterhoodMember))
+                    {
+                        <form method="post" action="@suggestFoodAction" class="session-food-form" data-suggest-food-form>
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="sisterhood-button sisterhood-button--primary" data-suggest-food-button>
+                                Request food pairings
+                            </button>
+                        </form>
+                    }
+                </article>
+            </section>
+            <section class="session-section" id="session-bottles" aria-labelledby="session-bottles-title">
+                <article class="wine-card wine-surface wine-surface-border wine-card-hover session-bottles-card">
+                    <div class="session-section__header wine-card__header">
+                        <h2 id="session-bottles-title" class="wine-card__title">Bottle lineup</h2>
+                        <span class="wine-card__subtitle">@bottleCount @((bottleCount == 1) ? "bottle" : "bottles") planned</span>
+                    </div>
+                    @if (bottleCount > 0)
+                    {
+                        <div class="session-bottle-grid">
+                            @foreach (var bottle in bottleSummaries)
+                            {
+                                @await Html.PartialAsync("_BottleCard", bottle)
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-state wine-surface wine-surface-border wine-card-hover session-empty-state" role="status">
+                            <h2>No bottles yet</h2>
+                            <p>Add wines from your cellar to start the tasting lineup.</p>
+                        </div>
+                    }
+                </article>
+            </section>
+            @await Html.PartialAsync("_DrinkBottleModal", DrinkBottleModalViewModel.Default)
+        </main>
     </div>
     <script defer src="/js/sip-session.js"></script>
 </body>
