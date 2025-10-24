@@ -2183,7 +2183,7 @@
                                         var editContainerId = $"sip-session-edit-container-{session.Id}";
                                         var scheduledDateValue = FormatSipSessionDateValue(session);
                                         var scheduledTimeValue = FormatSipSessionTimeValue(session);
-                                        var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Id })
+                                        var sessionUrl = Url.Action("Index", "SipSession", new { sipSessionId = session.Id })
                                             ?? $"/wine-surfer/sessions/{session.Id:D}";
                                         var ariaLabel = $"Sip session: {session.Name}";
                                         var isPastSession = IsPastSipSession(session);

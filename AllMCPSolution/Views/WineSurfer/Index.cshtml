@@ -1325,7 +1325,7 @@
                             ? null
                             : session.SisterhoodName;
 
-                        var sessionUrl = Url.Action("SipSession", "WineSurfer", new { sipSessionId = session.Session.Id })
+                        var sessionUrl = Url.Action("Index", "SipSession", new { sipSessionId = session.Session.Id })
                             ?? $"/wine-surfer/sessions/{session.Session.Id:D}";
                         var ariaLabel = $"Upcoming sip session: {session.Session.Name}";
                         var cardModel = new WineSurferSipSessionCardModel(
