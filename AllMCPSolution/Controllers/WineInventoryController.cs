@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using OpenAI.Chat;
@@ -1683,6 +1684,10 @@ public class WineInventoryController : Controller
         response.ContentType = WineSurferStreamMediaType;
         response.Headers["Cache-Control"] = "no-cache";
         response.Headers["X-Accel-Buffering"] = "no";
+
+        HttpContext.Features
+            .Get<IHttpResponseBodyFeature>()?
+            .DisableBuffering();
 
         await response.StartAsync(cancellationToken);
 

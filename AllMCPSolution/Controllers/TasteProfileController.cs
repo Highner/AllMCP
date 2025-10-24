@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -514,6 +515,10 @@ public class TasteProfileController: WineSurferControllerBase
         response.ContentType = TasteProfileStreamMediaType;
         response.Headers["Cache-Control"] = "no-cache";
         response.Headers["X-Accel-Buffering"] = "no";
+
+        HttpContext.Features
+            .Get<IHttpResponseBodyFeature>()?
+            .DisableBuffering();
 
         await response.StartAsync(cancellationToken);
 
