@@ -551,7 +551,7 @@
                         Generate your taste profile to see tailored appellation ideas.
                     </p>
                 </section>
-                <form method="post" action="@Url.Action("UpdateTasteProfile", "WineSurfer")" class="taste-profile-form" novalidate>
+                <form method="post" action="@Url.Action("UpdateTasteProfile", "TasteProfile")" class="taste-profile-form" novalidate>
                     @Html.AntiForgeryToken()
                     <div class="taste-profile-field">
                         <label class="taste-profile-label" for="tasteProfileSummaryInput">Profile summary</label>
@@ -613,7 +613,7 @@
                                 type="button"
                                 class="sisterhood-button taste-profile-generate-button"
                                 data-generate-taste-profile
-                                data-generate-url="@Url.Action("GenerateTasteProfile", "WineSurfer")">
+                                data-generate-url="@Url.Action("GenerateTasteProfile", "TasteProfile")">
                                 Generate profile
                             </button>
                             <button type="submit" class="sisterhood-button">Save profile</button>

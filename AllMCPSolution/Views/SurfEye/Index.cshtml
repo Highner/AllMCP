@@ -8,7 +8,7 @@
     var currentLocation = string.Concat(requestPath, requestQuery);
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
         ?? WineSurferTopBarModel.Empty(currentLocation);
-    var analyzeUrl = Url.Action("AnalyzeSurfEye", "WineSurfer");
+    var analyzeUrl = Url.Action("AnalyzeSurfEye", "SurfEye");
     var hasTasteProfile = Model.HasTasteProfile;
     var displayName = string.IsNullOrWhiteSpace(Model.DisplayName) ? "Surfer" : Model.DisplayName;
     var maxUploadBytes = ViewData["SurfEyeMaxUploadBytes"] is long bytes ? bytes : 8L * 1024L * 1024L;

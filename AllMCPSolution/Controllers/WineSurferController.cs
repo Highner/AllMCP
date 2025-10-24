@@ -23,11 +23,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Identity;
 using OpenAI.Chat;
+using AllMCPSolution.Services;
 
 namespace AllMCPSolution.Controllers;
 
 [Route("wine-surfer")]
-public class WineSurferController : Controller
+public class WineSurferController : WineSurferControllerBase
 {
     [Route("debug/config")]
     public IActionResult ConfigTest([FromServices] IConfiguration config)
@@ -38,129 +39,21 @@ public class WineSurferController : Controller
         return Ok("OpenAI API key is loaded ✅");
     }
 
-    private static readonly IReadOnlyDictionary<string, (double Longitude, double Latitude)> RegionCoordinates =
-        new Dictionary<string, (double Longitude, double Latitude)>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Bordeaux"] = (-0.58, 44.84),
-            ["Burgundy"] = (4.75, 47.0),
-            ["Champagne"] = (4.05, 49.05),
-            ["Rhône"] = (4.8, 45.0),
-            ["Rhone"] = (4.8, 45.0),
-            ["Loire"] = (-0.5, 47.5),
-            ["Provence"] = (6.2, 43.5),
-            ["Tuscany"] = (11.0, 43.4),
-            ["Piedmont"] = (8.0, 44.7),
-            ["Veneto"] = (11.5, 45.5),
-            ["Ribera del Duero"] = (-3.75, 41.7),
-            ["Ribera Del Duero"] = (-3.75, 41.7),
-            ["Rioja"] = (-2.43, 42.4),
-            ["Douro"] = (-7.8, 41.1),
-            ["Douro Valley"] = (-7.8, 41.1),
-            ["Mosel"] = (6.7, 49.8),
-            ["Rheingau"] = (8.0, 50.0),
-            ["Nahe"] = (7.75, 49.8),
-            ["Finger Lakes"] = (-76.9, 42.7),
-            ["Napa Valley"] = (-122.3, 38.5),
-            ["Sonoma"] = (-122.5, 38.3),
-            ["Willamette Valley"] = (-123.0, 45.2),
-            ["Columbia Valley"] = (-119.5, 46.2),
-            ["Marlborough"] = (173.9, -41.5),
-            ["Central Otago"] = (169.2, -45.0),
-            ["Barossa"] = (138.95, -34.5),
-            ["McLaren Vale"] = (138.5, -35.2),
-            ["Mc Laren Vale"] = (138.5, -35.2),
-            ["Yarra Valley"] = (145.5, -37.7),
-            ["Coonawarra"] = (140.8, -37.3),
-            ["Maipo"] = (-70.55, -33.6),
-            ["Maipo Valley"] = (-70.55, -33.6),
-            ["Mendoza"] = (-68.85, -32.9),
-            ["Mendoza Valley"] = (-68.85, -32.9),
-            ["Stellenbosch"] = (18.86, -33.9)
-        };
-
-    private static readonly IReadOnlyDictionary<string, (double Longitude, double Latitude)> CountryCoordinates =
-        new Dictionary<string, (double Longitude, double Latitude)>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["France"] = (2.21, 46.23),
-            ["Italy"] = (12.57, 41.87),
-            ["Spain"] = (-3.75, 40.46),
-            ["Portugal"] = (-8.0, 39.69),
-            ["Germany"] = (10.45, 51.17),
-            ["Austria"] = (14.55, 47.52),
-            ["Switzerland"] = (8.23, 46.82),
-            ["United States"] = (-98.58, 39.83),
-            ["United States of America"] = (-98.58, 39.83),
-            ["USA"] = (-98.58, 39.83),
-            ["U.S.A."] = (-98.58, 39.83),
-            ["US"] = (-98.58, 39.83),
-            ["Canada"] = (-106.35, 56.13),
-            ["Chile"] = (-70.67, -33.45),
-            ["Argentina"] = (-63.62, -38.42),
-            ["Australia"] = (133.78, -25.27),
-            ["New Zealand"] = (174.78, -41.28),
-            ["South Africa"] = (22.94, -30.56),
-            ["England"] = (-1.17, 52.36),
-            ["United Kingdom"] = (-3.44, 55.38),
-            ["UK"] = (-3.44, 55.38),
-            ["Scotland"] = (-4.2, 56.82),
-            ["Ireland"] = (-8.0, 53.41),
-            ["Japan"] = (138.25, 36.2),
-            ["China"] = (104.2, 35.86),
-            ["Georgia"] = (43.36, 42.32),
-            ["Greece"] = (22.0, 39.07),
-            ["Hungary"] = (19.5, 47.16),
-            ["Slovenia"] = (14.82, 46.15),
-            ["Croatia"] = (15.2, 45.1),
-            ["Uruguay"] = (-55.77, -32.52)
-        };
+   
 
     private readonly IWineRepository _wineRepository;
-    private readonly IUserRepository _userRepository;
+
     private readonly ISisterhoodRepository _sisterhoodRepository;
     private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
     private readonly ISipSessionRepository _sipSessionRepository;
     private readonly IBottleRepository _bottleRepository;
     private readonly IBottleLocationRepository _bottleLocationRepository;
     private readonly ITastingNoteRepository _tastingNoteRepository;
-    private readonly ICountryRepository _countryRepository;
-    private readonly IRegionRepository _regionRepository;
-    private readonly IAppellationRepository _appellationRepository;
-    private readonly ISubAppellationRepository _subAppellationRepository;
-    private readonly ISuggestedAppellationRepository _suggestedAppellationRepository;
-    private readonly ITerroirMergeRepository _terroirMergeRepository;
-    private readonly IWineCatalogService _wineCatalogService;
     private readonly IChatGptService _chatGptService;
     private readonly IChatGptPromptService _chatGptPromptService;
     private static readonly TimeSpan SentInvitationNotificationWindow = TimeSpan.FromDays(7);
-    private const int TasteProfileMaxLength = 4096;
-    private const int TasteProfileSummaryMaxLength = 512;
-    private const string TasteProfileStatusTempDataKey = "WineSurfer.TasteProfile.Status";
-    private const string TasteProfileErrorTempDataKey = "WineSurfer.TasteProfile.Error";
-    private const string TasteProfileStreamMediaType = "application/x-ndjson";
-    private const string TasteProfileStreamingStartMessage = "Contacting the taste profile assistant…";
-    private const string TasteProfileStreamingFinalizeMessage = "Finalizing your taste profile…";
-    private const string TasteProfileStreamingSuggestionsMessage = "Matching appellations to your palate…";
-    private const string TasteProfileStreamingSuccessMessage = "We generated a new taste profile. Review and save it when you’re ready.";
-    private const string TasteProfileAssistantUnavailableErrorMessage = "We couldn't reach the taste profile assistant. Please try again.";
-    private const string TasteProfileGenerationGenericErrorMessage = "We couldn't generate a taste profile right now. Please try again.";
-    private const string TasteProfileAssistantUnexpectedResponseMessage = "We couldn't understand the taste profile assistant's response. Please try again.";
-    private const string TasteProfileInsufficientDataErrorMessage = "Add scores to a few bottles before generating a taste profile.";
-    private static readonly JsonDocumentOptions TasteProfileJsonDocumentOptions = new()
-    {
-        AllowTrailingCommas = true,
-        CommentHandling = JsonCommentHandling.Skip
-    };
-    private static readonly JsonSerializerOptions TasteProfileStreamSerializerOptions = new(JsonSerializerDefaults.Web)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-    private const double SuggestedAppellationFuzzyThreshold = 0.35;
-    private const long SurfEyeMaxUploadBytes = 8 * 1024 * 1024;
-    private static readonly JsonDocumentOptions SurfEyeJsonDocumentOptions = new()
-    {
-        AllowTrailingCommas = true,
-        CommentHandling = JsonCommentHandling.Skip
-    };
+
+
     private static readonly JsonDocumentOptions SipSessionFoodSuggestionJsonDocumentOptions = new()
     {
         AllowTrailingCommas = true,
@@ -175,7 +68,7 @@ public class WineSurferController : Controller
     };
 
     private readonly IWineSurferTopBarService _topBarService;
-    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ISuggestedAppellationService _suggestedAppellationService;
 
     public WineSurferController(
         IWineRepository wineRepository,
@@ -186,37 +79,23 @@ public class WineSurferController : Controller
         IBottleRepository bottleRepository,
         IBottleLocationRepository bottleLocationRepository,
         ITastingNoteRepository tastingNoteRepository,
-        ICountryRepository countryRepository,
-        IRegionRepository regionRepository,
-        IAppellationRepository appellationRepository,
-        ISubAppellationRepository subAppellationRepository,
-        ISuggestedAppellationRepository suggestedAppellationRepository,
-        ITerroirMergeRepository terroirMergeRepository,
-        IWineCatalogService wineCatalogService,
         IChatGptService chatGptService,
         IChatGptPromptService chatGptPromptService,
         IWineSurferTopBarService topBarService,
-        UserManager<ApplicationUser> userManager)
+        ISuggestedAppellationService suggestedAppellationService,
+        UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _wineRepository = wineRepository;
-        _userRepository = userRepository;
         _sisterhoodRepository = sisterhoodRepository;
         _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
         _sipSessionRepository = sipSessionRepository;
         _bottleRepository = bottleRepository;
         _bottleLocationRepository = bottleLocationRepository;
         _tastingNoteRepository = tastingNoteRepository;
-        _countryRepository = countryRepository;
-        _regionRepository = regionRepository;
-        _appellationRepository = appellationRepository;
-        _subAppellationRepository = subAppellationRepository;
-        _suggestedAppellationRepository = suggestedAppellationRepository;
-        _terroirMergeRepository = terroirMergeRepository;
-        _wineCatalogService = wineCatalogService;
         _chatGptService = chatGptService;
         _chatGptPromptService = chatGptPromptService;
         _topBarService = topBarService;
-        _userManager = userManager;
+        _suggestedAppellationService = suggestedAppellationService;
     }
 
     [HttpGet("")]
@@ -257,7 +136,7 @@ public class WineSurferController : Controller
         {
             var identityName = User.Identity?.Name;
             var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
-            var normalizedEmail = NormalizeEmailCandidate(email);
+            var normalizedEmail = StringUtilities.NormalizeEmailCandidate(email);
             currentUserId = GetCurrentUserId();
             ApplicationUser? domainUser = null;
 
@@ -271,19 +150,19 @@ public class WineSurferController : Controller
                 domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
             }
 
-            var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
+            var displayName = StringUtilities.ResolveDisplayName(domainUser?.Name, identityName, email);
 
             if (domainUser is not null)
             {
                 currentUserId = domainUser.Id;
-                normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
+                normalizedEmail ??= StringUtilities.NormalizeEmailCandidate(domainUser.Email);
             }
 
             var (domainUserSummary, domainUserProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(domainUser);
 
-            if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
+            if (string.IsNullOrWhiteSpace(normalizedEmail) && StringUtilities.LooksLikeEmail(displayName))
             {
-                normalizedEmail = NormalizeEmailCandidate(displayName);
+                normalizedEmail = StringUtilities.NormalizeEmailCandidate(displayName);
             }
 
             if (!string.IsNullOrWhiteSpace(displayName) || !string.IsNullOrWhiteSpace(email) || domainUser is not null)
@@ -365,7 +244,7 @@ public class WineSurferController : Controller
                 now - SentInvitationNotificationWindow,
                 cancellationToken);
 
-            sentInvitationNotifications = CreateSentInvitationNotifications(acceptedInvitations);
+            sentInvitationNotifications = NotificationService.CreateSentInvitationNotifications(acceptedInvitations);
         }
 
         IReadOnlyList<WineSurferSisterhoodOption> manageableSisterhoods = Array.Empty<WineSurferSisterhoodOption>();
@@ -407,7 +286,7 @@ public class WineSurferController : Controller
                     .ToList();
             }
 
-            suggestedAppellations = await GetSuggestedAppellationsForUserAsync(currentUserId.Value, cancellationToken);
+            suggestedAppellations = await _suggestedAppellationService.GetForUserAsync(currentUserId.Value, cancellationToken);
             if (suggestedAppellations.Count > 0)
             {
                 var suggestionHighlights = new List<MapHighlightPoint>(suggestedAppellations.Count);
@@ -453,1999 +332,7 @@ public class WineSurferController : Controller
         return View("Index", model);
     }
 
-    [Authorize]
-    [HttpGet("taste-profile")]
-    public async Task<IActionResult> TasteProfile(CancellationToken cancellationToken)
-    {
-        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
-        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
-        Response.ContentType = "text/html; charset=utf-8";
-
-        var now = DateTime.UtcNow;
-        WineSurferCurrentUser? currentUser = null;
-        IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
-        IReadOnlyList<WineSurferSentInvitationNotification> sentInvitationNotifications = Array.Empty<WineSurferSentInvitationNotification>();
-        Guid? currentUserId = null;
-        string? normalizedEmail = null;
-        ApplicationUser? domainUser = null;
-        var isAdmin = false;
-        string domainUserSummary = string.Empty;
-        string domainUserProfile = string.Empty;
-
-        if (User?.Identity?.IsAuthenticated == true)
-        {
-            var identityName = User.Identity?.Name;
-            var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
-            normalizedEmail = NormalizeEmailCandidate(email);
-            currentUserId = GetCurrentUserId();
-
-            if (currentUserId.HasValue)
-            {
-                domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
-            }
-
-            if (domainUser is null && !string.IsNullOrWhiteSpace(identityName))
-            {
-                domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
-            }
-
-            var (resolvedSummary, resolvedProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(domainUser);
-            domainUserSummary = resolvedSummary;
-            domainUserProfile = resolvedProfile;
-
-            var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
-
-            if (domainUser is not null)
-            {
-                currentUserId = domainUser.Id;
-                normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
-                isAdmin = domainUser.IsAdmin;
-            }
-
-            if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
-            {
-                normalizedEmail = NormalizeEmailCandidate(displayName);
-            }
-
-            if (!string.IsNullOrWhiteSpace(displayName) || !string.IsNullOrWhiteSpace(email) || domainUser is not null)
-            {
-                currentUser = new WineSurferCurrentUser(
-                    domainUser?.Id,
-                    displayName ?? email ?? string.Empty,
-                    email,
-                    domainUserSummary,
-                    domainUserProfile,
-                    isAdmin);
-            }
-
-            if (currentUserId.HasValue || normalizedEmail is not null)
-            {
-                incomingInvitations = (await _sisterhoodInvitationRepository.GetForInviteeAsync(currentUserId, normalizedEmail, cancellationToken))
-                    .Where(invitation => invitation.Status == SisterhoodInvitationStatus.Pending)
-                    .Select(invitation =>
-                    {
-                        var matchesUserId = currentUserId.HasValue && invitation.InviteeUserId == currentUserId.Value;
-                        var matchesEmail = normalizedEmail is not null && string.Equals(invitation.InviteeEmail, normalizedEmail, StringComparison.Ordinal);
-
-                        return new
-                        {
-                            Invitation = invitation,
-                            MatchesUserId = matchesUserId,
-                            MatchesEmail = matchesEmail,
-                        };
-                    })
-                    .Where(entry => entry.MatchesUserId || entry.MatchesEmail)
-                    .Select(entry => new WineSurferIncomingSisterhoodInvitation(
-                        entry.Invitation.Id,
-                        entry.Invitation.SisterhoodId,
-                        entry.Invitation.Sisterhood?.Name ?? "Sisterhood",
-                        entry.Invitation.Sisterhood?.Description,
-                        entry.Invitation.InviteeEmail,
-                        entry.Invitation.Status,
-                        entry.Invitation.CreatedAt,
-                        entry.Invitation.UpdatedAt,
-                        entry.Invitation.InviteeUserId,
-                        entry.MatchesUserId,
-                        entry.MatchesEmail))
-                    .ToList();
-            }
-        }
-
-        if (currentUserId.HasValue && isAdmin)
-        {
-            var acceptedInvitations = await _sisterhoodInvitationRepository.GetAcceptedForAdminAsync(
-                currentUserId.Value,
-                now - SentInvitationNotificationWindow,
-                cancellationToken);
-
-            sentInvitationNotifications = CreateSentInvitationNotifications(acceptedInvitations);
-        }
-
-        var statusMessage = TempData.ContainsKey(TasteProfileStatusTempDataKey)
-            ? TempData[TasteProfileStatusTempDataKey] as string
-            : null;
-        var errorMessage = TempData.ContainsKey(TasteProfileErrorTempDataKey)
-            ? TempData[TasteProfileErrorTempDataKey] as string
-            : null;
-
-        var tasteProfileHistory = domainUser?.TasteProfiles
-            ?.OrderByDescending(profile => profile.CreatedAt)
-            .Select(profile => new WineSurferTasteProfileHistoryEntry(
-                profile.Id,
-                profile.Summary ?? string.Empty,
-                profile.Profile ?? string.Empty,
-                DateTime.SpecifyKind(profile.CreatedAt, DateTimeKind.Utc),
-                profile.InUse))
-            .ToList()
-            ?? new List<WineSurferTasteProfileHistoryEntry>();
-
-        var activeHistoryEntry = tasteProfileHistory.FirstOrDefault(entry => entry.InUse)
-            ?? tasteProfileHistory.FirstOrDefault();
-
-        var tasteProfileSummary = activeHistoryEntry?.Summary
-            ?? domainUserSummary
-            ?? currentUser?.TasteProfileSummary
-            ?? string.Empty;
-        var tasteProfile = activeHistoryEntry?.Profile
-            ?? domainUserProfile
-            ?? currentUser?.TasteProfile
-            ?? string.Empty;
-        IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
-
-        if (currentUserId.HasValue)
-        {
-            suggestedAppellations = await GetSuggestedAppellationsForUserAsync(currentUserId.Value, cancellationToken);
-        }
-
-        var viewModel = new WineSurferTasteProfileViewModel(
-            currentUser,
-            incomingInvitations,
-            sentInvitationNotifications,
-            tasteProfileSummary,
-            TasteProfileSummaryMaxLength,
-            tasteProfile,
-            TasteProfileMaxLength,
-            suggestedAppellations,
-            statusMessage,
-            errorMessage,
-            activeHistoryEntry?.Id,
-            tasteProfileHistory);
-
-        return View("TasteProfile", viewModel);
-    }
-
-    [Authorize]
-    [HttpPost("taste-profile")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateTasteProfile([FromForm] UpdateTasteProfileRequest request, CancellationToken cancellationToken)
-    {
-        if (!ModelState.IsValid)
-        {
-            var summaryErrors = ModelState.TryGetValue(nameof(UpdateTasteProfileRequest.TasteProfileSummary), out var summaryEntry)
-                && summaryEntry.Errors.Count > 0;
-            var profileErrors = ModelState.TryGetValue(nameof(UpdateTasteProfileRequest.TasteProfile), out var profileEntry)
-                && profileEntry.Errors.Count > 0;
-
-            string errorMessage = profileErrors && summaryErrors
-                ? $"Taste profile must be {TasteProfileMaxLength} characters or fewer and summary must be {TasteProfileSummaryMaxLength} characters or fewer."
-                : summaryErrors
-                    ? $"Taste profile summary must be {TasteProfileSummaryMaxLength} characters or fewer."
-                    : $"Taste profile must be {TasteProfileMaxLength} characters or fewer.";
-
-            TempData[TasteProfileErrorTempDataKey] = errorMessage;
-            return RedirectToAction(nameof(TasteProfile));
-        }
-
-        var userId = GetCurrentUserId();
-        if (!userId.HasValue)
-        {
-            return Unauthorized();
-        }
-
-        var trimmedTasteProfile = string.IsNullOrWhiteSpace(request.TasteProfile)
-            ? string.Empty
-            : request.TasteProfile.Trim();
-
-        var trimmedSummary = string.IsNullOrWhiteSpace(request.TasteProfileSummary)
-            ? string.Empty
-            : request.TasteProfileSummary.Trim();
-
-        if (trimmedTasteProfile.Length > TasteProfileMaxLength)
-        {
-            TempData[TasteProfileErrorTempDataKey] = $"Taste profile must be {TasteProfileMaxLength} characters or fewer.";
-            return RedirectToAction(nameof(TasteProfile));
-        }
-
-        if (trimmedSummary.Length > TasteProfileSummaryMaxLength)
-        {
-            TempData[TasteProfileErrorTempDataKey] = $"Taste profile summary must be {TasteProfileSummaryMaxLength} characters or fewer.";
-            return RedirectToAction(nameof(TasteProfile));
-        }
-
-        try
-        {
-            var updatedUser = await _userRepository.UpdateTasteProfileAsync(
-                userId.Value,
-                request.TasteProfileId,
-                trimmedTasteProfile,
-                trimmedSummary,
-                cancellationToken);
-            if (updatedUser is null)
-            {
-                TempData[TasteProfileErrorTempDataKey] = "We couldn't update your taste profile. Please try again.";
-                return RedirectToAction(nameof(TasteProfile));
-            }
-
-            TempData.Remove(TasteProfileErrorTempDataKey);
-            TempData[TasteProfileStatusTempDataKey] = "Your taste profile was updated.";
-        }
-        catch (Exception)
-        {
-            TempData[TasteProfileErrorTempDataKey] = "We couldn't update your taste profile. Please try again.";
-        }
-
-        return RedirectToAction(nameof(TasteProfile));
-    }
-
-    [Authorize]
-    [HttpPost("taste-profile/generate")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> GenerateTasteProfile(CancellationToken cancellationToken)
-    {
-        var userId = GetCurrentUserId();
-        if (!userId.HasValue)
-        {
-            return Unauthorized();
-        }
-
-        var prefersStreaming = RequestPrefersTasteProfileStreaming();
-
-        var bottles = await _bottleRepository.GetForUserAsync(userId.Value, cancellationToken);
-        var scoredBottles = bottles
-            .Select(bottle =>
-            {
-                var note = bottle.TastingNotes?
-                    .FirstOrDefault(tn => tn.UserId == userId.Value && tn.Score.HasValue);
-                return (Bottle: bottle, Note: note);
-            })
-            .Where(entry => entry.Note is not null)
-            .Select(entry => (Bottle: entry.Bottle, Note: entry.Note!))
-            .OrderByDescending(entry => entry.Note.Score!.Value)
-            .Take(25)
-            .ToList();
-
-        if (scoredBottles.Count == 0)
-        {
-            return BadRequest(new GenerateTasteProfileError(TasteProfileInsufficientDataErrorMessage));
-        }
-
-        var prompt = _chatGptPromptService.BuildTasteProfilePrompt(scoredBottles);
-        if (prefersStreaming)
-        {
-            return await StreamTasteProfileGenerationAsync(userId.Value, prompt, cancellationToken);
-        }
-
-        return await GenerateTasteProfileJsonAsync(userId.Value, prompt, cancellationToken);
-    }
-
-    private bool RequestPrefersTasteProfileStreaming()
-    {
-        if (Request?.Headers is null)
-        {
-            return false;
-        }
-
-        if (!Request.Headers.TryGetValue("Accept", out var acceptValues))
-        {
-            return false;
-        }
-
-        foreach (var value in acceptValues)
-        {
-            if (!string.IsNullOrWhiteSpace(value)
-                && value.IndexOf(TasteProfileStreamMediaType, StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private async Task<IActionResult> GenerateTasteProfileJsonAsync(
-        Guid userId,
-        string prompt,
-        CancellationToken cancellationToken)
-    {
-        ChatCompletion completion;
-        try
-        {
-            completion = await _chatGptService.GetChatCompletionAsync(
-                new ChatMessage[]
-                {
-                    new SystemChatMessage(_chatGptPromptService.TasteProfileGenerationSystemPrompt),
-                    new UserChatMessage(prompt)
-                },
-                ct: cancellationToken);
-        }
-        catch (ChatGptServiceNotConfiguredException)
-        {
-            return StatusCode(
-                StatusCodes.Status503ServiceUnavailable,
-                new GenerateTasteProfileError(TasteProfileAssistantUnavailableErrorMessage));
-        }
-        catch (ClientResultException)
-        {
-            return StatusCode(
-                StatusCodes.Status502BadGateway,
-                new GenerateTasteProfileError(TasteProfileAssistantUnavailableErrorMessage));
-        }
-        catch (Exception)
-        {
-            return StatusCode(
-                StatusCodes.Status500InternalServerError,
-                new GenerateTasteProfileError(TasteProfileGenerationGenericErrorMessage));
-        }
-
-        var content = ExtractChatCompletionContent(completion);
-        if (!TryParseGeneratedTasteProfile(content, out var generatedProfile))
-        {
-            return StatusCode(
-                StatusCodes.Status502BadGateway,
-                new GenerateTasteProfileError(TasteProfileAssistantUnexpectedResponseMessage));
-        }
-
-        if (!TryNormalizeGeneratedTasteProfile(generatedProfile, out var summary, out var profile, out var normalizationError))
-        {
-            var errorMessage = normalizationError ?? TasteProfileGenerationGenericErrorMessage;
-            return StatusCode(
-                StatusCodes.Status502BadGateway,
-                new GenerateTasteProfileError(errorMessage));
-        }
-
-        var resolvedSuggestions = await ResolveSuggestedAppellationsAsync(
-            userId,
-            generatedProfile.Suggestions,
-            cancellationToken);
-
-        var response = new GenerateTasteProfileResponse(
-            summary,
-            profile,
-            BuildTasteProfileSuggestions(resolvedSuggestions));
-
-        try
-        {
-            var savedProfile = await _userRepository.AddGeneratedTasteProfileAsync(
-                userId,
-                profile,
-                summary,
-                cancellationToken);
-
-            if (savedProfile is null)
-            {
-                return StatusCode(
-                    StatusCodes.Status500InternalServerError,
-                    new GenerateTasteProfileError(TasteProfileGenerationGenericErrorMessage));
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception)
-        {
-            return StatusCode(
-                StatusCodes.Status500InternalServerError,
-                new GenerateTasteProfileError(TasteProfileGenerationGenericErrorMessage));
-        }
-
-        return Json(response);
-    }
-
-    private async Task<IActionResult> StreamTasteProfileGenerationAsync(
-        Guid userId,
-        string prompt,
-        CancellationToken cancellationToken)
-    {
-        var response = Response;
-        response.StatusCode = StatusCodes.Status200OK;
-        response.ContentType = TasteProfileStreamMediaType;
-        response.Headers["Cache-Control"] = "no-cache";
-        response.Headers["X-Accel-Buffering"] = "no";
-
-        await response.StartAsync(cancellationToken);
-
-        await WriteTasteProfileEventAsync(
-            response,
-            new { type = "status", stage = "starting", message = TasteProfileStreamingStartMessage },
-            cancellationToken);
-
-        var accumulator = new TasteProfileStreamAccumulator();
-        string? lastSummary = null;
-        string? lastProfile = null;
-
-        try
-        {
-            await foreach (var chunk in _chatGptService
-                .StreamChatCompletionAsync(
-                    new ChatMessage[]
-                    {
-                        new SystemChatMessage(_chatGptPromptService.TasteProfileGenerationSystemPrompt),
-                        new UserChatMessage(prompt)
-                    },
-                    ct: cancellationToken)
-                .WithCancellation(cancellationToken))
-            {
-                if (string.IsNullOrEmpty(chunk))
-                {
-                    continue;
-                }
-
-                var update = accumulator.Append(chunk);
-
-                if (update.HasSummaryUpdate && !string.IsNullOrWhiteSpace(update.Summary))
-                {
-                    lastSummary = update.Summary;
-                    await WriteTasteProfileEventAsync(
-                        response,
-                        new { type = "summary", text = update.Summary, complete = false },
-                        cancellationToken);
-                }
-
-                if (update.HasProfileUpdate && !string.IsNullOrWhiteSpace(update.Profile))
-                {
-                    lastProfile = update.Profile;
-                    await WriteTasteProfileEventAsync(
-                        response,
-                        new { type = "profile", text = update.Profile, complete = false },
-                        cancellationToken);
-                }
-            }
-
-            var finalUpdate = accumulator.Complete();
-
-            if (finalUpdate.HasSummaryUpdate && !string.IsNullOrWhiteSpace(finalUpdate.Summary))
-            {
-                lastSummary = finalUpdate.Summary;
-                await WriteTasteProfileEventAsync(
-                    response,
-                    new { type = "summary", text = finalUpdate.Summary, complete = true },
-                    cancellationToken);
-            }
-
-            if (finalUpdate.HasProfileUpdate && !string.IsNullOrWhiteSpace(finalUpdate.Profile))
-            {
-                lastProfile = finalUpdate.Profile;
-                await WriteTasteProfileEventAsync(
-                    response,
-                    new { type = "profile", text = finalUpdate.Profile, complete = true },
-                    cancellationToken);
-            }
-
-            if (!finalUpdate.IsFinalPayloadReady
-                || !TryParseGeneratedTasteProfile(finalUpdate.FinalContent, out var generatedProfile))
-            {
-                await WriteTasteProfileEventAsync(
-                    response,
-                    new { type = "error", message = TasteProfileAssistantUnexpectedResponseMessage },
-                    cancellationToken);
-                return new EmptyResult();
-            }
-
-            await WriteTasteProfileEventAsync(
-                response,
-                new { type = "status", stage = "finalizing", message = TasteProfileStreamingFinalizeMessage },
-                cancellationToken);
-
-            if (!TryNormalizeGeneratedTasteProfile(generatedProfile, out var summary, out var profile, out var normalizationError))
-            {
-                await WriteTasteProfileEventAsync(
-                    response,
-                    new { type = "error", message = normalizationError ?? TasteProfileGenerationGenericErrorMessage },
-                    cancellationToken);
-                return new EmptyResult();
-            }
-
-            if (!string.IsNullOrWhiteSpace(summary)
-                && !string.Equals(lastSummary, summary, StringComparison.Ordinal))
-            {
-                await WriteTasteProfileEventAsync(
-                    response,
-                    new { type = "summary", text = summary, complete = true },
-                    cancellationToken);
-            }
-
-            if (!string.IsNullOrWhiteSpace(profile)
-                && !string.Equals(lastProfile, profile, StringComparison.Ordinal))
-            {
-                await WriteTasteProfileEventAsync(
-                    response,
-                    new { type = "profile", text = profile, complete = true },
-                    cancellationToken);
-            }
-
-            await WriteTasteProfileEventAsync(
-                response,
-                new { type = "status", stage = "resolving", message = TasteProfileStreamingSuggestionsMessage },
-                cancellationToken);
-
-            var resolvedSuggestions = await ResolveSuggestedAppellationsAsync(
-                userId,
-                generatedProfile.Suggestions,
-                cancellationToken);
-
-            var payload = new GenerateTasteProfileResponse(
-                summary,
-                profile,
-                BuildTasteProfileSuggestions(resolvedSuggestions));
-
-            try
-            {
-                var savedProfile = await _userRepository.AddGeneratedTasteProfileAsync(
-                    userId,
-                    profile,
-                    summary,
-                    cancellationToken);
-
-                if (savedProfile is null)
-                {
-                    await WriteTasteProfileEventAsync(
-                        response,
-                        new { type = "error", message = TasteProfileGenerationGenericErrorMessage },
-                        cancellationToken);
-                    return new EmptyResult();
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception)
-            {
-                await WriteTasteProfileEventAsync(
-                    response,
-                    new { type = "error", message = TasteProfileGenerationGenericErrorMessage },
-                    cancellationToken);
-                return new EmptyResult();
-            }
-
-            await WriteTasteProfileEventAsync(
-                response,
-                new
-                {
-                    type = "complete",
-                    message = TasteProfileStreamingSuccessMessage,
-                    payload
-                },
-                cancellationToken);
-        }
-        catch (ChatGptServiceNotConfiguredException)
-        {
-            await WriteTasteProfileEventAsync(
-                response,
-                new { type = "error", message = TasteProfileAssistantUnavailableErrorMessage },
-                cancellationToken);
-        }
-        catch (ClientResultException)
-        {
-            await WriteTasteProfileEventAsync(
-                response,
-                new { type = "error", message = TasteProfileAssistantUnavailableErrorMessage },
-                cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            // Client disconnected; no further payloads are required.
-        }
-        catch (Exception)
-        {
-            await WriteTasteProfileEventAsync(
-                response,
-                new { type = "error", message = TasteProfileGenerationGenericErrorMessage },
-                cancellationToken);
-        }
-        finally
-        {
-            try
-            {
-                await response.BodyWriter.FlushAsync(CancellationToken.None);
-            }
-            catch (OperationCanceledException)
-            {
-                // Ignore flush failures triggered by disconnected clients.
-            }
-        }
-
-        return new EmptyResult();
-    }
-
-    private static async Task WriteTasteProfileEventAsync(
-        HttpResponse response,
-        object payload,
-        CancellationToken cancellationToken)
-    {
-        var json = JsonSerializer.Serialize(payload, TasteProfileStreamSerializerOptions);
-        var encoded = Encoding.UTF8.GetBytes(json + "\n");
-        await response.BodyWriter.WriteAsync(encoded, cancellationToken);
-        await response.BodyWriter.FlushAsync(cancellationToken);
-    }
-
-    private static string? ExtractChatCompletionContent(ChatCompletion completion)
-    {
-        if (completion?.Content is not { Count: > 0 })
-        {
-            return null;
-        }
-
-        var builder = new StringBuilder();
-        foreach (var part in completion.Content)
-        {
-            if (part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
-            {
-                builder.Append(part.Text);
-            }
-        }
-
-        return builder.Length > 0 ? builder.ToString() : null;
-    }
-
-    private bool TryNormalizeGeneratedTasteProfile(
-        GeneratedTasteProfile generatedProfile,
-        out string summary,
-        out string profile,
-        out string? errorMessage)
-    {
-        profile = NormalizeGeneratedText(generatedProfile.Profile, TasteProfileMaxLength);
-        if (string.IsNullOrWhiteSpace(profile))
-        {
-            summary = string.Empty;
-            errorMessage = TasteProfileGenerationGenericErrorMessage;
-            return false;
-        }
-
-        summary = NormalizeGeneratedText(generatedProfile.Summary, TasteProfileSummaryMaxLength);
-        if (string.IsNullOrWhiteSpace(summary))
-        {
-            summary = BuildSummaryFallback(profile, TasteProfileSummaryMaxLength);
-        }
-
-        errorMessage = null;
-        return true;
-    }
-
-    private static List<GenerateTasteProfileSuggestion> BuildTasteProfileSuggestions(
-        IReadOnlyList<WineSurferSuggestedAppellation> resolvedSuggestions)
-    {
-        if (resolvedSuggestions is null || resolvedSuggestions.Count == 0)
-        {
-            return new List<GenerateTasteProfileSuggestion>();
-        }
-
-        var suggestions = new List<GenerateTasteProfileSuggestion>(resolvedSuggestions.Count);
-        foreach (var suggestion in resolvedSuggestions)
-        {
-            if (suggestion is null)
-            {
-                continue;
-            }
-
-            var wines = suggestion.Wines?.Select(wine => new GenerateTasteProfileWine(
-                    wine.WineId,
-                    wine.Name,
-                    wine.Color,
-                    wine.Variety,
-                    wine.Vintage,
-                    wine.SubAppellationName))
-                .ToList() ?? new List<GenerateTasteProfileWine>();
-
-            suggestions.Add(new GenerateTasteProfileSuggestion(
-                suggestion.CountryName,
-                suggestion.RegionName,
-                suggestion.AppellationName,
-                suggestion.SubAppellationName,
-                suggestion.Reason ?? string.Empty,
-                wines));
-        }
-
-        return suggestions;
-    }
-
-    private sealed class TasteProfileStreamAccumulator
-    {
-        private readonly StringBuilder _builder = new();
-        private readonly JsonReaderOptions _readerOptions = new()
-        {
-            AllowTrailingCommas = true,
-            CommentHandling = JsonCommentHandling.Skip
-        };
-        private string? _lastSummary;
-        private string? _lastProfile;
-
-        public TasteProfileStreamUpdate Append(string chunk)
-        {
-            if (!string.IsNullOrEmpty(chunk))
-            {
-                _builder.Append(chunk);
-            }
-
-            return ParseSnapshot(isFinal: false);
-        }
-
-        public TasteProfileStreamUpdate Complete()
-        {
-            return ParseSnapshot(isFinal: true);
-        }
-
-        private TasteProfileStreamUpdate ParseSnapshot(bool isFinal)
-        {
-            var update = new TasteProfileStreamUpdate();
-
-            if (_builder.Length == 0)
-            {
-                return update;
-            }
-
-            var snapshot = _builder.ToString();
-            var bytes = Encoding.UTF8.GetBytes(snapshot);
-            var reader = new Utf8JsonReader(bytes, isFinal, new JsonReaderState(_readerOptions));
-            string? currentProperty = null;
-
-            try
-            {
-                while (reader.Read())
-                {
-                    switch (reader.TokenType)
-                    {
-                        case JsonTokenType.PropertyName:
-                            currentProperty = reader.GetString();
-                            break;
-                        case JsonTokenType.String:
-                            if (string.Equals(currentProperty, "summary", StringComparison.OrdinalIgnoreCase))
-                            {
-                                var value = reader.GetString();
-                                if (!string.IsNullOrWhiteSpace(value)
-                                    && !string.Equals(value, _lastSummary, StringComparison.Ordinal))
-                                {
-                                    _lastSummary = value.Trim();
-                                    update.Summary = _lastSummary;
-                                    update.HasSummaryUpdate = true;
-                                }
-                            }
-                            else if (string.Equals(currentProperty, "profile", StringComparison.OrdinalIgnoreCase))
-                            {
-                                var value = reader.GetString();
-                                if (!string.IsNullOrWhiteSpace(value)
-                                    && !string.Equals(value, _lastProfile, StringComparison.Ordinal))
-                                {
-                                    _lastProfile = value.Trim();
-                                    update.Profile = _lastProfile;
-                                    update.HasProfileUpdate = true;
-                                }
-                            }
-                            break;
-                    }
-                }
-
-                if (isFinal)
-                {
-                    update.IsFinalPayloadReady = true;
-                    update.FinalContent = snapshot;
-                }
-            }
-            catch (JsonException)
-            {
-                if (isFinal)
-                {
-                    update.IsFinalPayloadReady = true;
-                    update.FinalContent = snapshot;
-                }
-            }
-
-            return update;
-        }
-    }
-
-    private sealed class TasteProfileStreamUpdate
-    {
-        public bool HasSummaryUpdate { get; set; }
-        public string? Summary { get; set; }
-        public bool HasProfileUpdate { get; set; }
-        public string? Profile { get; set; }
-        public bool IsFinalPayloadReady { get; set; }
-        public string? FinalContent { get; set; }
-    }
-
-    [Authorize]
-    [HttpGet("surf-eye")]
-    public async Task<IActionResult> SurfEye(CancellationToken cancellationToken)
-    {
-        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
-        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
-        Response.ContentType = "text/html; charset=utf-8";
-
-        var identityName = User?.Identity?.Name;
-        var email = User?.FindFirstValue(ClaimTypes.Email) ?? User?.FindFirstValue("email");
-        var currentUserId = GetCurrentUserId();
-
-        ApplicationUser? domainUser = null;
-        if (currentUserId.HasValue)
-        {
-            domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
-        }
-
-        var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
-        var (tasteProfileSummary, tasteProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(domainUser);
-
-        ViewData["SurfEyeMaxUploadBytes"] = SurfEyeMaxUploadBytes;
-
-        await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken);
-
-        var viewModel = new WineSurferSurfEyeViewModel(
-            displayName,
-            tasteProfileSummary,
-            tasteProfile,
-            !string.IsNullOrWhiteSpace(tasteProfile));
-
-        return View("SurfEye", viewModel);
-    }
-
-    [Authorize]
-    [HttpPost("surf-eye/analyze")]
-    [ValidateAntiForgeryToken]
-    [RequestSizeLimit(SurfEyeMaxUploadBytes)]
-    [RequestFormLimits(MultipartBodyLengthLimit = SurfEyeMaxUploadBytes)]
-    public async Task<IActionResult> AnalyzeSurfEye([FromForm] SurfEyeAnalysisRequest request, CancellationToken cancellationToken)
-    {
-        if (request?.Photo is null || request.Photo.Length == 0)
-        {
-            return BadRequest(new SurfEyeAnalysisError("Capture a photo before asking Surf Eye to analyze it."));
-        }
-
-        if (request.Photo.Length > SurfEyeMaxUploadBytes)
-        {
-            return BadRequest(new SurfEyeAnalysisError("Images must be 8 MB or smaller."));
-        }
-
-        var contentType = request.Photo.ContentType;
-        if (!string.IsNullOrWhiteSpace(contentType) && !SurfEyeSupportedContentTypes.Contains(contentType))
-        {
-            return BadRequest(new SurfEyeAnalysisError("Please use a JPEG, PNG, or WEBP photo."));
-        }
-
-        var currentUserId = GetCurrentUserId();
-        if (!currentUserId.HasValue)
-        {
-            return Challenge();
-        }
-
-        var user = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
-        if (user is null)
-        {
-            return Unauthorized();
-        }
-
-        var (activeSummary, activeProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(user);
-        if (string.IsNullOrWhiteSpace(activeProfile))
-        {
-            return BadRequest(new SurfEyeAnalysisError("Add a taste profile before using Surf Eye."));
-        }
-
-        var normalizedTasteProfile = activeProfile;
-        var tasteProfileSummary = string.IsNullOrWhiteSpace(activeSummary) ? null : activeSummary;
-
-        byte[] imageBytes;
-        await using (var stream = new MemoryStream())
-        {
-            await request.Photo.CopyToAsync(stream, cancellationToken);
-            if (stream.Length == 0)
-            {
-                return BadRequest(new SurfEyeAnalysisError("We couldn't read that photo. Please try again."));
-            }
-
-            imageBytes = stream.ToArray();
-        }
-
-        var normalizedContentType = string.IsNullOrWhiteSpace(contentType)
-            ? "image/jpeg"
-            : contentType!;
-
-        var prompt = _chatGptPromptService.BuildSurfEyePrompt(tasteProfileSummary, normalizedTasteProfile);
-
-        ChatCompletion completion;
-        try
-        {
-            completion = await _chatGptService.GetChatCompletionAsync(
-                new ChatMessage[]
-                {
-                    new SystemChatMessage(_chatGptPromptService.SurfEyeSystemPrompt),
-                    new UserChatMessage(new[]
-                    {
-                        ChatMessageContentPart.CreateTextPart(prompt),
-                        ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(imageBytes), normalizedContentType, ChatImageDetailLevel.High)
-                    })
-                },
-                ct: cancellationToken);
-        }
-        catch (ChatGptServiceNotConfiguredException)
-        {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new SurfEyeAnalysisError("Surf Eye is not configured."));
-        }
-        catch (ClientResultException ex)
-        {
-            return StatusCode(StatusCodes.Status502BadGateway, new SurfEyeAnalysisError("We couldn't reach the Surf Eye analyst. Please try again."));
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, new SurfEyeAnalysisError("We couldn't analyze that photo right now. Please try again."));
-        }
-
-        var content = ExtractCompletionText(completion);
-        if (!TryParseSurfEyeAnalysis(content, out var parsedResult))
-        {
-            return StatusCode(StatusCodes.Status502BadGateway, new SurfEyeAnalysisError("We couldn't understand Surf Eye's response. Please try again."));
-        }
-
-        var orderedMatches = parsedResult!.Wines
-            .OrderByDescending(match => match.AlignmentScore)
-            .ThenByDescending(match => match.Confidence)
-            .ThenBy(match => match.Name, StringComparer.OrdinalIgnoreCase)
-            .Take(5)
-            .ToList();
-
-        var summary = string.IsNullOrWhiteSpace(parsedResult.Summary)
-            ? (orderedMatches.Count > 0
-                ? "Surf Eye spotted the following wines."
-                : "Surf Eye couldn't recognize any wines in this photo.")
-            : parsedResult.Summary.Trim();
-
-        var persistedMatches = await PersistSurfEyeMatchesAsync(orderedMatches, cancellationToken);
-        var response = new SurfEyeAnalysisResponse(summary, persistedMatches);
-        return Json(response);
-    }
-
-    private const string TerroirHighlightSectionKey = "HighlightSection";
-    private const string TerroirHighlightIdKey = "HighlightId";
-    private static readonly MergeEntityLabels CountryMergeLabels = new("country", "countries");
-    private static readonly MergeEntityLabels RegionMergeLabels = new("region", "regions");
-    private static readonly MergeEntityLabels AppellationMergeLabels = new("appellation", "appellations");
-    private static readonly MergeEntityLabels SubAppellationMergeLabels = new("sub-appellation", "sub-appellations");
-    private static readonly MergeEntityLabels WineMergeLabels = new("wine", "wines");
-
-    [Authorize]
-    [HttpGet("terroir")]
-    public async Task<IActionResult> ManageTerroir(CancellationToken cancellationToken)
-    {
-        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
-        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
-        Response.ContentType = "text/html; charset=utf-8";
-
-        var now = DateTime.UtcNow;
-        WineSurferCurrentUser? currentUser = null;
-        IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
-        IReadOnlyList<WineSurferSentInvitationNotification> sentInvitationNotifications = Array.Empty<WineSurferSentInvitationNotification>();
-        Guid? currentUserId = null;
-        string? normalizedEmail = null;
-        ApplicationUser? domainUser = null;
-        var isAdmin = false;
-        string domainUserSummary = string.Empty;
-        string domainUserProfile = string.Empty;
-
-        if (User?.Identity?.IsAuthenticated == true)
-        {
-            var identityName = User.Identity?.Name;
-            var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
-            normalizedEmail = NormalizeEmailCandidate(email);
-            currentUserId = GetCurrentUserId();
-
-            if (currentUserId.HasValue)
-            {
-                domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
-            }
-
-            if (domainUser is null && !string.IsNullOrWhiteSpace(identityName))
-            {
-                domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
-            }
-
-            var (resolvedSummary, resolvedProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(domainUser);
-            domainUserSummary = resolvedSummary;
-            domainUserProfile = resolvedProfile;
-
-            var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
-
-            if (domainUser is not null)
-            {
-                currentUserId = domainUser.Id;
-                normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
-                isAdmin = domainUser.IsAdmin;
-            }
-
-            if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
-            {
-                normalizedEmail = NormalizeEmailCandidate(displayName);
-            }
-
-            if (!string.IsNullOrWhiteSpace(displayName) || !string.IsNullOrWhiteSpace(email) || domainUser is not null)
-            {
-                currentUser = new WineSurferCurrentUser(
-                    domainUser?.Id,
-                    displayName ?? email ?? string.Empty,
-                    email,
-                    domainUserSummary,
-                    domainUserProfile,
-                    isAdmin);
-            }
-
-            if (currentUserId.HasValue || normalizedEmail is not null)
-            {
-                incomingInvitations = (await _sisterhoodInvitationRepository.GetForInviteeAsync(currentUserId, normalizedEmail, cancellationToken))
-                    .Where(invitation => invitation.Status == SisterhoodInvitationStatus.Pending)
-                    .Select(invitation =>
-                    {
-                        var matchesUserId = currentUserId.HasValue && invitation.InviteeUserId == currentUserId.Value;
-                        var matchesEmail = normalizedEmail is not null && string.Equals(invitation.InviteeEmail, normalizedEmail, StringComparison.Ordinal);
-
-                        return new
-                        {
-                            Invitation = invitation,
-                            MatchesUserId = matchesUserId,
-                            MatchesEmail = matchesEmail,
-                        };
-                    })
-                    .Where(entry => entry.MatchesUserId || entry.MatchesEmail)
-                    .Select(entry => new WineSurferIncomingSisterhoodInvitation(
-                        entry.Invitation.Id,
-                        entry.Invitation.SisterhoodId,
-                        entry.Invitation.Sisterhood?.Name ?? "Sisterhood",
-                        entry.Invitation.Sisterhood?.Description,
-                        entry.Invitation.InviteeEmail,
-                        entry.Invitation.Status,
-                        entry.Invitation.CreatedAt,
-                        entry.Invitation.UpdatedAt,
-                        entry.Invitation.InviteeUserId,
-                        entry.MatchesUserId,
-                        entry.MatchesEmail))
-                    .ToList();
-            }
-        }
-
-        if (!isAdmin)
-        {
-            return Forbid();
-        }
-
-        if (currentUserId.HasValue)
-        {
-            var acceptedInvitations = await _sisterhoodInvitationRepository.GetAcceptedForAdminAsync(
-                currentUserId.Value,
-                now - SentInvitationNotificationWindow,
-                cancellationToken);
-
-            sentInvitationNotifications = CreateSentInvitationNotifications(acceptedInvitations);
-        }
-
-        var statusMessage = TempData.ContainsKey("StatusMessage")
-            ? TempData["StatusMessage"] as string
-            : null;
-        var errorMessage = TempData.ContainsKey("ErrorMessage")
-            ? TempData["ErrorMessage"] as string
-            : null;
-
-        var highlightSection = TempData.ContainsKey(TerroirHighlightSectionKey)
-            ? TempData[TerroirHighlightSectionKey] as string
-            : null;
-        var highlightId = TempData.ContainsKey(TerroirHighlightIdKey)
-            ? TempData[TerroirHighlightIdKey] as string
-            : null;
-
-        var viewModel = await BuildTerroirManagementViewModel(
-            currentUser,
-            incomingInvitations,
-            sentInvitationNotifications,
-            statusMessage,
-            errorMessage,
-            highlightSection,
-            highlightId,
-            cancellationToken);
-
-        return View("ManageTerroir", viewModel);
-    }
-
-    private void SetTerroirHighlight(string section, Guid id)
-    {
-        TempData[TerroirHighlightSectionKey] = section;
-        TempData[TerroirHighlightIdKey] = id.ToString();
-    }
-
-    private MergeRequestValidationResult ValidateMergeRequest(MergeTerroirRequest? request, MergeEntityLabels labels)
-    {
-        if (request is null)
-        {
-            return MergeRequestValidationResult.Invalid($"Select at least two {labels.Plural} to merge.");
-        }
-
-        if (request.LeaderId == Guid.Empty)
-        {
-            return MergeRequestValidationResult.Invalid($"Select a leading {labels.Singular}.");
-        }
-
-        var ids = request.EntityIds is null
-            ? new List<Guid>()
-            : request.EntityIds.Where(id => id != Guid.Empty).ToList();
-
-        if (!ids.Contains(request.LeaderId))
-        {
-            ids.Add(request.LeaderId);
-        }
-
-        var distinctIds = ids.Distinct().ToList();
-        var followers = distinctIds.Where(id => id != request.LeaderId).ToList();
-
-        if (followers.Count == 0)
-        {
-            return MergeRequestValidationResult.Invalid($"Select at least two {labels.Plural} to merge.");
-        }
-
-        return MergeRequestValidationResult.Valid(request.LeaderId, followers);
-    }
-
-    private static string CreateMergeStatusMessage(MergeEntityLabels labels, string leaderName, int followersMerged)
-    {
-        if (followersMerged <= 0)
-        {
-            return $"Selected {labels.Plural} are already consolidated.";
-        }
-
-        var noun = followersMerged == 1 ? labels.Singular : labels.Plural;
-        return $"Merged {followersMerged} {noun} into {leaderName}.";
-    }
-
-    [Authorize]
-    [HttpPost("countries")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateCountry([FromForm] CreateCountryRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            TempData["ErrorMessage"] = "Country name is required.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var trimmedName = request.Name.Trim();
-        var duplicate = await _countryRepository.FindByNameAsync(trimmedName, cancellationToken);
-        if (duplicate is not null)
-        {
-            TempData["ErrorMessage"] = $"Country '{trimmedName}' already exists.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var country = new Country
-        {
-            Id = Guid.NewGuid(),
-            Name = trimmedName
-        };
-
-        await _countryRepository.AddAsync(country, cancellationToken);
-
-        SetTerroirHighlight("country", country.Id);
-
-        TempData["StatusMessage"] = $"Country '{country.Name}' was created.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("countries/{id:guid}")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateCountry(Guid id, [FromForm] UpdateCountryRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var existing = await _countryRepository.GetByIdAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            TempData["ErrorMessage"] = "Country could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            TempData["ErrorMessage"] = "Country name is required.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var trimmedName = request.Name.Trim();
-        var duplicate = await _countryRepository.FindByNameAsync(trimmedName, cancellationToken);
-        if (duplicate is not null && duplicate.Id != id)
-        {
-            TempData["ErrorMessage"] = $"Country '{trimmedName}' already exists.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        existing.Name = trimmedName;
-
-        await _countryRepository.UpdateAsync(existing, cancellationToken);
-
-        SetTerroirHighlight("country", existing.Id);
-
-        TempData["StatusMessage"] = $"Country '{existing.Name}' was updated.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("countries/{id:guid}/delete")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteCountry(Guid id, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var existing = await _countryRepository.GetByIdAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            TempData["ErrorMessage"] = "Country could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (await _regionRepository.AnyForCountryAsync(id, cancellationToken))
-        {
-            TempData["ErrorMessage"] = $"Remove regions for '{existing.Name}' before deleting the country.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        await _countryRepository.DeleteAsync(id, cancellationToken);
-
-        TempData["StatusMessage"] = $"Country '{existing.Name}' was deleted.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("countries/merge")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> MergeCountries([FromForm] MergeTerroirRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var validation = ValidateMergeRequest(request, CountryMergeLabels);
-        if (!validation.IsValid)
-        {
-            TempData["ErrorMessage"] = validation.ErrorMessage;
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        try
-        {
-            var result = await _terroirMergeRepository.MergeCountriesAsync(validation.LeaderId, validation.FollowerIds, cancellationToken);
-            SetTerroirHighlight("country", result.LeaderId);
-            TempData["StatusMessage"] = CreateMergeStatusMessage(CountryMergeLabels, result.LeaderName, result.FollowersMerged);
-        }
-        catch (InvalidOperationException ex)
-        {
-            TempData["ErrorMessage"] = ex.Message;
-        }
-        catch (DbUpdateException)
-        {
-            TempData["ErrorMessage"] = "We couldn't merge the selected countries. Please try again.";
-        }
-        catch (Exception)
-        {
-            TempData["ErrorMessage"] = "We couldn't merge the selected countries. Please try again.";
-        }
-
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("regions")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateRegion([FromForm] CreateRegionRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            TempData["ErrorMessage"] = "Region name is required.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (request.CountryId == Guid.Empty)
-        {
-            TempData["ErrorMessage"] = "Please select a country.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var trimmedName = request.Name.Trim();
-        var country = await _countryRepository.GetByIdAsync(request.CountryId, cancellationToken);
-        if (country is null)
-        {
-            TempData["ErrorMessage"] = "Selected country could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var duplicate = await _regionRepository.FindByNameAndCountryAsync(trimmedName, country.Id, cancellationToken);
-        if (duplicate is not null)
-        {
-            TempData["ErrorMessage"] = $"Region '{trimmedName}' already exists for {country.Name}.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var region = new Region
-        {
-            Id = Guid.NewGuid(),
-            Name = trimmedName,
-            CountryId = country.Id
-        };
-
-        await _regionRepository.AddAsync(region, cancellationToken);
-
-        SetTerroirHighlight("region", region.Id);
-
-        TempData["StatusMessage"] = $"Region '{region.Name}' was created.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("regions/{id:guid}")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateRegion(Guid id, [FromForm] UpdateRegionRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var existing = await _regionRepository.GetByIdAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            TempData["ErrorMessage"] = "Region could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            TempData["ErrorMessage"] = "Region name is required.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (request.CountryId == Guid.Empty)
-        {
-            TempData["ErrorMessage"] = "Please select a country.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var trimmedName = request.Name.Trim();
-        var country = await _countryRepository.GetByIdAsync(request.CountryId, cancellationToken);
-        if (country is null)
-        {
-            TempData["ErrorMessage"] = "Selected country could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var duplicate = await _regionRepository.FindByNameAndCountryAsync(trimmedName, country.Id, cancellationToken);
-        if (duplicate is not null && duplicate.Id != id)
-        {
-            TempData["ErrorMessage"] = $"Region '{trimmedName}' already exists for {country.Name}.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        existing.Name = trimmedName;
-        existing.CountryId = country.Id;
-
-        await _regionRepository.UpdateAsync(existing, cancellationToken);
-
-        SetTerroirHighlight("region", existing.Id);
-
-        TempData["StatusMessage"] = $"Region '{existing.Name}' was updated.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("regions/{id:guid}/delete")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteRegion(Guid id, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var existing = await _regionRepository.GetByIdAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            TempData["ErrorMessage"] = "Region could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (await _appellationRepository.AnyForRegionAsync(id, cancellationToken))
-        {
-            TempData["ErrorMessage"] = $"Remove appellations for '{existing.Name}' before deleting the region.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        await _regionRepository.DeleteAsync(id, cancellationToken);
-
-        TempData["StatusMessage"] = $"Region '{existing.Name}' was deleted.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("regions/merge")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> MergeRegions([FromForm] MergeTerroirRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var validation = ValidateMergeRequest(request, RegionMergeLabels);
-        if (!validation.IsValid)
-        {
-            TempData["ErrorMessage"] = validation.ErrorMessage;
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        try
-        {
-            var result = await _terroirMergeRepository.MergeRegionsAsync(validation.LeaderId, validation.FollowerIds, cancellationToken);
-            SetTerroirHighlight("region", result.LeaderId);
-            TempData["StatusMessage"] = CreateMergeStatusMessage(RegionMergeLabels, result.LeaderName, result.FollowersMerged);
-        }
-        catch (InvalidOperationException ex)
-        {
-            TempData["ErrorMessage"] = ex.Message;
-        }
-        catch (DbUpdateException)
-        {
-            TempData["ErrorMessage"] = "We couldn't merge the selected regions. Please try again.";
-        }
-        catch (Exception)
-        {
-            TempData["ErrorMessage"] = "We couldn't merge the selected regions. Please try again.";
-        }
-
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("appellations")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateAppellation([FromForm] CreateAppellationRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            TempData["ErrorMessage"] = "Appellation name is required.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (request.RegionId == Guid.Empty)
-        {
-            TempData["ErrorMessage"] = "Please select a region.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var region = await _regionRepository.GetByIdAsync(request.RegionId, cancellationToken);
-        if (region is null)
-        {
-            TempData["ErrorMessage"] = "Selected region could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var trimmedName = request.Name.Trim();
-        var duplicate = await _appellationRepository.FindByNameAndRegionAsync(trimmedName, region.Id, cancellationToken);
-        if (duplicate is not null)
-        {
-            TempData["ErrorMessage"] = $"Appellation '{trimmedName}' already exists in {region.Name}.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var appellation = new Appellation
-        {
-            Id = Guid.NewGuid(),
-            Name = trimmedName,
-            RegionId = region.Id
-        };
-
-        await _appellationRepository.AddAsync(appellation, cancellationToken);
-
-        SetTerroirHighlight("appellation", appellation.Id);
-
-        TempData["StatusMessage"] = $"Appellation '{appellation.Name}' was created.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("appellations/{id:guid}")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateAppellation(Guid id, [FromForm] UpdateAppellationRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var existing = await _appellationRepository.GetByIdAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            TempData["ErrorMessage"] = "Appellation could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            TempData["ErrorMessage"] = "Appellation name is required.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (request.RegionId == Guid.Empty)
-        {
-            TempData["ErrorMessage"] = "Please select a region.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var region = await _regionRepository.GetByIdAsync(request.RegionId, cancellationToken);
-        if (region is null)
-        {
-            TempData["ErrorMessage"] = "Selected region could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var trimmedName = request.Name.Trim();
-        var duplicate = await _appellationRepository.FindByNameAndRegionAsync(trimmedName, region.Id, cancellationToken);
-        if (duplicate is not null && duplicate.Id != id)
-        {
-            TempData["ErrorMessage"] = $"Appellation '{trimmedName}' already exists in {region.Name}.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        existing.Name = trimmedName;
-        existing.RegionId = region.Id;
-
-        await _appellationRepository.UpdateAsync(existing, cancellationToken);
-
-        SetTerroirHighlight("appellation", existing.Id);
-
-        TempData["StatusMessage"] = $"Appellation '{existing.Name}' was updated.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("appellations/{id:guid}/delete")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteAppellation(Guid id, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var existing = await _appellationRepository.GetByIdAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            TempData["ErrorMessage"] = "Appellation could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (await _subAppellationRepository.AnyForAppellationAsync(id, cancellationToken))
-        {
-            TempData["ErrorMessage"] = $"Remove sub-appellations for '{existing.Name}' before deleting the appellation.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        await _appellationRepository.DeleteAsync(id, cancellationToken);
-
-        TempData["StatusMessage"] = $"Appellation '{existing.Name}' was deleted.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("appellations/merge")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> MergeAppellations([FromForm] MergeTerroirRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var validation = ValidateMergeRequest(request, AppellationMergeLabels);
-        if (!validation.IsValid)
-        {
-            TempData["ErrorMessage"] = validation.ErrorMessage;
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        try
-        {
-            var result = await _terroirMergeRepository.MergeAppellationsAsync(validation.LeaderId, validation.FollowerIds, cancellationToken);
-            SetTerroirHighlight("appellation", result.LeaderId);
-            TempData["StatusMessage"] = CreateMergeStatusMessage(AppellationMergeLabels, result.LeaderName, result.FollowersMerged);
-        }
-        catch (InvalidOperationException ex)
-        {
-            TempData["ErrorMessage"] = ex.Message;
-        }
-        catch (DbUpdateException)
-        {
-            TempData["ErrorMessage"] = "We couldn't merge the selected appellations. Please try again.";
-        }
-        catch (Exception)
-        {
-            TempData["ErrorMessage"] = "We couldn't merge the selected appellations. Please try again.";
-        }
-
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("sub-appellations")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateSubAppellation([FromForm] CreateSubAppellationRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        if (request.AppellationId == Guid.Empty)
-        {
-            TempData["ErrorMessage"] = "Please select an appellation.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var appellation = await _appellationRepository.GetByIdAsync(request.AppellationId, cancellationToken);
-        if (appellation is null)
-        {
-            TempData["ErrorMessage"] = "Selected appellation could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var appellationName = string.IsNullOrWhiteSpace(appellation.Name) ? "the selected appellation" : appellation.Name.Trim();
-        var trimmedName = string.IsNullOrWhiteSpace(request.Name) ? null : request.Name.Trim();
-        var lookupName = trimmedName ?? string.Empty;
-        var duplicate = await _subAppellationRepository.FindByNameAndAppellationAsync(lookupName, appellation.Id, cancellationToken);
-        if (duplicate is not null)
-        {
-            var duplicateLabel = string.IsNullOrWhiteSpace(trimmedName) ? "Unknown sub-appellation" : trimmedName;
-            TempData["ErrorMessage"] = $"Sub-appellation '{duplicateLabel}' already exists in {appellationName}.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var subAppellation = new SubAppellation
-        {
-            Id = Guid.NewGuid(),
-            Name = trimmedName,
-            AppellationId = appellation.Id
-        };
-
-        await _subAppellationRepository.AddAsync(subAppellation, cancellationToken);
-
-        SetTerroirHighlight("sub-appellation", subAppellation.Id);
-
-        var displayName = string.IsNullOrWhiteSpace(trimmedName) ? "Unknown sub-appellation" : trimmedName;
-        TempData["StatusMessage"] = $"Sub-appellation '{displayName}' was created.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("sub-appellations/{id:guid}")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateSubAppellation(Guid id, [FromForm] UpdateSubAppellationRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var existing = await _subAppellationRepository.GetByIdAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            TempData["ErrorMessage"] = "Sub-appellation could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (request.AppellationId == Guid.Empty)
-        {
-            TempData["ErrorMessage"] = "Please select an appellation.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var appellation = await _appellationRepository.GetByIdAsync(request.AppellationId, cancellationToken);
-        if (appellation is null)
-        {
-            TempData["ErrorMessage"] = "Selected appellation could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var appellationName = string.IsNullOrWhiteSpace(appellation.Name) ? "the selected appellation" : appellation.Name.Trim();
-        var trimmedName = string.IsNullOrWhiteSpace(request.Name) ? null : request.Name.Trim();
-        var lookupName = trimmedName ?? string.Empty;
-        var duplicate = await _subAppellationRepository.FindByNameAndAppellationAsync(lookupName, appellation.Id, cancellationToken);
-        if (duplicate is not null && duplicate.Id != id)
-        {
-            var duplicateLabel = string.IsNullOrWhiteSpace(trimmedName) ? "Unknown sub-appellation" : trimmedName;
-            TempData["ErrorMessage"] = $"Sub-appellation '{duplicateLabel}' already exists in {appellationName}.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        existing.Name = trimmedName;
-        existing.AppellationId = appellation.Id;
-
-        await _subAppellationRepository.UpdateAsync(existing, cancellationToken);
-
-        SetTerroirHighlight("sub-appellation", existing.Id);
-
-        var displayName = string.IsNullOrWhiteSpace(trimmedName) ? "Unknown sub-appellation" : trimmedName;
-        TempData["StatusMessage"] = $"Sub-appellation '{displayName}' was updated.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("sub-appellations/{id:guid}/delete")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteSubAppellation(Guid id, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var existing = await _subAppellationRepository.GetByIdAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            TempData["ErrorMessage"] = "Sub-appellation could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (await _wineRepository.AnyBySubAppellationAsync(id, cancellationToken))
-        {
-            var displayName = string.IsNullOrWhiteSpace(existing.Name) ? "Unknown sub-appellation" : existing.Name.Trim();
-            TempData["ErrorMessage"] = $"Remove wines for '{displayName}' before deleting the sub-appellation.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        await _subAppellationRepository.DeleteAsync(id, cancellationToken);
-
-        var deletedName = string.IsNullOrWhiteSpace(existing.Name) ? "Unknown sub-appellation" : existing.Name.Trim();
-        TempData["StatusMessage"] = $"Sub-appellation '{deletedName}' was deleted.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("sub-appellations/merge")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> MergeSubAppellations([FromForm] MergeTerroirRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var validation = ValidateMergeRequest(request, SubAppellationMergeLabels);
-        if (!validation.IsValid)
-        {
-            TempData["ErrorMessage"] = validation.ErrorMessage;
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        try
-        {
-            var result = await _terroirMergeRepository.MergeSubAppellationsAsync(validation.LeaderId, validation.FollowerIds, cancellationToken);
-            SetTerroirHighlight("sub-appellation", result.LeaderId);
-            TempData["StatusMessage"] = CreateMergeStatusMessage(SubAppellationMergeLabels, result.LeaderName, result.FollowersMerged);
-        }
-        catch (InvalidOperationException ex)
-        {
-            TempData["ErrorMessage"] = ex.Message;
-        }
-        catch (DbUpdateException)
-        {
-            TempData["ErrorMessage"] = "We couldn't merge the selected sub-appellations. Please try again.";
-        }
-        catch (Exception)
-        {
-            TempData["ErrorMessage"] = "We couldn't merge the selected sub-appellations. Please try again.";
-        }
-
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("wines")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateWine([FromForm] CreateWineRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            TempData["ErrorMessage"] = "Wine name is required.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (request.SubAppellationId == Guid.Empty)
-        {
-            TempData["ErrorMessage"] = "Please select a sub-appellation.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var subAppellation = await _subAppellationRepository.GetByIdAsync(request.SubAppellationId, cancellationToken);
-        if (subAppellation is null)
-        {
-            TempData["ErrorMessage"] = "Selected sub-appellation could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var trimmedName = request.Name.Trim();
-        var duplicate = await _wineRepository.FindByNameAsync(trimmedName, subAppellation.Name, subAppellation.Appellation?.Name, cancellationToken);
-        if (duplicate is not null)
-        {
-            TempData["ErrorMessage"] = $"Wine '{trimmedName}' already exists for the selected sub-appellation.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var grapeVariety = string.IsNullOrWhiteSpace(request.GrapeVariety) ? string.Empty : request.GrapeVariety.Trim();
-
-        var wine = new Wine
-        {
-            Id = Guid.NewGuid(),
-            Name = trimmedName,
-            GrapeVariety = grapeVariety,
-            Color = request.Color,
-            SubAppellationId = subAppellation.Id
-        };
-
-        await _wineRepository.AddAsync(wine, cancellationToken);
-
-        SetTerroirHighlight("wine", wine.Id);
-
-        TempData["StatusMessage"] = $"Wine '{wine.Name}' was created.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("wines/{id:guid}")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateWine(Guid id, [FromForm] UpdateWineRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var existing = await _wineRepository.GetByIdAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            TempData["ErrorMessage"] = "Wine could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            TempData["ErrorMessage"] = "Wine name is required.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        if (request.SubAppellationId == Guid.Empty)
-        {
-            TempData["ErrorMessage"] = "Please select a sub-appellation.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var subAppellation = await _subAppellationRepository.GetByIdAsync(request.SubAppellationId, cancellationToken);
-        if (subAppellation is null)
-        {
-            TempData["ErrorMessage"] = "Selected sub-appellation could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var trimmedName = request.Name.Trim();
-        var duplicate = await _wineRepository.FindByNameAsync(trimmedName, subAppellation.Name, subAppellation.Appellation?.Name, cancellationToken);
-        if (duplicate is not null && duplicate.Id != id)
-        {
-            TempData["ErrorMessage"] = $"Wine '{trimmedName}' already exists for the selected sub-appellation.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        var grapeVariety = string.IsNullOrWhiteSpace(request.GrapeVariety) ? string.Empty : request.GrapeVariety.Trim();
-
-        existing.Name = trimmedName;
-        existing.GrapeVariety = grapeVariety;
-        existing.Color = request.Color;
-        existing.SubAppellationId = subAppellation.Id;
-
-        await _wineRepository.UpdateAsync(existing, cancellationToken);
-
-        SetTerroirHighlight("wine", existing.Id);
-
-        TempData["StatusMessage"] = $"Wine '{existing.Name}' was updated.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("wines/{id:guid}/delete")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteWine(Guid id, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var existing = await _wineRepository.GetByIdAsync(id, cancellationToken);
-        if (existing is null)
-        {
-            TempData["ErrorMessage"] = "Wine could not be found.";
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        await _wineRepository.DeleteAsync(id, cancellationToken);
-
-        TempData["StatusMessage"] = $"Wine '{existing.Name}' was deleted.";
-        return RedirectToAction(nameof(ManageTerroir));
-    }
-
-    [Authorize]
-    [HttpPost("wines/merge")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> MergeWines([FromForm] MergeTerroirRequest request, CancellationToken cancellationToken)
-    {
-        if (!await IsCurrentUserAdminAsync(cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var validation = ValidateMergeRequest(request, WineMergeLabels);
-        if (!validation.IsValid)
-        {
-            TempData["ErrorMessage"] = validation.ErrorMessage;
-            return RedirectToAction(nameof(ManageTerroir));
-        }
-
-        try
-        {
-            var result = await _terroirMergeRepository.MergeWinesAsync(validation.LeaderId, validation.FollowerIds, cancellationToken);
-            SetTerroirHighlight("wine", result.LeaderId);
-            TempData["StatusMessage"] = CreateMergeStatusMessage(WineMergeLabels, result.LeaderName, result.FollowersMerged);
-        }
-        catch (InvalidOperationException ex)
-        {
-            TempData["ErrorMessage"] = ex.Message;
-        }
-        catch (DbUpdateException)
-        {
-            TempData["ErrorMessage"] = "We couldn't merge the selected wines. Please try again.";
-        }
-        catch (Exception)
-        {
-            TempData["ErrorMessage"] = "We couldn't merge the selected wines. Please try again.";
-        }
-
-        return RedirectToAction(nameof(ManageTerroir));
-    }
+   
 
     [HttpGet("sessions/{sipSessionId:guid}")]
     public async Task<IActionResult> SipSession(Guid sipSessionId, CancellationToken cancellationToken)
@@ -2541,7 +428,7 @@ public class WineSurferController : Controller
             return View("SipSession", errorModel);
         }
 
-        var completionText = ExtractCompletionText(completion);
+        var completionText = StringUtilities.ExtractCompletionText(completion);
         if (!TryParseSipSessionFoodSuggestions(completionText, out var suggestions, out var cheeseSuggestion))
         {
             var errorModel = await BuildSipSessionDetailViewModelAsync(
@@ -2596,7 +483,7 @@ public class WineSurferController : Controller
         {
             var identityName = User.Identity?.Name;
             var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
-            var normalizedEmail = NormalizeEmailCandidate(email);
+            var normalizedEmail = StringUtilities.NormalizeEmailCandidate(email);
             currentUserId = GetCurrentUserId();
             ApplicationUser? domainUser = null;
 
@@ -2614,17 +501,17 @@ public class WineSurferController : Controller
             domainUserSummary = resolvedSummary;
             domainUserProfile = resolvedProfile;
 
-            var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
+            var displayName = StringUtilities.ResolveDisplayName(domainUser?.Name, identityName, email);
 
             if (domainUser is not null)
             {
                 currentUserId = domainUser.Id;
-                normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
+                normalizedEmail ??= StringUtilities.NormalizeEmailCandidate(domainUser.Email);
             }
 
-            if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
+            if (string.IsNullOrWhiteSpace(normalizedEmail) && StringUtilities.LooksLikeEmail(displayName))
             {
-                normalizedEmail = NormalizeEmailCandidate(displayName);
+                normalizedEmail = StringUtilities.NormalizeEmailCandidate(displayName);
             }
 
             if (!string.IsNullOrWhiteSpace(displayName) || !string.IsNullOrWhiteSpace(email) || domainUser is not null)
@@ -2683,7 +570,7 @@ public class WineSurferController : Controller
                 now - SentInvitationNotificationWindow,
                 cancellationToken);
 
-            sentInvitationNotifications = CreateSentInvitationNotifications(acceptedInvitations);
+            sentInvitationNotifications = NotificationService.CreateSentInvitationNotifications(acceptedInvitations);
         }
 
         var canManageSession = false;
@@ -2827,7 +714,7 @@ public class WineSurferController : Controller
 
         var identityName = User.Identity?.Name;
         var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
-        var normalizedEmail = NormalizeEmailCandidate(email);
+        var normalizedEmail = StringUtilities.NormalizeEmailCandidate(email);
         var currentUserId = GetCurrentUserId();
         ApplicationUser? domainUser = null;
         string domainUserSummary = string.Empty;
@@ -2847,17 +734,17 @@ public class WineSurferController : Controller
         domainUserSummary = resolvedSummary;
         domainUserProfile = resolvedProfile;
 
-        var displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
+        var displayName = StringUtilities.ResolveDisplayName(domainUser?.Name, identityName, email);
 
         if (domainUser is not null)
         {
             currentUserId = domainUser.Id;
-            normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
+            normalizedEmail ??= StringUtilities.NormalizeEmailCandidate(domainUser.Email);
         }
 
-        if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
+        if (string.IsNullOrWhiteSpace(normalizedEmail) && StringUtilities.LooksLikeEmail(displayName))
         {
-            normalizedEmail = NormalizeEmailCandidate(displayName);
+            normalizedEmail = StringUtilities.NormalizeEmailCandidate(displayName);
         }
 
         if (!string.IsNullOrWhiteSpace(displayName) || !string.IsNullOrWhiteSpace(email) || domainUser is not null)
@@ -2915,7 +802,7 @@ public class WineSurferController : Controller
                 now - SentInvitationNotificationWindow,
                 cancellationToken);
 
-            sentInvitationNotifications = CreateSentInvitationNotifications(acceptedInvitations);
+            sentInvitationNotifications = NotificationService.CreateSentInvitationNotifications(acceptedInvitations);
         }
 
         var manageableSisterhoods = (await _sisterhoodRepository.GetAdminForUserAsync(currentUserId.Value, cancellationToken))
@@ -2982,7 +869,7 @@ public class WineSurferController : Controller
         {
             var identityName = User.Identity?.Name;
             var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
-            var normalizedEmail = NormalizeEmailCandidate(email);
+            var normalizedEmail = StringUtilities.NormalizeEmailCandidate(email);
 
             currentUserId = GetCurrentUserId();
 
@@ -2997,18 +884,18 @@ public class WineSurferController : Controller
                 domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
             }
 
-            displayName = ResolveDisplayName(domainUser?.Name, identityName, email);
+            displayName = StringUtilities.ResolveDisplayName(domainUser?.Name, identityName, email);
 
             if (domainUser is not null)
             {
                 currentUserId = domainUser.Id;
-                normalizedEmail ??= NormalizeEmailCandidate(domainUser.Email);
+                normalizedEmail ??= StringUtilities.NormalizeEmailCandidate(domainUser.Email);
                 isAdmin = domainUser.IsAdmin;
             }
 
-            if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(displayName))
+            if (string.IsNullOrWhiteSpace(normalizedEmail) && StringUtilities.LooksLikeEmail(displayName))
             {
-                normalizedEmail = NormalizeEmailCandidate(displayName);
+                normalizedEmail = StringUtilities.NormalizeEmailCandidate(displayName);
             }
 
             if (currentUserId.HasValue)
@@ -3021,7 +908,7 @@ public class WineSurferController : Controller
                     now - SentInvitationNotificationWindow,
                     cancellationToken);
 
-                sentInvitationNotifications = CreateSentInvitationNotifications(acceptedInvitations);
+                sentInvitationNotifications = NotificationService.CreateSentInvitationNotifications(acceptedInvitations);
                 sisterhoods = membership
                     .Select(s =>
                     {
@@ -3367,12 +1254,12 @@ public class WineSurferController : Controller
         var trimmedName = string.IsNullOrWhiteSpace(request.MemberName)
             ? null
             : request.MemberName.Trim();
-        var normalizedEmailCandidate = NormalizeEmailCandidate(request.MemberEmail);
-        var nameLooksLikeEmail = request.IsEmail || LooksLikeEmail(trimmedName);
+        var normalizedEmailCandidate = StringUtilities.NormalizeEmailCandidate(request.MemberEmail);
+        var nameLooksLikeEmail = request.IsEmail || StringUtilities.LooksLikeEmail(trimmedName);
 
         if (invitee is null && string.IsNullOrEmpty(normalizedEmailCandidate) && nameLooksLikeEmail)
         {
-            normalizedEmailCandidate = NormalizeEmailCandidate(trimmedName);
+            normalizedEmailCandidate = StringUtilities.NormalizeEmailCandidate(trimmedName);
         }
 
         if (invitee is null && !string.IsNullOrEmpty(normalizedEmailCandidate))
@@ -3388,7 +1275,7 @@ public class WineSurferController : Controller
         string? inviteeEmail = null;
         if (invitee is not null)
         {
-            inviteeEmail = NormalizeEmailCandidate(invitee.Email);
+            inviteeEmail = StringUtilities.NormalizeEmailCandidate(invitee.Email);
 
             if (string.IsNullOrEmpty(inviteeEmail) && !string.IsNullOrEmpty(normalizedEmailCandidate))
             {
@@ -3483,7 +1370,7 @@ public class WineSurferController : Controller
             var signupLink = Url.ActionLink("Register", "Account", registerRouteValues)
                 ?? Url.Action("Register", "Account", registerRouteValues)
                 ?? "/account/register";
-            signupLink = EnsureEmailQueryParameter(signupLink, inviteeEmail);
+            signupLink = StringUtilities.EnsureEmailQueryParameter(signupLink, inviteeEmail);
             var body =
                 $"Dear Wine Lover,\n\n" +
                 $"We'd be thrilled to welcome you to the {sisterhood.Name} sisterhood on Wine Surfer—" +
@@ -3522,16 +1409,16 @@ public class WineSurferController : Controller
             return RedirectToAction(nameof(Sisterhoods));
         }
 
-        var normalizedEmail = NormalizeEmailCandidate(User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email"));
-        if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(User.Identity?.Name))
+        var normalizedEmail = StringUtilities.NormalizeEmailCandidate(User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email"));
+        if (string.IsNullOrWhiteSpace(normalizedEmail) && StringUtilities.LooksLikeEmail(User.Identity?.Name))
         {
-            normalizedEmail = NormalizeEmailCandidate(User.Identity?.Name);
+            normalizedEmail = StringUtilities.NormalizeEmailCandidate(User.Identity?.Name);
         }
 
         if (normalizedEmail is null)
         {
             var domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
-            normalizedEmail = NormalizeEmailCandidate(domainUser?.Email);
+            normalizedEmail = StringUtilities.NormalizeEmailCandidate(domainUser?.Email);
         }
 
         var matchesUserId = invitation.InviteeUserId == currentUserId.Value;
@@ -3603,16 +1490,16 @@ public class WineSurferController : Controller
             return RedirectToAction(nameof(Sisterhoods));
         }
 
-        var normalizedEmail = NormalizeEmailCandidate(User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email"));
-        if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(User.Identity?.Name))
+        var normalizedEmail = StringUtilities.NormalizeEmailCandidate(User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email"));
+        if (string.IsNullOrWhiteSpace(normalizedEmail) && StringUtilities.LooksLikeEmail(User.Identity?.Name))
         {
-            normalizedEmail = NormalizeEmailCandidate(User.Identity?.Name);
+            normalizedEmail = StringUtilities.NormalizeEmailCandidate(User.Identity?.Name);
         }
 
         if (normalizedEmail is null)
         {
             var domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
-            normalizedEmail = NormalizeEmailCandidate(domainUser?.Email);
+            normalizedEmail = StringUtilities.NormalizeEmailCandidate(domainUser?.Email);
         }
 
         var matchesUserId = invitation.InviteeUserId == currentUserId.Value;
@@ -3674,16 +1561,16 @@ public class WineSurferController : Controller
             return RedirectToAction(nameof(Sisterhoods));
         }
 
-        var normalizedEmail = NormalizeEmailCandidate(User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email"));
-        if (string.IsNullOrWhiteSpace(normalizedEmail) && LooksLikeEmail(User.Identity?.Name))
+        var normalizedEmail = StringUtilities.NormalizeEmailCandidate(User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email"));
+        if (string.IsNullOrWhiteSpace(normalizedEmail) && StringUtilities.LooksLikeEmail(User.Identity?.Name))
         {
-            normalizedEmail = NormalizeEmailCandidate(User.Identity?.Name);
+            normalizedEmail = StringUtilities.NormalizeEmailCandidate(User.Identity?.Name);
         }
 
         if (normalizedEmail is null)
         {
             var domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
-            normalizedEmail = NormalizeEmailCandidate(domainUser?.Email);
+            normalizedEmail = StringUtilities.NormalizeEmailCandidate(domainUser?.Email);
         }
 
         var matchesUserId = invitation.InviteeUserId == currentUserId.Value;
@@ -4794,18 +2681,6 @@ public class WineSurferController : Controller
         };
     }
 
-    private async Task<bool> IsCurrentUserAdminAsync(CancellationToken cancellationToken)
-    {
-        var currentUserId = GetCurrentUserId();
-        if (!currentUserId.HasValue)
-        {
-            return false;
-        }
-
-        var user = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);
-        return user?.IsAdmin == true;
-    }
-
     private async Task SetInventoryAddModalViewDataAsync(Guid? currentUserId, CancellationToken cancellationToken)
     {
         InventoryAddModalViewModel viewModel;
@@ -4837,11 +2712,7 @@ public class WineSurferController : Controller
         ViewData["InventoryAddModal"] = viewModel;
     }
 
-    private Guid? GetCurrentUserId()
-    {
-        var idValue = _userManager.GetUserId(User);
-        return Guid.TryParse(idValue, out var parsedId) ? parsedId : null;
-    }
+
 
     private static string GetAvatarLetter(string? displayName)
     {
@@ -4856,181 +2727,7 @@ public class WineSurferController : Controller
             : trimmed.Substring(0, 1).ToUpperInvariant();
     }
 
-    private async Task<WineSurferTerroirManagementViewModel> BuildTerroirManagementViewModel(
-        WineSurferCurrentUser? currentUser,
-        IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations,
-        IReadOnlyList<WineSurferSentInvitationNotification> sentInvitationNotifications,
-        string? statusMessage,
-        string? errorMessage,
-        string? highlightSection,
-        string? highlightId,
-        CancellationToken cancellationToken)
-    {
-        var countries = await _countryRepository.GetAllAsync(cancellationToken);
-        var regions = await _regionRepository.GetAllAsync(cancellationToken);
-        var appellations = await _appellationRepository.GetAllAsync(cancellationToken);
-        var subAppellations = await _subAppellationRepository.GetAllAsync(cancellationToken);
-        var wines = await _wineRepository.GetAllAsync(cancellationToken);
-
-        var regionCountByCountry = regions
-            .GroupBy(region => region.CountryId)
-            .ToDictionary(group => group.Key, group => group.Count());
-
-        var appellationCountByCountry = appellations
-            .Where(appellation => appellation.Region is not null)
-            .GroupBy(appellation => appellation.Region!.CountryId)
-            .ToDictionary(group => group.Key, group => group.Count());
-
-        var subAppellationCountByCountry = subAppellations
-            .Where(sub => sub.Appellation?.Region is not null)
-            .GroupBy(sub => sub.Appellation!.Region!.CountryId)
-            .ToDictionary(group => group.Key, group => group.Count());
-
-        var wineCountByCountry = wines
-            .Where(wine => wine.SubAppellation?.Appellation?.Region is not null)
-            .GroupBy(wine => wine.SubAppellation!.Appellation!.Region!.CountryId)
-            .ToDictionary(group => group.Key, group => group.Count());
-
-        var countryModels = countries
-            .Select(country =>
-            {
-                regionCountByCountry.TryGetValue(country.Id, out var regionCount);
-                appellationCountByCountry.TryGetValue(country.Id, out var appellationCount);
-                subAppellationCountByCountry.TryGetValue(country.Id, out var subAppellationCount);
-                wineCountByCountry.TryGetValue(country.Id, out var wineCount);
-
-                return new WineSurferTerroirCountry(
-                    country.Id,
-                    country.Name,
-                    regionCount,
-                    appellationCount,
-                    subAppellationCount,
-                    wineCount);
-            })
-            .OrderBy(country => country.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var appellationCountByRegion = appellations
-            .GroupBy(appellation => appellation.RegionId)
-            .ToDictionary(group => group.Key, group => group.Count());
-
-        var subAppellationCountByRegion = subAppellations
-            .Where(sub => sub.Appellation?.Region is not null)
-            .GroupBy(sub => sub.Appellation!.RegionId)
-            .ToDictionary(group => group.Key, group => group.Count());
-
-        var wineCountByRegion = wines
-            .Where(wine => wine.SubAppellation?.Appellation?.Region is not null)
-            .GroupBy(wine => wine.SubAppellation!.Appellation!.RegionId)
-            .ToDictionary(group => group.Key, group => group.Count());
-
-        var subAppellationCountByAppellation = subAppellations
-            .GroupBy(sub => sub.AppellationId)
-            .ToDictionary(group => group.Key, group => group.Count());
-
-        var wineCountByAppellation = wines
-            .Where(wine => wine.SubAppellation?.Appellation is not null)
-            .GroupBy(wine => wine.SubAppellation!.AppellationId)
-            .ToDictionary(group => group.Key, group => group.Count());
-
-        var wineCountBySubAppellation = wines
-            .GroupBy(wine => wine.SubAppellationId)
-            .ToDictionary(group => group.Key, group => group.Count());
-
-        var regionModels = regions
-            .Select(region =>
-            {
-                appellationCountByRegion.TryGetValue(region.Id, out var appellationCount);
-                subAppellationCountByRegion.TryGetValue(region.Id, out var subAppellationCount);
-                wineCountByRegion.TryGetValue(region.Id, out var wineCount);
-                var countryName = region.Country?.Name;
-                return new WineSurferTerroirRegion(
-                    region.Id,
-                    region.Name,
-                    region.CountryId,
-                    countryName,
-                    appellationCount,
-                    subAppellationCount,
-                    wineCount);
-            })
-            .OrderBy(region => region.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var appellationModels = appellations
-            .Select(appellation =>
-            {
-                subAppellationCountByAppellation.TryGetValue(appellation.Id, out var subCount);
-                wineCountByAppellation.TryGetValue(appellation.Id, out var wineCount);
-                var regionName = appellation.Region?.Name ?? "Unknown region";
-                var countryName = appellation.Region?.Country?.Name;
-                return new WineSurferTerroirAppellation(
-                    appellation.Id,
-                    appellation.Name,
-                    appellation.RegionId,
-                    regionName,
-                    countryName,
-                    subCount,
-                    wineCount);
-            })
-            .OrderBy(appellation => appellation.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var subAppellationModels = subAppellations
-            .Select(sub =>
-            {
-                wineCountBySubAppellation.TryGetValue(sub.Id, out var wineCount);
-                var appellationName = sub.Appellation?.Name ?? "Unknown appellation";
-                var regionName = sub.Appellation?.Region?.Name ?? "Unknown region";
-                var countryName = sub.Appellation?.Region?.Country?.Name;
-                return new WineSurferTerroirSubAppellation(
-                    sub.Id,
-                    sub.Name,
-                    sub.AppellationId,
-                    appellationName,
-                    regionName,
-                    countryName,
-                    wineCount);
-            })
-            .OrderBy(sub => sub.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(sub => sub.AppellationName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var wineModels = wines
-            .Select(wine =>
-            {
-                var subName = wine.SubAppellation?.Name ?? "Unknown sub-appellation";
-                var appellationName = wine.SubAppellation?.Appellation?.Name ?? "Unknown appellation";
-                var regionName = wine.SubAppellation?.Appellation?.Region?.Name ?? "Unknown region";
-                var countryName = wine.SubAppellation?.Appellation?.Region?.Country?.Name;
-                return new WineSurferTerroirWine(
-                    wine.Id,
-                    wine.Name,
-                    wine.GrapeVariety,
-                    wine.Color,
-                    wine.SubAppellationId,
-                    subName,
-                    appellationName,
-                    regionName,
-                    countryName);
-            })
-            .OrderBy(wine => wine.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(wine => wine.SubAppellationName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        return new WineSurferTerroirManagementViewModel(
-            currentUser,
-            incomingInvitations,
-            sentInvitationNotifications,
-            countryModels,
-            regionModels,
-            appellationModels,
-            subAppellationModels,
-            wineModels,
-            statusMessage,
-            errorMessage,
-            highlightSection,
-            highlightId);
-    }
+   
 
     private static WineSurferSisterhoodFavoriteRegion? CalculateFavoriteRegion(Sisterhood sisterhood)
     {
@@ -5111,137 +2808,9 @@ public class WineSurferController : Controller
         return new RegionInventoryMetrics(cellared, consumed, averageScore, userAverageScores);
     }
 
-    public sealed class UpdateTasteProfileRequest
-    {
-        public Guid? TasteProfileId { get; set; }
 
-        [StringLength(TasteProfileSummaryMaxLength)]
-        public string? TasteProfileSummary { get; set; }
 
-        [StringLength(TasteProfileMaxLength)]
-        public string? TasteProfile { get; set; }
-    }
-
-    private readonly record struct MergeRequestValidationResult(bool IsValid, Guid LeaderId, List<Guid> FollowerIds, string? ErrorMessage)
-    {
-        public static MergeRequestValidationResult Invalid(string message) => new(false, Guid.Empty, new List<Guid>(), message);
-
-        public static MergeRequestValidationResult Valid(Guid leaderId, List<Guid> followerIds) => new(true, leaderId, followerIds, null);
-    }
-
-    private readonly record struct MergeEntityLabels(string Singular, string Plural);
-
-    public sealed class CreateCountryRequest
-    {
-        [Required]
-        [StringLength(256, MinimumLength = 2)]
-        public string? Name { get; set; }
-    }
-
-    public sealed class UpdateCountryRequest
-    {
-        [Required]
-        [StringLength(256, MinimumLength = 2)]
-        public string? Name { get; set; }
-    }
-
-    public sealed class CreateRegionRequest
-    {
-        [Required]
-        [StringLength(256, MinimumLength = 2)]
-        public string? Name { get; set; }
-
-        [Required]
-        public Guid CountryId { get; set; }
-    }
-
-    public sealed class UpdateRegionRequest
-    {
-        [Required]
-        [StringLength(256, MinimumLength = 2)]
-        public string? Name { get; set; }
-
-        [Required]
-        public Guid CountryId { get; set; }
-    }
-
-    public sealed class CreateAppellationRequest
-    {
-        [Required]
-        [StringLength(256, MinimumLength = 2)]
-        public string? Name { get; set; }
-
-        [Required]
-        public Guid RegionId { get; set; }
-    }
-
-    public sealed class UpdateAppellationRequest
-    {
-        [Required]
-        [StringLength(256, MinimumLength = 2)]
-        public string? Name { get; set; }
-
-        [Required]
-        public Guid RegionId { get; set; }
-    }
-
-    public sealed class CreateSubAppellationRequest
-    {
-        [StringLength(256)]
-        public string? Name { get; set; }
-
-        [Required]
-        public Guid AppellationId { get; set; }
-    }
-
-    public sealed class UpdateSubAppellationRequest
-    {
-        [StringLength(256)]
-        public string? Name { get; set; }
-
-        [Required]
-        public Guid AppellationId { get; set; }
-    }
-
-    public sealed class CreateWineRequest
-    {
-        [Required]
-        [StringLength(256, MinimumLength = 2)]
-        public string? Name { get; set; }
-
-        [StringLength(256)]
-        public string? GrapeVariety { get; set; }
-
-        [Required]
-        public Guid SubAppellationId { get; set; }
-
-        [Required]
-        public WineColor Color { get; set; }
-    }
-
-    public sealed class UpdateWineRequest
-    {
-        [Required]
-        [StringLength(256, MinimumLength = 2)]
-        public string? Name { get; set; }
-
-        [StringLength(256)]
-        public string? GrapeVariety { get; set; }
-
-        [Required]
-        public Guid SubAppellationId { get; set; }
-
-        [Required]
-        public WineColor Color { get; set; }
-    }
-
-    public sealed class MergeTerroirRequest
-    {
-        [Required]
-        public Guid LeaderId { get; set; }
-
-        public List<Guid> EntityIds { get; set; } = new();
-    }
+   
 
     public class CreateSisterhoodRequest
     {
@@ -5481,103 +3050,11 @@ public class WineSurferController : Controller
         public Guid NoteId { get; set; }
     }
 
-    private static string? ResolveDisplayName(string? domainName, string? identityName, string? email)
-    {
-        if (!string.IsNullOrWhiteSpace(domainName))
-        {
-            return domainName.Trim();
-        }
 
-        if (!string.IsNullOrWhiteSpace(identityName))
-        {
-            return identityName.Trim();
-        }
 
-        if (!string.IsNullOrWhiteSpace(email))
-        {
-            return email.Trim();
-        }
+   
 
-        return null;
-    }
 
-    private static string? NormalizeEmailCandidate(string? email)
-    {
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            return null;
-        }
-
-        return email.Trim().ToLowerInvariant();
-    }
-
-    private static string EnsureEmailQueryParameter(string link, string email)
-    {
-        if (string.IsNullOrWhiteSpace(link) || string.IsNullOrWhiteSpace(email))
-        {
-            return link;
-        }
-
-        var queryIndex = link.IndexOf('?', StringComparison.Ordinal);
-        if (queryIndex >= 0)
-        {
-            var query = link.Substring(queryIndex);
-            var parsed = QueryHelpers.ParseQuery(query);
-            if (parsed.Any(pair => string.Equals(pair.Key, "email", StringComparison.OrdinalIgnoreCase)))
-            {
-                return link;
-            }
-        }
-
-        return QueryHelpers.AddQueryString(link, "email", email);
-    }
-
-    private static bool LooksLikeEmail(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        try
-        {
-            var trimmed = value.Trim();
-            var address = new MailAddress(trimmed);
-            return string.Equals(address.Address, trimmed, StringComparison.OrdinalIgnoreCase);
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-    }
-
-    private static IReadOnlyList<WineSurferSentInvitationNotification> CreateSentInvitationNotifications(IEnumerable<SisterhoodInvitation> invitations)
-    {
-        if (invitations is null)
-        {
-            return Array.Empty<WineSurferSentInvitationNotification>();
-        }
-
-        return invitations
-            .Where(invitation => invitation is not null && invitation.Status == SisterhoodInvitationStatus.Accepted)
-            .Select(invitation =>
-            {
-                var inviteeName = string.IsNullOrWhiteSpace(invitation.InviteeUser?.Name)
-                    ? invitation.InviteeUser?.UserName
-                    : invitation.InviteeUser!.Name;
-
-                return new WineSurferSentInvitationNotification(
-                    invitation.Id,
-                    invitation.SisterhoodId,
-                    invitation.Sisterhood?.Name ?? "Sisterhood",
-                    invitation.InviteeEmail,
-                    inviteeName,
-                    invitation.UpdatedAt);
-            })
-            .OrderByDescending(notification => notification.UpdatedAtUtc)
-            .ThenBy(notification => notification.InviteeName ?? notification.InviteeEmail, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
 
     private static string CreateBottleLabel(Bottle? bottle)
     {
@@ -5600,802 +3077,14 @@ public class WineSurferController : Controller
         return labelBase;
     }
 
-    private async Task<IReadOnlyList<WineSurferSuggestedAppellation>> ResolveSuggestedAppellationsAsync(
-        Guid userId,
-        IReadOnlyList<GeneratedAppellationSuggestion> suggestions,
-        CancellationToken cancellationToken)
-    {
-        if (suggestions is null || suggestions.Count == 0)
-        {
-            await _suggestedAppellationRepository.ReplaceSuggestionsAsync(
-                userId,
-                Array.Empty<SuggestedAppellationReplacement>(),
-                cancellationToken);
-            return Array.Empty<WineSurferSuggestedAppellation>();
-        }
+    
 
-        var resolved = new List<WineSurferSuggestedAppellation>(Math.Min(suggestions.Count, 2));
-        var replacements = new List<SuggestedAppellationReplacement>(Math.Min(suggestions.Count, 2));
-        var seen = new HashSet<Guid>();
+    
 
-        foreach (var suggestion in suggestions.Take(2))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
+    
 
-            if (suggestion is null)
-            {
-                continue;
-            }
+   
 
-            var subAppellation = await ResolveSuggestedSubAppellationAsync(suggestion, cancellationToken);
-            if (subAppellation is null)
-            {
-                continue;
-            }
-
-            var appellation = subAppellation.Appellation;
-            var region = appellation?.Region;
-            var country = region?.Country;
-
-            if (appellation is null || region is null || country is null)
-            {
-                continue;
-            }
-
-            if (!seen.Add(subAppellation.Id))
-            {
-                continue;
-            }
-
-            var normalizedReason = NormalizeSuggestedReason(suggestion.Reason);
-            if (string.IsNullOrEmpty(normalizedReason))
-            {
-                continue;
-            }
-
-            var (resolvedWines, wineReplacements) = await ResolveSuggestedWinesAsync(
-                suggestion,
-                country,
-                region,
-                appellation,
-                subAppellation,
-                cancellationToken);
-
-            replacements.Add(new SuggestedAppellationReplacement(
-                subAppellation.Id,
-                normalizedReason,
-                wineReplacements));
-
-            var subName = string.IsNullOrWhiteSpace(subAppellation.Name)
-                ? null
-                : subAppellation.Name.Trim();
-
-            resolved.Add(new WineSurferSuggestedAppellation(
-                subAppellation.Id,
-                subName,
-                appellation.Id,
-                appellation.Name?.Trim() ?? string.Empty,
-                region.Name?.Trim() ?? string.Empty,
-                country.Name?.Trim() ?? string.Empty,
-                normalizedReason,
-                resolvedWines));
-        }
-
-        await _suggestedAppellationRepository.ReplaceSuggestionsAsync(userId, replacements, cancellationToken);
-
-        return resolved.Count == 0 ? Array.Empty<WineSurferSuggestedAppellation>() : resolved;
-    }
-
-    private async Task<SubAppellation?> ResolveSuggestedSubAppellationAsync(
-        GeneratedAppellationSuggestion suggestion,
-        CancellationToken cancellationToken)
-    {
-        var countryName = suggestion.Country;
-        var regionName = suggestion.Region;
-        var appellationName = suggestion.Appellation;
-
-        if (string.IsNullOrWhiteSpace(countryName)
-            || string.IsNullOrWhiteSpace(regionName)
-            || string.IsNullOrWhiteSpace(appellationName))
-        {
-            return null;
-        }
-
-        var country = await ResolveCountryAsync(countryName.Trim(), cancellationToken);
-        if (country is null)
-        {
-            return null;
-        }
-
-        var region = await ResolveRegionAsync(regionName.Trim(), country, cancellationToken);
-        if (region is null)
-        {
-            return null;
-        }
-
-        var appellation = await ResolveAppellationAsync(appellationName.Trim(), region, cancellationToken);
-        if (appellation is null)
-        {
-            return null;
-        }
-
-        if (string.IsNullOrWhiteSpace(suggestion.SubAppellation))
-        {
-            return await _subAppellationRepository.GetOrCreateBlankAsync(appellation.Id, cancellationToken);
-        }
-
-        return await ResolveSubAppellationAsync(suggestion.SubAppellation.Trim(), appellation, cancellationToken);
-    }
-
-    private async Task<(IReadOnlyList<WineSurferSuggestedWine> Wines, IReadOnlyList<SuggestedWineReplacement> Replacements)>
-        ResolveSuggestedWinesAsync(
-            GeneratedAppellationSuggestion suggestion,
-            Country country,
-            Region region,
-            Appellation appellation,
-            SubAppellation subAppellation,
-            CancellationToken cancellationToken)
-    {
-        if (suggestion.Wines is null || suggestion.Wines.Count == 0)
-        {
-            return (Array.Empty<WineSurferSuggestedWine>(), Array.Empty<SuggestedWineReplacement>());
-        }
-
-        var resolved = new List<WineSurferSuggestedWine>(Math.Min(suggestion.Wines.Count, 3));
-        var replacements = new List<SuggestedWineReplacement>(Math.Min(suggestion.Wines.Count, 3));
-        var seen = new HashSet<Guid>();
-
-        var countryName = country.Name?.Trim();
-        var regionName = region.Name?.Trim();
-        var appellationName = appellation.Name?.Trim();
-
-        foreach (var generatedWine in suggestion.Wines.Take(3))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (generatedWine is null)
-            {
-                continue;
-            }
-
-            var ensured = await EnsureSuggestedWineAsync(
-                generatedWine,
-                countryName,
-                regionName,
-                appellationName,
-                subAppellation,
-                cancellationToken);
-
-            if (ensured.Wine is null)
-            {
-                continue;
-            }
-
-            if (!seen.Add(ensured.Wine.Id))
-            {
-                continue;
-            }
-
-            var displayName = string.IsNullOrWhiteSpace(ensured.Wine.Name)
-                ? NormalizeSuggestedWineName(generatedWine.Name)
-                : ensured.Wine.Name.Trim();
-
-            if (string.IsNullOrWhiteSpace(displayName))
-            {
-                continue;
-            }
-
-            var normalizedVariety = string.IsNullOrWhiteSpace(ensured.Wine.GrapeVariety)
-                ? NormalizeSuggestedWineVariety(generatedWine.Variety)
-                : NormalizeSuggestedWineVariety(ensured.Wine.GrapeVariety);
-
-            var subAppellationName = ensured.Wine.SubAppellation?.Name?.Trim();
-            if (string.IsNullOrWhiteSpace(subAppellationName))
-            {
-                subAppellationName = NormalizeSuggestedWineSubAppellation(generatedWine.SubAppellation);
-            }
-
-            var normalizedVintage = NormalizeSuggestedWineVintage(ensured.Vintage ?? generatedWine.Vintage);
-
-            replacements.Add(new SuggestedWineReplacement(ensured.Wine.Id, normalizedVintage));
-
-            resolved.Add(new WineSurferSuggestedWine(
-                ensured.Wine.Id,
-                displayName!,
-                ensured.Wine.Color.ToString(),
-                normalizedVariety,
-                normalizedVintage,
-                subAppellationName));
-        }
-
-        return (
-            resolved.Count == 0 ? Array.Empty<WineSurferSuggestedWine>() : resolved,
-            replacements.Count == 0 ? Array.Empty<SuggestedWineReplacement>() : replacements);
-    }
-
-    private async Task<(Wine? Wine, string? Vintage)> EnsureSuggestedWineAsync(
-        GeneratedSuggestedWine generatedWine,
-        string? countryName,
-        string? regionName,
-        string? appellationName,
-        SubAppellation resolvedSubAppellation,
-        CancellationToken cancellationToken)
-    {
-        var name = NormalizeSuggestedWineName(generatedWine.Name);
-        var color = NormalizeSuggestedWineColor(generatedWine.Color);
-
-        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(color))
-        {
-            return default;
-        }
-
-        var subAppellationName = NormalizeSuggestedWineSubAppellation(
-            string.IsNullOrWhiteSpace(generatedWine.SubAppellation)
-                ? resolvedSubAppellation.Name
-                : generatedWine.SubAppellation);
-
-        var variety = NormalizeSuggestedWineVariety(generatedWine.Variety);
-        var vintage = NormalizeSuggestedWineVintage(generatedWine.Vintage);
-
-        try
-        {
-            var request = new WineCatalogRequest(
-                name,
-                color,
-                countryName,
-                regionName,
-                appellationName,
-                subAppellationName,
-                variety);
-
-            var result = await _wineCatalogService.EnsureWineAsync(request, cancellationToken);
-            if (result.IsSuccess && result.Wine is not null)
-            {
-                return (result.Wine, vintage);
-            }
-        }
-        catch
-        {
-            // Ignore catalog failures and continue with any other candidates.
-        }
-
-        return default;
-    }
-
-    private static string? NormalizeSuggestedWineName(string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return null;
-        }
-
-        var trimmed = name.Trim();
-        if (trimmed.Length <= 256)
-        {
-            return trimmed;
-        }
-
-        return trimmed[..256].TrimEnd();
-    }
-
-    private static string? NormalizeSuggestedWineColor(string? color)
-    {
-        if (string.IsNullOrWhiteSpace(color))
-        {
-            return null;
-        }
-
-        var trimmed = color.Trim();
-        if (trimmed.Length <= 32)
-        {
-            return trimmed;
-        }
-
-        return trimmed[..32].TrimEnd();
-    }
-
-    private static string? NormalizeSuggestedWineVariety(string? variety)
-    {
-        if (string.IsNullOrWhiteSpace(variety))
-        {
-            return null;
-        }
-
-        var trimmed = variety.Trim();
-        if (trimmed.Length <= 128)
-        {
-            return trimmed;
-        }
-
-        return trimmed[..128].TrimEnd();
-    }
-
-    private static string? NormalizeSuggestedWineSubAppellation(string? subAppellation)
-    {
-        if (string.IsNullOrWhiteSpace(subAppellation))
-        {
-            return null;
-        }
-
-        var trimmed = subAppellation.Trim();
-        if (trimmed.Length <= 256)
-        {
-            return trimmed;
-        }
-
-        return trimmed[..256].TrimEnd();
-    }
-
-    private static string? NormalizeSuggestedWineVintage(string? vintage)
-    {
-        if (string.IsNullOrWhiteSpace(vintage))
-        {
-            return null;
-        }
-
-        var trimmed = vintage.Trim();
-        if (trimmed.Length <= 32)
-        {
-            return trimmed;
-        }
-
-        return trimmed[..32].TrimEnd();
-    }
-
-    private async Task<Country?> ResolveCountryAsync(string countryName, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(countryName))
-        {
-            return null;
-        }
-
-        var trimmed = countryName.Trim();
-        var exact = await _countryRepository.FindByNameAsync(trimmed, cancellationToken);
-        if (exact is not null)
-        {
-            return exact;
-        }
-
-        var candidates = await _countryRepository.SearchByApproximateNameAsync(trimmed, 5, cancellationToken);
-        var best = SelectBestFuzzyMatch(candidates, trimmed, country => country.Name, SuggestedAppellationFuzzyThreshold);
-        if (best is not null)
-        {
-            return best;
-        }
-
-        return await _countryRepository.GetOrCreateAsync(trimmed, cancellationToken);
-    }
-
-    private async Task<Region?> ResolveRegionAsync(string regionName, Country country, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(regionName))
-        {
-            return null;
-        }
-
-        var trimmed = regionName.Trim();
-        var exact = await _regionRepository.FindByNameAndCountryAsync(trimmed, country.Id, cancellationToken);
-        if (exact is not null)
-        {
-            return exact;
-        }
-
-        var candidates = await _regionRepository.SearchByApproximateNameAsync(trimmed, 5, cancellationToken);
-        var sameCountry = candidates.Where(region => region.CountryId == country.Id).ToList();
-        var best = SelectBestFuzzyMatch(sameCountry, trimmed, region => region.Name, SuggestedAppellationFuzzyThreshold);
-
-        if (best is null)
-        {
-            var fallback = SelectBestFuzzyMatch(candidates, trimmed, region => region.Name, SuggestedAppellationFuzzyThreshold);
-            if (fallback is not null && fallback.CountryId == country.Id)
-            {
-                best = fallback;
-            }
-        }
-
-        if (best is not null)
-        {
-            return best;
-        }
-
-        return await _regionRepository.GetOrCreateAsync(trimmed, country, cancellationToken);
-    }
-
-    private async Task<Appellation?> ResolveAppellationAsync(string appellationName, Region region, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(appellationName))
-        {
-            return null;
-        }
-
-        var trimmed = appellationName.Trim();
-        var exact = await _appellationRepository.FindByNameAndRegionAsync(trimmed, region.Id, cancellationToken);
-        if (exact is not null)
-        {
-            return exact;
-        }
-
-        var candidates = await _appellationRepository.SearchByApproximateNameAsync(trimmed, region.Id, 5, cancellationToken);
-        var best = SelectBestFuzzyMatch(candidates, trimmed, appellation => appellation.Name, SuggestedAppellationFuzzyThreshold);
-        if (best is not null)
-        {
-            return best;
-        }
-
-        return await _appellationRepository.GetOrCreateAsync(trimmed, region.Id, cancellationToken);
-    }
-
-    private async Task<SubAppellation> ResolveSubAppellationAsync(string subAppellationName, Appellation appellation, CancellationToken cancellationToken)
-    {
-        var trimmed = subAppellationName.Trim();
-        var exact = await _subAppellationRepository.FindByNameAndAppellationAsync(trimmed, appellation.Id, cancellationToken);
-        if (exact is not null)
-        {
-            return exact;
-        }
-
-        var candidates = await _subAppellationRepository.SearchByApproximateNameAsync(trimmed, appellation.Id, 5, cancellationToken);
-        var best = SelectBestFuzzyMatch(candidates, trimmed, sub => sub.Name ?? string.Empty, SuggestedAppellationFuzzyThreshold);
-        if (best is not null)
-        {
-            return best;
-        }
-
-        return await _subAppellationRepository.GetOrCreateAsync(trimmed, appellation.Id, cancellationToken);
-    }
-
-    private static T? SelectBestFuzzyMatch<T>(
-        IEnumerable<T> candidates,
-        string target,
-        Func<T, string?> selector,
-        double threshold)
-    {
-        if (candidates is null)
-        {
-            return default;
-        }
-
-        var normalizedTarget = (target ?? string.Empty).Trim();
-        if (normalizedTarget.Length == 0)
-        {
-            return default;
-        }
-
-        var bestDistance = double.MaxValue;
-        T? bestCandidate = default;
-
-        foreach (var candidate in candidates)
-        {
-            var value = selector(candidate) ?? string.Empty;
-            var distance = FuzzyMatchUtilities.CalculateNormalizedDistance(value, normalizedTarget);
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
-                bestCandidate = candidate;
-            }
-
-            if (distance <= 0)
-            {
-                break;
-            }
-        }
-
-        return bestDistance <= threshold ? bestCandidate : default;
-    }
-
-    private async Task<IReadOnlyList<WineSurferSuggestedAppellation>> GetSuggestedAppellationsForUserAsync(
-        Guid userId,
-        CancellationToken cancellationToken)
-    {
-        var suggestions = await _suggestedAppellationRepository.GetForUserAsync(userId, cancellationToken);
-        if (suggestions.Count == 0)
-        {
-            return Array.Empty<WineSurferSuggestedAppellation>();
-        }
-
-        var results = new List<WineSurferSuggestedAppellation>(suggestions.Count);
-        foreach (var suggestion in suggestions)
-        {
-            var subAppellation = suggestion.SubAppellation;
-            if (subAppellation is null)
-            {
-                continue;
-            }
-
-            var appellation = subAppellation.Appellation;
-            var region = appellation?.Region;
-            var country = region?.Country;
-
-            if (appellation is null || region is null || country is null)
-            {
-                continue;
-            }
-
-            var subName = string.IsNullOrWhiteSpace(subAppellation.Name)
-                ? null
-                : subAppellation.Name.Trim();
-
-            var wines = new List<WineSurferSuggestedWine>();
-            if (suggestion.SuggestedWines is not null && suggestion.SuggestedWines.Count > 0)
-            {
-                foreach (var stored in suggestion.SuggestedWines)
-                {
-                    if (stored?.Wine is null)
-                    {
-                        continue;
-                    }
-
-                    var displayName = NormalizeSuggestedWineName(stored.Wine.Name);
-                    if (string.IsNullOrWhiteSpace(displayName))
-                    {
-                        continue;
-                    }
-
-                    var variety = NormalizeSuggestedWineVariety(stored.Wine.GrapeVariety);
-                    var vintage = NormalizeSuggestedWineVintage(stored.Vintage);
-                    var storedSubName = stored.Wine.SubAppellation?.Name?.Trim();
-
-                    wines.Add(new WineSurferSuggestedWine(
-                        stored.WineId,
-                        displayName!,
-                        stored.Wine.Color.ToString(),
-                        variety,
-                        vintage,
-                        string.IsNullOrWhiteSpace(storedSubName) ? null : storedSubName));
-
-                    if (wines.Count == 3)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            var wineResults = wines.Count == 0 ? Array.Empty<WineSurferSuggestedWine>() : wines.ToArray();
-
-            var reason = NormalizeSuggestedReason(suggestion.Reason);
-
-            results.Add(new WineSurferSuggestedAppellation(
-                subAppellation.Id,
-                subName,
-                appellation.Id,
-                appellation.Name?.Trim() ?? string.Empty,
-                region.Name?.Trim() ?? string.Empty,
-                country.Name?.Trim() ?? string.Empty,
-                reason,
-                wineResults));
-        }
-
-        return results.Count == 0 ? Array.Empty<WineSurferSuggestedAppellation>() : results;
-    }
-
-    private static string NormalizeGeneratedText(string? value, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return string.Empty;
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length <= maxLength)
-        {
-            return trimmed;
-        }
-
-        var truncated = trimmed[..maxLength].TrimEnd();
-        return truncated;
-    }
-
-    private static string? NormalizeSuggestedReason(string? reason)
-    {
-        if (string.IsNullOrWhiteSpace(reason))
-        {
-            return null;
-        }
-
-        var normalized = reason.ReplaceLineEndings(" ").Trim();
-        while (normalized.Contains("  ", StringComparison.Ordinal))
-        {
-            normalized = normalized.Replace("  ", " ", StringComparison.Ordinal);
-        }
-
-        if (normalized.Length > 512)
-        {
-            normalized = normalized[..512].TrimEnd();
-        }
-
-        return normalized;
-    }
-
-    private static string BuildSummaryFallback(string profile, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(profile))
-        {
-            return string.Empty;
-        }
-
-        var trimmed = profile.Trim();
-        if (trimmed.Length <= maxLength)
-        {
-            return trimmed;
-        }
-
-        var limit = Math.Min(maxLength, trimmed.Length);
-        var sentenceEnd = -1;
-        for (var index = 0; index < limit; index++)
-        {
-            var character = trimmed[index];
-            if (character == '.' || character == '!' || character == '?')
-            {
-                sentenceEnd = index;
-                break;
-            }
-        }
-
-        if (sentenceEnd >= 0)
-        {
-            return trimmed[..(sentenceEnd + 1)].Trim();
-        }
-
-        var lastSpace = trimmed.LastIndexOf(' ', limit - 1);
-        if (lastSpace > 0)
-        {
-            return trimmed[..lastSpace].TrimEnd();
-        }
-
-        return trimmed[..limit].TrimEnd();
-    }
-
-    private static bool TryParseGeneratedTasteProfile(string? content, out GeneratedTasteProfile result)
-    {
-        result = default!;
-        if (string.IsNullOrWhiteSpace(content))
-        {
-            return false;
-        }
-
-        var segment = ExtractJsonSegment(content);
-
-        try
-        {
-            using var document = JsonDocument.Parse(segment, TasteProfileJsonDocumentOptions);
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                return false;
-            }
-
-            string? summary = null;
-            if (root.TryGetProperty("summary", out var summaryElement) && summaryElement.ValueKind == JsonValueKind.String)
-            {
-                summary = summaryElement.GetString();
-            }
-
-            if (!root.TryGetProperty("profile", out var profileElement) || profileElement.ValueKind != JsonValueKind.String)
-            {
-                return false;
-            }
-
-            var profile = profileElement.GetString();
-            if (string.IsNullOrWhiteSpace(profile))
-            {
-                return false;
-            }
-
-            var suggestions = Array.Empty<GeneratedAppellationSuggestion>();
-            if (root.TryGetProperty("suggestedAppellations", out var suggestionsElement)
-                && suggestionsElement.ValueKind == JsonValueKind.Array)
-            {
-                var parsed = new List<GeneratedAppellationSuggestion>();
-                foreach (var suggestionElement in suggestionsElement.EnumerateArray())
-                {
-                    if (suggestionElement.ValueKind != JsonValueKind.Object)
-                    {
-                        continue;
-                    }
-
-                    var country = GetTrimmedJsonString(suggestionElement, "country");
-                    var region = GetTrimmedJsonString(suggestionElement, "region");
-                    var appellation = GetTrimmedJsonString(suggestionElement, "appellation");
-                    var subAppellation = GetTrimmedJsonString(suggestionElement, "subAppellation");
-                    var reason = GetTrimmedJsonString(suggestionElement, "reason");
-
-                    if (string.IsNullOrWhiteSpace(country)
-                        || string.IsNullOrWhiteSpace(region)
-                        || string.IsNullOrWhiteSpace(appellation)
-                        || string.IsNullOrWhiteSpace(reason))
-                    {
-                        continue;
-                    }
-
-                    IReadOnlyList<GeneratedSuggestedWine> wines = Array.Empty<GeneratedSuggestedWine>();
-                    if (suggestionElement.TryGetProperty("wines", out var winesElement)
-                        && winesElement.ValueKind == JsonValueKind.Array)
-                    {
-                        var parsedWines = new List<GeneratedSuggestedWine>();
-                        foreach (var wineElement in winesElement.EnumerateArray())
-                        {
-                            if (wineElement.ValueKind != JsonValueKind.Object)
-                            {
-                                continue;
-                            }
-
-                            var wineName = GetTrimmedJsonString(wineElement, "name");
-                            var wineColor = GetTrimmedJsonString(wineElement, "color");
-
-                            if (string.IsNullOrWhiteSpace(wineName) || string.IsNullOrWhiteSpace(wineColor))
-                            {
-                                continue;
-                            }
-
-                            var wineVariety = GetTrimmedJsonString(wineElement, "variety");
-                            var wineSubAppellation = GetTrimmedJsonString(wineElement, "subAppellation");
-                            var wineVintage = GetTrimmedJsonString(wineElement, "vintage");
-
-                            parsedWines.Add(new GeneratedSuggestedWine(
-                                wineName!,
-                                wineColor!,
-                                wineVariety,
-                                wineSubAppellation,
-                                wineVintage));
-
-                            if (parsedWines.Count == 3)
-                            {
-                                break;
-                            }
-                        }
-
-                        if (parsedWines.Count > 0)
-                        {
-                            wines = parsedWines.ToArray();
-                        }
-                    }
-
-                    parsed.Add(new GeneratedAppellationSuggestion(
-                        country!,
-                        region!,
-                        appellation!,
-                        subAppellation,
-                        reason!,
-                        wines));
-
-                    if (parsed.Count == 2)
-                    {
-                        break;
-                    }
-                }
-
-                if (parsed.Count > 0)
-                {
-                    suggestions = parsed.ToArray();
-                }
-            }
-
-            result = new GeneratedTasteProfile(summary, profile, suggestions);
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
-    private static string? GetTrimmedJsonString(JsonElement element, string propertyName)
-    {
-        if (!element.TryGetProperty(propertyName, out var property))
-        {
-            return null;
-        }
-
-        return property.ValueKind switch
-        {
-            JsonValueKind.String =>
-                string.IsNullOrWhiteSpace(property.GetString())
-                    ? null
-                    : property.GetString()!.Trim(),
-            JsonValueKind.Null => null,
-            _ => null
-        };
-    }
 
     private sealed record SipSessionFoodSuggestionPayload(
         [property: JsonPropertyName("suggestions")] IReadOnlyList<string> Suggestions,
@@ -6413,7 +3102,7 @@ public class WineSurferController : Controller
             return false;
         }
 
-        var segment = ExtractJsonSegment(content);
+        var segment = StringUtilities.ExtractJsonSegment(content);
 
         try
         {
@@ -6490,288 +3179,14 @@ public class WineSurferController : Controller
         }
     }
 
-    private static string? ExtractCompletionText(ChatCompletion completion)
-    {
-        if (completion?.Content is not { Count: > 0 })
-        {
-            return null;
-        }
 
-        var builder = new StringBuilder();
-        foreach (var part in completion.Content)
-        {
-            if (part.Kind == ChatMessageContentPartKind.Text && !string.IsNullOrWhiteSpace(part.Text))
-            {
-                builder.Append(part.Text);
-            }
-        }
 
-        return builder.Length > 0 ? builder.ToString() : null;
-    }
+   
 
-    private static bool TryParseSurfEyeAnalysis(string? content, out SurfEyeAnalysisIntermediate? result)
-    {
-        result = null;
-        if (string.IsNullOrWhiteSpace(content))
-        {
-            return false;
-        }
+   
 
-        var segment = ExtractJsonSegment(content);
 
-        try
-        {
-            using var document = JsonDocument.Parse(segment, SurfEyeJsonDocumentOptions);
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                return false;
-            }
 
-            var summary = TryGetTrimmedString(root, "analysisSummary");
-            var wines = new List<SurfEyeWineMatch>();
-
-            if (root.TryGetProperty("wines", out var winesElement) && winesElement.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var wineElement in winesElement.EnumerateArray())
-                {
-                    if (wineElement.ValueKind != JsonValueKind.Object)
-                    {
-                        continue;
-                    }
-
-                    var name = TryGetTrimmedString(wineElement, "name");
-                    if (string.IsNullOrWhiteSpace(name))
-                    {
-                        continue;
-                    }
-
-                    var alignmentScore = TryGetDouble(wineElement, "alignmentScore");
-                    if (double.IsNaN(alignmentScore))
-                    {
-                        alignmentScore = 0d;
-                    }
-
-                    var confidence = TryGetDouble(wineElement, "confidence");
-                    if (double.IsNaN(confidence))
-                    {
-                        confidence = 0d;
-                    }
-
-                    alignmentScore = Math.Clamp(alignmentScore, 0d, 100d);
-                    confidence = Math.Clamp(confidence, 0d, 1d);
-
-                    var match = new SurfEyeWineMatch(
-                        name!,
-                        TryGetTrimmedString(wineElement, "producer"),
-                        TryGetTrimmedString(wineElement, "country"),
-                        TryGetTrimmedString(wineElement, "region"),
-                        TryGetTrimmedString(wineElement, "appellation"),
-                        TryGetTrimmedString(wineElement, "subAppellation") ?? TryGetTrimmedString(wineElement, "sub_appellation"),
-                        TryGetTrimmedString(wineElement, "variety"),
-                        TryGetTrimmedString(wineElement, "color"),
-                        TryGetTrimmedString(wineElement, "vintage")
-                            ?? TryGetTrimmedString(wineElement, "vintageYear")
-                            ?? TryGetTrimmedString(wineElement, "vintage_year")
-                            ?? TryGetTrimmedString(wineElement, "year"),
-                        alignmentScore,
-                        TryGetTrimmedString(wineElement, "alignmentSummary") ?? "",
-                        confidence,
-                        TryGetTrimmedString(wineElement, "notes"));
-
-                    wines.Add(match);
-                }
-            }
-
-            result = new SurfEyeAnalysisIntermediate(summary, wines);
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
-    private async Task<IReadOnlyList<SurfEyeWineMatch>> PersistSurfEyeMatchesAsync(
-        IReadOnlyList<SurfEyeWineMatch> matches,
-        CancellationToken cancellationToken)
-    {
-        if (matches is null || matches.Count == 0)
-        {
-            return matches ?? Array.Empty<SurfEyeWineMatch>();
-        }
-
-        var persisted = new List<SurfEyeWineMatch>(matches.Count);
-
-        foreach (var match in matches)
-        {
-            if (match is null)
-            {
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(match.Name)
-                || string.IsNullOrWhiteSpace(match.Region)
-                || string.IsNullOrWhiteSpace(match.Appellation)
-                || string.IsNullOrWhiteSpace(match.Color))
-            {
-                persisted.Add(match);
-                continue;
-            }
-
-            try
-            {
-                var request = new WineCatalogRequest(
-                    match.Name,
-                    match.Color,
-                    match.Country,
-                    match.Region,
-                    match.Appellation,
-                    match.SubAppellation,
-                    match.Variety);
-
-                var result = await _wineCatalogService.EnsureWineAsync(request, cancellationToken);
-                if (result.IsSuccess && result.Wine is not null)
-                {
-                    var wine = result.Wine;
-                    var subAppellation = wine.SubAppellation;
-                    var appellation = subAppellation?.Appellation;
-                    var region = appellation?.Region;
-                    var country = region?.Country;
-
-                    var updated = match with
-                    {
-                        WineId = wine.Id,
-                        Country = country?.Name ?? match.Country,
-                        Region = region?.Name ?? match.Region,
-                        Appellation = appellation?.Name ?? match.Appellation,
-                        SubAppellation = subAppellation?.Name ?? match.SubAppellation,
-                        Color = wine.Color.ToString(),
-                        Variety = string.IsNullOrWhiteSpace(match.Variety) && !string.IsNullOrWhiteSpace(wine.GrapeVariety)
-                            ? wine.GrapeVariety
-                            : match.Variety
-                    };
-
-                    persisted.Add(updated);
-                }
-                else
-                {
-                    persisted.Add(match);
-                }
-            }
-            catch
-            {
-                persisted.Add(match);
-            }
-        }
-
-        return persisted;
-    }
-
-    private static string? TryGetTrimmedString(JsonElement element, string propertyName)
-    {
-        if (!element.TryGetProperty(propertyName, out var property))
-        {
-            return null;
-        }
-
-        if (property.ValueKind == JsonValueKind.String)
-        {
-            var value = property.GetString();
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return null;
-            }
-
-            var trimmed = value.Trim();
-            return string.Equals(trimmed, "null", StringComparison.OrdinalIgnoreCase)
-                ? null
-                : trimmed;
-        }
-
-        if (property.ValueKind == JsonValueKind.Number)
-        {
-            if (property.TryGetInt64(out var integer))
-            {
-                return integer.ToString(CultureInfo.InvariantCulture);
-            }
-
-            var raw = property.GetRawText();
-            var trimmedRaw = raw.Trim();
-            return trimmedRaw.Length == 0 ? null : trimmedRaw;
-        }
-
-        return null;
-    }
-
-    private static double TryGetDouble(JsonElement element, string propertyName)
-    {
-        if (element.TryGetProperty(propertyName, out var property))
-        {
-            if (property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var number))
-            {
-                return number;
-            }
-
-            if (property.ValueKind == JsonValueKind.String)
-            {
-                var text = property.GetString();
-                if (!string.IsNullOrWhiteSpace(text) &&
-                    double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
-                {
-                    return parsed;
-                }
-            }
-        }
-
-        return double.NaN;
-    }
-
-    private sealed record SurfEyeAnalysisIntermediate(string? Summary, IReadOnlyList<SurfEyeWineMatch> Wines);
-
-    private static string ExtractJsonSegment(string content)
-    {
-        var trimmed = content.Trim();
-
-        if (trimmed.StartsWith("```", StringComparison.Ordinal))
-        {
-            var firstNewLine = trimmed.IndexOf('\n');
-            var closingFence = trimmed.LastIndexOf("```", StringComparison.Ordinal);
-            if (firstNewLine >= 0 && closingFence > firstNewLine)
-            {
-                trimmed = trimmed.Substring(firstNewLine + 1, closingFence - firstNewLine - 1);
-            }
-        }
-
-        var firstBrace = trimmed.IndexOf('{');
-        var lastBrace = trimmed.LastIndexOf('}');
-        if (firstBrace >= 0 && lastBrace >= firstBrace)
-        {
-            trimmed = trimmed.Substring(firstBrace, lastBrace - firstBrace + 1);
-        }
-
-        return trimmed.Trim();
-    }
-
-    private sealed record GeneratedTasteProfile(
-        string? Summary,
-        string Profile,
-        IReadOnlyList<GeneratedAppellationSuggestion> Suggestions);
-
-    private sealed record GeneratedAppellationSuggestion(
-        string? Country,
-        string? Region,
-        string? Appellation,
-        string? SubAppellation,
-        string? Reason,
-        IReadOnlyList<GeneratedSuggestedWine> Wines);
-
-    private sealed record GeneratedSuggestedWine(
-        string Name,
-        string Color,
-        string? Variety,
-        string? SubAppellation,
-        string? Vintage);
 
 private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(
     IEnumerable<SipSessionBottle>? sessionBottles,
@@ -6907,7 +3322,7 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
         RegionInventoryMetrics metrics)
     {
         var countryName = region.Country?.Name;
-        if (!string.IsNullOrWhiteSpace(region.Name) && RegionCoordinates.TryGetValue(region.Name, out var regionCoord))
+        if (!string.IsNullOrWhiteSpace(region.Name) && GeoCoordinatesService.RegionCoordinates.TryGetValue(region.Name, out var regionCoord))
         {
             return new MapHighlightPoint(
                 Label: region.Name,
@@ -6921,7 +3336,7 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
                 RegionName: region.Name);
         }
 
-        if (!string.IsNullOrWhiteSpace(countryName) && CountryCoordinates.TryGetValue(countryName, out var countryCoord))
+        if (!string.IsNullOrWhiteSpace(countryName) && GeoCoordinatesService.CountryCoordinates.TryGetValue(countryName, out var countryCoord))
         {
             var label = string.IsNullOrWhiteSpace(region.Name)
                 ? countryName
@@ -6992,7 +3407,7 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
 
         var subtitle = BuildSubtitle(regionName, countryName);
 
-        if (!string.IsNullOrWhiteSpace(regionName) && RegionCoordinates.TryGetValue(regionName, out var regionCoord))
+        if (!string.IsNullOrWhiteSpace(regionName) && GeoCoordinatesService.RegionCoordinates.TryGetValue(regionName, out var regionCoord))
         {
             return new MapHighlightPoint(
                 Label: label,
@@ -7008,7 +3423,7 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
                 SuggestionReason: suggestionReason);
         }
 
-        if (!string.IsNullOrWhiteSpace(countryName) && CountryCoordinates.TryGetValue(countryName, out var countryCoord))
+        if (!string.IsNullOrWhiteSpace(countryName) && GeoCoordinatesService.CountryCoordinates.TryGetValue(countryName, out var countryCoord))
         {
             return new MapHighlightPoint(
                 Label: label,
@@ -7124,65 +3539,7 @@ public record WineSurferSuggestedWine(
     string? Vintage,
     string? SubAppellationName);
 
-public record WineSurferTerroirManagementViewModel(
-    WineSurferCurrentUser? CurrentUser,
-    IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
-    IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
-    IReadOnlyList<WineSurferTerroirCountry> Countries,
-    IReadOnlyList<WineSurferTerroirRegion> Regions,
-    IReadOnlyList<WineSurferTerroirAppellation> Appellations,
-    IReadOnlyList<WineSurferTerroirSubAppellation> SubAppellations,
-    IReadOnlyList<WineSurferTerroirWine> Wines,
-    string? StatusMessage,
-    string? ErrorMessage,
-    string? HighlightSection,
-    string? HighlightId);
 
-public record WineSurferTerroirCountry(
-    Guid Id,
-    string Name,
-    int RegionCount,
-    int AppellationCount,
-    int SubAppellationCount,
-    int WineCount);
-
-public record WineSurferTerroirRegion(
-    Guid Id,
-    string Name,
-    Guid CountryId,
-    string? CountryName,
-    int AppellationCount,
-    int SubAppellationCount,
-    int WineCount);
-
-public record WineSurferTerroirAppellation(
-    Guid Id,
-    string Name,
-    Guid RegionId,
-    string RegionName,
-    string? CountryName,
-    int SubAppellationCount,
-    int WineCount);
-
-public record WineSurferTerroirSubAppellation(
-    Guid Id,
-    string? Name,
-    Guid AppellationId,
-    string AppellationName,
-    string RegionName,
-    string? CountryName,
-    int WineCount);
-
-public record WineSurferTerroirWine(
-    Guid Id,
-    string Name,
-    string GrapeVariety,
-    WineColor Color,
-    Guid SubAppellationId,
-    string SubAppellationName,
-    string AppellationName,
-    string RegionName,
-    string? CountryName);
 
 public record WineSurferLandingViewModel(
     IReadOnlyList<MapHighlightPoint> HighlightPoints,

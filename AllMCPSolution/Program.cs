@@ -56,6 +56,7 @@ builder.Services.AddScoped<IWineImportService, WineImportService>();
 builder.Services.AddScoped<IChatGptService, ChatGptService>();
 builder.Services.AddScoped<IChatGptPromptService, ChatGptPromptService>();
 builder.Services.AddScoped<IWineCatalogService, WineCatalogService>();
+builder.Services.AddScoped<ISuggestedAppellationService, SuggestedAppellationService>();
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>

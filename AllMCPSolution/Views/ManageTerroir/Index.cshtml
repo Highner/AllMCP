@@ -1,4 +1,4 @@
-@model AllMCPSolution.Controllers.WineSurferTerroirManagementViewModel
+@model AllMCPSolution.Controllers.ManageTerroirController.WineSurferTerroirManagementViewModel
 @using AllMCPSolution.Controllers
 @using AllMCPSolution.Models
 @{
@@ -479,7 +479,7 @@
                     <h2 id="countries-title" class="terroir-section__title">Countries</h2>
                     <p class="terroir-section__summary">@Model.Countries.Count country@(Model.Countries.Count == 1 ? string.Empty : "s")</p>
                 </div>
-                <form class="create-form" method="post" action="@Url.Action("CreateCountry", "WineSurfer")">
+                <form class="create-form" method="post" action="@Url.Action("CreateCountry", "ManageTerroir")">
                     @Html.AntiForgeryToken()
                     <div class="create-form__fields">
                         <label for="create-country-name">
@@ -501,8 +501,8 @@
                     </div>
                     @foreach (var country in Model.Countries)
                     {
-                        var updateCountryUrl = Url.Action("UpdateCountry", "WineSurfer", new { id = country.Id });
-                        var deleteCountryUrl = Url.Action("DeleteCountry", "WineSurfer", new { id = country.Id });
+                        var updateCountryUrl = Url.Action("UpdateCountry", "ManageTerroir", new { id = country.Id });
+                        var deleteCountryUrl = Url.Action("DeleteCountry", "ManageTerroir", new { id = country.Id });
                         var countryNameId = $"country-name-{country.Id:N}";
                         var countrySelectId = $"country-select-{country.Id:N}";
                         var countryLabel = string.IsNullOrWhiteSpace(country.Name) ? "Unnamed country" : country.Name;
@@ -552,7 +552,7 @@
                     }
                 </div>
                 <form method="post"
-                      action="@Url.Action("MergeCountries", "WineSurfer")"
+                      action="@Url.Action("MergeCountries", "ManageTerroir")"
                       class="terroir-merge-form"
                       data-terroir-merge-form="country">
                     @Html.AntiForgeryToken()
@@ -566,7 +566,7 @@
                     <h2 id="regions-title" class="terroir-section__title">Regions</h2>
                     <p class="terroir-section__summary">@Model.Regions.Count region@(Model.Regions.Count == 1 ? string.Empty : "s")</p>
                 </div>
-                <form class="create-form" method="post" action="@Url.Action("CreateRegion", "WineSurfer")">
+                <form class="create-form" method="post" action="@Url.Action("CreateRegion", "ManageTerroir")">
                     @Html.AntiForgeryToken()
                     <div class="create-form__fields">
                         <label for="create-region-name">
@@ -599,8 +599,8 @@
                     </div>
                     @foreach (var region in Model.Regions)
                     {
-                        var updateRegionUrl = Url.Action("UpdateRegion", "WineSurfer", new { id = region.Id });
-                        var deleteRegionUrl = Url.Action("DeleteRegion", "WineSurfer", new { id = region.Id });
+                        var updateRegionUrl = Url.Action("UpdateRegion", "ManageTerroir", new { id = region.Id });
+                        var deleteRegionUrl = Url.Action("DeleteRegion", "ManageTerroir", new { id = region.Id });
                         var regionNameId = $"region-name-{region.Id:N}";
                         var regionCountryId = $"region-country-{region.Id:N}";
                         var regionSelectId = $"region-select-{region.Id:N}";
@@ -659,7 +659,7 @@
                     }
                 </div>
                 <form method="post"
-                      action="@Url.Action("MergeRegions", "WineSurfer")"
+                      action="@Url.Action("MergeRegions", "ManageTerroir")"
                       class="terroir-merge-form"
                       data-terroir-merge-form="region">
                     @Html.AntiForgeryToken()
@@ -673,7 +673,7 @@
                     <h2 id="appellations-title" class="terroir-section__title">Appellations</h2>
                     <p class="terroir-section__summary">@Model.Appellations.Count appellation@(Model.Appellations.Count == 1 ? string.Empty : "s")</p>
                 </div>
-                <form class="create-form" method="post" action="@Url.Action("CreateAppellation", "WineSurfer")">
+                <form class="create-form" method="post" action="@Url.Action("CreateAppellation", "ManageTerroir")">
                     @Html.AntiForgeryToken()
                     <div class="create-form__fields">
                         <label for="create-appellation-name">
@@ -706,8 +706,8 @@
                     </div>
                     @foreach (var appellation in Model.Appellations)
                     {
-                        var updateAppellationUrl = Url.Action("UpdateAppellation", "WineSurfer", new { id = appellation.Id });
-                        var deleteAppellationUrl = Url.Action("DeleteAppellation", "WineSurfer", new { id = appellation.Id });
+                        var updateAppellationUrl = Url.Action("UpdateAppellation", "ManageTerroir", new { id = appellation.Id });
+                        var deleteAppellationUrl = Url.Action("DeleteAppellation", "ManageTerroir", new { id = appellation.Id });
                         var appellationNameId = $"appellation-name-{appellation.Id:N}";
                         var appellationRegionId = $"appellation-region-{appellation.Id:N}";
                         var appellationSelectId = $"appellation-select-{appellation.Id:N}";
@@ -767,7 +767,7 @@
                     }
                 </div>
                 <form method="post"
-                      action="@Url.Action("MergeAppellations", "WineSurfer")"
+                      action="@Url.Action("MergeAppellations", "ManageTerroir")"
                       class="terroir-merge-form"
                       data-terroir-merge-form="appellation">
                     @Html.AntiForgeryToken()
@@ -781,7 +781,7 @@
                     <h2 id="subappellations-title" class="terroir-section__title">Sub-appellations</h2>
                     <p class="terroir-section__summary">@Model.SubAppellations.Count sub-appellation@(Model.SubAppellations.Count == 1 ? string.Empty : "s")</p>
                 </div>
-                <form class="create-form" method="post" action="@Url.Action("CreateSubAppellation", "WineSurfer")">
+                <form class="create-form" method="post" action="@Url.Action("CreateSubAppellation", "ManageTerroir")">
                     @Html.AntiForgeryToken()
                     <div class="create-form__fields">
                         <label for="create-subappellation-name">
@@ -814,8 +814,8 @@
                     </div>
                     @foreach (var subAppellation in Model.SubAppellations)
                     {
-                        var updateSubUrl = Url.Action("UpdateSubAppellation", "WineSurfer", new { id = subAppellation.Id });
-                        var deleteSubUrl = Url.Action("DeleteSubAppellation", "WineSurfer", new { id = subAppellation.Id });
+                        var updateSubUrl = Url.Action("UpdateSubAppellation", "ManageTerroir", new { id = subAppellation.Id });
+                        var deleteSubUrl = Url.Action("DeleteSubAppellation", "ManageTerroir", new { id = subAppellation.Id });
                         var subNameId = $"subappellation-name-{subAppellation.Id:N}";
                         var subAppellationParentSelectId = $"subappellation-parent-{subAppellation.Id:N}";
                         var subCheckboxId = $"subappellation-select-{subAppellation.Id:N}";
@@ -875,7 +875,7 @@
                     }
                 </div>
                 <form method="post"
-                      action="@Url.Action("MergeSubAppellations", "WineSurfer")"
+                      action="@Url.Action("MergeSubAppellations", "ManageTerroir")"
                       class="terroir-merge-form"
                       data-terroir-merge-form="sub-appellation">
                     @Html.AntiForgeryToken()
@@ -889,7 +889,7 @@
                     <h2 id="wines-title" class="terroir-section__title">Wines</h2>
                     <p class="terroir-section__summary">@Model.Wines.Count wine@(Model.Wines.Count == 1 ? string.Empty : "s")</p>
                 </div>
-                <form class="create-form" method="post" action="@Url.Action("CreateWine", "WineSurfer")">
+                <form class="create-form" method="post" action="@Url.Action("CreateWine", "ManageTerroir")">
                     @Html.AntiForgeryToken()
                     <div class="create-form__fields">
                         <label for="create-wine-name">
@@ -939,8 +939,8 @@
                     </div>
                     @foreach (var wine in Model.Wines)
                     {
-                        var updateWineUrl = Url.Action("UpdateWine", "WineSurfer", new { id = wine.Id });
-                        var deleteWineUrl = Url.Action("DeleteWine", "WineSurfer", new { id = wine.Id });
+                        var updateWineUrl = Url.Action("UpdateWine", "ManageTerroir", new { id = wine.Id });
+                        var deleteWineUrl = Url.Action("DeleteWine", "ManageTerroir", new { id = wine.Id });
                         var wineNameId = $"wine-name-{wine.Id:N}";
                         var wineSubId = $"wine-sub-{wine.Id:N}";
                         var wineColorId = $"wine-color-{wine.Id:N}";
@@ -1012,7 +1012,7 @@
                     }
                 </div>
                 <form method="post"
-                      action="@Url.Action("MergeWines", "WineSurfer")"
+                      action="@Url.Action("MergeWines", "ManageTerroir")"
                       class="terroir-merge-form"
                       data-terroir-merge-form="wine">
                     @Html.AntiForgeryToken()
