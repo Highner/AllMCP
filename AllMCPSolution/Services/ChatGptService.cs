@@ -23,27 +23,42 @@ public interface IChatGptService
 
 public sealed class ChatGptService : IChatGptService
 {
-    private readonly ChatClient _chatClient;
+    private readonly ChatClient? _chatClient;
     private readonly ILogger<ChatGptService> _logger;
     private readonly string _defaultModel;
     private readonly string _apiKey;
+    private readonly bool _isConfigured;
 
     public ChatGptService(
         IConfiguration configuration,
         ILogger<ChatGptService> logger)
     {
-        var options = configuration.GetSection(ChatGptOptions.ConfigurationSectionName).Get<ChatGptOptions>();
-        if (options is null || string.IsNullOrWhiteSpace(options.ApiKey))
+        if (configuration is null)
         {
-            throw new InvalidOperationException("OpenAI:ApiKey must be configured in appsettings.");
+            throw new ArgumentNullException(nameof(configuration));
         }
 
-        _defaultModel = string.IsNullOrWhiteSpace(options.DefaultModel)
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        var options = configuration
+            .GetSection(ChatGptOptions.ConfigurationSectionName)
+            .Get<ChatGptOptions>();
+
+        _defaultModel = string.IsNullOrWhiteSpace(options?.DefaultModel)
             ? ChatGptOptions.FallbackModel
-            : options.DefaultModel!;
+            : options!.DefaultModel!;
 
-        _logger = logger;
+        if (string.IsNullOrWhiteSpace(options?.ApiKey))
+        {
+            _isConfigured = false;
+            _apiKey = string.Empty;
+            _chatClient = null;
+            _logger.LogWarning(
+                "ChatGPT integration is disabled because the OpenAI API key is not configured.");
+            return;
+        }
 
+        _isConfigured = true;
         _apiKey = options.ApiKey!;
         _chatClient = new ChatClient(_defaultModel, _apiKey);
     }
@@ -54,6 +69,8 @@ public sealed class ChatGptService : IChatGptService
         double? temperature = null,
         CancellationToken ct = default)
     {
+        EnsureConfigured();
+
         var materializedMessages = MaterializeMessages(messages);
         var completionOptions = CreateCompletionOptions(temperature);
         var client = ResolveClient(model);
@@ -81,6 +98,8 @@ public sealed class ChatGptService : IChatGptService
         double? temperature = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
+        EnsureConfigured();
+
         var materializedMessages = MaterializeMessages(messages);
         var completionOptions = CreateCompletionOptions(temperature);
         var client = ResolveClient(model);
@@ -163,12 +182,24 @@ public sealed class ChatGptService : IChatGptService
 
     private ChatClient ResolveClient(string? model)
     {
+        EnsureConfigured();
+
         if (!string.IsNullOrWhiteSpace(model) && !string.Equals(model, _defaultModel, StringComparison.Ordinal))
         {
             return new ChatClient(model!, _apiKey);
         }
 
-        return _chatClient;
+        return _chatClient!;
+    }
+
+    private void EnsureConfigured()
+    {
+        if (_isConfigured)
+        {
+            return;
+        }
+
+        throw new ChatGptServiceNotConfiguredException();
     }
 }
 
@@ -179,4 +210,12 @@ public sealed record ChatGptOptions
 
     public string? ApiKey { get; init; }
     public string? DefaultModel { get; init; }
+}
+
+public sealed class ChatGptServiceNotConfiguredException : InvalidOperationException
+{
+    public ChatGptServiceNotConfiguredException()
+        : base("ChatGPT integration is not configured.")
+    {
+    }
 }

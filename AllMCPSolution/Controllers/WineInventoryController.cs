@@ -45,6 +45,7 @@ public class WineInventoryController : Controller
     private const string WineSurferDiscoveryErrorMessage = "Wine Surfer could not reach the discovery service. Please try again.";
     private const string WineSurferGenericErrorMessage = "Wine Surfer is unavailable right now. Please try again.";
     private const string WineSurferUnexpectedResponseMessage = "Wine Surfer returned an unexpected response. Please try again.";
+    private const string WineSurferConfigurationErrorMessage = "Wine Surfer is not configured. Please contact your administrator.";
     private static readonly JsonSerializerOptions WineSurferStreamSerializerOptions = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
@@ -474,6 +475,10 @@ public class WineInventoryController : Controller
                 },
                 temperature: 0.2,
                 ct: cancellationToken);
+        }
+        catch (ChatGptServiceNotConfiguredException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new WineSurferLookupError(WineSurferConfigurationErrorMessage));
         }
         catch (ClientResultException)
         {
@@ -1746,6 +1751,13 @@ public class WineInventoryController : Controller
             await WriteWineSurferEventAsync(
                 response,
                 new { type = "complete", wines = lastPublishedMatches },
+                cancellationToken);
+        }
+        catch (ChatGptServiceNotConfiguredException)
+        {
+            await WriteWineSurferEventAsync(
+                response,
+                new { type = "error", message = WineSurferConfigurationErrorMessage },
                 cancellationToken);
         }
         catch (ClientResultException)
