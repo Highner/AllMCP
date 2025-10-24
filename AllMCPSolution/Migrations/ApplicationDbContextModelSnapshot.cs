@@ -17,7 +17,7 @@ namespace AllMCPSolution.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.10")
+                .HasAnnotation("ProductVersion", "8.0.21")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -412,14 +412,14 @@ namespace AllMCPSolution.Migrations
                     b.Property<Guid>("SubAppellationId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid>("TasteProfileId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
                     b.HasIndex("SubAppellationId");
 
-                    b.HasIndex("UserId", "SubAppellationId")
+                    b.HasIndex("TasteProfileId", "SubAppellationId")
                         .IsUnique();
 
                     b.ToTable("SuggestedAppellations");
@@ -901,15 +901,15 @@ namespace AllMCPSolution.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("AllMCPSolution.Models.ApplicationUser", "User")
+                    b.HasOne("AllMCPSolution.Models.TasteProfile", "TasteProfile")
                         .WithMany("SuggestedAppellations")
-                        .HasForeignKey("UserId")
+                        .HasForeignKey("TasteProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("SubAppellation");
 
-                    b.Navigation("User");
+                    b.Navigation("TasteProfile");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.SuggestedWine", b =>
@@ -1081,8 +1081,6 @@ namespace AllMCPSolution.Migrations
 
                     b.Navigation("SisterhoodMemberships");
 
-                    b.Navigation("SuggestedAppellations");
-
                     b.Navigation("TasteProfiles");
 
                     b.Navigation("TastingNotes");
@@ -1136,6 +1134,11 @@ namespace AllMCPSolution.Migrations
             modelBuilder.Entity("AllMCPSolution.Models.SuggestedAppellation", b =>
                 {
                     b.Navigation("SuggestedWines");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.TasteProfile", b =>
+                {
+                    b.Navigation("SuggestedAppellations");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Wine", b =>

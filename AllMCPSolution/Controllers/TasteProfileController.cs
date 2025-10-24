@@ -1142,11 +1142,11 @@ public class TasteProfileController: WineSurferControllerBase
                 resolvedWines));
         }
 
-        var resolvedResults = resolved.Count == 0
+        IReadOnlyList<WineSurferSuggestedAppellation> resolvedResults = resolved.Count == 0
             ? Array.Empty<WineSurferSuggestedAppellation>()
             : resolved;
 
-        var replacementResults = replacements.Count == 0
+        IReadOnlyList<SuggestedAppellationReplacement> replacementResults = replacements.Count == 0
             ? Array.Empty<SuggestedAppellationReplacement>()
             : replacements;
 
