@@ -11,7 +11,7 @@ public static class TasteProfileUtilities
             return null;
         }
 
-        TasteProfile? active = null;
+        TasteProfile? latest = null;
 
         foreach (var entry in user.TasteProfiles)
         {
@@ -20,23 +20,32 @@ public static class TasteProfileUtilities
                 continue;
             }
 
-            if (entry.InUse)
+            if (latest is null)
             {
-                if (active is null || !active.InUse || entry.CreatedAt > active.CreatedAt)
-                {
-                    active = entry;
-                }
-
+                latest = entry;
                 continue;
             }
 
-            if (active is null || (!active.InUse && entry.CreatedAt > active.CreatedAt))
+            var entryCreatedAt = entry.CreatedAt == default
+                ? DateTime.MinValue
+                : entry.CreatedAt;
+            var latestCreatedAt = latest.CreatedAt == default
+                ? DateTime.MinValue
+                : latest.CreatedAt;
+
+            if (entryCreatedAt > latestCreatedAt)
             {
-                active = entry;
+                latest = entry;
+                continue;
+            }
+
+            if (entryCreatedAt == latestCreatedAt && entry.InUse && !latest.InUse)
+            {
+                latest = entry;
             }
         }
 
-        return active;
+        return latest;
     }
 
     public static (string Summary, string Profile) GetActiveTasteProfileTexts(ApplicationUser? user)
