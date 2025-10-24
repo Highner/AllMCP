@@ -263,9 +263,11 @@ public class SipSessionController : WineSurferControllerBase
         }
 
         bool canManageSession = false;
+        bool isSisterhoodMember = false;
         if (currentUserId.HasValue)
         {
             var memberships = session.Sisterhood?.Memberships ?? Array.Empty<SisterhoodMembership>();
+            isSisterhoodMember = memberships.Any(membership => membership.UserId == currentUserId.Value);
             canManageSession = memberships.Any(membership => membership.UserId == currentUserId.Value && membership.IsAdmin);
         }
 
@@ -380,6 +382,7 @@ public class SipSessionController : WineSurferControllerBase
             session.Sisterhood?.Name ?? "Sisterhood",
             session.Sisterhood?.Description,
             canManageSession,
+            isSisterhoodMember,
             currentUser,
             incomingInvitations,
             sentInvitationNotifications,
