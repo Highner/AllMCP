@@ -1,42 +1,85 @@
 (() => {
     const headerName = 'RequestVerificationToken';
     const safeMethods = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
-    let cachedToken = null;
+    const antiforgeryCookiePrefix = '.AspNetCore.Antiforgery.';
+    let cachedRequestToken = null;
+    let cachedCookieToken = null;
 
-    const updateCachedToken = (value) => {
+    const updateCachedCookieToken = (value) => {
         const trimmed = typeof value === 'string' ? value.trim() : '';
         if (!trimmed) {
             return null;
         }
 
-        if (cachedToken !== trimmed) {
-            cachedToken = trimmed;
+        if (cachedCookieToken !== trimmed) {
+            cachedCookieToken = trimmed;
         }
 
-        return cachedToken;
+        return cachedCookieToken;
+    };
+
+    const updateCachedRequestToken = (value) => {
+        const trimmed = typeof value === 'string' ? value.trim() : '';
+        if (!trimmed) {
+            return null;
+        }
+
+        if (cachedRequestToken !== trimmed) {
+            cachedRequestToken = trimmed;
+        }
+
+        return cachedRequestToken;
+    };
+
+    const tryGetCookieToken = () => {
+        if (typeof document === 'undefined' || typeof document.cookie !== 'string') {
+            return cachedCookieToken;
+        }
+
+        const cookies = document.cookie.split(';');
+        for (const entry of cookies) {
+            const trimmed = entry.trim();
+            if (!trimmed || !trimmed.startsWith(antiforgeryCookiePrefix)) {
+                continue;
+            }
+
+            const separatorIndex = trimmed.indexOf('=');
+            if (separatorIndex === -1) {
+                continue;
+            }
+
+            const candidate = trimmed.substring(separatorIndex + 1);
+            const updated = updateCachedCookieToken(candidate);
+            if (updated) {
+                return updated;
+            }
+        }
+
+        return cachedCookieToken;
     };
 
     const findTokenInDom = () => {
         const inputs = document.querySelectorAll('input[name="__RequestVerificationToken"]');
         for (const input of inputs) {
             if (input instanceof HTMLInputElement) {
-                const next = updateCachedToken(input.value);
+                const next = updateCachedRequestToken(input.value);
                 if (next) {
                     return next;
                 }
             }
         }
 
-        return cachedToken;
+        return cachedRequestToken;
     };
 
-    const getRequestVerificationToken = () => {
-        const token = findTokenInDom();
-        if (token) {
-            return token;
-        }
+    const getAntiforgeryTokens = () => {
+        const requestToken = findTokenInDom() ?? cachedRequestToken;
+        const cookieToken = tryGetCookieToken();
 
-        return cachedToken;
+        return {
+            requestToken,
+            cookieToken
+        };
     };
 
     const ensureFormToken = (form) => {
@@ -53,15 +96,15 @@
             return;
         }
 
-        const token = getRequestVerificationToken();
-        if (!token) {
+        const { requestToken } = getAntiforgeryTokens();
+        if (!requestToken) {
             return;
         }
 
         const hidden = document.createElement('input');
         hidden.type = 'hidden';
         hidden.name = '__RequestVerificationToken';
-        hidden.value = token;
+        hidden.value = requestToken;
         form.appendChild(hidden);
     };
 
@@ -119,9 +162,10 @@
 
         if (!safeMethods.has(method)) {
             if (!headers.has(headerName)) {
-                const token = getRequestVerificationToken();
-                if (token) {
-                    headers.set(headerName, token);
+                const { requestToken, cookieToken } = getAntiforgeryTokens();
+                if (requestToken) {
+                    const combinedToken = cookieToken ? `${cookieToken}:${requestToken}` : requestToken;
+                    headers.set(headerName, combinedToken);
                 }
             }
 
@@ -148,6 +192,7 @@
 
     const observer = new MutationObserver(() => {
         findTokenInDom();
+        tryGetCookieToken();
     });
 
     observer.observe(document.documentElement, { childList: true, subtree: true });
