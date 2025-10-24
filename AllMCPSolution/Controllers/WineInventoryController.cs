@@ -1690,10 +1690,6 @@ public class WineInventoryController : Controller
             .Get<IHttpResponseBodyFeature>()?
             .DisableBuffering();
 
-        HttpContext.Features
-            .Get<IHttpBufferingFeature>()?
-            .DisableResponseBuffering();
-
         await response.StartAsync(cancellationToken);
 
         var builder = new StringBuilder();
@@ -1806,10 +1802,6 @@ public class WineInventoryController : Controller
         HttpContext.Features
             .Get<IHttpResponseBodyFeature>()?
             .DisableBuffering();
-
-        HttpContext.Features
-            .Get<IHttpBufferingFeature>()?
-            .DisableResponseBuffering();
 
         await response.StartAsync(cancellationToken);
         await WriteWineSurferEventAsync(response, new { type = "matches", wines = matches }, cancellationToken);

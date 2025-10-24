@@ -55,62 +55,68 @@ public sealed class TasteProfileRepository : ITasteProfileRepository
 
         ct.ThrowIfCancellationRequested();
 
-        var userExists = await _dbContext.Users
-            .AnyAsync(user => user.Id == userId, ct);
-
-        if (!userExists)
+        // Use the execution strategy to ensure user-initiated transactions work with retry policies
+        var strategy = _dbContext.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            return null;
-        }
+            // Validate user existence inside the execution strategy scope
+            var userExists = await _dbContext.Users
+                .AnyAsync(user => user.Id == userId, ct);
 
-        var normalizedProfile = NormalizeProfile(profile);
-        var normalizedSummary = NormalizeSummary(summary);
-
-        await using var transaction = await _dbContext.Database.BeginTransactionAsync(ct);
-
-        var existingProfiles = await _dbContext.TasteProfiles
-            .Where(entry => entry.UserId == userId)
-            .ToListAsync(ct);
-
-        var updatedExisting = false;
-        foreach (var entry in existingProfiles)
-        {
-            if (!entry.InUse)
+            if (!userExists)
             {
-                continue;
+                return null;
             }
 
-            entry.InUse = false;
-            updatedExisting = true;
-        }
+            var normalizedProfile = NormalizeProfile(profile);
+            var normalizedSummary = NormalizeSummary(summary);
 
-        if (updatedExisting)
-        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(ct);
+
+            var existingProfiles = await _dbContext.TasteProfiles
+                .Where(entry => entry.UserId == userId)
+                .ToListAsync(ct);
+
+            var updatedExisting = false;
+            foreach (var entry in existingProfiles)
+            {
+                if (!entry.InUse)
+                {
+                    continue;
+                }
+
+                entry.InUse = false;
+                updatedExisting = true;
+            }
+
+            if (updatedExisting)
+            {
+                await _dbContext.SaveChangesAsync(ct);
+            }
+
+            var newProfile = new TasteProfile
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Profile = normalizedProfile,
+                Summary = normalizedSummary,
+                CreatedAt = DateTime.UtcNow,
+                InUse = true
+            };
+
+            var normalizedSuggestions = BuildSuggestedAppellations(newProfile.Id, suggestions);
+            if (normalizedSuggestions.Count > 0)
+            {
+                newProfile.SuggestedAppellations = normalizedSuggestions;
+            }
+
+            _dbContext.TasteProfiles.Add(newProfile);
+
             await _dbContext.SaveChangesAsync(ct);
-        }
+            await transaction.CommitAsync(ct);
 
-        var newProfile = new TasteProfile
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            Profile = normalizedProfile,
-            Summary = normalizedSummary,
-            CreatedAt = DateTime.UtcNow,
-            InUse = true
-        };
-
-        var normalizedSuggestions = BuildSuggestedAppellations(newProfile.Id, suggestions);
-        if (normalizedSuggestions.Count > 0)
-        {
-            newProfile.SuggestedAppellations = normalizedSuggestions;
-        }
-
-        _dbContext.TasteProfiles.Add(newProfile);
-
-        await _dbContext.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-
-        return newProfile;
+            return newProfile;
+        });
     }
 
     private static string NormalizeProfile(string? profile)

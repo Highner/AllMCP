@@ -521,9 +521,6 @@ public class TasteProfileController: WineSurferControllerBase
             .Get<IHttpResponseBodyFeature>()?
             .DisableBuffering();
 
-        HttpContext.Features
-            .Get<IHttpBufferingFeature>()?
-            .DisableResponseBuffering();
 
         await response.StartAsync(cancellationToken);
 
