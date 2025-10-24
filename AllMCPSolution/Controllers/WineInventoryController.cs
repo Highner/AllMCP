@@ -1594,8 +1594,30 @@ public class WineInventoryController : Controller
 
     private Guid? GetCurrentUserId()
     {
-        var idValue = _userManager.GetUserId(User);
-        return Guid.TryParse(idValue, out var parsedId) ? parsedId : null;
+        // Prefer reading from the current ClaimsPrincipal to ensure we use the identity bound to this tab/request
+        var principal = HttpContext?.User ?? User;
+        string? idValue = principal?.FindFirstValue(ClaimTypes.NameIdentifier)
+                         ?? principal?.FindFirst("sub")?.Value
+                         ?? principal?.FindFirst("oid")?.Value
+                         ?? _userManager.GetUserId(principal);
+
+        if (Guid.TryParse(idValue, out var parsedId))
+        {
+            return parsedId;
+        }
+
+        // Fallback: try to resolve by email claim if the identifier is not a GUID (e.g., external providers)
+        var email = principal?.FindFirstValue(ClaimTypes.Email) ?? principal?.FindFirst("email")?.Value;
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            // Repository call is not allowed here due to sync method; use async patterns in calling code where needed.
+            // However, since this method is used only to fetch the ID, and our repository is async-only,
+            // we avoid hitting the database here and just return null to force Challenge() where applicable.
+            // Other controller actions already fetch the current user via repositories when needed.
+            return null;
+        }
+
+        return null;
     }
 
     private bool TryGetCurrentUserId(out Guid userId)

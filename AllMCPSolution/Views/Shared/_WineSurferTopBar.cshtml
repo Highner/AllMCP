@@ -362,12 +362,7 @@
                     {
                         <a class="auth-toggle" href="@changePasswordUrl">Change password</a>
                     }
-                    @using (Html.BeginForm("Logout", "Account", FormMethod.Post, new { @class = "auth-form" }))
-                    {
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="returnUrl" value="@returnUrl" />
-                        <button class="auth-toggle" type="submit" data-auth-state="logout">Sign out</button>
-                    }
+                    <a class="auth-toggle" href="/account/logout?returnUrl=@returnUrl" data-auth-state="logout">Sign out</a>
                 </div>
             }
             else
@@ -445,6 +440,32 @@
         const accountEditCancelButtons = accountEditLayer ? Array.from(accountEditLayer.querySelectorAll('[data-edit-account-cancel]')) : [];
         const accountDisplayTargets = document.querySelectorAll('[data-account-display-name]');
         const accountEditSubmit = accountEditForm?.querySelector('.account-edit-submit') ?? null;
+
+        // Fallback: if a legacy POST logout form is present, force a GET navigation instead
+        const legacyLogoutForms = panel ? Array.from(panel.querySelectorAll('form')) : [];
+        const findLogoutForms = () => legacyLogoutForms.filter(f => {
+            try {
+                const url = new URL(f.action || window.location.href, window.location.origin);
+                return url.pathname.replace(/\/$/, '') === '/account/logout';
+            } catch { return false; }
+        });
+        const matchedLogoutForms = findLogoutForms();
+        matchedLogoutForms.forEach((legacyLogoutForm) => {
+            legacyLogoutForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                try {
+                    const returnInput = legacyLogoutForm.querySelector('input[name="returnUrl"]');
+                    const returnUrl = returnInput && returnInput.value ? String(returnInput.value) : '/wine-surfer';
+                    const target = new URL('/account/logout', window.location.origin);
+                    if (returnUrl) {
+                        target.searchParams.set('returnUrl', returnUrl);
+                    }
+                    window.location.assign(target.toString());
+                } catch {
+                    window.location.assign('/account/logout');
+                }
+            });
+        });
 
         const normalizeCategoryKey = (value) => {
             if (typeof value !== 'string') {
