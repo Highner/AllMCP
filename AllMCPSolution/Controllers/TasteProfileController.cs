@@ -39,6 +39,7 @@ public class TasteProfileController: WineSurferControllerBase
     private readonly IChatGptPromptService _chatGptPromptService;
     private readonly IChatGptService _chatGptService;
     private readonly IWineCatalogService _wineCatalogService;
+    private readonly ITasteProfileRepository _tasteProfileRepository;
     private static readonly TimeSpan SentInvitationNotificationWindow = TimeSpan.FromDays(7);
 
 
@@ -81,8 +82,9 @@ public class TasteProfileController: WineSurferControllerBase
         ISuggestedAppellationService suggestedAppellationService,
         IChatGptPromptService chatGptPromptService,
         IBottleRepository bottleRepository,
-        IChatGptService chatGptService,    
+        IChatGptService chatGptService,
         IWineCatalogService wineCatalogService,
+        ITasteProfileRepository tasteProfileRepository,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
@@ -97,6 +99,7 @@ public class TasteProfileController: WineSurferControllerBase
         _bottleRepository = bottleRepository;
         _chatGptService = chatGptService;
         _wineCatalogService = wineCatalogService;
+        _tasteProfileRepository = tasteProfileRepository;
     }
 
     [Authorize]
@@ -117,6 +120,7 @@ public class TasteProfileController: WineSurferControllerBase
         var isAdmin = false;
         string domainUserSummary = string.Empty;
         string domainUserProfile = string.Empty;
+        var tasteProfileEntities = new List<TasteProfile>();
 
         if (User?.Identity?.IsAuthenticated == true)
         {
@@ -135,7 +139,21 @@ public class TasteProfileController: WineSurferControllerBase
                 domainUser = await _userRepository.FindByNameAsync(identityName, cancellationToken);
             }
 
-            var (resolvedSummary, resolvedProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(domainUser);
+            var resolvedUserId = domainUser?.Id ?? currentUserId;
+
+            if (resolvedUserId.HasValue)
+            {
+                var fetchedProfiles = await _tasteProfileRepository.GetForUserAsync(resolvedUserId.Value, cancellationToken);
+                tasteProfileEntities = fetchedProfiles.ToList();
+
+                if (domainUser is not null)
+                {
+                    domainUser.TasteProfiles = tasteProfileEntities;
+                }
+            }
+
+            var (resolvedSummary, resolvedProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(
+                domainUser ?? new ApplicationUser { TasteProfiles = tasteProfileEntities });
             domainUserSummary = resolvedSummary;
             domainUserProfile = resolvedProfile;
 
@@ -214,16 +232,15 @@ public class TasteProfileController: WineSurferControllerBase
             ? TempData[TasteProfileErrorTempDataKey] as string
             : null;
 
-        var tasteProfileHistory = domainUser?.TasteProfiles
-            ?.OrderByDescending(profile => profile.CreatedAt)
+        var tasteProfileHistory = tasteProfileEntities
+            .OrderByDescending(profile => profile.CreatedAt)
             .Select(profile => new WineSurferTasteProfileHistoryEntry(
                 profile.Id,
                 profile.Summary ?? string.Empty,
                 profile.Profile ?? string.Empty,
                 DateTime.SpecifyKind(profile.CreatedAt, DateTimeKind.Utc),
                 profile.InUse))
-            .ToList()
-            ?? new List<WineSurferTasteProfileHistoryEntry>();
+            .ToList();
 
         var activeHistoryEntry = tasteProfileHistory.FirstOrDefault(entry => entry.InUse)
             ?? tasteProfileHistory.FirstOrDefault();
