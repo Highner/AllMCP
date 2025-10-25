@@ -14,6 +14,7 @@ public interface IWineVintageEvolutionScoreRepository
     Task RemoveByIdsAsync(Guid userId, IEnumerable<Guid> ids, CancellationToken ct = default);
     Task RemoveByPairsAsync(Guid userId, IEnumerable<(Guid WineVintageId, int Year)> pairs, CancellationToken ct = default);
     Task ReplaceForWineAsync(Guid userId, Guid wineId, IReadOnlyCollection<WineVintageEvolutionScore> desiredScores, CancellationToken ct = default);
+    Task RemoveAllForUserAsync(Guid userId, CancellationToken ct = default);
 }
 
 public sealed class WineVintageEvolutionScoreRepository : IWineVintageEvolutionScoreRepository
@@ -177,6 +178,21 @@ public sealed class WineVintageEvolutionScoreRepository : IWineVintageEvolutionS
         }
 
         _db.WineVintageEvolutionScores.RemoveRange(toRemove);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task RemoveAllForUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        var entities = await _db.WineVintageEvolutionScores
+            .Where(ev => ev.UserId == userId)
+            .ToListAsync(ct);
+
+        if (entities.Count == 0)
+        {
+            return;
+        }
+
+        _db.WineVintageEvolutionScores.RemoveRange(entities);
         await _db.SaveChangesAsync(ct);
     }
 
