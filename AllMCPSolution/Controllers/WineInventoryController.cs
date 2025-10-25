@@ -462,7 +462,8 @@ public class WineInventoryController : Controller
                     AverageScore = CalculateAverageScore(b),
                     CurrentUserNoteId = userNote?.Id,
                     CurrentUserNote = userNote?.Note,
-                    CurrentUserScore = userNote?.Score
+                    CurrentUserScore = userNote?.Score,
+                    WineVintageId = b.WineVintageId
                 };
             })
             .ToList();
@@ -1483,7 +1484,8 @@ public class WineInventoryController : Controller
                     AverageScore = CalculateAverageScore(b),
                     CurrentUserNoteId = userNote?.Id,
                     CurrentUserNote = userNote?.Note,
-                    CurrentUserScore = userNote?.Score
+                    CurrentUserScore = userNote?.Score,
+                    WineVintageId = b.WineVintageId
                 };
             })
             .ToList();
@@ -2036,6 +2038,8 @@ public class WineInventoryBottleDetailViewModel
     public Guid? CurrentUserNoteId { get; set; }
     public string? CurrentUserNote { get; set; }
     public decimal? CurrentUserScore { get; set; }
+    // Added to allow client to open a specific vintage group from wine-level view
+    public Guid WineVintageId { get; set; }
 }
 
 public class WineInventoryLocationViewModel

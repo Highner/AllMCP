@@ -649,13 +649,18 @@ window.WineInventoryTables.initialize = function () {
                 const grouped = new Map();
                 details.forEach(item => {
                     const vintage = Number(item?.vintage ?? item?.Vintage ?? 0) || 0;
+                    const vintageId = (item?.wineVintageId ?? item?.WineVintageId) ? String(item?.wineVintageId ?? item?.WineVintageId) : null;
                     const key = String(vintage);
                     let group = grouped.get(key);
                     if (!group) {
-                        group = { vintage, count: 0 };
+                        group = { vintage, count: 0, wineVintageId: vintageId };
                         grouped.set(key, group);
                     }
                     group.count += 1;
+                    // Prefer a non-empty wineVintageId if present
+                    if (!group.wineVintageId && vintageId) {
+                        group.wineVintageId = vintageId;
+                    }
                 });
                 const vintages = Array.from(grouped.values()).sort((a, b) => a.vintage - b.vintage);
 
@@ -688,12 +693,39 @@ window.WineInventoryTables.initialize = function () {
                 } else {
                     vintages.forEach(v => {
                         const row = document.createElement('tr');
+                        row.setAttribute('tabindex', '0');
+                        row.setAttribute('role', 'button');
+                        if (v.wineVintageId) {
+                            row.dataset.groupId = v.wineVintageId;
+                        }
                         const cVintage = document.createElement('td');
                         cVintage.textContent = v.vintage ? String(v.vintage) : '—';
                         const cCount = document.createElement('td');
                         cCount.textContent = String(v.count);
                         row.appendChild(cVintage);
                         row.appendChild(cCount);
+
+                        // Click/keyboard to load details for this vintage group
+                        const activate = async () => {
+                            if (!v.wineVintageId) return;
+                            try {
+                                showDetailsView();
+                                await loadDetails({ groupId: v.wineVintageId }, false);
+                            } catch (error) {
+                                showMessage(error?.message ?? String(error), 'error');
+                            }
+                        };
+                        row.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            activate();
+                        });
+                        row.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                activate();
+                            }
+                        });
+
                         tbody.appendChild(row);
                     });
                 }
@@ -5445,7 +5477,8 @@ window.WineInventoryTables.initialize = function () {
                         : rawNoteText != null
                             ? String(rawNoteText)
                             : '',
-                    currentUserScore: normalizedNoteScore
+                    currentUserScore: normalizedNoteScore,
+                    wineVintageId: pick(raw, ['wineVintageId', 'WineVintageId'])
                 };
             }
 
