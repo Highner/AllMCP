@@ -146,6 +146,69 @@
         .waves-chart-wrapper {
             position: relative;
             min-height: 360px;
+            cursor: zoom-in;
+            border-radius: 20px;
+            overflow: hidden;
+            transition: box-shadow 0.3s ease, transform 0.3s ease;
+        }
+
+        .waves-chart-wrapper:hover {
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+            transform: translateY(-2px);
+        }
+
+        .waves-chart-wrapper.is-fullscreen {
+            position: fixed;
+            inset: 0;
+            z-index: 1200;
+            min-height: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(17, 17, 20, 0.96);
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55);
+            cursor: default;
+            transform: none;
+            border-radius: 0;
+        }
+
+        .waves-chart-wrapper.is-fullscreen:hover {
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55);
+        }
+
+        .waves-chart-wrapper.is-fullscreen canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .waves-chart-close {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            width: 36px;
+            height: 36px;
+            border-radius: 999px;
+            border: none;
+            background: rgba(244, 241, 234, 0.14);
+            color: rgba(244, 241, 234, 0.92);
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+            z-index: 1;
+        }
+
+        .waves-chart-close:hover,
+        .waves-chart-close:focus-visible {
+            background: rgba(244, 241, 234, 0.24);
+            transform: scale(1.05);
+            outline: none;
+        }
+
+        .waves-chart-wrapper.is-fullscreen .waves-chart-close {
+            display: inline-flex;
         }
 
         .waves-legend {
@@ -326,6 +389,10 @@
             overflow: hidden;
         }
 
+        body.waves-chart-fullscreen-open {
+            overflow: hidden;
+        }
+
         @@media (max-width: 720px) {
             main {
                 padding: 32px 16px 64px;
@@ -362,7 +429,8 @@
         <section class="waves-chart-card" aria-live="polite">
             @if (hasDatasets)
             {
-                <div class="waves-chart-wrapper">
+                <div class="waves-chart-wrapper" data-waves-chart-wrapper aria-expanded="false">
+                    <button type="button" class="waves-chart-close" data-waves-chart-close aria-label="Close full screen chart">×</button>
                     <canvas id="wineWavesChart" role="img" aria-label="Line chart of evolution scores by vintage"></canvas>
                 </div>
                 <div class="waves-legend">
@@ -540,6 +608,74 @@
                     }
                 });
             }
+        })();
+
+        (function () {
+            const wrapper = document.querySelector('[data-waves-chart-wrapper]');
+            if (!wrapper) {
+                return;
+            }
+
+            const closeButton = wrapper.querySelector('[data-waves-chart-close]');
+            const body = document.body;
+            let lastFocusedElement = null;
+
+            const exitFullScreen = () => {
+                if (!wrapper.classList.contains('is-fullscreen')) {
+                    return;
+                }
+
+                wrapper.classList.remove('is-fullscreen');
+                wrapper.setAttribute('aria-expanded', 'false');
+                body.classList.remove('waves-chart-fullscreen-open');
+
+                if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+                    lastFocusedElement.focus();
+                }
+
+                window.dispatchEvent(new Event('resize'));
+            };
+
+            const enterFullScreen = () => {
+                if (wrapper.classList.contains('is-fullscreen')) {
+                    return;
+                }
+
+                lastFocusedElement = document.activeElement;
+                wrapper.classList.add('is-fullscreen');
+                wrapper.setAttribute('aria-expanded', 'true');
+                body.classList.add('waves-chart-fullscreen-open');
+                window.dispatchEvent(new Event('resize'));
+
+                if (closeButton && typeof closeButton.focus === 'function') {
+                    setTimeout(() => closeButton.focus(), 0);
+                }
+            };
+
+            wrapper.addEventListener('click', (event) => {
+                if (wrapper.classList.contains('is-fullscreen')) {
+                    return;
+                }
+
+                if (closeButton && event.target === closeButton) {
+                    return;
+                }
+
+                enterFullScreen();
+            });
+
+            if (closeButton) {
+                closeButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    exitFullScreen();
+                });
+            }
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    exitFullScreen();
+                }
+            });
         })();
 
         (function () {
