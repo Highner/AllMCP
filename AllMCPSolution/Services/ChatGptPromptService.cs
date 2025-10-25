@@ -15,11 +15,15 @@ public interface IChatGptPromptService
 
     string SipSessionFoodSuggestionSystemPrompt { get; }
 
+    string WineWavesSystemPrompt { get; }
+
     string BuildTasteProfilePrompt(IReadOnlyList<(Bottle Bottle, TastingNote Note)> scoredBottles);
 
     string BuildSurfEyePrompt(string? tasteProfileSummary, string tasteProfile);
 
     string BuildSipSessionFoodSuggestionPrompt(SipSession session);
+
+    string BuildWineWavesPrompt(IReadOnlyList<WineWavesPromptItem> vintages);
 }
 
 public class ChatGptPromptService : IChatGptPromptService
@@ -45,11 +49,20 @@ Respond ONLY with minified JSON matching {"suggestions":["Suggestion 1","Suggest
 Each suggestion must be a short dish description followed by a concise reason, and the cheese field must describe a dedicated cheese course pairing. Do not include numbering, markdown, or any other fields.
 """;
 
+    private const string WineWavesSystemPromptText = """
+You are the Wine Waves cellar intelligence. Project the evolution of wines over time.
+Respond ONLY with minified JSON matching {"vintages":[{"wineVintageId":"...","scores":[{"year":2024,"score":7.4}]}]}.
+Create 5 to 8 yearly scores per wine. Use a 0-10 decimal scale, one decimal place, and strictly ascending years.
+Only include wineVintageId values provided by the user and omit any commentary outside the JSON payload.
+""";
+
     public string TasteProfileGenerationSystemPrompt => TasteProfileSystemPromptText;
 
     public string SurfEyeSystemPrompt => SurfEyeSystemPromptText;
 
     public string SipSessionFoodSuggestionSystemPrompt => SipSessionFoodSuggestionSystemPromptText;
+
+    public string WineWavesSystemPrompt => WineWavesSystemPromptText;
 
     public string BuildTasteProfilePrompt(IReadOnlyList<(Bottle Bottle, TastingNote Note)> scoredBottles)
     {
@@ -338,5 +351,72 @@ Each suggestion must be a short dish description followed by a concise reason, a
         }
 
         parts.Add(trimmed);
+    }
+
+    public string BuildWineWavesPrompt(IReadOnlyList<WineWavesPromptItem> vintages)
+    {
+        if (vintages is null || vintages.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("Generate realistic evolution scores (0-10 scale, one decimal place) for the following wine vintages.");
+        builder.AppendLine("Describe how structure, tannin, acidity, and aromatics progress across the years.");
+        builder.AppendLine();
+
+        for (var index = 0; index < vintages.Count; index++)
+        {
+            var vintage = vintages[index];
+            builder.Append(index + 1);
+            builder.Append(". ");
+            builder.Append(vintage.Label);
+
+            if (vintage.Vintage > 0)
+            {
+                builder.Append(" (Vintage ");
+                builder.Append(vintage.Vintage.ToString(CultureInfo.InvariantCulture));
+                builder.Append(')');
+            }
+
+            if (!string.IsNullOrWhiteSpace(vintage.Origin))
+            {
+                builder.Append(" — ");
+                builder.Append(vintage.Origin);
+            }
+
+            builder.AppendLine();
+
+            if (!string.IsNullOrWhiteSpace(vintage.Attributes))
+            {
+                builder.Append("Attributes: ");
+                builder.AppendLine(vintage.Attributes);
+            }
+
+            if (vintage.Highlights is { Count: > 0 })
+            {
+                builder.Append("Tasting notes: ");
+                builder.AppendLine(string.Join(" | ", vintage.Highlights));
+            }
+
+            if (vintage.ExistingScores is { Count: > 0 })
+            {
+                var formattedScores = vintage.ExistingScores
+                    .Select(score => $"{score.Year}: {score.Score.ToString("0.##", CultureInfo.InvariantCulture)}")
+                    .ToList();
+                builder.Append("Existing scores: ");
+                builder.AppendLine(string.Join(", ", formattedScores));
+            }
+
+            builder.Append("wineVintageId: ");
+            builder.AppendLine(vintage.WineVintageId.ToString());
+            builder.AppendLine();
+        }
+
+        builder.AppendLine("Estimate 5 to 8 annual scores per wine, using ascending years and highlighting peak drinking windows.");
+        builder.AppendLine("Return strictly JSON shaped as {\"vintages\":[{\"wineVintageId\":\"<ID>\",\"scores\":[{\"year\":2024,\"score\":7.4}]}]}.");
+        builder.AppendLine("Do not invent new wineVintageId values and omit any prose outside the JSON object.");
+
+        return builder.ToString();
     }
 }
