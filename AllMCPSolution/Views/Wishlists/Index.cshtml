@@ -56,13 +56,12 @@
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
     </style>
 </head>
-<body class="wine-app wine-app--with-bottom-nav">
+<body>
     <div class="wishlists-page">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="inventory-shell">
             @await Html.PartialAsync("_CrudTableTemplate", table)
         </main>
     </div>
-    @await Html.PartialAsync("_WineSurferBottomNav")
 </body>
 </html>
