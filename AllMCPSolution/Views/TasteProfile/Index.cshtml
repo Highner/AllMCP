@@ -154,42 +154,24 @@
             text-transform: uppercase;
         }
 
-        .taste-profile-textarea {
+        .taste-profile-display {
             width: 100%;
-            min-height: 220px;
             padding: 18px 20px;
             border-radius: calc(var(--radius) * 1.05);
             border: 1px solid hsla(var(--border) / 0.55);
-            background: hsla(var(--accent) / 0.2);
+            background: hsla(var(--accent) / 0.12);
             color: inherit;
-            resize: vertical;
             line-height: 1.6;
             font-size: 15px;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            white-space: pre-wrap;
         }
 
-        .taste-profile-textarea:focus {
-            outline: none;
-            border-color: hsla(var(--ring) / 0.9);
-            box-shadow: 0 0 0 3px hsla(var(--ring) / 0.25);
+        .taste-profile-display--summary {
+            min-height: 56px;
         }
 
-        .taste-profile-input {
-            width: 100%;
-            padding: 14px 18px;
-            border-radius: calc(var(--radius) * 1.05);
-            border: 1px solid hsla(var(--border) / 0.55);
-            background: hsla(var(--accent) / 0.2);
-            color: inherit;
-            font-size: 15px;
-            line-height: 1.4;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .taste-profile-input:focus {
-            outline: none;
-            border-color: hsla(var(--ring) / 0.9);
-            box-shadow: 0 0 0 3px hsla(var(--ring) / 0.25);
+        .taste-profile-display--profile {
+            min-height: 220px;
         }
 
         .taste-profile-help-row {
@@ -550,16 +532,13 @@
                 <form method="post" action="@Url.Action("UpdateTasteProfile", "TasteProfile")" class="taste-profile-form" novalidate>
                     @Html.AntiForgeryToken()
                     <div class="taste-profile-field">
-                        <label class="taste-profile-label" for="tasteProfileSummaryInput">Profile summary</label>
+                        <p class="taste-profile-label">Profile summary</p>
+                        <div class="taste-profile-display taste-profile-display--summary" data-summary-display>@tasteProfileSummary</div>
                         <input
                             id="tasteProfileSummaryInput"
                             name="TasteProfileSummary"
-                            type="text"
-                            class="taste-profile-input"
-                            maxlength="@summaryMaxLength"
+                            type="hidden"
                             data-max-length="@summaryMaxLength"
-                            spellcheck="true"
-                            readonly
                             value="@tasteProfileSummary" />
                         <div class="taste-profile-help-row">
                             <p class="taste-profile-help">Share a concise, one-line snapshot of your palate—perfect for recommendations and quick intros.</p>
@@ -569,15 +548,13 @@
                         </div>
                     </div>
                     <div class="taste-profile-field">
-                        <label class="taste-profile-label" for="tasteProfileInput">Your taste profile</label>
+                        <p class="taste-profile-label">Your taste profile</p>
+                        <div class="taste-profile-display taste-profile-display--profile" data-profile-display>@tasteProfile</div>
                         <textarea
                             id="tasteProfileInput"
                             name="TasteProfile"
-                            class="taste-profile-textarea"
-                            maxlength="@maxLength"
+                            hidden
                             data-max-length="@maxLength"
-                            spellcheck="true"
-                            readonly
                             rows="8">@tasteProfile</textarea>
                         <p class="taste-profile-help">We recommend highlighting grape varieties, favorite producers, and moments you savor. Update it anytime your palate evolves.</p>
                     </div>
@@ -665,6 +642,25 @@
             if (!profileField || !summaryField) {
                 return;
             }
+
+            const summaryDisplay = document.querySelector('[data-summary-display]');
+            const profileDisplay = document.querySelector('[data-profile-display]');
+            const setDisplayText = (node, value) => {
+                if (!node) {
+                    return;
+                }
+
+                node.textContent = typeof value === 'string' ? value : '';
+            };
+
+            const updateSummaryDisplay = () => setDisplayText(summaryDisplay, summaryField.value);
+            const updateProfileDisplay = () => setDisplayText(profileDisplay, profileField.value);
+
+            summaryField.addEventListener('input', updateSummaryDisplay, { passive: true });
+            profileField.addEventListener('input', updateProfileDisplay, { passive: true });
+
+            updateSummaryDisplay();
+            updateProfileDisplay();
 
             const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
             const messageNode = document.getElementById('tasteProfileGeneratorMessage');
