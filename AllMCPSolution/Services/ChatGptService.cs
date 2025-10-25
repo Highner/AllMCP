@@ -152,7 +152,9 @@ public sealed class ChatGptService : IChatGptService
     {
         var options = new ChatCompletionOptions
         {
+#pragma warning disable OPENAI001 // OpenAI.Chat.ChatWebSearchOptions is experimental and required for enabling web search.
             WebSearchOptions = new ChatWebSearchOptions(),
+#pragma warning restore OPENAI001
         };
 
         if (temperature.HasValue)
