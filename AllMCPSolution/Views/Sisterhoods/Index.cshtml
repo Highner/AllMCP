@@ -1676,7 +1676,7 @@
     </style>
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
 </head>
-<body class="wine-app">
+<body class="wine-app wine-app--with-bottom-nav">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main class="wine-surfer-layout">
         <section>
@@ -2417,6 +2417,7 @@
             </form>
         }; }
     @await Html.PartialAsync("_WineSurferModalShell", rateModal)
+    @await Html.PartialAsync("_WineSurferBottomNav")
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         let closeRateModal = null;
