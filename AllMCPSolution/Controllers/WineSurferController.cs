@@ -39,6 +39,7 @@ public class WineSurferController : WineSurferControllerBase
     private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
     private readonly ISipSessionRepository _sipSessionRepository;
     private readonly IBottleRepository _bottleRepository;
+    private readonly IWineVintageEvolutionScoreRepository _evolutionScoreRepository;
     private readonly IBottleLocationRepository _bottleLocationRepository;
     private readonly ITastingNoteRepository _tastingNoteRepository;
     private readonly IChatGptService _chatGptService;
@@ -69,6 +70,7 @@ public class WineSurferController : WineSurferControllerBase
         ISisterhoodInvitationRepository sisterhoodInvitationRepository,
         ISipSessionRepository sipSessionRepository,
         IBottleRepository bottleRepository,
+        IWineVintageEvolutionScoreRepository evolutionScoreRepository,
         IBottleLocationRepository bottleLocationRepository,
         ITastingNoteRepository tastingNoteRepository,
         IChatGptService chatGptService,
@@ -82,6 +84,7 @@ public class WineSurferController : WineSurferControllerBase
         _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
         _sipSessionRepository = sipSessionRepository;
         _bottleRepository = bottleRepository;
+        _evolutionScoreRepository = evolutionScoreRepository;
         _bottleLocationRepository = bottleLocationRepository;
         _tastingNoteRepository = tastingNoteRepository;
         _chatGptService = chatGptService;
@@ -119,6 +122,7 @@ public class WineSurferController : WineSurferControllerBase
 
         var now = DateTime.UtcNow;
         const int upcomingSipSessionLimit = 4;
+        var biggestSplashYear = now.Year;
 
         WineSurferCurrentUser? currentUser = null;
         IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
@@ -240,6 +244,7 @@ public class WineSurferController : WineSurferControllerBase
         }
 
         IReadOnlyList<WineSurferSisterhoodOption> manageableSisterhoods = Array.Empty<WineSurferSisterhoodOption>();
+        IReadOnlyList<WineSurferBiggestSplashWine> biggestSplashWines = Array.Empty<WineSurferBiggestSplashWine>();
         IReadOnlyList<WineSurferSipSessionBottle> favoriteBottles = Array.Empty<WineSurferSipSessionBottle>();
         IReadOnlyCollection<Guid> inventoryWineIds = Array.Empty<Guid>();
         IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
@@ -276,6 +281,73 @@ public class WineSurferController : WineSurferControllerBase
                     .ThenBy(bottle => bottle.Label, StringComparer.OrdinalIgnoreCase)
                     .Take(3)
                     .ToList();
+            }
+
+            var evolutionScores = await _evolutionScoreRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
+            if (evolutionScores.Count > 0)
+            {
+                var topSplash = evolutionScores
+                    .Where(score => score.Year == biggestSplashYear)
+                    .Select(score =>
+                    {
+                        var wineVintage = score.WineVintage;
+                        var wine = wineVintage?.Wine;
+                        if (wineVintage is null || wine is null)
+                        {
+                            return null;
+                        }
+
+                        var name = string.IsNullOrWhiteSpace(wine.Name) ? "Wine" : wine.Name.Trim();
+                        var variety = string.IsNullOrWhiteSpace(wine.GrapeVariety)
+                            ? null
+                            : wine.GrapeVariety.Trim();
+                        var subAppellation = wine.SubAppellation;
+                        var subAppellationName = string.IsNullOrWhiteSpace(subAppellation?.Name)
+                            ? null
+                            : subAppellation!.Name!.Trim();
+                        var appellation = subAppellation?.Appellation;
+                        var appellationName = string.IsNullOrWhiteSpace(appellation?.Name)
+                            ? null
+                            : appellation!.Name.Trim();
+                        var region = appellation?.Region;
+                        var regionName = string.IsNullOrWhiteSpace(region?.Name)
+                            ? null
+                            : region!.Name.Trim();
+                        var countryName = string.IsNullOrWhiteSpace(region?.Country?.Name)
+                            ? null
+                            : region!.Country!.Name.Trim();
+
+                        return new
+                        {
+                            score.Score,
+                            Model = new WineSurferBiggestSplashWine(
+                                wine.Id,
+                                wineVintage.Id,
+                                name,
+                                wineVintage.Vintage,
+                                score.Score,
+                                wine.Color.ToString(),
+                                variety,
+                                subAppellationName,
+                                appellationName,
+                                regionName,
+                                countryName)
+                        };
+                    })
+                    .Where(entry => entry is not null)
+                    .Select(entry => entry!)
+                    .OrderByDescending(entry => entry.Score)
+                    .ThenBy(entry => entry.Model.Name, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(entry => entry.Model.Vintage)
+                    .ThenBy(entry => entry.Model.WineVintageId)
+                    .Take(3)
+                    .Select(entry => entry.Model)
+                    .ToList();
+
+                if (topSplash.Count > 0)
+                {
+                    biggestSplashWines = topSplash;
+                }
             }
 
             suggestedAppellations = await _suggestedAppellationService.GetForUserAsync(currentUserId.Value, cancellationToken);
@@ -317,6 +389,8 @@ public class WineSurferController : WineSurferControllerBase
             upcomingSipSessions,
             sentInvitationNotifications,
             manageableSisterhoods,
+            biggestSplashWines,
+            biggestSplashYear,
             favoriteBottles,
             suggestedAppellations,
             inventoryWineIds);
@@ -3539,9 +3613,24 @@ public record WineSurferLandingViewModel(
     IReadOnlyList<WineSurferUpcomingSipSession> UpcomingSipSessions,
     IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
     IReadOnlyList<WineSurferSisterhoodOption> ManageableSisterhoods,
+    IReadOnlyList<WineSurferBiggestSplashWine> BiggestSplashWines,
+    int BiggestSplashYear,
     IReadOnlyList<WineSurferSipSessionBottle> FavoriteBottles,
     IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations,
     IReadOnlyCollection<Guid> InventoryWineIds);
+
+public record WineSurferBiggestSplashWine(
+    Guid WineId,
+    Guid WineVintageId,
+    string Name,
+    int Vintage,
+    decimal Score,
+    string Color,
+    string? GrapeVariety,
+    string? SubAppellation,
+    string? Appellation,
+    string? Region,
+    string? Country);
 
 public record WineSurferUpcomingSipSession(
     Guid SisterhoodId,

@@ -884,6 +884,142 @@
             text-transform: uppercase;
         }
 
+        .biggest-splash {
+            width: min(100%, var(--wine-surfer-card-max-width, 960px));
+            margin: 48px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .biggest-splash-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .biggest-splash-subtitle {
+            margin: 0;
+            font-size: 12px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .biggest-splash-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .biggest-splash-item {
+            margin: 0;
+        }
+
+        .biggest-splash-card {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 24px;
+        }
+
+        .biggest-splash-card__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .biggest-splash-card__title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1 1 auto;
+        }
+
+        .biggest-splash-card__heading {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .biggest-splash-rank {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            border: 1px solid rgba(244, 241, 234, 0.15);
+            background: rgba(244, 241, 234, 0.08);
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: 1.8px;
+        }
+
+        .biggest-splash-name {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+
+        .biggest-splash-vintage {
+            font-size: 12px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.65);
+        }
+
+        .biggest-splash-score {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: flex-end;
+        }
+
+        .biggest-splash-score__value {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: 1.6px;
+        }
+
+        .biggest-splash-score__label {
+            font-size: 11px;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .biggest-splash-body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .biggest-splash-meta,
+        .biggest-splash-location {
+            margin: 0;
+            font-size: 13px;
+            letter-spacing: 1.2px;
+            color: rgba(244, 241, 234, 0.78);
+        }
+
+        .biggest-splash-meta {
+            text-transform: uppercase;
+        }
+
+        .biggest-splash-empty {
+            margin: 0;
+            font-size: 14px;
+            letter-spacing: 1.4px;
+            color: rgba(244, 241, 234, 0.7);
+        }
+
         .taste-profile-summary {
             width: min(100%, var(--wine-surfer-card-max-width, 960px));
             margin: 24px 0 48px;
@@ -1222,6 +1358,30 @@
                 justify-content: center;
             }
 
+            .biggest-splash {
+                margin: 32px 0;
+            }
+
+            .biggest-splash-card {
+                padding: 20px;
+            }
+
+            .biggest-splash-card__header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .biggest-splash-score {
+                align-items: flex-start;
+            }
+
+            .biggest-splash-rank {
+                min-width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+
             .highlight-label {
                 font-size: 9px;
             }
@@ -1268,6 +1428,9 @@
         .Where(suggestion => suggestion.Wines.Count > 0)
         .ToList();
     var hasSuggestedWines = suggestionsWithWines.Count > 0;
+    var biggestSplashWines = Model.BiggestSplashWines ?? Array.Empty<WineSurferBiggestSplashWine>();
+    var hasBiggestSplashWines = biggestSplashWines.Count > 0;
+    var biggestSplashYear = Model.BiggestSplashYear;
     var createSipSessionUrl = Url.Action("PlanSipSession", "WineSurfer") ?? "/wine-surfer/sessions/create";
     var tasteProfileSummary = Model.CurrentUser?.TasteProfileSummary?.Trim();
     var hasTasteProfileSummary = !string.IsNullOrWhiteSpace(tasteProfileSummary);
@@ -1304,6 +1467,74 @@
                         <p class="taste-profile-summary-empty" role="status">Add a taste profile summary on the <a href="@tasteProfileUrl">Taste Profile page</a> to guide your next recommendations.</p>
                     }
                 </div>
+            </section>
+            <section class="biggest-splash" aria-label="Biggest splash evolution leaders">
+                <div class="biggest-splash-header">
+                    <h2 class="section-title">Biggest splash</h2>
+                    <p class="biggest-splash-subtitle">@biggestSplashYear evolution standouts</p>
+                </div>
+                @if (!isAuthenticated)
+                {
+                    <p class="biggest-splash-empty" role="status">Sign in to see which wines are making the biggest splash this year.</p>
+                }
+                else if (!hasBiggestSplashWines)
+                {
+                    <p class="biggest-splash-empty" role="status">Ask Wine Waves for evolution scores to track this year's rising stars.</p>
+                }
+                else
+                {
+                    <ol class="biggest-splash-list">
+                        @for (var i = 0; i < biggestSplashWines.Count; i++)
+                        {
+                            var wine = biggestSplashWines[i];
+                            var rank = i + 1;
+                            var scoreLabel = FormatScore(wine.Score);
+                            var profileParts = new List<string>();
+                            if (!string.IsNullOrWhiteSpace(wine.Color))
+                            {
+                                profileParts.Add(wine.Color);
+                            }
+                            if (!string.IsNullOrWhiteSpace(wine.GrapeVariety))
+                            {
+                                profileParts.Add(wine.GrapeVariety!);
+                            }
+                            var profileLabel = profileParts.Count > 0 ? string.Join(" • ", profileParts) : null;
+                            var locationParts = new[] { wine.SubAppellation, wine.Appellation, wine.Region, wine.Country }
+                                .Where(part => !string.IsNullOrWhiteSpace(part))
+                                .Select(part => part!.Trim())
+                                .ToList();
+                            var locationLabel = locationParts.Count > 0 ? string.Join(" • ", locationParts) : null;
+                            var ariaLabel = $"Rank {rank}: {wine.Name} {wine.Vintage} evolution score {scoreLabel}";
+                            <li class="biggest-splash-item" role="listitem">
+                                <article class="biggest-splash-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" aria-label="@ariaLabel">
+                                    <header class="biggest-splash-card__header">
+                                        <div class="biggest-splash-card__title">
+                                            <span class="biggest-splash-rank" aria-hidden="true">@rank</span>
+                                            <div class="biggest-splash-card__heading">
+                                                <h3 class="biggest-splash-name">@wine.Name</h3>
+                                                <span class="biggest-splash-vintage">@wine.Vintage</span>
+                                            </div>
+                                        </div>
+                                        <div class="biggest-splash-score">
+                                            <span class="biggest-splash-score__value">@scoreLabel</span>
+                                            <span class="biggest-splash-score__label">Evolution</span>
+                                        </div>
+                                    </header>
+                                    <div class="biggest-splash-body">
+                                        @if (!string.IsNullOrEmpty(profileLabel))
+                                        {
+                                            <p class="biggest-splash-meta">@profileLabel</p>
+                                        }
+                                        @if (!string.IsNullOrEmpty(locationLabel))
+                                        {
+                                            <p class="biggest-splash-location">@locationLabel</p>
+                                        }
+                                    </div>
+                                </article>
+                            </li>
+                        }
+                    </ol>
+                }
             </section>
             <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
                 <div class="upcoming-sessions-header">
