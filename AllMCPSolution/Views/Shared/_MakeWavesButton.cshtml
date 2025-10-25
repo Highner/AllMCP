@@ -1,0 +1,15 @@
+@model bool
+
+@{
+    var isEnabled = Model;
+    var ariaDisabledValue = isEnabled ? null : "true";
+    var disabledAttributeValue = isEnabled ? null : "disabled";
+}
+
+<button type="button"
+        class="make-waves-button"
+        data-make-waves-trigger
+        disabled="@disabledAttributeValue"
+        aria-disabled="@ariaDisabledValue">
+    Make waves
+</button>
