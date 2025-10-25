@@ -81,6 +81,9 @@ public class SipSessionController : WineSurferControllerBase
             return NotFound();
         }
 
+        var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
+        ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
+
         var sessionBottles = session.Bottles ?? Array.Empty<SipSessionBottle>();
         if (sessionBottles.Count == 0)
         {
