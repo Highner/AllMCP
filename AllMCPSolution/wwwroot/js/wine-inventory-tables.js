@@ -73,12 +73,13 @@ window.WineInventoryTables.initialize = function () {
             const notesEnabled = Boolean(notesPanel && notesTable && notesBody && notesAddRow && notesEmptyRow && notesAddUserDisplay && notesAddScore && notesAddText && notesAddButton && notesMessage && notesTitle && notesSubtitle && notesCloseButton);
             const summaryColumnCount = inventoryTable?.querySelectorAll('thead th')?.length ?? 1;
             const groupingSelect = document.querySelector('[data-inventory-group-select]');
-            let activeGroupingKey = groupingSelect?.value ?? 'none';
+            let activeGroupingKey = groupingSelect?.value ?? 'wine';
             let groupExpansionState = {};
             let nextSummaryRowIndex = 0;
             const MAX_LOCATION_CAPACITY = 10000;
 
-            if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner) {
+            // Relaxed guard: allow initialization even if detailAddRow is missing; most features check for elements when needed.
+            if (!inventoryTable || !detailsTable || !detailsBody || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner) {
                 return;
             }
 
@@ -469,6 +470,14 @@ window.WineInventoryTables.initialize = function () {
                     row.classList.add('summary-group-row--expanded');
                 }
                 row.dataset.groupKey = group.key;
+                // For wine grouping, capture representative wineId from first child row
+                if (config?.key === 'wine' && group?.rows?.length) {
+                    const firstChild = group.rows[0];
+                    const wineId = firstChild?.dataset?.wineId ?? firstChild?.getAttribute?.('data-wine-id');
+                    if (wineId) {
+                        row.dataset.wineId = wineId;
+                    }
+                }
                 row.setAttribute('tabindex', '0');
                 row.setAttribute('role', 'button');
                 row.setAttribute('aria-expanded', expanded ? 'true' : 'false');
@@ -499,11 +508,24 @@ window.WineInventoryTables.initialize = function () {
                 cell.appendChild(content);
                 row.appendChild(cell);
 
-                row.addEventListener('click', () => toggleGroupExpansion(group.key));
-                row.addEventListener('keydown', (event) => {
+                row.addEventListener('click', async () => {
+                    const wasExpanded = row.classList.contains('summary-group-row--expanded');
+                    toggleGroupExpansion(group.key);
+                    // After toggling, determine new state
+                    const isExpanded = !wasExpanded;
+                    if (config?.key === 'wine') {
+                        await ensureWineSubtable(row, isExpanded);
+                    }
+                });
+                row.addEventListener('keydown', async (event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
+                        const wasExpanded = row.classList.contains('summary-group-row--expanded');
                         toggleGroupExpansion(group.key);
+                        const isExpanded = !wasExpanded;
+                        if (config?.key === 'wine') {
+                            await ensureWineSubtable(row, isExpanded);
+                        }
                     }
                 });
 
@@ -528,10 +550,164 @@ window.WineInventoryTables.initialize = function () {
                     row.hidden = !nextState;
                 });
 
+                // Manage inline subtable visibility for wine grouping
+                if (header && header.dataset && header.dataset.wineId) {
+                    const existingSubtable = header.nextElementSibling;
+                    const isSubtableRow = existingSubtable && existingSubtable.classList.contains('summary-subtable-row');
+                    if (!nextState && isSubtableRow) {
+                        existingSubtable.remove();
+                    }
+                }
+
                 if (!nextState && selectedRow && childRows.includes(selectedRow)) {
                     showInventoryView();
                     resetDetailsView();
                 }
+            }
+
+            async function ensureWineSubtable(headerRow, expanded) {
+                return ensureWineSubtableCore(headerRow, expanded);
+            }
+
+            async function toggleWineRowSubtable(row) {
+                if (!row) return;
+                const wineId = row.dataset?.wineId ?? row.getAttribute?.('data-wine-id');
+                if (!wineId) {
+                    return;
+                }
+                // Toggle: if a subtable immediately follows this row, remove it; otherwise insert and load
+                const next = row.nextElementSibling;
+                const isSubtableRow = next && next.classList.contains('summary-subtable-row');
+                if (isSubtableRow) {
+                    next.remove();
+                    return;
+                }
+                await ensureWineSubtableCore(row, true);
+            }
+
+            async function ensureWineSubtableCore(anchorRow, expanded) {
+                try {
+                    if (!anchorRow || !(anchorRow instanceof HTMLElement)) {
+                        return;
+                    }
+                    const wineId = anchorRow.dataset?.wineId ?? anchorRow.getAttribute?.('data-wine-id');
+                    if (!wineId) {
+                        return;
+                    }
+
+                    // If collapsing, remove the subtable row if present
+                    if (!expanded) {
+                        const sibling = anchorRow.nextElementSibling;
+                        if (sibling && sibling.classList.contains('summary-subtable-row')) {
+                            sibling.remove();
+                        }
+                        return;
+                    }
+
+                    // If already present, do nothing
+                    const next = anchorRow.nextElementSibling;
+                    if (next && next.classList.contains('summary-subtable-row')) {
+                        return;
+                    }
+
+                    // Insert placeholder row with spinner
+                    const placeholder = document.createElement('tr');
+                    placeholder.className = 'summary-subtable-row';
+                    const cell = document.createElement('td');
+                    cell.colSpan = summaryColumnCount > 0 ? summaryColumnCount : 1;
+                    cell.innerHTML = '<div class="summary-subtable summary-subtable--loading">Loading vintages…</div>';
+                    placeholder.appendChild(cell);
+                    const parent = anchorRow.parentNode;
+                    if (parent && typeof parent.insertBefore === 'function') {
+                        parent.insertBefore(placeholder, anchorRow.nextSibling);
+                    } else {
+                        anchorRow.insertAdjacentElement('afterend', placeholder);
+                    }
+
+                    // Fetch details for the wine (all vintages in inventory)
+                    const response = await fetch(`/wine-manager/wine/${encodeURIComponent(wineId)}/details`, { headers: { 'Accept': 'application/json' } });
+                    if (!response.ok) {
+                        throw new Error('Failed to load vintages');
+                    }
+                    const data = await response.json();
+                    const subtable = buildWineVintagesSubtable(data);
+                    cell.innerHTML = '';
+                    cell.appendChild(subtable);
+                } catch (error) {
+                    const msg = error?.message ?? 'Failed to load vintages';
+                    if (anchorRow && anchorRow.nextElementSibling && anchorRow.nextElementSibling.classList.contains('summary-subtable-row')) {
+                        const cell = anchorRow.nextElementSibling.querySelector('td');
+                        if (cell) {
+                            cell.innerHTML = `<div class=\"summary-subtable summary-subtable--error\">${escapeHtml(msg)}</div>`;
+                        }
+                    }
+                }
+            }
+
+            function buildWineVintagesSubtable(payload) {
+                const details = Array.isArray(payload?.details ?? payload?.Details) ? (payload.details ?? payload.Details) : [];
+                const grouped = new Map();
+                details.forEach(item => {
+                    const vintage = Number(item?.vintage ?? item?.Vintage ?? 0) || 0;
+                    const key = String(vintage);
+                    let group = grouped.get(key);
+                    if (!group) {
+                        group = { vintage, count: 0 };
+                        grouped.set(key, group);
+                    }
+                    group.count += 1;
+                });
+                const vintages = Array.from(grouped.values()).sort((a, b) => a.vintage - b.vintage);
+
+                const container = document.createElement('div');
+                container.className = 'summary-subtable';
+
+                const table = document.createElement('table');
+                table.className = 'crud-table__table summary-subtable__table';
+
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                headerRow.className = 'crud-table__header-row';
+                const hVintage = document.createElement('th');
+                hVintage.textContent = 'Vintage';
+                const hCount = document.createElement('th');
+                hCount.textContent = 'Bottles';
+                headerRow.appendChild(hVintage);
+                headerRow.appendChild(hCount);
+                thead.appendChild(headerRow);
+
+                const tbody = document.createElement('tbody');
+                if (vintages.length === 0) {
+                    const empty = document.createElement('tr');
+                    empty.className = 'crud-table__empty-row';
+                    const cell = document.createElement('td');
+                    cell.colSpan = 2;
+                    cell.textContent = 'No vintages in this group.';
+                    empty.appendChild(cell);
+                    tbody.appendChild(empty);
+                } else {
+                    vintages.forEach(v => {
+                        const row = document.createElement('tr');
+                        const cVintage = document.createElement('td');
+                        cVintage.textContent = v.vintage ? String(v.vintage) : '—';
+                        const cCount = document.createElement('td');
+                        cCount.textContent = String(v.count);
+                        row.appendChild(cVintage);
+                        row.appendChild(cCount);
+                        tbody.appendChild(row);
+                    });
+                }
+
+                table.appendChild(thead);
+                table.appendChild(tbody);
+                container.appendChild(table);
+                return container;
+            }
+
+            function escapeHtml(value) {
+                const div = document.createElement('div');
+                div.textContent = String(value ?? '');
+                return div.innerHTML;
             }
 
             function formatGroupCount(count) {
@@ -632,6 +808,15 @@ window.WineInventoryTables.initialize = function () {
                         return;
                     }
 
+                    // If this is a wine-level group row (no single vintage), toggle the inline vintages subtable
+                    const rowVintage = (row.dataset?.summaryVintage ?? row.getAttribute?.('data-summary-vintage') ?? '').trim();
+                    const wineId = row.dataset?.wineId ?? row.getAttribute?.('data-wine-id') ?? '';
+                    const isWineLevel = (!rowVintage || rowVintage === '—') && !!wineId;
+                    if (isWineLevel) {
+                        toggleWineRowSubtable(row).catch(error => showMessage(error?.message ?? String(error), 'error'));
+                        return;
+                    }
+
                     handleRowSelection(row).catch(error => showMessage(error?.message ?? String(error), 'error'));
                 });
 
@@ -642,6 +827,15 @@ window.WineInventoryTables.initialize = function () {
 
                     if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
+
+                        const rowVintage = (row.dataset?.summaryVintage ?? row.getAttribute?.('data-summary-vintage') ?? '').trim();
+                        const wineId = row.dataset?.wineId ?? row.getAttribute?.('data-wine-id') ?? '';
+                        const isWineLevel = (!rowVintage || rowVintage === '—') && !!wineId;
+                        if (isWineLevel) {
+                            toggleWineRowSubtable(row).catch(error => showMessage(error?.message ?? String(error), 'error'));
+                            return;
+                        }
+
                         handleRowSelection(row).catch(error => showMessage(error?.message ?? String(error), 'error'));
                     }
                 });
@@ -1894,11 +2088,50 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                let row = inventoryTable.querySelector(`tr[data-group-id="${summary.wineVintageId}"]`);
-                if (row) {
-                    applySummaryToRow(row, summary);
-                } else {
-                    row = buildSummaryRow(summary);
+                const wineId = summary.wineId;
+                if (!wineId) {
+                    showMessage('Bottle added, but the wine identifier was missing.', 'warning');
+                    return;
+                }
+
+                let row = inventoryTable.querySelector(`tr[data-wine-id="${wineId}"]`);
+                if (!row) {
+                    // Create a placeholder wine-level row; it will be refreshed after loading wine details
+                    row = document.createElement('tr');
+                    row.className = 'group-row';
+                    row.setAttribute('tabindex', '0');
+                    row.setAttribute('role', 'button');
+                    row.setAttribute('aria-controls', 'details-table');
+                    ensureSummaryRowStructure(row);
+                    row.dataset.wineId = wineId;
+                    row.dataset.subAppellationId = summary?.subAppellationId ?? '';
+                    row.dataset.appellationId = summary?.appellationId ?? '';
+                    row.dataset.summaryWine = summary?.wineName ?? '';
+                    row.dataset.summaryAppellation = buildAppellationDisplay(summary);
+                    row.dataset.summaryVintage = '';
+                    row.dataset.summaryColor = summary?.color ?? '';
+                    row.dataset.summaryStatus = summary?.statusLabel ?? '';
+
+                    const wineCell = row.querySelector('.summary-wine');
+                    const appCell = row.querySelector('.summary-appellation');
+                    const vintageCell = row.querySelector('.summary-vintage');
+                    const bottlesCell = row.querySelector('.summary-bottles');
+                    const colorCell = row.querySelector('.summary-color');
+                    const statusSpan = row.querySelector('[data-field="status"]');
+                    const scoreCell = row.querySelector('[data-field="score"]');
+
+                    if (wineCell) wineCell.textContent = summary?.wineName ?? '';
+                    if (appCell) appCell.textContent = buildAppellationDisplay(summary);
+                    if (vintageCell) vintageCell.textContent = '—';
+                    if (bottlesCell) bottlesCell.textContent = '0';
+                    if (colorCell) colorCell.textContent = summary?.color ?? '';
+                    if (statusSpan) {
+                        statusSpan.textContent = summary?.statusLabel ?? '';
+                        const cssClass = summary?.statusCssClass ?? '';
+                        statusSpan.className = `status-pill ${cssClass}`;
+                    }
+                    if (scoreCell) scoreCell.textContent = '—';
+
                     attachSummaryRowHandlers(row);
                     tbody.appendChild(row);
                 }
@@ -1911,7 +2144,9 @@ window.WineInventoryTables.initialize = function () {
                     ? 'Bottle added to your inventory.'
                     : `${addedCount} bottles added to your inventory.`;
                 showMessage(message, 'success');
-                await handleRowSelection(row, { force: true, response });
+
+                // Select the wine row and load wine-level details, which will also refresh the row summary
+                await handleRowSelection(row, { force: true });
                 row.focus();
             }
 
@@ -3404,14 +3639,16 @@ window.WineInventoryTables.initialize = function () {
                 const scoreCell = row.querySelector('[data-field="score"]');
 
                 const displayAppellation = buildAppellationDisplay(summary);
-                const vintageValue = summary?.vintage ?? summary?.Vintage;
+                const vintageRaw = summary?.vintage ?? summary?.Vintage;
+                const vintageIsZero = Number(vintageRaw) === 0;
+                const hasVintage = vintageRaw != null && String(vintageRaw) !== '' && !vintageIsZero;
                 const wineName = summary?.wineName ?? summary?.WineName ?? '';
                 const colorValue = summary?.color ?? summary?.Color ?? '';
                 const statusValue = summary?.statusLabel ?? summary?.StatusLabel ?? '';
 
                 row.dataset.summaryWine = wineName;
                 row.dataset.summaryAppellation = normalizeGroupingValue(displayAppellation);
-                row.dataset.summaryVintage = vintageValue != null ? String(vintageValue) : '';
+                row.dataset.summaryVintage = hasVintage ? String(vintageRaw) : '';
                 row.dataset.summaryColor = colorValue;
                 row.dataset.summaryStatus = statusValue;
 
@@ -3424,7 +3661,7 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 if (vintageCell) {
-                    vintageCell.textContent = vintageValue != null ? String(vintageValue) : '';
+                    vintageCell.textContent = hasVintage ? String(vintageRaw) : '—';
                 }
 
                 if (bottlesCell) {
@@ -3716,11 +3953,13 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 const groupId = row.dataset.groupId;
-                if (!groupId) {
+                const wineId = row.dataset.wineId;
+                if (!groupId && !wineId) {
                     return;
                 }
 
-                if (selectedGroupId === groupId && !options.force) {
+                const selectionKey = wineId || groupId;
+                if (selectedGroupId === selectionKey && !options.force) {
                     return;
                 }
 
@@ -3732,7 +3971,7 @@ window.WineInventoryTables.initialize = function () {
                 showDetailsView();
 
                 selectedRow = row;
-                selectedGroupId = groupId;
+                selectedGroupId = selectionKey;
                 row.classList.add('selected');
                 row.setAttribute('aria-expanded', 'true');
 
@@ -3741,18 +3980,22 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                await loadDetails(groupId, false);
+                await loadDetails({ wineId, groupId }, false);
             }
 
-            async function loadDetails(groupId, updateRow) {
+            async function loadDetails(key, updateRow) {
                 showMessage('Loading bottle details…', 'info');
                 emptyRow.hidden = false;
                 closeActiveDetailActionsMenu();
                 detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
 
+                const groupId = typeof key === 'string' ? key : key?.groupId;
+                const wineId = typeof key === 'object' ? key?.wineId : null;
+
                 try {
                     setLoading(true);
-                    const response = await sendJson(`/wine-manager/bottles/${groupId}`, { method: 'GET' });
+                    const url = wineId ? `/wine-manager/wine/${wineId}/details` : `/wine-manager/bottles/${groupId}`;
+                    const response = await sendJson(url, { method: 'GET' });
                     await renderDetails(response, updateRow);
                     showMessage('', 'info');
                 } catch (error) {
@@ -3827,7 +4070,10 @@ window.WineInventoryTables.initialize = function () {
 
             function setDetailsTitle(name, vintage) {
                 const resolvedName = typeof name === 'string' ? name : name != null ? String(name) : '';
-                const resolvedVintage = typeof vintage === 'string' ? vintage : vintage != null ? String(vintage) : '';
+                let resolvedVintage = typeof vintage === 'string' ? vintage : vintage != null ? String(vintage) : '';
+                if (resolvedVintage === '0') {
+                    resolvedVintage = '';
+                }
 
                 if (detailsTitleName) {
                     detailsTitleName.textContent = resolvedName;
@@ -3852,7 +4098,10 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                const row = inventoryTable.querySelector(`tr[data-group-id="${selectedGroupId}"]`);
+                let row = inventoryTable.querySelector(`tr[data-wine-id="${selectedGroupId}"]`);
+                if (!row) {
+                    row = inventoryTable.querySelector(`tr[data-group-id="${selectedGroupId}"]`);
+                }
                 if (!row) {
                     return;
                 }
@@ -5258,9 +5507,13 @@ window.WineInventoryTables.initialize = function () {
 
 };
 
-window.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', () => {
+        window.WineInventoryTables.initialize();
+    });
+} else {
     window.WineInventoryTables.initialize();
-});
+}
 
 window.addEventListener('pageshow', (event) => {
     if (event.persisted) {

@@ -1891,7 +1891,8 @@ th a:hover {
     content: "▼";
 }
 
-tbody tr:hover {
+/* Limit generic hover highlight to normal data rows, not group headers or subtables */
+tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     background: hsla(var(--accent) / 0.22);
 }
 

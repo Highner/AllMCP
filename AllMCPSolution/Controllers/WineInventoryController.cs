@@ -190,12 +190,38 @@ public class WineInventoryController : Controller
             .ThenBy(b => b.WineVintage.Vintage)
             .ThenBy(b => b.Id);
 
+        // Aggregate by Wine (not by WineVintage) to produce a single row per wine
         var groupedBottles = orderedWithTies
-            .GroupBy(b => b.WineVintageId)
+            .GroupBy(b => b.WineVintage.Wine.Id)
             .Select(group =>
             {
-                var bottlesInGroup = group.ToList();
-                return CreateBottleGroupViewModel(group.Key, bottlesInGroup, GetAverageScore(group.Key));
+                var bottlesInWine = group.ToList();
+                var firstBottle = bottlesInWine.First();
+                var totalCount = bottlesInWine.Count;
+                var drunkCount = bottlesInWine.Count(b => b.IsDrunk);
+                var (statusLabel, statusClass) = drunkCount switch
+                {
+                    var d when d == 0 => ("Cellared", "cellared"),
+                    var d when d == totalCount => ("Drunk", "drunk"),
+                    _ => ("Mixed", "mixed")
+                };
+
+                return new WineInventoryBottleViewModel
+                {
+                    WineVintageId = Guid.Empty, // no single vintage represents the wine-level row
+                    WineId = firstBottle.WineVintage.Wine.Id,
+                    WineName = firstBottle.WineVintage.Wine.Name,
+                    SubAppellation = firstBottle.WineVintage.Wine.SubAppellation?.Name,
+                    Appellation = firstBottle.WineVintage.Wine.SubAppellation?.Appellation?.Name,
+                    SubAppellationId = firstBottle.WineVintage.Wine.SubAppellation?.Id,
+                    AppellationId = firstBottle.WineVintage.Wine.SubAppellation?.Appellation?.Id,
+                    Vintage = 0, // displayed as — in the view
+                    Color = firstBottle.WineVintage.Wine.Color.ToString(),
+                    BottleCount = totalCount,
+                    StatusLabel = statusLabel,
+                    StatusCssClass = statusClass,
+                    AverageScore = CalculateAverageScore(bottlesInWine)
+                };
             })
             .ToList();
 
@@ -358,6 +384,95 @@ public class WineInventoryController : Controller
         {
             return NotFound();
         }
+
+        return Json(response);
+    }
+
+    // New endpoint: fetch details for an entire wine (all vintages)
+    [HttpGet("wine/{wineId:guid}/details")]
+    public async Task<IActionResult> GetWineDetails(Guid wineId, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        var userBottles = await _bottleRepository.GetForUserAsync(currentUserId, cancellationToken);
+        var userLocations = await GetUserLocationsAsync(currentUserId, cancellationToken);
+        var locationSummaries = BuildLocationSummaries(userBottles, userLocations);
+
+        var ownedBottles = userBottles
+            .Where(b => b.WineVintage.Wine.Id == wineId)
+            .ToList();
+
+        if (!ownedBottles.Any())
+        {
+            return NotFound();
+        }
+
+        var totalCount = ownedBottles.Count;
+        var drunkCount = ownedBottles.Count(b => b.IsDrunk);
+        var (statusLabel, statusClass) = drunkCount switch
+        {
+            var d when d == 0 => ("Cellared", "cellared"),
+            var d when d == totalCount => ("Drunk", "drunk"),
+            _ => ("Mixed", "mixed")
+        };
+
+        var first = ownedBottles.First();
+        var summary = new WineInventoryBottleViewModel
+        {
+            WineVintageId = Guid.Empty,
+            WineId = wineId,
+            WineName = first.WineVintage.Wine.Name,
+            SubAppellation = first.WineVintage.Wine.SubAppellation?.Name,
+            Appellation = first.WineVintage.Wine.SubAppellation?.Appellation?.Name,
+            SubAppellationId = first.WineVintage.Wine.SubAppellation?.Id,
+            AppellationId = first.WineVintage.Wine.SubAppellation?.Appellation?.Id,
+            Vintage = 0,
+            Color = first.WineVintage.Wine.Color.ToString(),
+            BottleCount = totalCount,
+            StatusLabel = statusLabel,
+            StatusCssClass = statusClass,
+            AverageScore = CalculateAverageScore(ownedBottles)
+        };
+
+        var details = ownedBottles
+            .OrderBy(b => b.IsDrunk)
+            .ThenBy(b => b.DrunkAt ?? DateTime.MaxValue)
+            .Select(b =>
+            {
+                var userNote = b.TastingNotes
+                    .Where(note => note.UserId == currentUserId)
+                    .OrderBy(note => note.Id)
+                    .LastOrDefault();
+
+                return new WineInventoryBottleDetailViewModel
+                {
+                    BottleId = b.Id,
+                    Price = b.Price,
+                    IsDrunk = b.IsDrunk,
+                    DrunkAt = b.DrunkAt,
+                    BottleLocationId = b.BottleLocationId,
+                    BottleLocation = b.BottleLocation?.Name ?? "—",
+                    UserId = b.UserId,
+                    UserName = b.User?.Name ?? string.Empty,
+                    Vintage = b.WineVintage.Vintage,
+                    WineName = b.WineVintage.Wine.Name,
+                    AverageScore = CalculateAverageScore(b),
+                    CurrentUserNoteId = userNote?.Id,
+                    CurrentUserNote = userNote?.Note,
+                    CurrentUserScore = userNote?.Score
+                };
+            })
+            .ToList();
+
+        var response = new BottleGroupDetailsResponse
+        {
+            Group = summary,
+            Details = details,
+            Locations = locationSummaries
+        };
 
         return Json(response);
     }

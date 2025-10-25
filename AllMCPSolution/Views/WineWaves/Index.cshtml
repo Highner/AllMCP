@@ -61,9 +61,10 @@
             flex-direction: column;
             gap: 32px;
             padding: 48px 20px 72px;
-            max-width: 1040px;
-            margin: 0 auto;
             width: 100%;
+            /* Make Wine Waves content use full width like other main elements */
+            max-width: none;
+            margin: 0;
         }
 
         .waves-header {
@@ -193,10 +194,18 @@
         .waves-chart-wrapper {
             position: relative;
             min-height: 360px;
+            /* Default canvas width attribute is 300px; set wrapper min-width to 600px to make it twice as wide */
+            min-width: 600px;
             cursor: zoom-in;
             border-radius: 20px;
             overflow: hidden;
             transition: box-shadow 0.3s ease, transform 0.3s ease;
+        }
+
+        /* Ensure chart uses full container width in normal mode */
+        .waves-chart-wrapper canvas {
+            width: 100% !important;
+            display: block;
         }
 
         .waves-chart-wrapper:hover {
@@ -767,11 +776,27 @@
                 wrapper.setAttribute('aria-expanded', 'false');
                 body.classList.remove('waves-chart-fullscreen-open');
 
+                // Reset canvas dimensions so it returns to its prior responsive width
+                const canvas = wrapper.querySelector('canvas');
+                if (canvas) {
+                    // Remove inline styles and attributes that Chart.js may have applied
+                    canvas.style.removeProperty('width');
+                    canvas.style.removeProperty('height');
+                    canvas.removeAttribute('width');
+                    canvas.removeAttribute('height');
+                }
+
+                // Restore focus to the last focused element before fullscreen
                 if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
                     lastFocusedElement.focus();
                 }
 
+                // Trigger layout recalculation and explicitly resize the chart instance if available
                 window.dispatchEvent(new Event('resize'));
+                if (window.wavesChart && typeof window.wavesChart.resize === 'function') {
+                    // Use a microtask to ensure DOM has applied class changes
+                    setTimeout(() => window.wavesChart.resize(), 0);
+                }
             };
 
             const enterFullScreen = () => {
@@ -842,7 +867,8 @@
                 fill: false
             }));
 
-            new Chart(ctx, {
+            // Create chart and store globally so we can force-resize after exiting fullscreen
+            window.wavesChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     datasets
