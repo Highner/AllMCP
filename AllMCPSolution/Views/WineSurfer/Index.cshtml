@@ -1468,10 +1468,10 @@
                     }
                 </div>
             </section>
-            <section class="biggest-splash" aria-label="Biggest splash evolution leaders">
+            <section class="biggest-splash" aria-label="Biggest splash surf score leaders">
                 <div class="biggest-splash-header">
                     <h2 class="section-title">Biggest splash</h2>
-                    <p class="biggest-splash-subtitle">@biggestSplashYear evolution standouts</p>
+                    <p class="biggest-splash-subtitle">@biggestSplashYear surf score standouts</p>
                 </div>
                 @if (!isAuthenticated)
                 {
@@ -1504,7 +1504,7 @@
                                 .Select(part => part!.Trim())
                                 .ToList();
                             var locationLabel = locationParts.Count > 0 ? string.Join(" • ", locationParts) : null;
-                            var ariaLabel = $"Rank {rank}: {wine.Name} {wine.Vintage} evolution score {scoreLabel}";
+                            var ariaLabel = $"Rank {rank}: {wine.Name} {wine.Vintage} surf score {scoreLabel}";
                             <li class="biggest-splash-item" role="listitem">
                                 <article class="biggest-splash-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" aria-label="@ariaLabel">
                                     <header class="biggest-splash-card__header">
