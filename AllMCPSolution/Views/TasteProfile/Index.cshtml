@@ -172,6 +172,43 @@
 
         .taste-profile-display--profile {
             min-height: 220px;
+            white-space: normal;
+        }
+
+        .taste-profile-display--profile p,
+        .taste-profile-display--profile ul,
+        .taste-profile-display--profile ol {
+            margin: 0 0 0.85em;
+        }
+
+        .taste-profile-display--profile ul,
+        .taste-profile-display--profile ol {
+            padding-left: 1.4em;
+        }
+
+        .taste-profile-display--profile li {
+            margin-bottom: 0.35em;
+        }
+
+        .taste-profile-display--profile strong {
+            font-weight: 600;
+        }
+
+        .taste-profile-display--profile em {
+            font-style: italic;
+        }
+
+        .taste-profile-display--profile code {
+            padding: 0.1em 0.3em;
+            border-radius: calc(var(--radius) * 0.4);
+            background: hsla(var(--muted) / 0.2);
+            font-size: 0.95em;
+            font-family: var(--font-mono, ui-monospace, SFMono-Regular, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+        }
+
+        .taste-profile-display--profile a {
+            color: inherit;
+            text-decoration: underline;
         }
 
         .taste-profile-help-row {
@@ -599,6 +636,8 @@
             </section>
         </main>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js" crossorigin="anonymous"></script>
     <script type="application/json" id="tasteProfileHistoryData">@Html.Raw(historyJson)</script>
     <script>
         (function () {
@@ -645,7 +684,7 @@
 
             const summaryDisplay = document.querySelector('[data-summary-display]');
             const profileDisplay = document.querySelector('[data-profile-display]');
-            const setDisplayText = (node, value) => {
+            const setDisplayTextContent = (node, value) => {
                 if (!node) {
                     return;
                 }
@@ -653,8 +692,47 @@
                 node.textContent = typeof value === 'string' ? value : '';
             };
 
-            const updateSummaryDisplay = () => setDisplayText(summaryDisplay, summaryField.value);
-            const updateProfileDisplay = () => setDisplayText(profileDisplay, profileField.value);
+            const escapeHtml = (value) =>
+                typeof value === 'string'
+                    ? value
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;')
+                    : '';
+
+            const fallbackMarkdown = (value) => escapeHtml(value).replace(/\n/g, '<br />');
+
+            const renderMarkdown = (value) => {
+                if (typeof value !== 'string' || !value) {
+                    return '';
+                }
+
+                if (window.marked && typeof window.marked.parse === 'function') {
+                    try {
+                        const html = window.marked.parse(value, { breaks: true, gfm: true });
+                        if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+                            return window.DOMPurify.sanitize(html);
+                        }
+
+                        return html;
+                    } catch (error) {
+                        // Ignore parser errors and use the fallback renderer.
+                    }
+                }
+
+                return fallbackMarkdown(value);
+            };
+
+            const updateSummaryDisplay = () => setDisplayTextContent(summaryDisplay, summaryField.value);
+            const updateProfileDisplay = () => {
+                if (!profileDisplay) {
+                    return;
+                }
+
+                profileDisplay.innerHTML = renderMarkdown(profileField.value);
+            };
 
             summaryField.addEventListener('input', updateSummaryDisplay, { passive: true });
             profileField.addEventListener('input', updateProfileDisplay, { passive: true });
