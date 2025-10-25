@@ -1,12 +1,39 @@
-@model AllMCPSolution.Controllers.WishlistsController.WishlistsPageViewModel
 @using AllMCPSolution.Controllers
+@using AllMCPSolution.Models
 @{
     Layout = null;
     var currentPath = Context?.Request?.Path.Value ?? string.Empty;
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
         ?? WineSurferTopBarModel.Empty(currentPath);
-    var createErrors = Model.CreateErrors ?? Array.Empty<string>();
-    var editErrors = Model.EditErrors ?? Array.Empty<string>();
+
+    var table = new CrudTableTemplateModel
+    {
+        Title = "Wishlist Wines",
+        DataTableKey = "wishlist",
+        HeaderContent = @<text>
+            <div class="wishlist-selector">
+                <label class="sr-only" for="wishlist-select">Select wishlist</label>
+                <select id="wishlist-select" class="shadcn-select" aria-label="Select wishlist"></select>
+            </div>
+        </text>,
+        BodyContent = @<text>
+            <table id="wishlist-table" class="crud-table__table">
+                <thead>
+                    <tr class="header-row crud-table__header-row">
+                        <th class="summary-header"><span class="header-text">Name</span></th>
+                        <th class="summary-header"><span class="header-text">Region</span></th>
+                        <th class="summary-header"><span class="header-text">Appellation</span></th>
+                        <th class="summary-header"><span class="header-text">Vintage</span></th>
+                    </tr>
+                </thead>
+                <tbody id="wishlist-tbody">
+                    <tr class="crud-table__empty-row empty-row" id="wishlist-empty" hidden>
+                        <td colspan="4">No wines in this wishlist yet.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </text>
+    };
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -18,572 +45,23 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#050505" />
     <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
-    <link rel="stylesheet" href="/css/wine-surfer-shared-ui.css" />
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
     <script defer src="/js/pwa.js"></script>
+    <script defer src="/js/wishlists.js"></script>
     <style>
-        :root {
-            color-scheme: dark;
-            --wishlists-max-width: 960px;
-            --wishlists-section-gap: 32px;
-            --wishlists-card-radius: 20px;
-            --wishlists-surface: rgba(15, 15, 15, 0.72);
-            --wishlists-border: rgba(244, 241, 234, 0.08);
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            background: var(--wine-app-background);
-            color: hsl(var(--foreground));
-            font-family: var(--font-sans, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
-        }
-
-        .wishlists-page {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .wishlists-content {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            padding: calc(var(--wine-surfer-top-bar-height, 96px) + 32px) 24px 72px;
-        }
-
-        .wishlists-container {
-            width: min(var(--wishlists-max-width), 100%);
-            display: flex;
-            flex-direction: column;
-            gap: var(--wishlists-section-gap);
-        }
-
-        .wishlists-header {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .wishlists-title {
-            margin: 0;
-            font-size: clamp(28px, 4vw, 42px);
-            line-height: 1.2;
-            letter-spacing: 0.8px;
-            color: #f4f1ea;
-        }
-
-        .wishlists-subtitle {
-            margin: 0;
-            max-width: 580px;
-            color: rgba(244, 241, 234, 0.75);
-            font-size: 18px;
-            line-height: 1.6;
-        }
-
-        .wishlists-alert {
-            border-radius: 18px;
-            padding: 16px 20px;
-            font-size: 15px;
-            line-height: 1.5;
-            backdrop-filter: blur(14px);
-            border: 1px solid transparent;
-        }
-
-        .wishlists-alert.success {
-            background: rgba(38, 130, 90, 0.2);
-            border-color: rgba(38, 130, 90, 0.45);
-            color: #a9e6c6;
-        }
-
-        .wishlists-alert.error {
-            background: rgba(168, 49, 62, 0.2);
-            border-color: rgba(168, 49, 62, 0.45);
-            color: #f8b8c0;
-        }
-
-        .wishlists-card {
-            background: var(--wishlists-surface);
-            border: 1px solid var(--wishlists-border);
-            border-radius: var(--wishlists-card-radius);
-            padding: 28px;
-            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.38);
-            backdrop-filter: blur(22px);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .wishlists-card-header {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            gap: 16px;
-            align-items: baseline;
-        }
-
-        .wishlists-card-title {
-            margin: 0;
-            font-size: 20px;
-            letter-spacing: 0.6px;
-            color: #f4f1ea;
-        }
-
-        .wishlists-count {
-            font-size: 14px;
-            letter-spacing: 1.2px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.55);
-        }
-
-        .wishlists-form {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .wishlists-form.compact {
-            margin-top: 16px;
-        }
-
-        .wishlists-field {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .wishlists-field-label {
-            font-size: 12px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.58);
-        }
-
-        .wishlists-input {
-            width: 100%;
-            padding: 12px 14px;
-            border-radius: 12px;
-            border: 1px solid rgba(244, 241, 234, 0.16);
-            background: rgba(20, 20, 20, 0.65);
-            color: #f4f1ea;
-            font-size: 16px;
-            transition: border-color 0.2s ease, background 0.2s ease;
-        }
-
-        .wishlists-input:focus {
-            outline: none;
-            border-color: rgba(244, 241, 234, 0.42);
-            background: rgba(24, 24, 24, 0.75);
-        }
-
-        .wishlists-errors {
-            margin: 0;
-            padding-left: 20px;
-            color: #f5a2ac;
-            font-size: 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .wishlists-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            border-radius: 999px;
-            padding: 10px 20px;
-            font-size: 14px;
-            letter-spacing: 1.3px;
-            text-transform: uppercase;
-            border: 1px solid transparent;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-        }
-
-        .wishlists-button.primary {
-            background: linear-gradient(135deg, rgba(196, 145, 92, 0.85), rgba(153, 102, 51, 0.85));
-            border-color: rgba(196, 145, 92, 0.9);
-            color: #1b1208;
-            font-weight: 600;
-        }
-
-        .wishlists-button.primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 12px 32px rgba(196, 145, 92, 0.35);
-        }
-
-        .wishlists-button.ghost {
-            background: transparent;
-            border-color: rgba(244, 241, 234, 0.28);
-            color: rgba(244, 241, 234, 0.78);
-        }
-
-        .wishlists-button.ghost:hover {
-            border-color: rgba(244, 241, 234, 0.46);
-            background: rgba(244, 241, 234, 0.06);
-        }
-
-        .wishlists-button.danger {
-            background: rgba(168, 49, 62, 0.22);
-            border-color: rgba(168, 49, 62, 0.48);
-            color: #f4b8c1;
-        }
-
-        .wishlists-button.danger:hover {
-            background: rgba(168, 49, 62, 0.32);
-            border-color: rgba(168, 49, 62, 0.62);
-        }
-
-        .wishlists-list {
-            margin: 0;
-            padding: 0;
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-        }
-
-        .wishlists-item {
-            border: 1px solid rgba(244, 241, 234, 0.08);
-            border-radius: 18px;
-            padding: 20px;
-            background: rgba(14, 14, 14, 0.55);
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .wishlists-item-header {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .wishlists-item-meta {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .wishlists-item-name {
-            margin: 0;
-            font-size: 22px;
-            color: #f4f1ea;
-            font-weight: 600;
-        }
-
-        .wishlists-item-count {
-            font-size: 14px;
-            letter-spacing: 1.1px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.55);
-        }
-
-        .wishlists-item-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .wishlists-item-actions > .wishlists-button {
-            width: 100%;
-        }
-
-        .wishlists-item-actions form,
-        .wishlists-item-actions details {
-            width: 100%;
-        }
-
-        .wishlists-item-edit {
-            width: 100%;
-            border-radius: 14px;
-            background: rgba(24, 24, 24, 0.65);
-            border: 1px solid rgba(244, 241, 234, 0.12);
-            padding: 0 16px;
-        }
-
-        .wishlists-item-edit[open] {
-            background: rgba(24, 24, 24, 0.78);
-            border-color: rgba(244, 241, 234, 0.24);
-        }
-
-        .wishlists-item-edit-summary {
-            cursor: pointer;
-            list-style: none;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 14px 0;
-            color: rgba(244, 241, 234, 0.8);
-            font-size: 14px;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-        }
-
-        .wishlists-item-edit-summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .wishlists-edit-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 4px;
-        }
-
-        .wishlists-delete-form {
-            display: flex;
-            justify-content: flex-end;
-        }
-
-        .wishlists-empty {
-            margin: 0;
-            color: rgba(244, 241, 234, 0.68);
-            font-size: 16px;
-        }
-
-        .wishlists-description {
-            margin: 0;
-            color: rgba(244, 241, 234, 0.72);
-            line-height: 1.6;
-            font-size: 16px;
-        }
-
-        .wishlists-item-edit form {
-            padding-bottom: 20px;
-        }
-
-        @@media (min-width: 720px) {
-            .wishlists-item-header {
-                flex-direction: row;
-                justify-content: space-between;
-                align-items: center;
-            }
-
-            .wishlists-item-meta {
-                gap: 4px;
-            }
-
-            .wishlists-item-actions {
-                width: 320px;
-            }
-
-            .wishlists-item-actions details,
-            .wishlists-item-actions form {
-                width: 100%;
-            }
-
-            .wishlists-delete-form {
-                justify-content: flex-start;
-            }
-        }
-
-        @@media (max-width: 640px) {
-            .wishlists-card {
-                padding: 24px;
-            }
-
-            .wishlists-item {
-                padding: 18px;
-            }
-
-            .wishlists-item-name {
-                font-size: 20px;
-            }
-
-            .wishlists-content {
-                padding: calc(var(--wine-surfer-top-bar-height, 96px) + 20px) 16px 64px;
-            }
-        }
+        :root { color-scheme: dark; }
+        body { margin: 0; background: var(--wine-app-background); color: hsl(var(--foreground)); }
+        .wishlists-page { min-height: 100vh; }
+        .wishlist-selector { display: flex; align-items: center; gap: .5rem; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
     </style>
 </head>
 <body>
     <div class="wishlists-page">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
-        <main class="wishlists-content">
-            <div class="wishlists-container">
-                <section class="wishlists-header" aria-labelledby="wishlistsTitle">
-                    <h1 id="wishlistsTitle" class="wishlists-title">Wishlists</h1>
-                    <p class="wishlists-subtitle">Organize the bottles you’re dreaming about and keep track of future additions to your cellar.</p>
-                </section>
-
-                @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
-                {
-                    <div class="wishlists-alert success" role="status">@Model.StatusMessage</div>
-                }
-
-                @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-                {
-                    <div class="wishlists-alert error" role="alert">@Model.ErrorMessage</div>
-                }
-
-                <section class="wishlists-card" aria-labelledby="createWishlistTitle">
-                    <div class="wishlists-card-header">
-                        <h2 id="createWishlistTitle" class="wishlists-card-title">Create a wishlist</h2>
-                        <p class="wishlists-description">Name a wishlist and start curating the vintages you want to explore.</p>
-                    </div>
-                    <form method="post" action="/wine-surfer/wishlists" class="wishlists-form" autocomplete="off">
-                        @Html.AntiForgeryToken()
-                        <label class="wishlists-field">
-                            <span class="wishlists-field-label">Wishlist name</span>
-                            <input type="text" name="Name" value="@Model.CreateForm.Name" maxlength="256" class="wishlists-input" placeholder="e.g. Burgundy discoveries" required />
-                        </label>
-                        @if (createErrors.Count > 0)
-                        {
-                            <ul class="wishlists-errors" role="alert">
-                                @foreach (var error in createErrors)
-                                {
-                                    <li>@error</li>
-                                }
-                            </ul>
-                        }
-                        <button type="submit" class="wishlists-button primary">Create wishlist</button>
-                    </form>
-                </section>
-
-                <section class="wishlists-card" aria-labelledby="wishlistsListTitle">
-                    <div class="wishlists-card-header">
-                        <h2 id="wishlistsListTitle" class="wishlists-card-title">Your wishlists</h2>
-                        <span class="wishlists-count">@Model.Wishlists.Count @(Model.Wishlists.Count == 1 ? "wishlist" : "wishlists")</span>
-                    </div>
-
-                    @if (!Model.HasWishlists)
-                    {
-                        <p class="wishlists-empty">Create your first wishlist to keep an eye on bottles you’d love to uncork soon.</p>
-                    }
-                    else
-                    {
-                        <ul class="wishlists-list">
-                            @foreach (var wishlist in Model.Wishlists)
-                            {
-                                var isEditing = Model.EditingWishlistId.HasValue && Model.EditingWishlistId.Value == wishlist.Id;
-                                var editName = isEditing ? Model.EditForm.Name : wishlist.Name;
-                                <li class="wishlists-item">
-                                    <div class="wishlists-item-header">
-                                        <div class="wishlists-item-meta">
-                                            <h3 class="wishlists-item-name">@wishlist.Name</h3>
-                                            <span class="wishlists-item-count"
-                                                  data-wishlist-count="@wishlist.Id"
-                                                  data-wishlist-count-value="@wishlist.WishCount">@wishlist.WishCount @(wishlist.WishCount == 1 ? "wine" : "wines")</span>
-                                        </div>
-                                        <div class="wishlists-item-actions">
-                                            <button type="button"
-                                                    class="wishlists-button ghost"
-                                                    data-add-wish
-                                                    data-wishlist-id="@wishlist.Id"
-                                                    data-wishlist-name="@wishlist.Name">
-                                                Add wish
-                                            </button>
-                                            <details class="wishlists-item-edit"@(isEditing ? " open" : string.Empty)>
-                                                <summary class="wishlists-item-edit-summary">Edit wishlist</summary>
-                                                <form method="post" action="/wine-surfer/wishlists/edit" class="wishlists-form compact" autocomplete="off">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="Id" value="@wishlist.Id" />
-                                                    <label class="wishlists-field">
-                                                        <span class="wishlists-field-label">Wishlist name</span>
-                                                        <input type="text" name="Name" value="@editName" maxlength="256" class="wishlists-input" required />
-                                                    </label>
-                                                    @if (isEditing && editErrors.Count > 0)
-                                                    {
-                                                        <ul class="wishlists-errors" role="alert">
-                                                            @foreach (var error in editErrors)
-                                                            {
-                                                                <li>@error</li>
-                                                            }
-                                                        </ul>
-                                                    }
-                                                    <div class="wishlists-edit-actions">
-                                                        <button type="submit" class="wishlists-button primary">Save changes</button>
-                                                        <button type="button" class="wishlists-button ghost" data-close-edit>Cancel</button>
-                                                    </div>
-                                                </form>
-                                            </details>
-                                            <form method="post" action="/wine-surfer/wishlists/delete" class="wishlists-delete-form" onsubmit="return confirm('Delete this wishlist? This cannot be undone.');">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="Id" value="@wishlist.Id" />
-                                                <button type="submit" class="wishlists-button danger">Delete</button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </li>
-                            }
-                        </ul>
-                    }
-                </section>
-                @await Html.PartialAsync("_WishlistPopover")
-            </div>
+        <main class="inventory-shell">
+            @await Html.PartialAsync("_CrudTableTemplate", table)
         </main>
     </div>
-    <script src="/js/wishlist-popover.js"></script>
-    <script>
-        (function () {
-            const cancelButtons = document.querySelectorAll('button[data-close-edit]');
-            cancelButtons.forEach((button) => {
-                button.addEventListener('click', function (event) {
-                    const details = event.currentTarget.closest('details');
-                    if (details) {
-                        details.removeAttribute('open');
-                    }
-                });
-            });
-
-            const addWishButtons = document.querySelectorAll('[data-add-wish]');
-            addWishButtons.forEach((button) => {
-                button.addEventListener('click', async (event) => {
-                    event.preventDefault();
-                    const openWishlist = window.wishlistPopover?.open;
-                    if (typeof openWishlist !== 'function') {
-                        return;
-                    }
-
-                    const wishlistId = button.dataset.wishlistId ?? '';
-                    const wishlistName = button.dataset.wishlistName ?? '';
-
-                    try {
-                        await openWishlist({
-                            wishlistId,
-                            wishlistName
-                        });
-                    } catch (error) {
-                        console.error('Unable to open wishlist popover', error);
-                    }
-                });
-            });
-
-            const countElements = new Map();
-            document.querySelectorAll('[data-wishlist-count]').forEach((element) => {
-                const id = element.dataset.wishlistCount;
-                if (!id) {
-                    return;
-                }
-                countElements.set(id, element);
-            });
-
-            document.addEventListener('wishlist:added', (event) => {
-                const detail = event?.detail ?? {};
-                const wishlistId = detail.wishlistId;
-                if (!wishlistId) {
-                    return;
-                }
-
-                const element = countElements.get(wishlistId);
-                if (!element) {
-                    return;
-                }
-
-                const currentValue = Number.parseInt(element.dataset.wishlistCountValue ?? '0', 10);
-                const nextValue = Number.isFinite(currentValue) ? currentValue + 1 : 1;
-                element.dataset.wishlistCountValue = String(nextValue);
-                const label = nextValue === 1 ? 'wine' : 'wines';
-                element.textContent = `${nextValue} ${label}`;
-            });
-        })();
-    </script>
 </body>
 </html>
