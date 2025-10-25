@@ -23,5 +23,6 @@ These guidelines define mandatory practices for this repository.
     - Each major view must have its own Views/<Feature>/Index.cshtml as the entry point (do not reuse another feature's Index.cshtml).
     - Keep feature-specific partials and pages under Views/<Feature>/...
     - Share layout or truly cross-cutting partials only via Views/Shared when appropriate.
+    - In Razor views, escape literal `@` in static content (like CSS `@media`, JS templates, or email addresses) by writing `@@` so Razor doesn’t parse it as code.
 
 Feel free to extend this document with additional conventions (naming, testing, error handling) as the project evolves.
