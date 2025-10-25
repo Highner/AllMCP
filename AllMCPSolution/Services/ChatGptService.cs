@@ -150,7 +150,15 @@ public sealed class ChatGptService : IChatGptService
 
     private static ChatCompletionOptions CreateCompletionOptions(double? temperature)
     {
-        var options = new ChatCompletionOptions();
+        var options = new ChatCompletionOptions
+        {
+            WebSearchOptions = new ChatWebSearchOptions(),
+        };
+
+        if (temperature.HasValue)
+        {
+            options.Temperature = temperature.Value;
+        }
 
         return options;
     }
