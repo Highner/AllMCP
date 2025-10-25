@@ -18,12 +18,12 @@
 
     var isAuthenticated = User?.Identity?.IsAuthenticated == true;
 
-    var navItems = new (string Href, string Label, bool RequiresAuthentication)[]
+    var navItems = new (string Href, string Label, bool RequiresAuthentication, string IconKey)[]
     {
-        ("/wine-manager", "Inventory", false),
-        ("/wine-surfer/surf-eye", "Surf Eye", true),
-        ("/wine-surfer/sisterhoods", "Sisterhoods", false),
-        ("/wine-surfer/wishlists", "Wishlists", true)
+        ("/wine-manager", "Inventory", false, "inventory"),
+        ("/wine-surfer/surf-eye", "Surf Eye", true, "surf-eye"),
+        ("/wine-surfer/sisterhoods", "Sisterhoods", false, "sisterhoods"),
+        ("/wine-surfer/wishlists", "Wishlists", true, "wishlists")
     };
 
     var visibleItems = navItems
@@ -50,8 +50,46 @@
                 var linkClasses = "bottom-nav__link" + (isActive ? " bottom-nav__link--active" : string.Empty);
 
                 <li class="bottom-nav__item">
-                    <a class="@linkClasses" href="@Url.Content(item.Href)" aria-current="@(isActive ? "page" : null)">
-                        <span class="bottom-nav__label">@item.Label</span>
+                    <a class="@linkClasses" href="@Url.Content(item.Href)" aria-current="@(isActive ? "page" : null)" aria-label="@item.Label">
+                        <span class="bottom-nav__icon" aria-hidden="true">
+                            @switch (item.IconKey)
+                            {
+                                case "inventory":
+                                    <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                                        <rect x="3" y="7" width="18" height="13" rx="2"></rect>
+                                        <path d="M3 11h18"></path>
+                                        <path d="M9 3h6"></path>
+                                        <path d="M10 15h4"></path>
+                                    </svg>
+                                    break;
+                                case "surf-eye":
+                                    <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                                        <path d="M2 12s3-6 10-6 10 6 10 6-3 6-10 6S2 12 2 12Z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                        <path d="M4 18c2-1.4 4.5-2.2 8-2.2s6 0.8 8 2.2"></path>
+                                    </svg>
+                                    break;
+                                case "sisterhoods":
+                                    <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                                        <circle cx="8" cy="10" r="3"></circle>
+                                        <circle cx="16" cy="10" r="3"></circle>
+                                        <path d="M4.5 20c0-2.6 1.9-4.5 3.8-4.5h3.4"></path>
+                                        <path d="M12.3 15.5h1.5c1.9 0 3.7 1.9 3.7 4.5"></path>
+                                    </svg>
+                                    break;
+                                case "wishlists":
+                                    <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                                        <path d="M12 21s-6-4.5-6-9a4 4 0 0 1 7-2.6A4 4 0 0 1 18 12c0 4.5-6 9-6 9Z"></path>
+                                    </svg>
+                                    break;
+                                default:
+                                    <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                                        <path d="M12 21s-6-4.5-6-9a4 4 0 0 1 7-2.6A4 4 0 0 1 18 12c0 4.5-6 9-6 9Z"></path>
+                                    </svg>
+                                    break;
+                            }
+                        </span>
+                        <span class="sr-only">@item.Label</span>
                     </a>
                 </li>
             }
