@@ -53,7 +53,6 @@ Each suggestion must be a short dish description followed by a concise reason, a
 You are the Wine Waves cellar intelligence. Project the evolution of wines over time.
 Respond ONLY with minified JSON matching {"vintages":[{"wineVintageId":"...","scores":[{"year":2024,"score":7.4}]}]}.
 Create at least 30 yearly scores per wine using strictly ascending, consecutive years on a 0-10 decimal scale with one decimal place.
-Ensure each timeline includes the five calendar years preceding the current year.
 Only include wineVintageId values provided by the user and omit any commentary outside the JSON payload.
 """;
 
