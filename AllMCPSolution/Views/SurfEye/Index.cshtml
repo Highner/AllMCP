@@ -347,12 +347,25 @@
             transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
         }
 
+        .surf-eye-add-button.secondary {
+            background: rgba(244, 241, 234, 0.08);
+            border-color: rgba(244, 241, 234, 0.2);
+            color: rgba(244, 241, 234, 0.92);
+        }
+
         .surf-eye-add-button:hover,
         .surf-eye-add-button:focus-visible {
             background: rgba(244, 241, 234, 0.2);
             border-color: rgba(244, 241, 234, 0.45);
             box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
             transform: translateY(-1px);
+        }
+
+        .surf-eye-add-button.secondary:hover,
+        .surf-eye-add-button.secondary:focus-visible {
+            background: rgba(244, 241, 234, 0.14);
+            border-color: rgba(244, 241, 234, 0.32);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
         }
 
         .surf-eye-add-button:focus-visible {
@@ -438,10 +451,12 @@
                 </form>
             </section>
             @await Html.PartialAsync("_InventoryAddModal", inventoryAddModalModel)
+            @await Html.PartialAsync("_WishlistPopover")
         </main>
     </div>
     <script src="/js/create-wine-popover.js"></script>
     <script src="/js/wine-surfer-favorites.js"></script>
+    <script src="/js/wishlist-popover.js"></script>
 <script>
 (() => {
     const form = document.getElementById('surf-eye-form');
@@ -469,6 +484,18 @@
         cellarMessage.hidden = text.trim().length === 0;
         cellarMessage.dataset.state = state;
     };
+    document.addEventListener('wishlist:added', (event) => {
+        const detail = event?.detail ?? {};
+        const wishlistName = typeof detail?.wishlistName === 'string' && detail.wishlistName.trim().length > 0
+            ? detail.wishlistName.trim()
+            : 'wishlist';
+        const wineName = typeof detail?.wineName === 'string' && detail.wineName.trim().length > 0
+            ? detail.wineName.trim()
+            : 'Wine';
+        const vintageText = detail?.vintage ? String(detail.vintage).trim() : '';
+        const wineLabel = vintageText ? `${wineName} (${vintageText})` : wineName;
+        showCellarMessage(`${wineLabel} was saved to ${wishlistName}.`, 'success');
+    });
     const analyzeUrl = form.dataset.analyzeUrl ?? '';
     const hasTasteProfile = form.dataset.hasTasteProfile === 'true';
     const maxBytes = Number(form.dataset.maxBytes ?? '0');
@@ -658,8 +685,9 @@
             addButton.className = 'surf-eye-add-button';
             addButton.setAttribute('data-add-wine-trigger', 'surf-eye');
             addButton.textContent = 'Add to my cellar';
-            const assignData = (key, value) => {
-                if (!key) {
+
+            const assignData = (element, key, value) => {
+                if (!element || !key) {
                     return;
                 }
 
@@ -672,19 +700,37 @@
                     return;
                 }
 
-                addButton.dataset[key] = text;
+                element.dataset[key] = text;
             };
 
-            assignData('wineName', wine.name);
-            assignData('wineProducer', wine.producer);
-            assignData('wineCountry', wine.country);
-            assignData('wineRegion', wine.region);
-            assignData('wineAppellation', wine.appellation);
-            assignData('wineSubAppellation', wine.subAppellation);
-            assignData('wineVariety', wine.variety);
-            assignData('wineVintage', wine.vintage);
-            assignData('wineColor', wine.color);
-            assignData('wineId', wine.wineId);
+            const applyWineDataset = (element) => {
+                assignData(element, 'wineName', wine.name);
+                assignData(element, 'wineProducer', wine.producer);
+                assignData(element, 'wineCountry', wine.country);
+                assignData(element, 'wineRegion', wine.region);
+                assignData(element, 'wineAppellation', wine.appellation);
+                assignData(element, 'wineSubAppellation', wine.subAppellation);
+                assignData(element, 'wineVariety', wine.variety);
+                assignData(element, 'wineVintage', wine.vintage);
+                assignData(element, 'wineColor', wine.color);
+                assignData(element, 'wineId', wine.wineId);
+            };
+
+            const buildContextFromDataset = (dataset) => ({
+                source: 'surf-eye',
+                id: dataset?.wineId ?? '',
+                name: dataset?.wineName ?? '',
+                producer: dataset?.wineProducer ?? '',
+                country: dataset?.wineCountry ?? '',
+                region: dataset?.wineRegion ?? '',
+                appellation: dataset?.wineAppellation ?? '',
+                subAppellation: dataset?.wineSubAppellation ?? '',
+                color: dataset?.wineColor ?? '',
+                variety: dataset?.wineVariety ?? '',
+                vintage: dataset?.wineVintage ?? ''
+            });
+
+            applyWineDataset(addButton);
 
             addButton.addEventListener('click', (event) => {
                 const openAddWineModal = window.wineSurferFavorites?.openAddWineModal;
@@ -698,19 +744,7 @@
 
                 showCellarMessage('', 'info');
 
-                const context = {
-                    source: 'surf-eye',
-                    id: addButton.dataset.wineId ?? '',
-                    name: addButton.dataset.wineName ?? '',
-                    producer: addButton.dataset.wineProducer ?? '',
-                    country: addButton.dataset.wineCountry ?? '',
-                    region: addButton.dataset.wineRegion ?? '',
-                    appellation: addButton.dataset.wineAppellation ?? '',
-                    subAppellation: addButton.dataset.wineSubAppellation ?? '',
-                    color: addButton.dataset.wineColor ?? '',
-                    variety: addButton.dataset.wineVariety ?? '',
-                    vintage: addButton.dataset.wineVintage ?? ''
-                };
+                const context = buildContextFromDataset(addButton.dataset);
 
                 openAddWineModal(context).catch(error => {
                     const message = typeof error?.message === 'string'
@@ -721,6 +755,37 @@
             });
 
             footActions.appendChild(addButton);
+
+            const wishlistButton = document.createElement('button');
+            wishlistButton.type = 'button';
+            wishlistButton.className = 'surf-eye-add-button secondary';
+            wishlistButton.setAttribute('data-wishlist-trigger', 'surf-eye');
+            wishlistButton.textContent = 'Add to wishlist';
+            applyWineDataset(wishlistButton);
+
+            wishlistButton.addEventListener('click', (event) => {
+                const openWishlist = window.wishlistPopover?.open;
+                if (typeof openWishlist !== 'function') {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+
+                showCellarMessage('', 'info');
+
+                const context = buildContextFromDataset(wishlistButton.dataset);
+
+                openWishlist(context).catch(error => {
+                    const message = typeof error?.message === 'string'
+                        ? error.message
+                        : 'Unable to open wishlist popover.';
+                    showCellarMessage(message, 'error');
+                });
+            });
+
+            footActions.appendChild(wishlistButton);
 
             foot.appendChild(footActions);
 
