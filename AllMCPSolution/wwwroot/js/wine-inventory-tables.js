@@ -874,17 +874,38 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function bindDetailsCloseButton() {
-                if (!detailsCloseButton) {
+                if (!detailsSection) {
                     return;
                 }
 
-                detailsCloseButton.addEventListener('click', () => {
+                const handleClose = () => {
                     const rowToFocus = selectedRow;
                     showInventoryView();
                     resetDetailsView();
                     if (rowToFocus) {
                         rowToFocus.focus();
                     }
+                };
+
+                if (detailsCloseButton) {
+                    detailsCloseButton.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleClose();
+                    });
+                }
+
+                detailsSection.addEventListener('click', (event) => {
+                    const target = event.target instanceof Element
+                        ? event.target.closest('[data-details-close]')
+                        : null;
+
+                    if (!target) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    handleClose();
                 });
             }
 
