@@ -71,6 +71,10 @@ window.WineInventoryTables.initialize = function () {
             const locationAddButton = locationSection?.querySelector('[data-location-add]');
             const currentUserId = locationSection?.dataset?.currentUserId ?? locationSection?.getAttribute('data-current-user-id') ?? '';
             const notesEnabled = Boolean(notesPanel && notesTable && notesBody && notesAddRow && notesEmptyRow && notesAddUserDisplay && notesAddScore && notesAddText && notesAddButton && notesMessage && notesTitle && notesSubtitle && notesCloseButton);
+            const summaryColumnCount = inventoryTable?.querySelectorAll('thead th')?.length ?? 1;
+            const groupingSelect = document.querySelector('[data-inventory-group-select]');
+            let activeGroupingKey = groupingSelect?.value ?? 'none';
+            let groupExpansionState = {};
             const MAX_LOCATION_CAPACITY = 10000;
 
             if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner) {
@@ -206,6 +210,8 @@ window.WineInventoryTables.initialize = function () {
 
             initializeLocationSection();
             initializeSummaryRows();
+            bindGroupingControl();
+            refreshGrouping({ resetState: true });
             bindAddWinePopover();
             bindDetailAddRow();
             bindDrinkBottleModal();
@@ -218,6 +224,301 @@ window.WineInventoryTables.initialize = function () {
             function initializeSummaryRows() {
                 const rows = Array.from(inventoryTable.querySelectorAll('tbody tr.group-row'));
                 rows.forEach(attachSummaryRowHandlers);
+            }
+
+            const GROUPING_CONFIG = {
+                status: {
+                    key: 'status',
+                    label: 'Status',
+                    emptyLabel: 'Status not set',
+                    getValue: (row) => normalizeGroupingValue(getRowGroupingValue(row, 'status')),
+                    getDisplay(value) {
+                        return formatGroupingDisplay(value, this.emptyLabel);
+                    },
+                    buildLabel(display) {
+                        return buildGroupingLabel(this.label, display);
+                    }
+                },
+                color: {
+                    key: 'color',
+                    label: 'Color',
+                    emptyLabel: 'Color not set',
+                    getValue: (row) => normalizeGroupingValue(getRowGroupingValue(row, 'color')),
+                    getDisplay(value) {
+                        return formatGroupingDisplay(value, this.emptyLabel);
+                    },
+                    buildLabel(display) {
+                        return buildGroupingLabel(this.label, display);
+                    }
+                },
+                appellation: {
+                    key: 'appellation',
+                    label: 'Appellation',
+                    emptyLabel: 'Appellation not set',
+                    getValue: (row) => normalizeGroupingValue(getRowGroupingValue(row, 'appellation')),
+                    getDisplay(value) {
+                        return formatGroupingDisplay(value, this.emptyLabel);
+                    },
+                    buildLabel(display) {
+                        return buildGroupingLabel(this.label, display);
+                    }
+                },
+                vintage: {
+                    key: 'vintage',
+                    label: 'Vintage',
+                    emptyLabel: 'Vintage not set',
+                    getValue: (row) => normalizeGroupingValue(getRowGroupingValue(row, 'vintage')),
+                    getDisplay(value) {
+                        return formatGroupingDisplay(value, this.emptyLabel);
+                    },
+                    buildLabel(display) {
+                        return buildGroupingLabel(this.label, display);
+                    }
+                }
+            };
+
+            function bindGroupingControl() {
+                if (!groupingSelect) {
+                    return;
+                }
+
+                groupingSelect.addEventListener('change', () => {
+                    const selectedValue = groupingSelect.value ?? 'none';
+                    const normalizedValue = Object.prototype.hasOwnProperty.call(GROUPING_CONFIG, selectedValue)
+                        ? selectedValue
+                        : 'none';
+                    const hasChanged = normalizedValue !== activeGroupingKey;
+                    activeGroupingKey = normalizedValue;
+                    if (hasChanged) {
+                        groupExpansionState = {};
+                    }
+                    refreshGrouping({ expandForRow: selectedRow });
+                });
+            }
+
+            function refreshGrouping(options = {}) {
+                if (options.resetState) {
+                    groupExpansionState = {};
+                }
+
+                applyGrouping({ expandForRow: options.expandForRow ?? selectedRow ?? null });
+            }
+
+            function applyGrouping(options = {}) {
+                const tbody = inventoryTable.querySelector('tbody');
+                if (!tbody) {
+                    return;
+                }
+
+                const rows = Array.from(tbody.querySelectorAll('tr.group-row'));
+                const headerRows = Array.from(tbody.querySelectorAll('tr.summary-group-row'));
+                headerRows.forEach(row => row.remove());
+
+                rows.forEach(row => {
+                    row.hidden = false;
+                    row.classList.remove('group-row--child');
+                    row.removeAttribute('data-group-parent');
+                });
+
+                const config = GROUPING_CONFIG[activeGroupingKey];
+                if (!config) {
+                    inventoryTable.classList.remove('inventory-table--grouped');
+                    return;
+                }
+
+                if (rows.length === 0) {
+                    inventoryTable.classList.remove('inventory-table--grouped');
+                    return;
+                }
+
+                inventoryTable.classList.add('inventory-table--grouped');
+
+                const groups = [];
+                const groupMap = new Map();
+
+                rows.forEach(row => {
+                    const value = config.getValue(row);
+                    const key = buildGroupKey(value, config.key);
+                    let group = groupMap.get(key);
+                    if (!group) {
+                        group = {
+                            key,
+                            value,
+                            display: config.getDisplay(value),
+                            rows: []
+                        };
+                        groupMap.set(key, group);
+                        groups.push(group);
+                    }
+
+                    group.rows.push(row);
+                });
+
+                const expandForRow = options.expandForRow ?? null;
+                const validKeys = new Set(groups.map(group => group.key));
+
+                Object.keys(groupExpansionState).forEach((key) => {
+                    if (!validKeys.has(key)) {
+                        delete groupExpansionState[key];
+                    }
+                });
+
+                groups.forEach(group => {
+                    const containsSelected = Boolean(selectedRow && group.rows.includes(selectedRow));
+                    const containsExpandTarget = Boolean(expandForRow && group.rows.includes(expandForRow));
+                    let expanded;
+                    if (groupExpansionState[group.key] !== undefined) {
+                        expanded = groupExpansionState[group.key];
+                    } else {
+                        expanded = containsSelected || containsExpandTarget || false;
+                        groupExpansionState[group.key] = expanded;
+                    }
+
+                    const headerRow = buildGroupingHeaderRow(group, config, expanded);
+                    tbody.insertBefore(headerRow, group.rows[0]);
+
+                    group.rows.forEach(row => {
+                        row.classList.add('group-row--child');
+                        row.dataset.groupParent = group.key;
+                        row.hidden = !expanded;
+                    });
+                });
+            }
+
+            function buildGroupingHeaderRow(group, config, expanded) {
+                const row = document.createElement('tr');
+                row.className = 'summary-group-row';
+                if (expanded) {
+                    row.classList.add('summary-group-row--expanded');
+                }
+                row.dataset.groupKey = group.key;
+                row.setAttribute('tabindex', '0');
+                row.setAttribute('role', 'button');
+                row.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+
+                const cell = document.createElement('td');
+                cell.colSpan = summaryColumnCount > 0 ? summaryColumnCount : 1;
+
+                const content = document.createElement('div');
+                content.className = 'summary-group-row__content';
+
+                const indicator = document.createElement('span');
+                indicator.className = 'summary-group-row__chevron';
+                content.appendChild(indicator);
+
+                const label = document.createElement('span');
+                label.className = 'summary-group-row__label';
+                const displayLabel = typeof config.buildLabel === 'function'
+                    ? config.buildLabel(group.display)
+                    : buildGroupingLabel(config.label, group.display);
+                label.textContent = displayLabel;
+                content.appendChild(label);
+
+                const count = document.createElement('span');
+                count.className = 'summary-group-row__count';
+                count.textContent = formatGroupCount(group.rows.length);
+                content.appendChild(count);
+
+                cell.appendChild(content);
+                row.appendChild(cell);
+
+                row.addEventListener('click', () => toggleGroupExpansion(group.key));
+                row.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        toggleGroupExpansion(group.key);
+                    }
+                });
+
+                return row;
+            }
+
+            function toggleGroupExpansion(groupKey, desiredState) {
+                const key = String(groupKey);
+                const nextState = desiredState != null
+                    ? Boolean(desiredState)
+                    : !(groupExpansionState[key] ?? false);
+                groupExpansionState[key] = nextState;
+
+                const header = inventoryTable.querySelector(`.summary-group-row[data-group-key="${escapeSelectorValue(key)}"]`);
+                if (header) {
+                    header.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+                    header.classList.toggle('summary-group-row--expanded', nextState);
+                }
+
+                const childRows = Array.from(inventoryTable.querySelectorAll(`.group-row[data-group-parent="${escapeSelectorValue(key)}"]`));
+                childRows.forEach(row => {
+                    row.hidden = !nextState;
+                });
+
+                if (!nextState && selectedRow && childRows.includes(selectedRow)) {
+                    showInventoryView();
+                    resetDetailsView();
+                }
+            }
+
+            function formatGroupCount(count) {
+                const value = Number(count) || 0;
+                return value === 1 ? '1 wine' : `${value} wines`;
+            }
+
+            function escapeSelectorValue(value) {
+                const raw = String(value);
+                if (window.CSS?.escape) {
+                    return window.CSS.escape(raw);
+                }
+
+                return raw.replace(/[^a-zA-Z0-9_-]/g, (character) => `\\${character}`);
+            }
+
+            function buildGroupKey(value, groupingKey) {
+                const normalized = normalizeGroupingValue(value);
+                const prefix = groupingKey ?? activeGroupingKey ?? 'group';
+                const encoded = normalized ? encodeURIComponent(normalized.toLowerCase()) : 'empty';
+                return `${prefix}|${encoded}`;
+            }
+
+            function getRowGroupingValue(row, key) {
+                switch (key) {
+                    case 'status':
+                        return row.dataset.summaryStatus ?? '';
+                    case 'color':
+                        return row.dataset.summaryColor ?? '';
+                    case 'appellation':
+                        return row.dataset.summaryAppellation ?? '';
+                    case 'vintage':
+                        return row.dataset.summaryVintage ?? '';
+                    case 'wine':
+                        return row.dataset.summaryWine ?? '';
+                    default:
+                        return '';
+                }
+            }
+
+            function normalizeGroupingValue(value) {
+                if (value == null) {
+                    return '';
+                }
+
+                const text = String(value).trim();
+                if (!text || text === '—') {
+                    return '';
+                }
+
+                return text;
+            }
+
+            function formatGroupingDisplay(value, emptyLabel) {
+                const normalized = normalizeGroupingValue(value);
+                return normalized || emptyLabel;
+            }
+
+            function buildGroupingLabel(label, display) {
+                if (!label) {
+                    return display;
+                }
+
+                return `${label}: ${display}`;
             }
 
             function attachSummaryRowHandlers(row) {
@@ -1524,6 +1825,8 @@ window.WineInventoryTables.initialize = function () {
                     attachSummaryRowHandlers(row);
                     tbody.appendChild(row);
                 }
+
+                refreshGrouping({ expandForRow: row });
 
                 const addedCount = Number.isInteger(quantity) && quantity > 0 ? quantity : 1;
                 const message = addedCount === 1
@@ -3022,16 +3325,27 @@ window.WineInventoryTables.initialize = function () {
                 const statusSpan = row.querySelector('[data-field="status"]');
                 const scoreCell = row.querySelector('[data-field="score"]');
 
+                const displayAppellation = buildAppellationDisplay(summary);
+                const vintageValue = summary?.vintage ?? summary?.Vintage;
+                const wineName = summary?.wineName ?? summary?.WineName ?? '';
+                const colorValue = summary?.color ?? summary?.Color ?? '';
+                const statusValue = summary?.statusLabel ?? summary?.StatusLabel ?? '';
+
+                row.dataset.summaryWine = wineName;
+                row.dataset.summaryAppellation = normalizeGroupingValue(displayAppellation);
+                row.dataset.summaryVintage = vintageValue != null ? String(vintageValue) : '';
+                row.dataset.summaryColor = colorValue;
+                row.dataset.summaryStatus = statusValue;
+
                 if (wineCell) {
-                    wineCell.textContent = summary?.wineName ?? summary?.WineName ?? '';
+                    wineCell.textContent = wineName;
                 }
 
                 if (appCell) {
-                    appCell.textContent = buildAppellationDisplay(summary);
+                    appCell.textContent = displayAppellation;
                 }
 
                 if (vintageCell) {
-                    const vintageValue = summary?.vintage ?? summary?.Vintage;
                     vintageCell.textContent = vintageValue != null ? String(vintageValue) : '';
                 }
 
@@ -3041,13 +3355,12 @@ window.WineInventoryTables.initialize = function () {
                 }
 
                 if (colorCell) {
-                    colorCell.textContent = summary?.color ?? summary?.Color ?? '';
+                    colorCell.textContent = colorValue;
                 }
 
                 if (statusSpan) {
-                    const label = summary?.statusLabel ?? summary?.StatusLabel ?? '';
                     const cssClass = summary?.statusCssClass ?? summary?.StatusCssClass ?? '';
-                    statusSpan.textContent = label;
+                    statusSpan.textContent = statusValue;
                     statusSpan.className = `status-pill ${cssClass}`;
                 }
 
@@ -3120,6 +3433,7 @@ window.WineInventoryTables.initialize = function () {
 
                 applySummaryToRow(row, original);
                 row.classList.remove('editing');
+                refreshGrouping({ expandForRow: row });
             }
 
             async function saveSummaryEdit(row) {
@@ -3192,6 +3506,8 @@ window.WineInventoryTables.initialize = function () {
                         selectedSummary = summary;
                     }
 
+                    refreshGrouping({ expandForRow: row });
+
                     showMessage('Wine group updated.', 'success');
                     await renderDetails(response, selectedRow === row);
                 } catch (error) {
@@ -3226,6 +3542,7 @@ window.WineInventoryTables.initialize = function () {
                     }
 
                     row.remove();
+                    refreshGrouping({ expandForRow: null });
                     showMessage('Wine group deleted.', 'success');
                 } catch (error) {
                     showMessage(error.message, 'error');
@@ -3466,10 +3783,12 @@ window.WineInventoryTables.initialize = function () {
                     row.remove();
                     selectedRow = null;
                     selectedGroupId = null;
+                    refreshGrouping({ expandForRow: null });
                     return;
                 }
 
                 applySummaryToRow(row, summary);
+                refreshGrouping({ expandForRow: row });
             }
 
             function buildDetailRow(detail, summary) {

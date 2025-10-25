@@ -50,12 +50,35 @@
     var bottleHeaderContent = await Html.PartialAsync("_BottleDetailsHeaderControls");
     ViewData["WineSurferPageTitle"] = "Wine Inventory";
 
+    var groupingOptions = new List<(string Value, string Label)>
+    {
+        ("none", "No grouping"),
+        ("status", "Status"),
+        ("color", "Color"),
+        ("appellation", "Appellation"),
+        ("vintage", "Vintage")
+    };
+
     var yourCellarTable = new CrudTableTemplateModel
     {
         Title = "Your Cellar",
         DataTableKey = "summary",
         HeaderContent = @<text>
-            <button type="button" class="sisterhood-button inventory-add-trigger" data-add-wine-trigger>Add wine</button>
+            <div class="inventory-table-actions">
+                <label class="inventory-group-control">
+                    <span class="inventory-group-control__label">Group by</span>
+                    <select id="inventory-group-select"
+                            class="inventory-group-select"
+                            data-inventory-group-select
+                            data-default-value="none">
+                        @foreach (var option in groupingOptions)
+                        {
+                            <option value="@option.Value">@option.Label</option>
+                        }
+                    </select>
+                </label>
+                <button type="button" class="sisterhood-button inventory-add-trigger" data-add-wine-trigger>Add wine</button>
+            </div>
         </text>,
         BodyContent = @<text>
             <table id="inventory-table" class="inventory-table crud-table__table">
@@ -110,23 +133,35 @@
                             var subAppellation = string.IsNullOrWhiteSpace(bottle.SubAppellation) ? null : bottle.SubAppellation;
                             var appellation = string.IsNullOrWhiteSpace(bottle.Appellation) ? null : bottle.Appellation;
                             var display = "—";
+                            var groupingAppellation = string.Empty;
                             if (!string.IsNullOrEmpty(subAppellation) && !string.IsNullOrEmpty(appellation) && !string.Equals(subAppellation, appellation, StringComparison.OrdinalIgnoreCase))
                             {
                                 display = $"{subAppellation} ({appellation})";
+                                groupingAppellation = display;
                             }
                             else if (!string.IsNullOrEmpty(subAppellation))
                             {
                                 display = subAppellation;
+                                groupingAppellation = subAppellation;
                             }
                             else if (!string.IsNullOrEmpty(appellation))
                             {
                                 display = appellation;
+                                groupingAppellation = appellation;
                             }
+                            var groupingVintage = bottle.Vintage.ToString(CultureInfo.InvariantCulture);
+                            var groupingColor = bottle.Color ?? string.Empty;
+                            var groupingStatus = bottle.StatusLabel ?? string.Empty;
                             <tr class="group-row"
                                 data-group-id="@bottle.WineVintageId"
                                 data-wine-id="@bottle.WineId"
                                 data-sub-appellation-id="@(bottle.SubAppellationId?.ToString() ?? string.Empty)"
                                 data-appellation-id="@(bottle.AppellationId?.ToString() ?? string.Empty)"
+                                data-summary-wine="@bottle.WineName"
+                                data-summary-appellation="@groupingAppellation"
+                                data-summary-vintage="@groupingVintage"
+                                data-summary-color="@groupingColor"
+                                data-summary-status="@groupingStatus"
                                 tabindex="0"
                                 role="button"
                                 aria-controls="details-table">
