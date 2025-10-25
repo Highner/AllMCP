@@ -1,7 +1,9 @@
 using System.ClientModel;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Text.Json.Serialization;
 using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.Authorization;
@@ -59,6 +61,13 @@ public class TasteProfileController: WineSurferControllerBase
     private const string TasteProfileGenerationGenericErrorMessage = "We couldn't generate a taste profile right now. Please try again.";
     private const string TasteProfileAssistantUnexpectedResponseMessage = "We couldn't understand the taste profile assistant's response. Please try again.";
     private const string TasteProfileInsufficientDataErrorMessage = "Add scores to a few bottles before generating a taste profile.";
+    private static readonly Regex MultipleWhitespaceRegex = new(@"\s{2,}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex EmptyParenthesesRegex = new(@"\(\s*\)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex EmptyBracketsRegex = new(@"\[\s*\]", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex EmptyBracesRegex = new(@"\{\s*\}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex SeparatorSpacingRegex = new(@"\s*([,;/\-–—|])\s*", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex DuplicateSeparatorRegex = new(@"([,;/\-–—|])\s*([,;/\-–—|])", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly char[] WineNameTrimCharacters = { ' ', ',', ';', ':', '/', '-', '–', '—', '|' };
     private static readonly JsonDocumentOptions TasteProfileJsonDocumentOptions = new()
     {
         AllowTrailingCommas = true,
@@ -1233,15 +1242,6 @@ public class TasteProfileController: WineSurferControllerBase
                 continue;
             }
 
-            var displayName = string.IsNullOrWhiteSpace(ensured.Wine.Name)
-                ? NormalizeSuggestedWineName(generatedWine.Name)
-                : ensured.Wine.Name.Trim();
-
-            if (string.IsNullOrWhiteSpace(displayName))
-            {
-                continue;
-            }
-
             var normalizedVariety = string.IsNullOrWhiteSpace(ensured.Wine.GrapeVariety)
                 ? NormalizeSuggestedWineVariety(generatedWine.Variety)
                 : NormalizeSuggestedWineVariety(ensured.Wine.GrapeVariety);
@@ -1253,6 +1253,26 @@ public class TasteProfileController: WineSurferControllerBase
             }
 
             var normalizedVintage = NormalizeSuggestedWineVintage(ensured.Vintage ?? generatedWine.Vintage);
+
+            var fallbackName = NormalizeSuggestedWineName(
+                generatedWine.Name,
+                generatedWine.Variety,
+                normalizedVariety,
+                countryName,
+                regionName,
+                appellationName,
+                subAppellationName,
+                generatedWine.SubAppellation,
+                subAppellation.Name);
+
+            var displayName = string.IsNullOrWhiteSpace(ensured.Wine.Name)
+                ? fallbackName
+                : ensured.Wine.Name.Trim();
+
+            if (string.IsNullOrWhiteSpace(displayName))
+            {
+                continue;
+            }
 
             replacements.Add(new SuggestedWineReplacement(ensured.Wine.Id, normalizedVintage));
 
@@ -1278,7 +1298,24 @@ public class TasteProfileController: WineSurferControllerBase
         SubAppellation resolvedSubAppellation,
         CancellationToken cancellationToken)
     {
-        var name = NormalizeSuggestedWineName(generatedWine.Name);
+        var variety = NormalizeSuggestedWineVariety(generatedWine.Variety);
+
+        var subAppellationName = NormalizeSuggestedWineSubAppellation(
+            string.IsNullOrWhiteSpace(generatedWine.SubAppellation)
+                ? resolvedSubAppellation.Name
+                : generatedWine.SubAppellation);
+
+        var name = NormalizeSuggestedWineName(
+            generatedWine.Name,
+            generatedWine.Variety,
+            variety,
+            countryName,
+            regionName,
+            appellationName,
+            subAppellationName,
+            generatedWine.SubAppellation,
+            resolvedSubAppellation.Name);
+
         var color = NormalizeSuggestedWineColor(generatedWine.Color);
 
         if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(color))
@@ -1286,12 +1323,6 @@ public class TasteProfileController: WineSurferControllerBase
             return default;
         }
 
-        var subAppellationName = NormalizeSuggestedWineSubAppellation(
-            string.IsNullOrWhiteSpace(generatedWine.SubAppellation)
-                ? resolvedSubAppellation.Name
-                : generatedWine.SubAppellation);
-
-        var variety = NormalizeSuggestedWineVariety(generatedWine.Variety);
         var vintage = NormalizeSuggestedWineVintage(generatedWine.Vintage);
 
         try
@@ -1460,20 +1491,77 @@ public class TasteProfileController: WineSurferControllerBase
         return bestDistance <= threshold ? bestCandidate : default;
     }
 
-    private static string? NormalizeSuggestedWineName(string? name)
+    private static string? NormalizeSuggestedWineName(string? name, params string?[] descriptorsToStrip)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
             return null;
         }
 
-        var trimmed = name.Trim();
-        if (trimmed.Length <= 256)
+        var sanitized = name.Trim();
+
+        if (descriptorsToStrip is { Length: > 0 })
         {
-            return trimmed;
+            foreach (var descriptor in descriptorsToStrip)
+            {
+                sanitized = RemoveDescriptorFromWineName(sanitized, descriptor);
+            }
         }
 
-        return trimmed[..256].TrimEnd();
+        sanitized = CleanWineNameSeparators(sanitized);
+
+        if (sanitized.Length > 256)
+        {
+            sanitized = sanitized[..256].TrimEnd();
+        }
+
+        sanitized = sanitized.Trim(WineNameTrimCharacters);
+        sanitized = CleanWineNameSeparators(sanitized);
+
+        return string.IsNullOrWhiteSpace(sanitized) ? null : sanitized;
+    }
+
+    private static string RemoveDescriptorFromWineName(string value, string? descriptor)
+    {
+        if (string.IsNullOrWhiteSpace(value) || string.IsNullOrWhiteSpace(descriptor))
+        {
+            return value;
+        }
+
+        var trimmedDescriptor = descriptor.Trim();
+        if (trimmedDescriptor.Length == 0)
+        {
+            return value;
+        }
+
+        var words = trimmedDescriptor.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0)
+        {
+            return value;
+        }
+
+        var pattern = string.Join(@"[\s\-/–—]*", words.Select(Regex.Escape));
+        return Regex.Replace(
+            value,
+            $@"(?<!\w){pattern}(?!\w)",
+            string.Empty,
+            RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    }
+
+    private static string CleanWineNameSeparators(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var cleaned = EmptyParenthesesRegex.Replace(value, string.Empty);
+        cleaned = EmptyBracketsRegex.Replace(cleaned, string.Empty);
+        cleaned = EmptyBracesRegex.Replace(cleaned, string.Empty);
+        cleaned = SeparatorSpacingRegex.Replace(cleaned, " $1 ");
+        cleaned = DuplicateSeparatorRegex.Replace(cleaned, "$1 ");
+        cleaned = MultipleWhitespaceRegex.Replace(cleaned, " ");
+        return cleaned.Trim(WineNameTrimCharacters).Trim();
     }
 
     private static string? NormalizeSuggestedWineColor(string? color)
