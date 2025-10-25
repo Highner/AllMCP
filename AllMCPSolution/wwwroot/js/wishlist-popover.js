@@ -29,7 +29,8 @@
         wineOptions: [],
         selectedWine: null,
         searchTimeoutId: null,
-        searchController: null
+        searchController: null,
+        preferredWishlistId: ''
     };
 
     function onReady(callback) {
@@ -452,6 +453,7 @@
             state.wishlistSelect.appendChild(placeholder);
             state.createToggle?.setAttribute('disabled', 'true');
             setCreateMode(true);
+            state.preferredWishlistId = '';
             return;
         }
 
@@ -477,6 +479,18 @@
                 option.textContent = entry.name ?? 'Wishlist';
                 state.wishlistSelect.appendChild(option);
             });
+
+        const preferredId = state.preferredWishlistId;
+        if (preferredId) {
+            const hasMatch = wishlists.some(entry => entry?.id === preferredId);
+            if (hasMatch) {
+                state.wishlistSelect.value = preferredId;
+            } else {
+                state.wishlistSelect.selectedIndex = 0;
+            }
+        } else {
+            state.wishlistSelect.selectedIndex = 0;
+        }
 
         state.createToggle?.removeAttribute('disabled');
         setCreateMode(false);
@@ -598,6 +612,7 @@
         }
         state.selectedWine = null;
         state.wineOptions = [];
+        state.preferredWishlistId = '';
         updateSummary(null);
         clearWineResults();
         clearError();
@@ -606,9 +621,14 @@
     function applyContext(context) {
         resetForm();
         state.context = context ?? null;
+        state.preferredWishlistId = '';
 
         if (!context) {
             return;
+        }
+
+        if (context.wishlistId) {
+            state.preferredWishlistId = context.wishlistId;
         }
 
         if (state.wineSearch && context.name) {
