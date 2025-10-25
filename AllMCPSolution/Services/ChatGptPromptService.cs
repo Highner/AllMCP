@@ -33,7 +33,7 @@ public class ChatGptPromptService : IChatGptPromptService
         "The summary must be 200 characters or fewer and offer a concise descriptor of the user's palate. " +
         "The profile must be structured as a list of ‘green-light’ descriptors to embrace and ‘red-light’ descriptors to avoid, grouped by sensory themes without recommending specific new wines. " +
         "The suggestedAppellations array must contain exactly two entries describing appellations or sub-appellations that fit the profile, each with country, region, appellation strings, subAppellation set to a string or null, and a single-sentence reason of 200 characters or fewer explaining the match. " +
-        "For each suggested appellation, include a wines array with two or three entries highlighting wines from that location. Each wine must provide the full label name (producer and climat, if applicable), a color of Red, White, or Rose, an optional variety string or null, an optional subAppellation or null, and a vintage string that is either a 4-digit year or \\\"NV\\\". " +
+        "For each suggested appellation, include a wines array with two or three entries highlighting wines from that location. Each wine must provide the full label name (producer and climat, if applicable) without repeating grape varieties, regions, or appellation names, a color of Red, White, or Rose, an optional variety string or null, an optional subAppellation or null, and a vintage string that is either a 4-digit year or \\\"NV\\\". " +
         "Do not include code fences, or any explanatory text outside the JSON object. Use markdown in the profile field only.";
 
     private const string SurfEyeSystemPromptText = """
@@ -120,7 +120,7 @@ Only include wineVintageId values provided by the user and omit any commentary o
         builder.AppendLine("Identify consistent stylistic preferences, texture, structure, and favored regions or grapes.");
         builder.AppendLine("Use only the provided information and avoid recommending specific new bottles.");
         builder.AppendLine("Also include exactly two suggested appellations or sub-appellations that match the palate, providing country, region, appellation, an optional subAppellation (use null when unknown), and a single-sentence reason under 200 characters explaining the fit. Suggest only appellations that are not already in use.");
-        builder.AppendLine("For each suggested appellation list two or three representative wines from that location, giving the label name (without the vintage), color (Red, White, or Rose), an optional variety, an optional subAppellation (e.g. the Burgundy village), and a vintage string that is either a four-digit year or \"NV\".");
+        builder.AppendLine("For each suggested appellation list two or three representative wines from that location, giving the label name (without the vintage, grape varieties, regions, or appellation names), color (Red, White, or Rose), an optional variety, an optional subAppellation (e.g. the Burgundy village), and a vintage string that is either a four-digit year or \"NV\".");
         builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\",\"wines\":[{\"name\":\"...\",\"color\":\"Red\",\"variety\":\"...\",\"subAppellation\":null,\"vintage\":\"2019\"}]}]}. No markdown or commentary.");
 
         return builder.ToString();
