@@ -1052,7 +1052,6 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                const hasWineSurferOption = wineOptions.some(option => option?.isWineSurfer);
                 const hasCreateOption = wineOptions.some(option => option?.isCreateWine);
                 const cellarOptions = wineOptions.filter(option => option && !option.isWineSurfer && !option.isCreateWine);
                 const hasCellarOptions = cellarOptions.length > 0;
@@ -1064,13 +1063,9 @@ window.WineInventoryTables.initialize = function () {
                 } else if (!hasCellarOptions) {
                     if (trimmedQuery === lastCompletedQuery) {
                         const createMessage = hasCreateOption && trimmedQuery.length > 0
-                            ? `No wines found in your cellar. Create “${trimmedQuery}” or try Wine Surfer.`
-                            : 'No wines found in your cellar. Create a new wine or try Wine Surfer.';
-                        const message = hasCreateOption
-                            ? createMessage
-                            : hasWineSurferOption
-                                ? 'No wines found in your cellar. Try Wine Surfer for more matches.'
-                                : 'No wines found.';
+                            ? `No wines found in your cellar. Create “${trimmedQuery}”.`
+                            : 'No wines found in your cellar. Create a new wine.';
+                        const message = hasCreateOption ? createMessage : 'No wines found.';
                         addWineResults.appendChild(buildWineStatusElement(message));
                     } else {
                         addWineResults.appendChild(buildWineStatusElement('Keep typing to search the cellar.'));
@@ -1122,15 +1117,11 @@ window.WineInventoryTables.initialize = function () {
                     nameSpan.className = 'inventory-add-wine-option__name';
                     nameSpan.textContent = option.label
                         ?? option.name
-                        ?? (option.isWineSurfer ? 'Find with Wine Surfer' : option.id ?? 'Wine option');
+                        ?? option.id
+                        ?? 'Wine option';
                     element.appendChild(nameSpan);
 
-                    if (option.isWineSurfer) {
-                        const actionMeta = document.createElement('span');
-                        actionMeta.className = 'inventory-add-wine-option__meta';
-                        actionMeta.textContent = 'Ask Wine Surfer to suggest wines beyond your cellar.';
-                        element.appendChild(actionMeta);
-                    } else if (option.isCreateWine) {
+                    if (option.isCreateWine) {
                         const actionMeta = document.createElement('span');
                         actionMeta.className = 'inventory-add-wine-option__meta';
                         actionMeta.textContent = 'Create a new wine with custom details.';
@@ -4733,18 +4724,6 @@ window.WineInventoryTables.initialize = function () {
                 };
             }
 
-            function createWineSurferOption(query) {
-                const trimmed = (query ?? '').trim();
-                return {
-                    id: '__wine_surfer__',
-                    name: 'Find with Wine Surfer',
-                    label: 'Find with Wine Surfer',
-                    isWineSurfer: true,
-                    isAction: true,
-                    query: trimmed
-                };
-            }
-
             function appendActionOptions(options, query, { includeCreate } = {}) {
                 const baseOptions = Array.isArray(options)
                     ? options.filter(option => option && option.isWineSurfer !== true && option.isCreateWine !== true)
@@ -4758,7 +4737,6 @@ window.WineInventoryTables.initialize = function () {
                     baseOptions.push(createCreateWineOption(trimmed));
                 }
 
-                baseOptions.push(createWineSurferOption(trimmed));
                 return baseOptions;
             }
 
