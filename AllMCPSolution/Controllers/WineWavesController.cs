@@ -211,6 +211,21 @@ public sealed class WineWavesController : WineSurferControllerBase
         return Ok(new WineWavesMakeResponse(true, successMessage));
     }
 
+    [HttpPost("wine-waves/delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteAllWaves(CancellationToken cancellationToken)
+    {
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return Challenge();
+        }
+
+        await _evolutionScoreRepository.RemoveAllForUserAsync(currentUserId.Value, cancellationToken);
+
+        return Ok(new WineWavesDeleteResponse(true, "Deleted all Wine Waves evolution scores."));
+    }
+
     private async Task<IReadOnlyList<WineWavesInventoryItem>> BuildInventoryAsync(Guid userId, CancellationToken cancellationToken)
     {
         var bottles = await _bottleRepository.GetForUserAsync(userId, cancellationToken);
@@ -507,3 +522,4 @@ public sealed class WineWavesMakeRequest
 }
 
 public sealed record WineWavesMakeResponse(bool Success, string Message);
+public sealed record WineWavesDeleteResponse(bool Success, string Message);
