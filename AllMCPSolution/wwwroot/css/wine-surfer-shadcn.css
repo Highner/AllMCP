@@ -1895,6 +1895,40 @@ tbody tr:hover {
     background: hsla(var(--accent) / 0.22);
 }
 
+.inventory-table-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.inventory-group-control {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.875rem;
+    color: hsl(var(--muted-foreground));
+}
+
+.inventory-group-control__label {
+    font-weight: 500;
+}
+
+.inventory-group-select {
+    min-width: 160px;
+    padding: 6px 12px;
+    border-radius: calc(var(--radius) - 0.15rem);
+    border: 1px solid hsla(var(--border) / 0.8);
+    background: hsla(var(--card) / 0.9);
+    color: hsl(var(--foreground));
+}
+
+.inventory-group-select:focus {
+    outline: none;
+    border-color: hsla(var(--ring) / 0.9);
+    box-shadow: 0 0 0 2px hsla(var(--ring) / 0.35);
+}
+
 .group-row {
     cursor: pointer;
     transition: background-color 0.2s ease-in-out, transform 0.2s ease;
@@ -1904,6 +1938,76 @@ tbody tr:hover {
     background: hsla(var(--accent) / 0.28);
     transform: translateY(-1px);
 }
+
+.inventory-table--grouped .group-row--child .summary-wine {
+    padding-left: 28px;
+    position: relative;
+}
+
+.inventory-table--grouped .group-row--child .summary-wine::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: hsla(var(--accent) / 0.7);
+}
+
+.summary-group-row {
+    background: hsla(var(--accent) / 0.08);
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.summary-group-row:hover,
+.summary-group-row:focus-visible {
+    background: hsla(var(--accent) / 0.14);
+}
+
+.summary-group-row td {
+    padding: 0;
+}
+
+.summary-group-row__content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    font-weight: 600;
+}
+
+.summary-group-row__chevron {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: hsl(var(--muted-foreground));
+    transition: transform 0.2s ease;
+}
+
+.summary-group-row__chevron::before {
+    content: '\25B6';
+}
+
+.summary-group-row--expanded .summary-group-row__chevron::before {
+    content: '\25BC';
+}
+
+.summary-group-row__label {
+    color: hsl(var(--foreground));
+}
+
+.summary-group-row__count {
+    margin-left: auto;
+    font-size: 0.875rem;
+    color: hsl(var(--muted-foreground));
+}
+
 
 .status-pill {
     display: inline-block;
