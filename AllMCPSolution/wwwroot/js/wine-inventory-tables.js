@@ -6,6 +6,15 @@ window.WineInventoryTables.initialize = function () {
 
             window.WineInventoryTables.__initialized = true;
 
+                        // Global suppression for accidental re-activation when closing details
+                        let __suppressNextPointerSequenceUntil = 0;
+                        function suppressNextPointerSequence(durationMs = 200) {
+                            __suppressNextPointerSequenceUntil = Date.now() + Math.max(0, durationMs);
+                        }
+                        function isPointerSequenceSuppressed() {
+                            return Date.now() < __suppressNextPointerSequenceUntil;
+                        }
+
             const filtersForm = document.querySelector('form.filters');
             const clearFiltersButton = filtersForm?.querySelector('[data-clear-filters]');
 
@@ -808,6 +817,11 @@ window.WineInventoryTables.initialize = function () {
 
             function attachSummaryRowHandlers(row) {
                 row.addEventListener('click', (event) => {
+                                    if (typeof isPointerSequenceSuppressed === 'function' && isPointerSequenceSuppressed()) {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        return;
+                                    }
                     const target = event.target;
 
                     if (target.closest('.save-group')) {
@@ -874,10 +888,6 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function bindDetailsCloseButton() {
-                if (!detailsSection) {
-                    return;
-                }
-
                 const handleClose = () => {
                     const rowToFocus = selectedRow;
                     showInventoryView();
@@ -887,25 +897,89 @@ window.WineInventoryTables.initialize = function () {
                     }
                 };
 
+                const intercept = (event) => {
+                    if (!event) return;
+                    if (typeof event.preventDefault === 'function') event.preventDefault();
+                    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+                    if (typeof event.stopPropagation === 'function') event.stopPropagation();
+                };
+
+                const isCloseTarget = (evt) => {
+                    const el = evt?.target;
+                    return el instanceof Element ? !!el.closest('[data-details-close]') : false;
+                };
+
+                // Direct binding to the explicit close button if present
                 if (detailsCloseButton) {
+                    // Intercept as early as possible so underlying elements don’t react
+                    detailsCloseButton.addEventListener('pointerdown', (event) => {
+                        intercept(event);
+                        if (typeof suppressNextPointerSequence === 'function') suppressNextPointerSequence(350);
+                        handleClose();
+                    }, { capture: true });
+
+                    detailsCloseButton.addEventListener('mousedown', (event) => {
+                        intercept(event);
+                    }, { capture: true });
+
+                    detailsCloseButton.addEventListener('touchstart', (event) => {
+                        intercept(event);
+                    }, { capture: true, passive: false });
+
                     detailsCloseButton.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
+                        intercept(event);
                         handleClose();
                     });
                 }
 
-                detailsSection.addEventListener('click', (event) => {
-                    const target = event.target instanceof Element
-                        ? event.target.closest('[data-details-close]')
-                        : null;
+                // Delegate inside the details section (covers clicks on child elements like the inner span)
+                if (detailsSection) {
+                    detailsSection.addEventListener('pointerdown', (event) => {
+                        if (!isCloseTarget(event)) return;
+                        intercept(event);
+                    }, { capture: true });
 
-                    if (!target) {
-                        return;
-                    }
+                    detailsSection.addEventListener('mousedown', (event) => {
+                        if (!isCloseTarget(event)) return;
+                        intercept(event);
+                    }, { capture: true });
 
-                    event.preventDefault();
+                    detailsSection.addEventListener('touchstart', (event) => {
+                        if (!isCloseTarget(event)) return;
+                        intercept(event);
+                    }, { capture: true, passive: false });
+
+                    detailsSection.addEventListener('click', (event) => {
+                        if (!isCloseTarget(event)) return;
+                        intercept(event);
+                        handleClose();
+                    });
+                }
+
+                // Global defensive delegate to ensure the close works even if the section reference is missing
+                const docEarlyIntercept = (event) => {
+                    if (!isCloseTarget(event)) return;
+                    intercept(event);
+                };
+                document.addEventListener('pointerdown', docEarlyIntercept, { capture: true });
+                document.addEventListener('mousedown', docEarlyIntercept, { capture: true });
+                document.addEventListener('touchstart', docEarlyIntercept, { capture: true, passive: false });
+
+                document.addEventListener('click', (event) => {
+                    if (!isCloseTarget(event)) return;
+                    intercept(event);
                     handleClose();
+                });
+
+                // Allow Esc key to close the details panel for accessibility
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        const isDetailsVisible = detailsSection && detailsSection.hidden === false;
+                        if (isDetailsVisible) {
+                            event.preventDefault();
+                            handleClose();
+                        }
+                    }
                 });
             }
 
