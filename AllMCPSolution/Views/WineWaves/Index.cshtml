@@ -604,7 +604,14 @@
                                 text: 'Year'
                             },
                             ticks: {
-                                precision: 0
+                                callback(value) {
+                                    const numericValue = Number(value);
+                                    if (Number.isFinite(numericValue)) {
+                                        return Math.round(numericValue).toString();
+                                    }
+
+                                    return '';
+                                }
                             },
                             grid: {
                                 color: 'rgba(244, 241, 234, 0.08)'
