@@ -455,7 +455,7 @@
         }
     </style>
 </head>
-<body class="wine-app">
+<body class="wine-app wine-app--with-bottom-nav">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main>
         <section class="waves-header">
@@ -912,5 +912,6 @@
             });
         })();
     </script>
+    @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>

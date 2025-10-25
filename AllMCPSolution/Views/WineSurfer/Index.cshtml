@@ -1447,7 +1447,7 @@
     var hasTasteProfileSummary = !string.IsNullOrWhiteSpace(tasteProfileSummary);
     var tasteProfileUrl = Url.Action("TasteProfile", "TasteProfile") ?? "/wine-surfer/taste-profile";
 }
-<body class="wine-app @bodyClass">
+<body class="wine-app wine-app--with-bottom-nav @bodyClass">
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main>
@@ -2619,5 +2619,6 @@
                 });
         })();
     </script>
+    @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>

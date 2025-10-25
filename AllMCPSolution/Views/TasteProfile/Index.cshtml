@@ -441,7 +441,7 @@
         }
     </style>
 </head>
-<body>
+<body class="wine-app wine-app--with-bottom-nav">
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="taste-profile-main">
@@ -1423,5 +1423,6 @@
             });
         })();
     </script>
+    @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>

@@ -456,7 +456,7 @@
         }
     </style>
 </head>
-<body class="wine-app terroir-manager @bodyClass" data-highlight-section="@highlightSection" data-highlight-id="@highlightId">
+<body class="wine-app wine-app--with-bottom-nav terroir-manager @bodyClass" data-highlight-section="@highlightSection" data-highlight-id="@highlightId">
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="terroir-content">
@@ -1255,5 +1255,6 @@
             }
         })();
     </script>
+    @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>
