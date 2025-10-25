@@ -1,0 +1,60 @@
+@using System.Linq
+@model string?
+@{
+    var rawPath = Model;
+    if (string.IsNullOrWhiteSpace(rawPath))
+    {
+        rawPath = Context?.Request?.Path.Value ?? string.Empty;
+    }
+
+    var normalizedPath = string.IsNullOrWhiteSpace(rawPath)
+        ? string.Empty
+        : rawPath!.TrimEnd('/');
+
+    if (string.IsNullOrEmpty(normalizedPath) && !string.IsNullOrEmpty(rawPath))
+    {
+        normalizedPath = "/";
+    }
+
+    var isAuthenticated = User?.Identity?.IsAuthenticated == true;
+
+    var navItems = new (string Href, string Label, bool RequiresAuthentication)[]
+    {
+        ("/wine-manager", "Inventory", false),
+        ("/wine-surfer/surf-eye", "Surf Eye", true),
+        ("/wine-surfer/sisterhoods", "Sisterhoods", false),
+        ("/wine-surfer/wishlists", "Wishlists", true)
+    };
+
+    var visibleItems = navItems
+        .Where(item => isAuthenticated || !item.RequiresAuthentication)
+        .ToList();
+}
+
+@if (visibleItems.Count > 0)
+{
+    <nav class="wine-surfer-bottom-nav" aria-label="Wine Surfer sections">
+        <ul class="bottom-nav__list">
+            @foreach (var item in visibleItems)
+            {
+                var normalizedHref = string.IsNullOrWhiteSpace(item.Href)
+                    ? "/"
+                    : item.Href.TrimEnd('/');
+
+                if (string.IsNullOrEmpty(normalizedHref))
+                {
+                    normalizedHref = "/";
+                }
+
+                var isActive = string.Equals(normalizedHref, normalizedPath, StringComparison.OrdinalIgnoreCase);
+                var linkClasses = "bottom-nav__link" + (isActive ? " bottom-nav__link--active" : string.Empty);
+
+                <li class="bottom-nav__item">
+                    <a class="@linkClasses" href="@Url.Content(item.Href)" aria-current="@(isActive ? "page" : null)">
+                        <span class="bottom-nav__label">@item.Label</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </nav>
+}

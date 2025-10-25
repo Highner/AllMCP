@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
     <script defer src="/js/pwa.js"></script>
 </head>
-<body class="wine-app">
+<body class="wine-app wine-app--with-bottom-nav">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main class="inventory-shell">
         @await Html.PartialAsync("_WineSurferPageHeader", new WineSurferPageHeaderModel("Import Wines"))
@@ -97,5 +97,6 @@
             }
         </section>
     </main>
+    @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>

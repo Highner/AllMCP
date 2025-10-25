@@ -249,7 +249,7 @@
     ViewData["SipSessionId"] = session.Id;
     ViewData["ReturnUrl"] = returnUrl;
 }
-<body class="wine-app session-page @bodyClass">
+<body class="wine-app wine-app--with-bottom-nav session-page @bodyClass">
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="wine-surfer-layout session-main" aria-label="Sip session workspace">
@@ -376,5 +376,6 @@
         </main>
     </div>
     <script defer src="/js/sip-session.js"></script>
+    @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>
