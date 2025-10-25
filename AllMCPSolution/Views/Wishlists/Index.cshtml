@@ -290,6 +290,10 @@
             gap: 12px;
         }
 
+        .wishlists-item-actions > .wishlists-button {
+            width: 100%;
+        }
+
         .wishlists-item-actions form,
         .wishlists-item-actions details {
             width: 100%;
@@ -464,9 +468,18 @@
                                     <div class="wishlists-item-header">
                                         <div class="wishlists-item-meta">
                                             <h3 class="wishlists-item-name">@wishlist.Name</h3>
-                                            <span class="wishlists-item-count">@wishlist.WishCount @(wishlist.WishCount == 1 ? "wine" : "wines")</span>
+                                            <span class="wishlists-item-count"
+                                                  data-wishlist-count="@wishlist.Id"
+                                                  data-wishlist-count-value="@wishlist.WishCount">@wishlist.WishCount @(wishlist.WishCount == 1 ? "wine" : "wines")</span>
                                         </div>
                                         <div class="wishlists-item-actions">
+                                            <button type="button"
+                                                    class="wishlists-button ghost"
+                                                    data-add-wish
+                                                    data-wishlist-id="@wishlist.Id"
+                                                    data-wishlist-name="@wishlist.Name">
+                                                Add wish
+                                            </button>
                                             <details class="wishlists-item-edit"@(isEditing ? " open" : string.Empty)>
                                                 <summary class="wishlists-item-edit-summary">Edit wishlist</summary>
                                                 <form method="post" action="/wine-surfer/wishlists/edit" class="wishlists-form compact" autocomplete="off">
@@ -503,9 +516,11 @@
                         </ul>
                     }
                 </section>
+                @await Html.PartialAsync("_WishlistPopover")
             </div>
         </main>
     </div>
+    <script src="/js/wishlist-popover.js"></script>
     <script>
         (function () {
             const cancelButtons = document.querySelectorAll('button[data-close-edit]');
@@ -516,6 +531,57 @@
                         details.removeAttribute('open');
                     }
                 });
+            });
+
+            const addWishButtons = document.querySelectorAll('[data-add-wish]');
+            addWishButtons.forEach((button) => {
+                button.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    const openWishlist = window.wishlistPopover?.open;
+                    if (typeof openWishlist !== 'function') {
+                        return;
+                    }
+
+                    const wishlistId = button.dataset.wishlistId ?? '';
+                    const wishlistName = button.dataset.wishlistName ?? '';
+
+                    try {
+                        await openWishlist({
+                            wishlistId,
+                            wishlistName
+                        });
+                    } catch (error) {
+                        console.error('Unable to open wishlist popover', error);
+                    }
+                });
+            });
+
+            const countElements = new Map();
+            document.querySelectorAll('[data-wishlist-count]').forEach((element) => {
+                const id = element.dataset.wishlistCount;
+                if (!id) {
+                    return;
+                }
+                countElements.set(id, element);
+            });
+
+            document.addEventListener('wishlist:added', (event) => {
+                const detail = event?.detail ?? {};
+                const wishlistId = detail.wishlistId;
+                if (!wishlistId) {
+                    return;
+                }
+
+                const element = countElements.get(wishlistId);
+                if (!element) {
+                    return;
+                }
+
+                const currentValue = Number.parseInt(element.dataset.wishlistCountValue ?? '0', 10);
+                const nextValue = Number.isFinite(currentValue) ? currentValue + 1 : 1;
+                element.dataset.wishlistCountValue = String(nextValue);
+                const label = nextValue === 1 ? 'wine' : 'wines';
+                element.textContent = `${nextValue} ${label}`;
             });
         })();
     </script>
