@@ -1,7 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using AllMCPSolution.Models;
-using System.ComponentModel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -9,32 +13,6 @@ using Microsoft.AspNetCore.Mvc;
 namespace AllMCPSolution.Controllers;
 
 [Authorize]
-[Route("wine-manager/wishlists")]
-public class WishlistsController : Controller
-{
-    private readonly IWishlistRepository _wishlistRepository;
-    private readonly IWineVintageWishRepository _wishRepository;
-    private readonly IWineVintageRepository _wineVintageRepository;
-    private readonly IWineRepository _wineRepository;
-    private readonly UserManager<ApplicationUser> _userManager;
-
-    public WishlistsController(
-        IWishlistRepository wishlistRepository,
-        IWineVintageWishRepository wishRepository,
-        IWineVintageRepository wineVintageRepository,
-        IWineRepository wineRepository,
-        UserManager<ApplicationUser> userManager)
-    {
-        _wishlistRepository = wishlistRepository;
-        _wishRepository = wishRepository;
-        _wineVintageRepository = wineVintageRepository;
-        _wineRepository = wineRepository;
-        _userManager = userManager;
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> GetWishlists(CancellationToken cancellationToken)
-[Route("wine-surfer")]
 public sealed class WishlistsController : WineSurferControllerBase
 {
     public sealed record WishlistSummaryViewModel(Guid Id, string Name, int WishCount);
@@ -86,45 +64,81 @@ public sealed class WishlistsController : WineSurferControllerBase
         public bool HasEditErrors => EditErrors.Count > 0;
     }
 
+    public sealed class CreateWishlistForm
+    {
+        [DefaultValue("")]
+        public string? Name { get; set; }
+    }
+
+    public sealed class UpdateWishlistForm
+    {
+        public Guid? Id { get; set; }
+
+        [DefaultValue("")]
+        public string? Name { get; set; }
+    }
+
+    public sealed class DeleteWishlistForm
+    {
+        public Guid? Id { get; set; }
+    }
+
     public sealed class CreateWishlistRequest
     {
-        [DefaultValue("")]
-        public string? Name { get; set; }
+        [Required]
+        [StringLength(
+            WishlistNameValidator.MaxLength,
+            MinimumLength = WishlistNameValidator.MinLength)]
+        public string Name { get; set; } = string.Empty;
     }
 
-    public sealed class UpdateWishlistRequest
+    public sealed class AddWishlistItemRequest
     {
-        public Guid? Id { get; set; }
+        [Required]
+        public Guid WineId { get; set; }
 
-        [DefaultValue("")]
-        public string? Name { get; set; }
+        [Range(1900, 2100)]
+        public int Vintage { get; set; }
     }
 
-    public sealed class DeleteWishlistRequest
-    {
-        public Guid? Id { get; set; }
-    }
+    public sealed record WishlistSummaryResponse(Guid Id, string Name, int WishCount);
 
-    private const int WishlistNameMinLength = 2;
-    private const int WishlistNameMaxLength = 256;
+    public sealed record WishlistWishResponse(
+        Guid Id,
+        Guid WishlistId,
+        string WishlistName,
+        Guid WineVintageId,
+        Guid WineId,
+        int Vintage,
+        string WineName);
+
     private const string WishlistsStatusTempDataKey = "WineSurfer.Wishlists.Status";
     private const string WishlistsErrorTempDataKey = "WineSurfer.Wishlists.Error";
 
     private readonly IWishlistRepository _wishlistRepository;
+    private readonly IWineVintageWishRepository _wishRepository;
+    private readonly IWineVintageRepository _wineVintageRepository;
+    private readonly IWineRepository _wineRepository;
     private readonly IWineSurferTopBarService _topBarService;
 
     public WishlistsController(
         IWishlistRepository wishlistRepository,
+        IWineVintageWishRepository wishRepository,
+        IWineVintageRepository wineVintageRepository,
+        IWineRepository wineRepository,
         IUserRepository userRepository,
         IWineSurferTopBarService topBarService,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _wishlistRepository = wishlistRepository;
+        _wishRepository = wishRepository;
+        _wineVintageRepository = wineVintageRepository;
+        _wineRepository = wineRepository;
         _topBarService = topBarService;
     }
 
-    [HttpGet("wishlists")]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    [HttpGet("/wine-manager/wishlists")]
+    public async Task<IActionResult> GetWishlists(CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
         {
@@ -143,30 +157,8 @@ public sealed class WishlistsController : WineSurferControllerBase
         return Json(response);
     }
 
-    [HttpGet("{id:guid}")]
+    [HttpGet("/wine-manager/wishlists/{id:guid}")]
     public async Task<IActionResult> GetWishlist(Guid id, CancellationToken cancellationToken)
-        await PrepareWishlistsViewAsync(cancellationToken);
-
-        var statusMessage = TempData.TryGetValue(WishlistsStatusTempDataKey, out var status)
-            ? status as string
-            : null;
-
-        var errorMessage = TempData.TryGetValue(WishlistsErrorTempDataKey, out var error)
-            ? error as string
-            : null;
-
-        var viewModel = await BuildViewModelAsync(
-            currentUserId,
-            cancellationToken,
-            statusMessage: statusMessage,
-            errorMessage: errorMessage);
-
-        return View("Index", viewModel);
-    }
-
-    [HttpPost("wishlists")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([FromForm] CreateWishlistRequest request, CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
         {
@@ -187,9 +179,9 @@ public sealed class WishlistsController : WineSurferControllerBase
         return Json(response);
     }
 
-    [HttpPost]
+    [HttpPost("/wine-manager/wishlists")]
     public async Task<IActionResult> CreateWishlist(
-        [FromBody] CreateWishlistRequest request,
+        [FromBody] CreateWishlistRequest? request,
         CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
@@ -197,60 +189,35 @@ public sealed class WishlistsController : WineSurferControllerBase
             return Challenge();
         }
 
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(ModelState);
-        }
-
-        var trimmedName = request.Name?.Trim();
-        if (string.IsNullOrWhiteSpace(trimmedName))
-        {
-            ModelState.AddModelError(nameof(request.Name), "Wishlist name is required.");
-            return ValidationProblem(ModelState);
-        }
-
-        var existing = await _wishlistRepository.GetForUserAsync(currentUserId, cancellationToken);
-        var hasDuplicate = existing.Any(list =>
-            string.Equals(list.Name, trimmedName, StringComparison.OrdinalIgnoreCase));
-        if (hasDuplicate)
-        {
-            ModelState.AddModelError(nameof(request.Name), "You already have a wishlist with that name.");
-            return ValidationProblem(ModelState);
         request ??= new CreateWishlistRequest();
 
-        var validation = NormalizeAndValidateName(request.Name);
+        var validation = WishlistNameValidator.NormalizeAndValidate(
+            request.Name,
+            "Wishlist name is required.");
 
         var wishlists = await _wishlistRepository.GetForUserAsync(currentUserId, cancellationToken);
 
-        var duplicateExists = wishlists
-            .Any(wishlist => string.Equals(wishlist.Name, validation.NormalizedName, StringComparison.OrdinalIgnoreCase));
-
-        if (duplicateExists)
+        if (wishlists.Any(list =>
+                string.Equals(list.Name, validation.NormalizedName, StringComparison.OrdinalIgnoreCase)))
         {
             validation.Errors.Add("You already have a wishlist with that name.");
         }
 
         if (validation.Errors.Count > 0)
         {
-            await PrepareWishlistsViewAsync(cancellationToken);
+            foreach (var error in validation.Errors)
+            {
+                ModelState.AddModelError(nameof(request.Name), error);
+            }
 
-            var viewModel = await BuildViewModelAsync(
-                currentUserId,
-                cancellationToken,
-                wishlists,
-                createName: request.Name ?? string.Empty,
-                createErrors: validation.Errors);
-
-            return View("Index", viewModel);
+            return ValidationProblem(ModelState);
         }
 
         var wishlist = new Wishlist
         {
             Id = Guid.NewGuid(),
-            Name = trimmedName,
+            Name = validation.NormalizedName,
             UserId = currentUserId
-            UserId = currentUserId,
-            Name = validation.NormalizedName
         };
 
         await _wishlistRepository.AddAsync(wishlist, cancellationToken);
@@ -259,39 +226,25 @@ public sealed class WishlistsController : WineSurferControllerBase
         return CreatedAtAction(nameof(GetWishlist), new { id = wishlist.Id }, response);
     }
 
-    [HttpPost("{wishlistId:guid}/wishes")]
+    [HttpPost("/wine-manager/wishlists/{wishlistId:guid}/wishes")]
     public async Task<IActionResult> AddWish(
         Guid wishlistId,
-        [FromBody] AddWishlistItemRequest request,
+        [FromBody] AddWishlistItemRequest? request,
         CancellationToken cancellationToken)
-        TempData[WishlistsStatusTempDataKey] = $"Wishlist \"{wishlist.Name}\" created.";
-
-        return RedirectToAction(nameof(Index));
-    }
-
-    [HttpPost("wishlists/edit")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit([FromForm] UpdateWishlistRequest request, CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
         {
             return Challenge();
         }
 
+        if (request is null)
+        {
+            ModelState.AddModelError(string.Empty, "A request body is required.");
+            return ValidationProblem(ModelState);
+        }
+
         if (!ModelState.IsValid)
         {
-            return ValidationProblem(ModelState);
-        }
-
-        if (request.WineId == Guid.Empty)
-        {
-            ModelState.AddModelError(nameof(request.WineId), "Wine must be selected.");
-            return ValidationProblem(ModelState);
-        }
-
-        if (request.Vintage < 1900 || request.Vintage > 2100)
-        {
-            ModelState.AddModelError(nameof(request.Vintage), "Enter a vintage between 1900 and 2100.");
             return ValidationProblem(ModelState);
         }
 
@@ -340,11 +293,92 @@ public sealed class WishlistsController : WineSurferControllerBase
         return Json(response);
     }
 
-    private Guid? GetCurrentUserId()
+    [HttpGet("/wine-surfer/wishlists")]
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var idValue = _userManager.GetUserId(User);
-        return Guid.TryParse(idValue, out var parsedId) ? parsedId : null;
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        await PrepareWishlistsViewAsync(cancellationToken);
+
+        var statusMessage = TempData.TryGetValue(WishlistsStatusTempDataKey, out var status)
+            ? status as string
+            : null;
+
+        var errorMessage = TempData.TryGetValue(WishlistsErrorTempDataKey, out var error)
+            ? error as string
+            : null;
+
+        var viewModel = await BuildViewModelAsync(
+            currentUserId,
+            cancellationToken,
+            statusMessage: statusMessage,
+            errorMessage: errorMessage);
+
+        return View("Index", viewModel);
     }
+
+    [HttpPost("/wine-surfer/wishlists")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create([FromForm] CreateWishlistForm? request, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        request ??= new CreateWishlistForm();
+
+        var validation = WishlistNameValidator.NormalizeAndValidate(
+            request.Name,
+            "Please enter a name for the wishlist.");
+
+        var wishlists = await _wishlistRepository.GetForUserAsync(currentUserId, cancellationToken);
+
+        if (wishlists.Any(wishlist =>
+                string.Equals(wishlist.Name, validation.NormalizedName, StringComparison.OrdinalIgnoreCase)))
+        {
+            validation.Errors.Add("You already have a wishlist with that name.");
+        }
+
+        if (validation.Errors.Count > 0)
+        {
+            await PrepareWishlistsViewAsync(cancellationToken);
+
+            var viewModel = await BuildViewModelAsync(
+                currentUserId,
+                cancellationToken,
+                wishlists,
+                createName: request.Name ?? string.Empty,
+                createErrors: validation.Errors);
+
+            return View("Index", viewModel);
+        }
+
+        var wishlist = new Wishlist
+        {
+            Id = Guid.NewGuid(),
+            UserId = currentUserId,
+            Name = validation.NormalizedName
+        };
+
+        await _wishlistRepository.AddAsync(wishlist, cancellationToken);
+
+        TempData[WishlistsStatusTempDataKey] = $"Wishlist \"{wishlist.Name}\" created.";
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost("/wine-surfer/wishlists/edit")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit([FromForm] UpdateWishlistForm? request, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
 
         if (request?.Id is null || request.Id == Guid.Empty)
         {
@@ -353,20 +387,21 @@ public sealed class WishlistsController : WineSurferControllerBase
         }
 
         var wishlists = await _wishlistRepository.GetForUserAsync(currentUserId, cancellationToken);
-
         var wishlist = wishlists.FirstOrDefault(w => w.Id == request.Id.Value);
+
         if (wishlist is null)
         {
             TempData[WishlistsErrorTempDataKey] = "We couldn't find that wishlist.";
             return RedirectToAction(nameof(Index));
         }
 
-        var validation = NormalizeAndValidateName(request.Name);
+        var validation = WishlistNameValidator.NormalizeAndValidate(
+            request.Name,
+            "Please enter a name for the wishlist.");
 
-        var duplicateExists = wishlists
-            .Any(existing => existing.Id != wishlist.Id && string.Equals(existing.Name, validation.NormalizedName, StringComparison.OrdinalIgnoreCase));
-
-        if (duplicateExists)
+        if (wishlists.Any(existing =>
+                existing.Id != wishlist.Id &&
+                string.Equals(existing.Name, validation.NormalizedName, StringComparison.OrdinalIgnoreCase)))
         {
             validation.Errors.Add("You already have a wishlist with that name.");
         }
@@ -400,9 +435,9 @@ public sealed class WishlistsController : WineSurferControllerBase
         return RedirectToAction(nameof(Index));
     }
 
-    [HttpPost("wishlists/delete")]
+    [HttpPost("/wine-surfer/wishlists/delete")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete([FromForm] DeleteWishlistRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete([FromForm] DeleteWishlistForm? request, CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
         {
@@ -469,32 +504,6 @@ public sealed class WishlistsController : WineSurferControllerBase
             errorMessage);
     }
 
-    private static WishlistNameValidationResult NormalizeAndValidateName(string? name)
-    {
-        var normalized = (name ?? string.Empty).Trim();
-        var errors = new List<string>();
-
-        if (string.IsNullOrWhiteSpace(normalized))
-        {
-            errors.Add("Please enter a name for the wishlist.");
-            return new WishlistNameValidationResult(string.Empty, errors);
-        }
-
-        if (normalized.Length < WishlistNameMinLength)
-        {
-            errors.Add($"Wishlist names must be at least {WishlistNameMinLength} characters long.");
-        }
-
-        if (normalized.Length > WishlistNameMaxLength)
-        {
-            errors.Add($"Wishlist names must be {WishlistNameMaxLength} characters or fewer.");
-        }
-
-        return new WishlistNameValidationResult(normalized, errors);
-    }
-
-    private readonly record struct WishlistNameValidationResult(string NormalizedName, List<string> Errors);
-
     private bool TryGetCurrentUserId(out Guid userId)
     {
         var currentUserId = GetCurrentUserId();
@@ -507,31 +516,4 @@ public sealed class WishlistsController : WineSurferControllerBase
         userId = Guid.Empty;
         return false;
     }
-
-    public sealed class CreateWishlistRequest
-    {
-        [Required]
-        [StringLength(80, MinimumLength = 1)]
-        public string Name { get; set; } = string.Empty;
-    }
-
-    public sealed class AddWishlistItemRequest
-    {
-        [Required]
-        public Guid WineId { get; set; }
-
-        [Range(1900, 2100)]
-        public int Vintage { get; set; }
-    }
-
-    public sealed record WishlistSummaryResponse(Guid Id, string Name, int WishCount);
-
-    public sealed record WishlistWishResponse(
-        Guid Id,
-        Guid WishlistId,
-        string WishlistName,
-        Guid WineVintageId,
-        Guid WineId,
-        int Vintage,
-        string WineName);
 }
