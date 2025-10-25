@@ -407,7 +407,8 @@
             state.wineIdInput.value = option.id;
         }
         updateSummary(option);
-        setWineResultsVisible(false);
+        clearWineResults();
+        state.wineOptions = [];
         clearError();
         if (Array.isArray(option.vintages) && option.vintages.length > 0 && state.vintageInput) {
             const first = option.vintages.find(v => Number.isFinite(Number(v)));
