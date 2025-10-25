@@ -11,6 +11,7 @@
         ?? WineSurferTopBarModel.Empty(currentPath);
     ViewData["WineSurferPageTitle"] = "Wine Waves";
     var hasDatasets = Model.Datasets.Any();
+    var hasInventory = Model.Inventory.Any();
     var chartPayload = Model.Datasets.Select(dataset => new
     {
         id = dataset.WineVintageId,
@@ -19,11 +20,11 @@
         color = dataset.ColorHex,
         points = dataset.Points
             .OrderBy(point => point.Year)
-            .Select(point => new
-            {
-                year = point.Year,
-                score = Convert.ToDouble(point.Score, CultureInfo.InvariantCulture)
-            })
+        .Select(point => new
+        {
+            year = point.Year,
+            score = Convert.ToDouble(point.Score, CultureInfo.InvariantCulture)
+        })
     }).ToList();
     var chartDataJson = JsonSerializer.Serialize(chartPayload);
 }
@@ -94,6 +95,54 @@
             box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
         }
 
+        .waves-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .make-waves-button {
+            appearance: none;
+            border: none;
+            border-radius: 999px;
+            padding: 12px 28px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.4px;
+            background: linear-gradient(135deg, rgba(244, 80, 67, 0.82), rgba(224, 142, 55, 0.9));
+            color: rgba(17, 17, 20, 0.94);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            box-shadow: 0 12px 24px rgba(244, 96, 64, 0.25);
+        }
+
+        .make-waves-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 32px rgba(244, 96, 64, 0.3);
+        }
+
+        .make-waves-button:focus-visible {
+            outline: 2px solid rgba(244, 241, 234, 0.9);
+            outline-offset: 3px;
+        }
+
+        .make-waves-button:disabled,
+        .make-waves-button[aria-disabled="true"] {
+            cursor: not-allowed;
+            opacity: 0.5;
+            box-shadow: none;
+        }
+
+        .waves-actions-help {
+            margin: 0;
+            font-size: 0.85rem;
+            color: rgba(244, 241, 234, 0.6);
+            text-align: center;
+        }
+
         .waves-chart-wrapper {
             position: relative;
             min-height: 360px;
@@ -148,12 +197,145 @@
             font-size: 1.05rem;
         }
 
+        .waves-popover-backdrop[hidden] {
+            display: none;
+        }
+
+        .waves-popover-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 5, 7, 0.72);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            z-index: 1000;
+        }
+
+        .waves-popover-dialog {
+            background: rgba(18, 18, 22, 0.96);
+            border-radius: 18px;
+            width: min(520px, 100%);
+            border: 1px solid rgba(244, 241, 234, 0.12);
+            box-shadow: 0 28px 48px rgba(0, 0, 0, 0.55);
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .waves-popover-form h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+        }
+
+        .waves-popover-description {
+            margin: 0;
+            color: rgba(244, 241, 234, 0.7);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .waves-popover-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 320px;
+            overflow: auto;
+            padding-right: 4px;
+        }
+
+        .waves-popover-option {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            background: rgba(244, 241, 234, 0.05);
+            border-radius: 14px;
+            padding: 12px 16px;
+        }
+
+        .waves-popover-option input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-top: 4px;
+            accent-color: #E4572E;
+        }
+
+        .waves-popover-option-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .waves-popover-option-label {
+            margin: 0;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .waves-popover-option-details {
+            margin: 0;
+            color: rgba(244, 241, 234, 0.6);
+            font-size: 0.85rem;
+        }
+
+        .waves-popover-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .waves-primary-button,
+        .waves-secondary-button {
+            appearance: none;
+            border: none;
+            border-radius: 999px;
+            padding: 10px 22px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        }
+
+        .waves-primary-button {
+            background: rgba(244, 241, 234, 0.95);
+            color: rgba(17, 17, 20, 0.9);
+            box-shadow: 0 8px 18px rgba(244, 241, 234, 0.2);
+        }
+
+        .waves-secondary-button {
+            background: rgba(244, 241, 234, 0.12);
+            color: rgba(244, 241, 234, 0.85);
+        }
+
+        .waves-primary-button:hover,
+        .waves-secondary-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .waves-primary-button:disabled,
+        .waves-secondary-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            transform: none;
+            box-shadow: none;
+        }
+
+        body.waves-popover-open {
+            overflow: hidden;
+        }
+
         @@media (max-width: 720px) {
             main {
                 padding: 32px 16px 64px;
             }
 
             .waves-chart-card {
+                padding: 24px;
+            }
+
+            .waves-popover-dialog {
                 padding: 24px;
             }
         }
@@ -167,6 +349,14 @@
             <p class="waves-description">
                 Track how each vintage evolves across the years. Scores update as you capture more tasting history, helping you
                 decide when to uncork the perfect bottle.
+            </p>
+        </section>
+        <section class="waves-actions">
+            <button type="button" class="make-waves-button" data-make-waves-trigger@(hasInventory ? string.Empty : " disabled=\"disabled\" aria-disabled=\"true\"")>Make waves</button>
+            <p class="waves-actions-help">
+                @(hasInventory
+                    ? "Select wines from your cellar to ask Wine Waves for new evolution scores."
+                    : "Add wines to your inventory to generate fresh evolution scores.")
             </p>
         </section>
         <section class="waves-chart-card" aria-live="polite">
@@ -197,8 +387,161 @@
             }
         </section>
     </main>
+    @if (hasInventory)
+    {
+        <div class="waves-popover-backdrop" data-make-waves-popover hidden>
+            <div class="waves-popover-dialog" role="dialog" aria-modal="true" aria-labelledby="wavesPopoverTitle">
+                <form class="waves-popover-form" data-make-waves-form>
+                    <h2 id="wavesPopoverTitle">Make waves</h2>
+                    <p class="waves-popover-description">Select the vintages you want Wine Waves to analyze for fresh evolution scores.</p>
+                    <div class="waves-popover-list" role="group" aria-labelledby="wavesPopoverTitle">
+                        @for (var index = 0; index < Model.Inventory.Count; index++)
+                        {
+                            var item = Model.Inventory[index];
+                            var optionId = $"waves-option-{index}";
+                            <label class="waves-popover-option" for="@optionId">
+                                <input type="checkbox" id="@optionId" name="wineVintageIds" value="@item.WineVintageId" />
+                                <span class="waves-popover-option-content">
+                                    <span class="waves-popover-option-label">@item.Label</span>
+                                    @if (!string.IsNullOrWhiteSpace(item.Details))
+                                    {
+                                        <span class="waves-popover-option-details">@item.Details</span>
+                                    }
+                                </span>
+                            </label>
+                        }
+                    </div>
+                    @Html.AntiForgeryToken()
+                    <div class="waves-popover-actions">
+                        <button type="button" class="waves-secondary-button" data-make-waves-cancel>Cancel</button>
+                        <button type="submit" class="waves-primary-button" data-make-waves-submit>Make waves</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        (function () {
+            const trigger = document.querySelector('[data-make-waves-trigger]');
+            const popover = document.querySelector('[data-make-waves-popover]');
+            if (!trigger || !popover) {
+                return;
+            }
+
+            const form = popover.querySelector('[data-make-waves-form]');
+            const cancelButton = popover.querySelector('[data-make-waves-cancel]');
+            const submitButton = popover.querySelector('[data-make-waves-submit]');
+            const endpoint = '/wine-surfer/wine-waves/make';
+            let lastFocusedElement = null;
+
+            const closePopover = () => {
+                popover.setAttribute('hidden', 'hidden');
+                document.body.classList.remove('waves-popover-open');
+                popover.classList.remove('open');
+                trigger.setAttribute('aria-expanded', 'false');
+                if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+                    lastFocusedElement.focus();
+                } else {
+                    trigger.focus();
+                }
+            };
+
+            const openPopover = () => {
+                if (trigger.hasAttribute('disabled')) {
+                    return;
+                }
+
+                lastFocusedElement = document.activeElement;
+                popover.removeAttribute('hidden');
+                document.body.classList.add('waves-popover-open');
+                popover.classList.add('open');
+                trigger.setAttribute('aria-expanded', 'true');
+
+                const firstCheckbox = popover.querySelector('input[type="checkbox"]');
+                if (firstCheckbox && typeof firstCheckbox.focus === 'function') {
+                    firstCheckbox.focus();
+                }
+            };
+
+            trigger.addEventListener('click', openPopover);
+
+            popover.addEventListener('click', (event) => {
+                if (event.target === popover) {
+                    closePopover();
+                }
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && popover.classList.contains('open')) {
+                    closePopover();
+                }
+            });
+
+            if (cancelButton) {
+                cancelButton.addEventListener('click', () => {
+                    closePopover();
+                });
+            }
+
+            if (form && submitButton) {
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+
+                    const selected = Array.from(form.querySelectorAll('input[name="wineVintageIds"]:checked'))
+                        .map((input) => input.value)
+                        .filter((value) => typeof value === 'string' && value.trim().length > 0);
+
+                    if (selected.length === 0) {
+                        window.alert('Select at least one wine to make new waves.');
+                        return;
+                    }
+
+                    const originalLabel = submitButton.textContent;
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Making waves…';
+
+                    try {
+                        const headers = {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        };
+
+                        const tokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
+                        if (tokenInput && tokenInput instanceof HTMLInputElement && tokenInput.value) {
+                            headers['RequestVerificationToken'] = tokenInput.value;
+                        }
+
+                        const response = await fetch(endpoint, {
+                            method: 'POST',
+                            headers,
+                            credentials: 'same-origin',
+                            body: JSON.stringify({ wineVintageIds: selected })
+                        });
+
+                        const contentType = response.headers.get('content-type') || '';
+                        const expectsJson = contentType.toLowerCase().includes('application/json');
+                        const payload = expectsJson ? await response.json().catch(() => null) : null;
+
+                        if (!response.ok || !payload) {
+                            const errorMessage = payload?.message || 'We could not create new waves. Please try again.';
+                            window.alert(errorMessage);
+                            return;
+                        }
+
+                        window.alert(payload.message || 'Wine Waves updated your evolution scores.');
+                        closePopover();
+                        window.location.reload();
+                    } catch (error) {
+                        window.alert('We could not create new waves. Please try again.');
+                    } finally {
+                        submitButton.disabled = false;
+                        submitButton.textContent = originalLabel;
+                    }
+                });
+            }
+        })();
+
         (function () {
             const data = @Html.Raw(chartDataJson);
             const hasData = Array.isArray(data) && data.length > 0;
