@@ -626,6 +626,50 @@ namespace AllMCPSolution.Migrations
                     b.ToTable("WineVintageEvolutionScores");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.WineVintageWish", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("WineVintageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("WishlistId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WineVintageId");
+
+                    b.HasIndex("WishlistId", "WineVintageId")
+                        .IsUnique();
+
+                    b.ToTable("WineVintageWishes");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Wishlist", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Wishlists");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1013,6 +1057,36 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("WineVintage");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.WineVintageWish", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.WineVintage", "WineVintage")
+                        .WithMany("Wishes")
+                        .HasForeignKey("WineVintageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AllMCPSolution.Models.Wishlist", "Wishlist")
+                        .WithMany("Wishes")
+                        .HasForeignKey("WishlistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WineVintage");
+
+                    b.Navigation("Wishlist");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Wishlist", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.ApplicationUser", "User")
+                        .WithMany("Wishlists")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
@@ -1086,6 +1160,8 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("TastingNotes");
 
                     b.Navigation("WineVintageEvolutionScores");
+
+                    b.Navigation("Wishlists");
                 });
 
             modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
@@ -1153,6 +1229,13 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("Bottles");
 
                     b.Navigation("EvolutionScores");
+
+                    b.Navigation("Wishes");
+                });
+
+            modelBuilder.Entity("AllMCPSolution.Models.Wishlist", b =>
+                {
+                    b.Navigation("Wishes");
                 });
 #pragma warning restore 612, 618
         }
