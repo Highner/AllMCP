@@ -853,6 +853,59 @@
                 return;
             }
 
+            const currentYear = new Date().getFullYear();
+            const currentYearLinePlugin = {
+                id: 'currentYearLine',
+                afterDraw(chart, args, pluginOptions) {
+                    const { ctx, chartArea, scales } = chart;
+                    if (!chartArea || !scales?.x) {
+                        return;
+                    }
+
+                    const { left, right, top, bottom } = chartArea;
+                    const xScale = scales.x;
+                    const lineYear = pluginOptions?.value ?? currentYear;
+
+                    if (lineYear < xScale.min || lineYear > xScale.max) {
+                        return;
+                    }
+
+                    const x = xScale.getPixelForValue(lineYear);
+                    if (!Number.isFinite(x) || x < left || x > right) {
+                        return;
+                    }
+
+                    const color = pluginOptions?.color ?? 'rgba(246, 198, 114, 0.6)';
+                    const lineWidth = pluginOptions?.lineWidth ?? 2;
+                    const dash = Array.isArray(pluginOptions?.dash) ? pluginOptions.dash : [6, 6];
+                    const label = pluginOptions?.label ?? `Current Year (${lineYear})`;
+                    const labelColor = pluginOptions?.labelColor ?? color;
+                    const font = pluginOptions?.font ?? '12px Inter, system-ui, sans-serif';
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = lineWidth;
+                    ctx.setLineDash(dash);
+                    ctx.moveTo(x, top);
+                    ctx.lineTo(x, bottom);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    if (label) {
+                        ctx.font = font;
+                        ctx.fillStyle = labelColor;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'top';
+                        ctx.fillText(label, x, top + 8);
+                    }
+
+                    ctx.restore();
+                }
+            };
+
+            Chart.register(currentYearLinePlugin);
+
             const datasets = data.map(dataset => ({
                 label: dataset.label,
                 data: dataset.points.map(point => ({ x: point.year, y: point.score })),
@@ -895,6 +948,14 @@
                                     return `${tooltipItem.dataset.label}: ${value}`;
                                 }
                             }
+                        },
+                        currentYearLine: {
+                            value: currentYear,
+                            color: 'rgba(246, 198, 114, 0.75)',
+                            labelColor: 'rgba(246, 198, 114, 0.9)',
+                            lineWidth: 2,
+                            dash: [6, 6],
+                            label: `Current Year (${currentYear})`
                         }
                     },
                     scales: {
