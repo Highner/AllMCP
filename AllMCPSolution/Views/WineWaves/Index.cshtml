@@ -352,7 +352,7 @@
             </p>
         </section>
         <section class="waves-actions">
-            <button type="button" class="make-waves-button" data-make-waves-trigger@(hasInventory ? string.Empty : " disabled=\"disabled\" aria-disabled=\"true\"")>Make waves</button>
+            @await Html.PartialAsync("_MakeWavesButton", hasInventory)
             <p class="waves-actions-help">
                 @(hasInventory
                     ? "Select wines from your cellar to ask Wine Waves for new evolution scores."
