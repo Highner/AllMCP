@@ -884,32 +884,9 @@
             z-index: 9;
             padding: 12px 0;
             margin-bottom: 16px;
-            isolation: isolate;
-        }
-
-        .section-header > * {
-            position: relative;
-            z-index: 1;
-        }
-
-        .section-header::before {
-            content: "";
-            position: absolute;
-            inset: -8px 0;
-            border-radius: 18px;
-            background: rgba(5, 5, 5, 0.92);
-            border: 1px solid rgba(244, 241, 234, 0.14);
-            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-            backdrop-filter: blur(12px);
-            opacity: 0;
-            transform: translate3d(0, 8px, 0) scale(0.98);
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            pointer-events: none;
-        }
-
-        .section-header.section-header--stuck::before {
-            opacity: 1;
-            transform: translate3d(0, 0, 0) scale(1);
+            background: var(--wine-app-background);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid rgba(244, 241, 234, 0.08);
         }
 
         .section-title {
@@ -1781,50 +1758,6 @@
             <section class="map-shell" aria-label="World map highlighting wine regions">
                 <div id="map" class="world-map" role="img" aria-hidden="true"></div>
             </section>
-            <script>
-                (() => {
-                    const headers = Array.from(document.querySelectorAll('.section-header'));
-                    if (headers.length === 0) {
-                        return;
-                    }
-
-                    const updateStickyState = () => {
-                        headers.forEach(header => {
-                            const computed = window.getComputedStyle(header);
-                            const stickyTop = Number.parseFloat(computed.top) || 0;
-                            const { top } = header.getBoundingClientRect();
-                            const isStuck = top <= stickyTop + 0.5;
-                            header.classList.toggle('section-header--stuck', isStuck);
-                        });
-                    };
-
-                    let ticking = false;
-                    const requestUpdate = () => {
-                        if (ticking) {
-                            return;
-                        }
-
-                        ticking = true;
-                        window.requestAnimationFrame(() => {
-                            updateStickyState();
-                            ticking = false;
-                        });
-                    };
-
-                    updateStickyState();
-                    document.addEventListener('scroll', requestUpdate, { passive: true });
-                    window.addEventListener('resize', requestUpdate);
-
-                    if (typeof window.matchMedia === 'function') {
-                        const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-                        if (typeof mediaQuery.addEventListener === 'function') {
-                            mediaQuery.addEventListener('change', requestUpdate);
-                        } else if (typeof mediaQuery.addListener === 'function') {
-                            mediaQuery.addListener(requestUpdate);
-                        }
-                    }
-                })();
-            </script>
             <script src="/js/create-wine-popover.js"></script>
             <script src="/js/wine-surfer-favorites.js"></script>
             <script>
