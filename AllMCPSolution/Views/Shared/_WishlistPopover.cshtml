@@ -1,45 +1,6 @@
-@using System
 @using System.Collections.Generic
 @using AllMCPSolution.Models
 @{
-    var wishlistFormModel = new InventoryAddFormPartialModel
-    {
-        Locations = Array.Empty<BottleLocationOption>(),
-        FormClass = "inventory-add-form wishlist-form",
-        UseNoValidate = true,
-        IntroClass = "inventory-add-intro wishlist-intro",
-        IntroText = "Choose a wishlist to save this wine for later tasting.",
-        WineFieldClass = "inventory-add-field wishlist-field",
-        WineLabelClass = "inventory-add-label wishlist-label",
-        ComboboxClass = "inventory-add-combobox wishlist-combobox",
-        ComboboxAttributes = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["data-wishlist-combobox"] = null
-        },
-        SearchInputClass = "inventory-add-wine-search wishlist-wine-search",
-        SearchHiddenInputClass = "inventory-add-wine-id wishlist-wine-id",
-        ResultsContainerClass = "inventory-add-wine-results wishlist-wine-results",
-        ResultsContainerId = "wishlist-wine-results",
-        SummaryClass = "inventory-add-summary wishlist-summary",
-        SummaryText = "Start typing to find an existing wine.",
-        VintageFieldClass = "inventory-add-field wishlist-field wishlist-field--split",
-        VintageLabelClass = "inventory-add-label wishlist-label",
-        VintageInputClass = "inventory-add-vintage wishlist-vintage",
-        VintageHintText = null,
-        LocationFieldClass = "inventory-add-field wishlist-field",
-        LocationLabelClass = "inventory-add-label wishlist-label",
-        QuantityFieldClass = "inventory-add-field wishlist-field",
-        QuantityLabelClass = "inventory-add-label wishlist-label",
-        ShowLocation = false,
-        ShowQuantity = false,
-        ErrorClass = "inventory-add-error wishlist-error",
-        ActionsClass = "inventory-add-actions wishlist-actions",
-        CancelButtonClass = "crud-table__action-button secondary inventory-add-cancel wishlist-cancel",
-        SubmitButtonClass = "crud-table__action-button inventory-add-submit wishlist-submit",
-        SubmitButtonText = "Add to wishlist",
-        AdditionalFieldsPartial = "_WishlistFormFields"
-    };
-    var wishlistFormContent = await Html.PartialAsync("_InventoryAddForm", wishlistFormModel);
     var modal = new WineSurferModalShell
     {
         BackdropId = "wishlist-overlay",
@@ -66,7 +27,59 @@
         {
             ["data-wishlist-close"] = null
         },
-        BodyContent = _ => wishlistFormContent
+        BodyContent = @<form class="inventory-add-form wishlist-form" novalidate>
+            <p class="inventory-add-intro wishlist-intro">Choose a wishlist to save this wine for later tasting.</p>
+            <label class="inventory-add-field wishlist-field">
+                <span class="inventory-add-label wishlist-label">Wine</span>
+                <div class="inventory-add-combobox wishlist-combobox" data-wishlist-combobox>
+                    <input type="search"
+                           class="inventory-add-wine-search wishlist-wine-search"
+                           placeholder="Search for a wine"
+                           aria-label="Wine"
+                           role="combobox"
+                           aria-autocomplete="list"
+                           aria-expanded="false"
+                           aria-controls="wishlist-wine-results"
+                           autocomplete="off"
+                           spellcheck="false" />
+                    <input type="hidden" class="inventory-add-wine-id wishlist-wine-id" />
+                    <div class="inventory-add-wine-results wishlist-wine-results"
+                         id="wishlist-wine-results"
+                         role="listbox"
+                         aria-label="Matching wines"></div>
+                </div>
+            </label>
+            <p class="inventory-add-summary wishlist-summary" aria-live="polite">Start typing to find an existing wine.</p>
+            <label class="inventory-add-field wishlist-field wishlist-field--split">
+                <span class="inventory-add-label wishlist-label">Vintage</span>
+                <input type="number"
+                       class="inventory-add-vintage wishlist-vintage"
+                       min="1900"
+                       max="2100"
+                       placeholder="Year"
+                       aria-label="Vintage" />
+            </label>
+            <fieldset class="wishlist-fieldset">
+                <legend class="wishlist-label">Wishlist</legend>
+                <div class="wishlist-select-group">
+                    <select class="wishlist-select" aria-label="Wishlist"></select>
+                    <button type="button" class="wishlist-create-toggle">Create new wishlist</button>
+                </div>
+                <label class="inventory-add-field wishlist-field wishlist-create-field" hidden>
+                    <span class="inventory-add-label wishlist-label">New wishlist name</span>
+                    <input type="text"
+                           class="wishlist-name"
+                           maxlength="80"
+                           placeholder="e.g. Summer Sippers"
+                           aria-label="New wishlist name" />
+                </label>
+            </fieldset>
+            <p class="inventory-add-error wishlist-error" role="alert" aria-hidden="true"></p>
+            <div class="inventory-add-actions wishlist-actions">
+                <button type="button" class="crud-table__action-button secondary inventory-add-cancel wishlist-cancel">Cancel</button>
+                <button type="submit" class="crud-table__action-button inventory-add-submit wishlist-submit">Add to wishlist</button>
+            </div>
+        </form>
     };
 }
 
