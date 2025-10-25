@@ -241,7 +241,7 @@
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
     <script defer src="/js/pwa.js"></script>
 </head>
-<body class="wine-app">
+<body class="wine-app wine-app--with-bottom-nav">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main class="inventory-shell">
         <form method="get" class="filters">
@@ -549,6 +549,7 @@
             @await Html.PartialAsync("_CrudTableTemplate", bottleDetailsTable)
         </div>
     </main>
+    @await Html.PartialAsync("_WineSurferBottomNav")
     <script src="/js/create-wine-popover.js"></script>
     <script src="/js/wine-inventory-tables.js"></script>
 </body>
