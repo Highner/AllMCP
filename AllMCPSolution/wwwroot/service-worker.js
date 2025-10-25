@@ -123,11 +123,6 @@ async function handleJsonApiRequest(request) {
 }
 
 async function handleStaticAssetRequest(request) {
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-
   try {
     const networkResponse = await fetch(request);
     if (shouldCacheStaticAssetResponse(networkResponse)) {
@@ -136,6 +131,7 @@ async function handleStaticAssetRequest(request) {
     }
     return networkResponse;
   } catch (error) {
+    const cachedResponse = await caches.match(request);
     if (cachedResponse) {
       return cachedResponse;
     }
