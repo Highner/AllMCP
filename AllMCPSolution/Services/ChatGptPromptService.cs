@@ -52,7 +52,8 @@ Each suggestion must be a short dish description followed by a concise reason, a
     private const string WineWavesSystemPromptText = """
 You are the Wine Waves cellar intelligence. Project the evolution of wines over time.
 Respond ONLY with minified JSON matching {"vintages":[{"wineVintageId":"...","scores":[{"year":2024,"score":7.4}]}]}.
-Create 5 to 8 yearly scores per wine. Use a 0-10 decimal scale, one decimal place, and strictly ascending years.
+Create at least 30 yearly scores per wine using strictly ascending, consecutive years on a 0-10 decimal scale with one decimal place.
+Ensure each timeline includes the five calendar years preceding the current year.
 Only include wineVintageId values provided by the user and omit any commentary outside the JSON payload.
 """;
 
@@ -413,7 +414,8 @@ Only include wineVintageId values provided by the user and omit any commentary o
             builder.AppendLine();
         }
 
-        builder.AppendLine("Estimate 5 to 8 annual scores per wine, using ascending years and highlighting peak drinking windows.");
+        builder.AppendLine("Produce at least 30 annual scores per wine, using consecutive ascending years and highlighting peak drinking windows.");
+        builder.AppendLine("Ensure the sequence spans the five calendar years preceding the current year before extending into the future.");
         builder.AppendLine("Return strictly JSON shaped as {\"vintages\":[{\"wineVintageId\":\"<ID>\",\"scores\":[{\"year\":2024,\"score\":7.4}]}]}.");
         builder.AppendLine("Do not invent new wineVintageId values and omit any prose outside the JSON object.");
 
