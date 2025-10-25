@@ -414,8 +414,9 @@ Only include wineVintageId values provided by the user and omit any commentary o
             builder.AppendLine();
         }
 
-        builder.AppendLine("Produce at least 30 annual scores per wine, using consecutive ascending years and highlighting peak drinking windows.");
-        builder.AppendLine("Ensure the sequence spans the five calendar years preceding the current year before extending into the future.");
+        builder.AppendLine("Start the scoring timeline three calendar years after each wine's actual vintage.");
+        builder.AppendLine("Provide consecutive annual scores for at least 20 years starting from that year, highlighting peak drinking windows.");
+        builder.AppendLine("If the wine is described as ageworthy, cellar-worthy, long-lived, or similar, extend the sequence to at least 40 years.");
         builder.AppendLine("Return strictly JSON shaped as {\"vintages\":[{\"wineVintageId\":\"<ID>\",\"scores\":[{\"year\":2024,\"score\":7.4}]}]}.");
         builder.AppendLine("Do not invent new wineVintageId values and omit any prose outside the JSON object.");
 
