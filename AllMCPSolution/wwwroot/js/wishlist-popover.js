@@ -145,12 +145,18 @@
             return;
         }
 
-        state.wineResults.dataset.visible = visible ? 'true' : 'false';
-        if (!visible) {
-            state.wineResults.setAttribute('aria-expanded', 'false');
+        const isVisible = Boolean(visible);
+        if (isVisible) {
+            state.wineResults.dataset.visible = 'true';
+            state.wineResults.removeAttribute('hidden');
         } else {
-            state.wineResults.setAttribute('aria-expanded', 'true');
+            delete state.wineResults.dataset.visible;
+            state.wineResults.setAttribute('hidden', '');
         }
+
+        const expanded = isVisible ? 'true' : 'false';
+        state.wineResults.setAttribute('aria-expanded', expanded);
+        state.wineSearch?.setAttribute('aria-expanded', expanded);
     }
 
     function clearWineResults() {
@@ -159,8 +165,7 @@
         }
 
         state.wineResults.innerHTML = '';
-        state.wineResults.dataset.visible = 'false';
-        state.wineResults.setAttribute('aria-expanded', 'false');
+        setWineResultsVisible(false);
     }
 
     function clearError() {
@@ -405,6 +410,14 @@
         }
         if (state.wineIdInput) {
             state.wineIdInput.value = option.id;
+        }
+        if (state.searchTimeoutId) {
+            clearTimeout(state.searchTimeoutId);
+            state.searchTimeoutId = null;
+        }
+        if (state.searchController) {
+            state.searchController.abort();
+            state.searchController = null;
         }
         updateSummary(option);
         clearWineResults();
