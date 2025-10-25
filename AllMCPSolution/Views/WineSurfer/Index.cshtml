@@ -146,6 +146,8 @@
         :root {
             color-scheme: dark;
             --wine-surfer-card-max-width: 960px;
+            --wine-surfer-top-bar-height: 96px;
+            --wine-surfer-section-sticky-offset: calc(var(--wine-surfer-top-bar-height, 96px) + 16px);
         }
 
         * {
@@ -224,7 +226,6 @@
             justify-content: space-between;
             gap: 16px;
             flex-wrap: wrap;
-            margin-bottom: 16px;
         }
 
         .upcoming-sessions-header .section-title {
@@ -877,6 +878,17 @@
             letter-spacing: 1px;
         }
 
+        .section-header {
+            position: sticky;
+            top: var(--wine-surfer-section-sticky-offset, 112px);
+            z-index: 9;
+            padding: 12px 0;
+            margin-bottom: 16px;
+            background: rgba(5, 5, 5, 0.92);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid rgba(244, 241, 234, 0.08);
+        }
+
         .section-title {
             margin: 0;
             font-size: 24px;
@@ -1031,7 +1043,6 @@
             justify-content: space-between;
             gap: 16px;
             flex-wrap: wrap;
-            margin-bottom: 16px;
         }
 
         .taste-profile-summary-card {
@@ -1445,7 +1456,7 @@
                 <p class="auth-callout" role="status">Sign in from the menu to view your tasting history and personalize region scores.</p>
             }
             <section class="taste-profile-summary" aria-label="Taste profile summary">
-                <div class="taste-profile-summary-header">
+                <div class="taste-profile-summary-header section-header">
                     <h2 class="section-title">Taste profile</h2>
                     @if (isAuthenticated)
                     {
@@ -1469,7 +1480,7 @@
                 </div>
             </section>
             <section class="biggest-splash" aria-label="Biggest splash surf score leaders">
-                <div class="biggest-splash-header">
+                <div class="biggest-splash-header section-header">
                     <h2 class="section-title">Biggest splash</h2>
                     <p class="biggest-splash-subtitle">@biggestSplashYear surf score standouts</p>
                 </div>
@@ -1537,7 +1548,7 @@
                 }
             </section>
             <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
-                <div class="upcoming-sessions-header">
+                <div class="upcoming-sessions-header section-header">
                     <h2 class="section-title">Upcoming sip sessions</h2>
                     @if (canCreateSipSession)
                     {
@@ -1576,7 +1587,7 @@
                 }
             </section>
             <section class="favorite-wines" aria-label="Favourite wines">
-                <div class="favorite-wines-header">
+                <div class="favorite-wines-header section-header">
                     <h2 class="section-title">Favourite wines</h2>
                     @if (isAuthenticated)
                     {
@@ -1626,7 +1637,7 @@
                 }
             </section>
             <section class="suggested-wines" aria-label="Suggested wines">
-                <div class="suggested-wines-header">
+                <div class="suggested-wines-header section-header">
                     <h2 class="section-title">Suggested wines</h2>
                     <p class="suggested-wines-subtitle">Curated from your taste profile</p>
                 </div>
