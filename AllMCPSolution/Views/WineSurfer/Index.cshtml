@@ -901,9 +901,13 @@
             position: absolute;
             inset: -4px 0;
             border-radius: 18px;
-            background: rgba(5, 5, 5, 0.92);
-            border: 1px solid rgba(244, 241, 234, 0.14);
-            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+            background: linear-gradient(
+                135deg,
+                hsla(var(--accent) / 0.88),
+                hsla(var(--accent) / 0.72)
+            );
+            border: 1px solid hsla(var(--border) / 0.5);
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(12px);
             opacity: 0;
             transform: translate3d(0, 8px, 0) scale(0.98);
