@@ -147,7 +147,7 @@
             color-scheme: dark;
             --wine-surfer-card-max-width: 960px;
             --wine-surfer-top-bar-height: 96px;
-            --wine-surfer-section-sticky-offset: calc(var(--wine-surfer-top-bar-height, 96px) + 16px);
+            --wine-surfer-section-sticky-offset: var(--wine-surfer-top-bar-height, 96px);
         }
 
         * {
@@ -880,11 +880,11 @@
 
         .section-header {
             position: sticky;
-            top: var(--wine-surfer-section-sticky-offset, 112px);
+            top: var(--wine-surfer-section-sticky-offset, 96px);
             z-index: 9;
             padding: 12px 0;
             margin-bottom: 16px;
-            background: rgba(5, 5, 5, 0.92);
+            background: var(--wine-app-background);
             backdrop-filter: blur(8px);
             border-bottom: 1px solid rgba(244, 241, 234, 0.08);
         }
