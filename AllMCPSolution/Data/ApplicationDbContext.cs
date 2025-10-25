@@ -31,6 +31,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<SipSessionBottle> SipSessionBottles { get; set; }
     public DbSet<WineSurferNotificationDismissal> WineSurferNotificationDismissals { get; set; }
     public DbSet<TasteProfile> TasteProfiles { get; set; }
+    public DbSet<Wishlist> Wishlists { get; set; }
+    public DbSet<WineVintageWish> WineVintageWishes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -404,6 +406,37 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.HasOne(dismissal => dismissal.User)
                 .WithMany(user => user.NotificationDismissals)
                 .HasForeignKey(dismissal => dismissal.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Wishlist>(entity =>
+        {
+            entity.Property(wishlist => wishlist.Name)
+                .HasMaxLength(256)
+                .IsRequired();
+
+            entity.HasIndex(wishlist => new { wishlist.UserId, wishlist.Name })
+                .IsUnique();
+
+            entity.HasOne(wishlist => wishlist.User)
+                .WithMany(user => user.Wishlists)
+                .HasForeignKey(wishlist => wishlist.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WineVintageWish>(entity =>
+        {
+            entity.HasIndex(wish => new { wish.WishlistId, wish.WineVintageId })
+                .IsUnique();
+
+            entity.HasOne(wish => wish.Wishlist)
+                .WithMany(wishlist => wishlist.Wishes)
+                .HasForeignKey(wish => wish.WishlistId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(wish => wish.WineVintage)
+                .WithMany(wineVintage => wineVintage.Wishes)
+                .HasForeignKey(wish => wish.WineVintageId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
