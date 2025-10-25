@@ -1,0 +1,291 @@
+@using System
+@using System.Globalization
+@using System.Linq
+@using System.Text.Json
+@using AllMCPSolution.Controllers
+@model AllMCPSolution.Controllers.WineWavesViewModel
+@{
+    Layout = null;
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+    var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
+        ?? WineSurferTopBarModel.Empty(currentPath);
+    ViewData["WineSurferPageTitle"] = "Wine Waves";
+    var hasDatasets = Model.Datasets.Any();
+    var chartPayload = Model.Datasets.Select(dataset => new
+    {
+        id = dataset.WineVintageId,
+        label = dataset.Label,
+        details = dataset.Details,
+        color = dataset.ColorHex,
+        points = dataset.Points
+            .OrderBy(point => point.Year)
+            .Select(point => new
+            {
+                year = point.Year,
+                score = Convert.ToDouble(point.Score, CultureInfo.InvariantCulture)
+            })
+    }).ToList();
+    var chartDataJson = JsonSerializer.Serialize(chartPayload);
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wine Waves • Wine Surfer</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#050505" />
+    <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+    <script defer src="/js/pwa.js"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--wine-app-background);
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            color: rgba(244, 241, 234, 0.94);
+        }
+
+        main {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            padding: 48px 20px 72px;
+            max-width: 1040px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .waves-header {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            text-align: center;
+        }
+
+        .waves-title {
+            font-size: clamp(2rem, 3vw, 2.5rem);
+            margin: 0;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .waves-description {
+            margin: 0;
+            color: rgba(244, 241, 234, 0.72);
+            font-size: 1.05rem;
+            line-height: 1.6;
+        }
+
+        .waves-chart-card {
+            background: rgba(17, 17, 20, 0.82);
+            border: 1px solid rgba(244, 241, 234, 0.1);
+            border-radius: 24px;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+        }
+
+        .waves-chart-wrapper {
+            position: relative;
+            min-height: 360px;
+        }
+
+        .waves-legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .waves-legend-item {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            background: rgba(244, 241, 234, 0.04);
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .waves-legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            margin-top: 4px;
+            flex-shrink: 0;
+        }
+
+        .waves-legend-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .waves-legend-label {
+            margin: 0;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .waves-legend-details {
+            margin: 0;
+            color: rgba(244, 241, 234, 0.64);
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .waves-empty {
+            margin: 0;
+            text-align: center;
+            color: rgba(244, 241, 234, 0.7);
+            font-size: 1.05rem;
+        }
+
+        @media (max-width: 720px) {
+            main {
+                padding: 32px 16px 64px;
+            }
+
+            .waves-chart-card {
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body class="wine-app">
+    @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
+    <main>
+        <section class="waves-header">
+            <h1 class="waves-title">Wine Waves</h1>
+            <p class="waves-description">
+                Track how each vintage evolves across the years. Scores update as you capture more tasting history, helping you
+                decide when to uncork the perfect bottle.
+            </p>
+        </section>
+        <section class="waves-chart-card" aria-live="polite">
+            @if (hasDatasets)
+            {
+                <div class="waves-chart-wrapper">
+                    <canvas id="wineWavesChart" role="img" aria-label="Line chart of evolution scores by vintage"></canvas>
+                </div>
+                <div class="waves-legend">
+                    @foreach (var dataset in Model.Datasets)
+                    {
+                        <article class="waves-legend-item">
+                            <span class="waves-legend-dot" style="background-color: @dataset.ColorHex"></span>
+                            <div class="waves-legend-content">
+                                <h2 class="waves-legend-label">@dataset.Label</h2>
+                                @if (!string.IsNullOrWhiteSpace(dataset.Details))
+                                {
+                                    <p class="waves-legend-details">@dataset.Details</p>
+                                }
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="waves-empty">Start scoring your wines to see their evolution unfold here.</p>
+            }
+        </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        (function () {
+            const data = @Html.Raw(chartDataJson);
+            const hasData = Array.isArray(data) && data.length > 0;
+            if (!hasData) {
+                return;
+            }
+
+            const ctx = document.getElementById('wineWavesChart');
+            if (!ctx) {
+                return;
+            }
+
+            const datasets = data.map(dataset => ({
+                label: dataset.label,
+                data: dataset.points.map(point => ({ x: point.year, y: point.score })),
+                borderColor: dataset.color,
+                backgroundColor: dataset.color,
+                tension: 0.35,
+                borderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                spanGaps: true,
+                fill: false
+            }));
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title(tooltipItems) {
+                                    const item = tooltipItems[0];
+                                    return `Year ${item.parsed.x}`;
+                                },
+                                label(tooltipItem) {
+                                    const value = Number.parseFloat(tooltipItem.formattedValue).toFixed(1);
+                                    return `${tooltipItem.dataset.label}: ${value}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 'Year'
+                            },
+                            ticks: {
+                                precision: 0
+                            },
+                            grid: {
+                                color: 'rgba(244, 241, 234, 0.08)'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Evolution Score'
+                            },
+                            ticks: {
+                                callback(value) {
+                                    return Number.parseFloat(value).toFixed(0);
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(244, 241, 234, 0.08)'
+                            }
+                        }
+                    }
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

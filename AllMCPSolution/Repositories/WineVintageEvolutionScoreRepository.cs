@@ -6,6 +6,7 @@ namespace AllMCPSolution.Repositories;
 
 public interface IWineVintageEvolutionScoreRepository
 {
+    Task<IReadOnlyList<WineVintageEvolutionScore>> GetForUserAsync(Guid userId, CancellationToken ct = default);
     Task<IReadOnlyList<WineVintageEvolutionScore>> GetByWineIdAsync(Guid userId, Guid wineId, CancellationToken ct = default);
     Task<IReadOnlyList<WineVintageEvolutionScore>> GetByWineVintageIdAsync(Guid userId, Guid wineVintageId, CancellationToken ct = default);
     Task<WineVintageEvolutionScore?> FindAsync(Guid userId, Guid wineVintageId, int year, CancellationToken ct = default);
@@ -22,6 +23,23 @@ public sealed class WineVintageEvolutionScoreRepository : IWineVintageEvolutionS
     public WineVintageEvolutionScoreRepository(ApplicationDbContext db)
     {
         _db = db;
+    }
+
+    public async Task<IReadOnlyList<WineVintageEvolutionScore>> GetForUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        return await _db.WineVintageEvolutionScores
+            .AsNoTracking()
+            .Include(ev => ev.WineVintage)
+                .ThenInclude(wv => wv.Wine)
+                    .ThenInclude(w => w.SubAppellation)
+                        .ThenInclude(sa => sa.Appellation)
+                            .ThenInclude(a => a.Region)
+                                .ThenInclude(r => r.Country)
+            .Where(ev => ev.UserId == userId)
+            .OrderBy(ev => ev.WineVintage.Wine.Name)
+            .ThenBy(ev => ev.WineVintage.Vintage)
+            .ThenBy(ev => ev.Year)
+            .ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<WineVintageEvolutionScore>> GetByWineIdAsync(Guid userId, Guid wineId, CancellationToken ct = default)
