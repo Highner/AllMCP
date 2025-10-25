@@ -75,6 +75,7 @@ window.WineInventoryTables.initialize = function () {
             const groupingSelect = document.querySelector('[data-inventory-group-select]');
             let activeGroupingKey = groupingSelect?.value ?? 'none';
             let groupExpansionState = {};
+            let nextSummaryRowIndex = 0;
             const MAX_LOCATION_CAPACITY = 10000;
 
             if (!inventoryTable || !detailsTable || !detailsBody || !detailAddRow || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner) {
@@ -223,10 +224,70 @@ window.WineInventoryTables.initialize = function () {
 
             function initializeSummaryRows() {
                 const rows = Array.from(inventoryTable.querySelectorAll('tbody tr.group-row'));
-                rows.forEach(attachSummaryRowHandlers);
+                rows.forEach((row, index) => {
+                    ensureRowInitialIndex(row, index);
+                    attachSummaryRowHandlers(row);
+                });
+
+                if (rows.length > nextSummaryRowIndex) {
+                    nextSummaryRowIndex = rows.length;
+                }
+            }
+
+            function ensureRowInitialIndex(row, explicitIndex) {
+                if (!row) {
+                    return;
+                }
+
+                if (explicitIndex != null && !Number.isNaN(Number(explicitIndex))) {
+                    row.dataset.initialIndex = String(explicitIndex);
+                    nextSummaryRowIndex = Math.max(nextSummaryRowIndex, Number(explicitIndex) + 1);
+                    return;
+                }
+
+                const existingValue = row.dataset.initialIndex;
+                if (existingValue && existingValue !== '') {
+                    const parsed = Number(existingValue);
+                    if (!Number.isNaN(parsed)) {
+                        nextSummaryRowIndex = Math.max(nextSummaryRowIndex, parsed + 1);
+                        return;
+                    }
+                }
+
+                row.dataset.initialIndex = String(nextSummaryRowIndex);
+                nextSummaryRowIndex += 1;
+            }
+
+            function getInitialRowIndex(row) {
+                if (!row) {
+                    return Number.MAX_SAFE_INTEGER;
+                }
+
+                const value = Number(row.dataset?.initialIndex ?? row.getAttribute?.('data-initial-index'));
+                return Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER;
+            }
+
+            function compareByInitialIndex(a, b) {
+                return getInitialRowIndex(a) - getInitialRowIndex(b);
+            }
+
+            function sortRowsByInitialIndex(rows) {
+                return (rows ?? []).slice().sort(compareByInitialIndex);
             }
 
             const GROUPING_CONFIG = {
+                wine: {
+                    key: 'wine',
+                    label: 'Wine',
+                    emptyLabel: 'Wine not set',
+                    getValue: (row) => normalizeGroupingValue(getRowGroupingValue(row, 'wine')),
+                    getDisplay(value) {
+                        return formatGroupingDisplay(value, this.emptyLabel);
+                    },
+                    buildLabel(display) {
+                        return buildGroupingLabel(this.label, display);
+                    }
+                },
                 status: {
                     key: 'status',
                     label: 'Status',
@@ -277,6 +338,10 @@ window.WineInventoryTables.initialize = function () {
                 }
             };
 
+            if (activeGroupingKey !== 'none' && !Object.prototype.hasOwnProperty.call(GROUPING_CONFIG, activeGroupingKey)) {
+                activeGroupingKey = 'none';
+            }
+
             function bindGroupingControl() {
                 if (!groupingSelect) {
                     return;
@@ -323,6 +388,12 @@ window.WineInventoryTables.initialize = function () {
                 const config = GROUPING_CONFIG[activeGroupingKey];
                 if (!config) {
                     inventoryTable.classList.remove('inventory-table--grouped');
+                    if (rows.length > 0) {
+                        const fragment = document.createDocumentFragment();
+                        const orderedRows = sortRowsByInitialIndex(rows);
+                        orderedRows.forEach(row => fragment.appendChild(row));
+                        tbody.appendChild(fragment);
+                    }
                     return;
                 }
 
@@ -363,9 +434,12 @@ window.WineInventoryTables.initialize = function () {
                     }
                 });
 
+                const fragment = document.createDocumentFragment();
                 groups.forEach(group => {
-                    const containsSelected = Boolean(selectedRow && group.rows.includes(selectedRow));
-                    const containsExpandTarget = Boolean(expandForRow && group.rows.includes(expandForRow));
+                    const groupRows = sortRowsByInitialIndex(group.rows);
+                    group.rows = groupRows;
+                    const containsSelected = Boolean(selectedRow && groupRows.includes(selectedRow));
+                    const containsExpandTarget = Boolean(expandForRow && groupRows.includes(expandForRow));
                     let expanded;
                     if (groupExpansionState[group.key] !== undefined) {
                         expanded = groupExpansionState[group.key];
@@ -375,14 +449,17 @@ window.WineInventoryTables.initialize = function () {
                     }
 
                     const headerRow = buildGroupingHeaderRow(group, config, expanded);
-                    tbody.insertBefore(headerRow, group.rows[0]);
+                    fragment.appendChild(headerRow);
 
-                    group.rows.forEach(row => {
+                    groupRows.forEach(row => {
                         row.classList.add('group-row--child');
                         row.dataset.groupParent = group.key;
                         row.hidden = !expanded;
+                        fragment.appendChild(row);
                     });
                 });
+
+                tbody.appendChild(fragment);
             }
 
             function buildGroupingHeaderRow(group, config, expanded) {
@@ -1826,6 +1903,7 @@ window.WineInventoryTables.initialize = function () {
                     tbody.appendChild(row);
                 }
 
+                ensureRowInitialIndex(row);
                 refreshGrouping({ expandForRow: row });
 
                 const addedCount = Number.isInteger(quantity) && quantity > 0 ? quantity : 1;
