@@ -1681,54 +1681,20 @@ window.WineInventoryTables.initialize = function () {
                 highlightActiveWineOption();
             }
 
-            async function handleWineSurferSelection(result) {
+            function handleWineSurferSelection(result) {
                 if (!result || wineSurferSelectionPending) {
                     return;
                 }
 
-                const payload = {
-                    name: result.name,
-                    country: result.country ?? null,
-                    region: result.region ?? null,
-                    appellation: result.appellation ?? null,
-                    subAppellation: result.subAppellation ?? null,
-                    color: result.color ?? null
-                };
-
-                // Validate required fields for unified endpoint
-                if (!payload.color || !payload.region || !payload.appellation) {
-                    wineSurferError = 'Wine requires color, region, and appellation. Please refine your selection.';
-                    renderWineSurferResults();
-                    return;
-                }
-
-                wineSurferSelectionPending = true;
-                wineSurferError = '';
+                wineSurferSelectionPending = false;
+                wineSurferError = 'Wine Surfer can no longer add wines automatically. Please create the wine manually.';
                 renderWineSurferResults();
 
-                try {
-                    const response = await sendJson('/wine-manager/wine-surfer/wines', {
-                        method: 'POST',
-                        body: JSON.stringify(payload)
-                    });
-
-                    const option = normalizeWineOption(response);
-                    if (!option) {
-                        throw new Error('Wine Surfer returned an unexpected response.');
-                    }
-
-                    wineOptions = appendActionOptions([option], option.name);
-                    setSelectedWine(option);
-                    showAddWineError('');
-                    closeWineSurferPopover({ restoreFocus: false });
-                    if (addWineSearch) {
-                        addWineSearch.focus();
-                    }
-                } catch (error) {
-                    wineSurferError = error?.message ?? 'Wine Surfer could not add that wine right now.';
-                } finally {
-                    wineSurferSelectionPending = false;
-                    renderWineSurferResults();
+                const query = (result.query ?? result.name ?? wineSurferActiveQuery ?? '').trim();
+                closeWineSurferPopover({ restoreFocus: false });
+                openCreateWinePopover(query);
+                if (addWineSearch) {
+                    addWineSearch.focus();
                 }
             }
 
