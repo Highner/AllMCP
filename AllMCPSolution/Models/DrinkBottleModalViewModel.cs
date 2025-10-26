@@ -30,7 +30,7 @@ public record DrinkBottleModalViewModel
 
     public string Title { get; init; } = "Drink Bottle";
 
-    public string Intro { get; init; } = "Record when and how you enjoyed this bottle.";
+    public string Intro { get; init; } = string.Empty;
 
     public string SubmitLabel { get; init; } = "Drink Bottle";
 
