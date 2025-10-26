@@ -53,7 +53,8 @@ window.WineInventoryTables.initialize = function () {
             const detailsTitleVintage = document.getElementById('details-title-vintage');
             const detailsSubtitle = document.getElementById('details-subtitle');
             const messageBanner = document.getElementById('details-message');
-            const detailsPanel = document.querySelector('.details-panel') ?? document.querySelector('[data-crud-table="details"]');
+            const bottleModal = window.BottleManagementModal;
+            const detailsPanel = bottleModal?.getContainer?.() ?? document.querySelector('.details-panel') ?? document.querySelector('[data-crud-table="details"]');
             const notesPanel = document.getElementById('notes-panel');
             const notesTable = document.getElementById('notes-table');
             const notesBody = notesTable?.querySelector('tbody');
@@ -227,17 +228,15 @@ window.WineInventoryTables.initialize = function () {
             const detailAddQuantity = detailAddRow?.querySelector('.detail-add-quantity-select');
             const detailAddButton = detailAddRow?.querySelector('.detail-add-submit');
             const inventorySection = document.getElementById('inventory-view');
-            const detailsSection = document.getElementById('details-view');
+            const modalElements = bottleModal?.getElements?.();
+            const detailsSection = (bottleModal?.getContainer?.() ?? document.getElementById('details-view'));
             const detailsCloseButton = document.getElementById('details-close-button');
+            const modalOverlay = modalElements?.overlay ?? null;
 
             // Enforce initial state to avoid any flash of the details panel
             if (inventorySection) {
                 inventorySection.hidden = false;
                 inventorySection.setAttribute('aria-hidden', 'false');
-            }
-            if (detailsSection) {
-                detailsSection.hidden = true;
-                detailsSection.setAttribute('aria-hidden', 'true');
             }
             showInventoryView();
 
@@ -1016,6 +1015,24 @@ window.WineInventoryTables.initialize = function () {
                     });
                 }
 
+                if (modalOverlay) {
+                    modalOverlay.addEventListener('pointerdown', (event) => {
+                        if (event.target !== modalOverlay) return;
+                        intercept(event);
+                    }, { capture: true });
+
+                    modalOverlay.addEventListener('touchstart', (event) => {
+                        if (event.target !== modalOverlay) return;
+                        intercept(event);
+                    }, { capture: true, passive: false });
+
+                    modalOverlay.addEventListener('click', (event) => {
+                        if (event.target !== modalOverlay) return;
+                        intercept(event);
+                        handleClose();
+                    });
+                }
+
                 // Global defensive delegate to ensure the close works even if the section reference is missing
                 const docEarlyIntercept = (event) => {
                     if (!isCloseTarget(event)) return;
@@ -1034,7 +1051,9 @@ window.WineInventoryTables.initialize = function () {
                 // Allow Esc key to close the details panel for accessibility
                 document.addEventListener('keydown', (event) => {
                     if (event.key === 'Escape') {
-                        const isDetailsVisible = detailsSection && detailsSection.hidden === false;
+                        const isDetailsVisible = typeof bottleModal?.isOpen === 'function'
+                            ? bottleModal.isOpen()
+                            : (detailsSection && detailsSection.hidden === false);
                         if (isDetailsVisible) {
                             event.preventDefault();
                             handleClose();
@@ -3663,7 +3682,9 @@ window.WineInventoryTables.initialize = function () {
                     inventorySection.hidden = true;
                     inventorySection.setAttribute('aria-hidden', 'true');
                 }
-                if (detailsSection) {
+                if (bottleModal?.open) {
+                    bottleModal.open({ focusTarget: '#details-close-button', source: 'inventory-script' });
+                } else if (detailsSection) {
                     detailsSection.hidden = false;
                     detailsSection.setAttribute('aria-hidden', 'false');
                 }
@@ -3674,7 +3695,9 @@ window.WineInventoryTables.initialize = function () {
                     inventorySection.hidden = false;
                     inventorySection.setAttribute('aria-hidden', 'false');
                 }
-                if (detailsSection) {
+                if (bottleModal?.close) {
+                    bottleModal.close({ restoreFocus: false, source: 'inventory-script' });
+                } else if (detailsSection) {
                     detailsSection.hidden = true;
                     detailsSection.setAttribute('aria-hidden', 'true');
                 }

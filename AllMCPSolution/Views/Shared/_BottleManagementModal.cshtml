@@ -1,0 +1,92 @@
+@model AllMCPSolution.Models.BottleManagementModalViewModel?
+@using System
+@using System.Collections.Generic
+@using AllMCPSolution.Models
+@{
+    var options = Model ?? BottleManagementModalViewModel.Default;
+    var overlayAttributes = new Dictionary<string, string?>(options.OverlayAttributes ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase), StringComparer.OrdinalIgnoreCase);
+    if (!overlayAttributes.ContainsKey("hidden"))
+    {
+        overlayAttributes["hidden"] = null;
+    }
+    if (!overlayAttributes.ContainsKey("aria-hidden"))
+    {
+        overlayAttributes["aria-hidden"] = "true";
+    }
+
+    var dialogAttributes = new Dictionary<string, string?>(options.DialogAttributes ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase), StringComparer.OrdinalIgnoreCase)
+    {
+        ["data-bottle-management-modal"] = "true"
+    };
+    if (!string.IsNullOrWhiteSpace(options.TitleElementId))
+    {
+        dialogAttributes["aria-labelledby"] = options.TitleElementId;
+    }
+
+    var bodyAttributes = new Dictionary<string, string?>(options.BodyAttributes ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase), StringComparer.OrdinalIgnoreCase)
+    {
+        ["data-bottle-management-body"] = "true"
+    };
+
+    var headerContent = options.HeaderContent;
+
+    var modal = new WineSurferModalShell
+    {
+        BackdropId = options.OverlayId,
+        BackdropCssClass = options.OverlayCssClass,
+        BackdropAttributes = overlayAttributes,
+        DialogId = options.DialogId,
+        DialogCssClass = options.DialogCssClass,
+        DialogAttributes = dialogAttributes,
+        RenderHeader = false,
+        RenderCloseButton = false,
+        BodyCssClass = options.BodyCssClass,
+        BodyAttributes = bodyAttributes,
+        BodyContent = @<section id="details-view" class="details-panel" aria-labelledby="@options.TitleElementId" data-bottle-management-container>
+            <header class="details-header">
+                <div class="details-header-main">
+                    <div class="details-header-titles">
+                        <h2 id="@options.TitleElementId" class="crud-table__title details-title">
+                            <span id="details-title-name" class="details-title__name">Bottles</span>
+                            <span id="details-title-separator" class="details-title__separator" aria-hidden="true">•</span>
+                            <span id="details-title-vintage" class="details-title__vintage"></span>
+                        </h2>
+                        <p id="details-subtitle" class="crud-table__description"></p>
+                    </div>
+                    <button type="button"
+                            id="details-close-button"
+                            class="details-close-button"
+                            aria-label="@options.CloseButtonAriaLabel"
+                            data-details-close
+                            data-bottle-management-initial-focus>
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                @if (headerContent is not null)
+                {
+                    <div class="details-header-actions">
+                        @headerContent(null)
+                    </div>
+                }
+            </header>
+            <div id="details-message" class="details-message" role="status"></div>
+            <table class="details-table crud-table__table" id="details-table">
+                <thead>
+                    <tr class="header-row crud-table__header-row">
+                        <th scope="col" class="details-header--location">Bottle Location</th>
+                        <th scope="col" class="details-header--price">Price</th>
+                        <th scope="col" class="details-header--score">Avg Score</th>
+                        <th scope="col" class="details-header--enjoyed">Enjoyed at</th>
+                        <th scope="col" class="details-header--actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="details-table-body">
+                    <tr class="empty-row">
+                        <td colspan="5">Select a wine group to see its bottles.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    };
+}
+@await Html.PartialAsync("_WineSurferModalShell", modal)
