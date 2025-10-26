@@ -196,24 +196,31 @@ window.WineInventoryTables.initialize = function () {
             const wineSurferIntro = wineSurferPopover?.querySelector('.inventory-wine-surfer-intro');
             const wineSurferQueryLabel = wineSurferPopover?.querySelector('.inventory-wine-surfer-query');
 
-            const drinkOverlay = document.getElementById('drink-bottle-overlay');
-            const drinkPopover = document.getElementById('drink-bottle-popover');
-            const drinkForm = drinkPopover?.querySelector('.drink-bottle-form');
-            const drinkDateInput = drinkPopover?.querySelector('.drink-bottle-date');
-            const drinkScoreInput = drinkPopover?.querySelector('.drink-bottle-score');
-            const drinkScoreIsRange = (drinkScoreInput?.type ?? '').toLowerCase() === 'range';
-            const drinkScoreDisplay = drinkPopover?.querySelector('.drink-bottle-score-display');
-            const drinkScoreClearButton = drinkPopover?.querySelector('.drink-bottle-score-clear');
-            const drinkScoreDefaultValue = drinkScoreInput?.dataset?.defaultValue
-                ?? drinkScoreInput?.getAttribute('data-default-value')
-                ?? drinkScoreInput?.getAttribute('min')
-                ?? '5';
-            const drinkNoteInput = drinkPopover?.querySelector('.drink-bottle-note');
-            const drinkError = drinkPopover?.querySelector('.drink-bottle-error');
-            const drinkCancelButton = drinkPopover?.querySelector('.drink-bottle-cancel');
-            const drinkSubmitButton = drinkPopover?.querySelector('.drink-bottle-submit');
-            const drinkTitle = drinkPopover?.querySelector('.drink-bottle-title');
-            const drinkHeaderCloseButton = drinkPopover?.querySelector('[data-drink-bottle-close]');
+            const formatScore = (value) => {
+                if (value == null || value === '') {
+                    return '—';
+                }
+
+                const parsed = Number(value);
+                return Number.isFinite(parsed) ? parsed.toFixed(1) : '—';
+            };
+            const parseScore = (raw) => {
+                if (raw == null || raw === '') {
+                    return null;
+                }
+
+                const trimmed = String(raw).trim();
+                if (!trimmed) {
+                    return null;
+                }
+
+                const parsed = Number.parseFloat(trimmed);
+                if (!Number.isFinite(parsed) || parsed < 0 || parsed > 10) {
+                    return undefined;
+                }
+
+                return parsed;
+            };
 
             const detailAddLocation = detailAddRow?.querySelector('.detail-add-location');
             const detailAddPrice = detailAddRow?.querySelector('.detail-add-price');
@@ -280,7 +287,6 @@ window.WineInventoryTables.initialize = function () {
             }
             bindDetailAddRow();
             bindDrinkBottleModal();
-            initializeDrinkScoreControl();
             bindDetailsCloseButton();
             if (notesEnabled) {
                 bindNotesPanel();
@@ -1120,7 +1126,7 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                closeDrinkBottleModal();
+                requestCloseDrinkModal();
                 addWineOverlay.hidden = false;
                 addWineOverlay.setAttribute('aria-hidden', 'false');
                 addWineOverlay.classList.add('is-open');
@@ -1157,7 +1163,7 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                closeDrinkBottleModal();
+                requestCloseDrinkModal();
                 closeWineSurferPopover({ restoreFocus: false });
                 setModalLoading(false);
                 addWineOverlay.classList.remove('is-open');
@@ -2087,110 +2093,13 @@ window.WineInventoryTables.initialize = function () {
                 detailAddButton.addEventListener('click', handleAddBottle);
             }
 
-            function initializeDrinkScoreControl() {
-                if (!drinkScoreInput || !drinkScoreIsRange) {
-                    if (drinkScoreClearButton) {
-                        drinkScoreClearButton.disabled = true;
-                    }
-                    return;
-                }
-
-                setDrinkScoreValue('');
-
-                drinkScoreInput.addEventListener('input', () => {
-                    drinkScoreInput.dataset.hasValue = 'true';
-                    updateDrinkScoreDisplay();
-                });
-
-                drinkScoreClearButton?.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    setDrinkScoreValue('');
-                    drinkScoreInput.focus();
-                });
-
-                updateDrinkScoreDisplay();
-            }
-
-            function setDrinkScoreValue(value) {
-                if (!drinkScoreInput) {
-                    return;
-                }
-
-                if (!drinkScoreIsRange) {
-                    drinkScoreInput.value = value != null && value !== '' ? String(value) : '';
-                    return;
-                }
-
-                const hasValue = value != null && value !== '';
-                drinkScoreInput.dataset.hasValue = hasValue ? 'true' : 'false';
-
-                const fallback = drinkScoreDefaultValue ?? drinkScoreInput.min ?? '0';
-                drinkScoreInput.value = hasValue ? String(value) : fallback;
-
-                updateDrinkScoreDisplay();
-            }
-
-            function getDrinkScoreRawValue() {
-                if (!drinkScoreInput) {
-                    return '';
-                }
-
-                if (!drinkScoreIsRange) {
-                    return drinkScoreInput.value ?? '';
-                }
-
-                return drinkScoreInput.dataset.hasValue === 'true'
-                    ? (drinkScoreInput.value ?? '')
-                    : '';
-            }
-
-            function updateDrinkScoreDisplay() {
-                if (!drinkScoreDisplay) {
-                    return;
-                }
-
-                if (!drinkScoreInput || drinkScoreInput.dataset.hasValue !== 'true') {
-                    drinkScoreDisplay.textContent = 'Not rated';
-                    drinkScoreInput?.setAttribute('aria-valuetext', 'Not rated');
-                    return;
-                }
-
-                const numeric = Number.parseFloat(drinkScoreInput.value ?? '');
-                if (Number.isFinite(numeric)) {
-                    const formatted = numeric.toFixed(1);
-                    drinkScoreDisplay.textContent = `${formatted} / 10`;
-                    drinkScoreInput.setAttribute('aria-valuetext', `${formatted} out of 10`);
-                } else {
-                    drinkScoreDisplay.textContent = 'Not rated';
-                    drinkScoreInput.setAttribute('aria-valuetext', 'Not rated');
-                }
-            }
-
             function bindDrinkBottleModal() {
-                if (!drinkOverlay || !drinkPopover || !drinkForm) {
-                    return;
-                }
-
-                closeDrinkBottleModal();
-
-                drinkForm.addEventListener('submit', handleDrinkBottleSubmit);
-                drinkCancelButton?.addEventListener('click', () => {
-                    closeDrinkBottleModal();
-                });
-
-                drinkHeaderCloseButton?.addEventListener('click', () => {
-                    closeDrinkBottleModal();
-                });
-
-                drinkOverlay.addEventListener('click', (event) => {
-                    if (event.target === drinkOverlay) {
-                        closeDrinkBottleModal();
-                    }
-                });
-
-                document.addEventListener('keydown', (event) => {
-                    if (event.key === 'Escape' && drinkOverlay && !drinkOverlay.hidden) {
-                        closeDrinkBottleModal();
+                window.addEventListener('drinkmodal:submit', handleDrinkModalSubmit);
+                window.addEventListener('drinkmodal:closed', (event) => {
+                    const detail = event?.detail ?? {};
+                    if (detail.context === 'inventory') {
+                        drinkModalLoading = false;
+                        drinkTarget = null;
                     }
                 });
             }
@@ -2206,10 +2115,6 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function openDrinkBottleModal(detail, summary) {
-                if (!drinkOverlay || !drinkPopover) {
-                    return;
-                }
-
                 closeAddWinePopover();
                 closeWineSurferPopover({ restoreFocus: false });
 
@@ -2240,6 +2145,7 @@ window.WineInventoryTables.initialize = function () {
                     const parsed = Number(existingScoreValue);
                     return Number.isFinite(parsed) ? parsed : null;
                 })();
+                const hasExisting = Boolean(normalizedNoteId || normalizedNoteText || normalizedScore != null);
 
                 drinkTarget = {
                     bottleId: String(bottleId),
@@ -2249,116 +2155,99 @@ window.WineInventoryTables.initialize = function () {
                     noteId: normalizedNoteId
                 };
 
-                if (drinkTitle) {
-                    if (wineName) {
-                        drinkTitle.textContent = vintage ? `Drink ${wineName} • ${vintage}` : `Drink ${wineName}`;
-                    } else {
-                        drinkTitle.textContent = 'Drink Bottle';
-                    }
-                }
-
                 const defaultDate = normalizedDrunkAt
                     ? formatDateInputValue(normalizedDrunkAt)
                     : formatDateInputValue(new Date());
 
-                if (drinkDateInput) {
-                    drinkDateInput.value = defaultDate;
-                }
-                setDrinkScoreValue(normalizedScore != null ? normalizedScore : '');
-                if (drinkNoteInput) {
-                    drinkNoteInput.value = normalizedNoteText;
-                }
+                const modalLabel = wineName
+                    ? (vintage ? `${wineName} • ${vintage}` : wineName)
+                    : '';
 
-                showDrinkError('');
-                setDrinkModalLoading(false);
-
-                drinkOverlay.hidden = false;
-                drinkOverlay.setAttribute('aria-hidden', 'false');
-                drinkOverlay.classList.add('is-open');
-                document.body.style.overflow = 'hidden';
-
-                (drinkDateInput ?? drinkNoteInput)?.focus();
+                window.dispatchEvent(new CustomEvent('drinkmodal:open', {
+                    detail: {
+                        context: 'inventory',
+                        label: modalLabel,
+                        bottleId: String(bottleId),
+                        noteId: normalizedNoteId ?? '',
+                        note: normalizedNoteText,
+                        score: normalizedScore != null ? normalizedScore : '',
+                        date: defaultDate,
+                        mode: hasExisting ? 'edit' : 'create',
+                        requireDate: true,
+                        successMessage: 'Bottle marked as drunk and tasting note saved.',
+                        extras: { detail, summary },
+                        initialFocus: normalizedNoteText ? 'note' : 'score'
+                    }
+                }));
             }
 
-            function closeDrinkBottleModal() {
-                if (!drinkOverlay) {
+            function requestCloseDrinkModal() {
+                window.dispatchEvent(new CustomEvent('drinkmodal:close', {
+                    detail: { context: 'inventory' }
+                }));
+            }
+
+            function handleDrinkModalSubmit(event) {
+                const submitDetail = event?.detail;
+                if (!submitDetail || submitDetail.context !== 'inventory') {
                     return;
                 }
 
-                drinkTarget = null;
-                setDrinkModalLoading(false);
-                drinkOverlay.classList.remove('is-open');
-                drinkOverlay.setAttribute('aria-hidden', 'true');
-                drinkOverlay.hidden = true;
-                document.body.style.overflow = '';
-
-                showDrinkError('');
-
-                if (drinkDateInput) {
-                    drinkDateInput.value = '';
-                }
-                setDrinkScoreValue('');
-                if (drinkNoteInput) {
-                    drinkNoteInput.value = '';
-                }
-                if (drinkCancelButton) {
-                    drinkCancelButton.disabled = false;
-                }
-                if (drinkHeaderCloseButton) {
-                    drinkHeaderCloseButton.disabled = false;
-                }
-            }
-
-            async function handleDrinkBottleSubmit(event) {
                 event.preventDefault();
 
                 if (loading || drinkModalLoading) {
+                    submitDetail.showError?.('Please wait for the current operation to finish.');
                     return;
                 }
 
+                const promise = performDrinkModalSubmission(submitDetail);
+                submitDetail.setSubmitPromise?.(promise);
+                submitDetail.setSuccessMessage?.('Bottle marked as drunk and tasting note saved.');
+            }
+
+            async function performDrinkModalSubmission(submitDetail) {
                 if (!drinkTarget) {
-                    showDrinkError('Select a bottle to drink.');
-                    return;
+                    submitDetail.showError?.('Select a bottle to drink.');
+                    throw new Error('Select a bottle to drink.');
                 }
 
                 if (!selectedSummary) {
-                    showDrinkError('Select a wine group to drink from.');
-                    return;
+                    submitDetail.showError?.('Select a wine group to drink from.');
+                    throw new Error('Select a wine group to drink from.');
                 }
 
                 const bottleId = drinkTarget.bottleId;
                 if (!bottleId) {
-                    showDrinkError('Unable to determine the selected bottle.');
-                    return;
+                    submitDetail.showError?.('Unable to determine the selected bottle.');
+                    throw new Error('Unable to determine the selected bottle.');
                 }
 
-                const dateValue = drinkDateInput?.value ?? '';
+                const dateValue = submitDetail.date ?? '';
                 if (!dateValue) {
-                    showDrinkError('Choose when you drank this bottle.');
-                    drinkDateInput?.focus();
-                    return;
+                    submitDetail.showError?.('Choose when you drank this bottle.');
+                    submitDetail.focusField?.('date');
+                    throw new Error('Choose when you drank this bottle.');
                 }
 
-                const noteValue = drinkNoteInput?.value?.trim() ?? '';
-                const scoreRawValue = getDrinkScoreRawValue();
-                const parsedScore = parseScore(scoreRawValue);
+                const noteValue = (submitDetail.note ?? '').trim();
+                const parsedScore = submitDetail.score;
                 if (parsedScore === undefined) {
-                    showDrinkError('Score must be between 0 and 10.');
-                    drinkScoreInput?.focus();
-                    return;
+                    submitDetail.showError?.('Score must be between 0 and 10.');
+                    submitDetail.focusField?.('score');
+                    throw new Error('Score must be between 0 and 10.');
                 }
 
                 if (!noteValue && parsedScore == null) {
-                    showDrinkError('Add a tasting note or score.');
-                    (drinkNoteInput ?? drinkScoreInput)?.focus();
-                    return;
+                    submitDetail.showError?.('Add a tasting note or score.');
+                    submitDetail.focusField?.('note');
+                    throw new Error('Add a tasting note or score.');
                 }
 
                 const drunkAt = parseDateOnly(dateValue);
                 if (!drunkAt) {
-                    showDrinkError('Choose a valid drinking date.');
-                    drinkDateInput?.focus();
-                    return;
+                    submitDetail.showError?.('Choose a valid drinking date.');
+                    submitDetail.focusField?.('date');
+                    throw new Error('Choose a valid drinking date.');
                 }
 
                 const row = detailsBody.querySelector(`.detail-row[data-bottle-id="${bottleId}"]`);
@@ -2377,10 +2266,12 @@ window.WineInventoryTables.initialize = function () {
                     userId: payloadUserId
                 };
 
-                try {
-                    setDrinkModalLoading(true);
-                    setLoading(true);
+                drinkModalLoading = true;
+                setLoading(true);
 
+                let finalMessage = 'Bottle marked as drunk.';
+
+                try {
                     let response;
                     try {
                         response = await sendJson(`/wine-manager/bottles/${bottleId}`, {
@@ -2388,14 +2279,13 @@ window.WineInventoryTables.initialize = function () {
                             body: JSON.stringify(payload)
                         });
                     } catch (err) {
-                        // Fallback for environments or proxies that block PUT
                         try {
                             response = await sendJson(`/wine-manager/bottles/${bottleId}/drink`, {
                                 method: 'POST',
                                 body: JSON.stringify(payload)
                             });
                         } catch (err2) {
-                            throw err; // rethrow original error to show accurate message
+                            throw err;
                         }
                     }
 
@@ -2454,56 +2344,23 @@ window.WineInventoryTables.initialize = function () {
                             updateScoresFromNotesSummary(summary);
                         }
 
-                        showMessage('Bottle marked as drunk and tasting note saved.', 'success');
+                        finalMessage = 'Bottle marked as drunk and tasting note saved.';
+                        showMessage(finalMessage, 'success');
                     } catch (noteError) {
-                        showDrinkError(noteError?.message ?? String(noteError));
-                        return;
+                        const message = noteError instanceof Error ? noteError.message : String(noteError);
+                        throw new Error(message);
                     }
 
-                    closeDrinkBottleModal();
+                    requestCloseDrinkModal();
+                    return { message: finalMessage };
                 } catch (error) {
-                    showDrinkError(error?.message ?? String(error));
+                    const message = error instanceof Error ? error.message : String(error);
+                    throw new Error(message);
                 } finally {
-                    setDrinkModalLoading(false);
+                    drinkModalLoading = false;
                     setLoading(false);
                 }
             }
-
-            function showDrinkError(message) {
-                if (!drinkError) {
-                    return;
-                }
-
-                const text = message ?? '';
-                drinkError.textContent = text;
-                drinkError.setAttribute('aria-hidden', text ? 'false' : 'true');
-            }
-
-            function setDrinkModalLoading(state) {
-                drinkModalLoading = state;
-                if (drinkSubmitButton) {
-                    drinkSubmitButton.disabled = state;
-                }
-                if (drinkDateInput) {
-                    drinkDateInput.disabled = state;
-                }
-                if (drinkScoreInput) {
-                    drinkScoreInput.disabled = state;
-                }
-                if (drinkScoreClearButton) {
-                    drinkScoreClearButton.disabled = state;
-                }
-                if (drinkNoteInput) {
-                    drinkNoteInput.disabled = state;
-                }
-                if (drinkCancelButton) {
-                    drinkCancelButton.disabled = state;
-                }
-                if (drinkHeaderCloseButton) {
-                    drinkHeaderCloseButton.disabled = state;
-                }
-            }
-
             function initializeNotesPanel() {
                 if (notesAddUserDisplay) {
                     notesAddUserDisplay.textContent = '—';
@@ -4870,23 +4727,6 @@ window.WineInventoryTables.initialize = function () {
                 }
             }
 
-            function parseScore(value) {
-                if (value == null || value === '') {
-                    return null;
-                }
-
-                const parsed = Number.parseFloat(value);
-                if (!Number.isFinite(parsed)) {
-                    return undefined;
-                }
-
-                if (parsed < 0 || parsed > 10) {
-                    return undefined;
-                }
-
-                return parsed;
-            }
-
             function normalizeBottleNoteSummary(raw) {
                 if (!raw) {
                     return null;
@@ -5061,15 +4901,6 @@ window.WineInventoryTables.initialize = function () {
 
                 const date = new Date(value);
                 return Number.isNaN(date.getTime()) ? null : date.toISOString();
-            }
-
-            function formatScore(value) {
-                if (value == null || value === '') {
-                    return '—';
-                }
-
-                const parsed = Number(value);
-                return Number.isFinite(parsed) ? parsed.toFixed(1) : '—';
             }
 
             function formatDateDisplay(value) {
