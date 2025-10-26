@@ -98,6 +98,11 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 });
 app.UseHttpsRedirection();
 
+
+
+    app.UseDeveloperExceptionPage();
+
+
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
