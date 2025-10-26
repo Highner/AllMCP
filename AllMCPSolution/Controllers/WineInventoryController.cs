@@ -112,8 +112,8 @@ public class WineInventoryController : Controller
         var normalizedSortField = string.IsNullOrWhiteSpace(sortField) ? "wine" : sortField.Trim().ToLowerInvariant();
         var normalizedSortDir = string.IsNullOrWhiteSpace(sortDir) ? "asc" : sortDir.Trim().ToLowerInvariant();
         var hasActiveFilters = !string.Equals(normalizedStatus, "all", StringComparison.Ordinal)
-            || filterColor.HasValue
-            || !string.IsNullOrWhiteSpace(normalizedSearch);
+                               || filterColor.HasValue
+                               || !string.IsNullOrWhiteSpace(normalizedSearch);
 
         IEnumerable<Bottle> query = bottles;
 
@@ -132,10 +132,14 @@ public class WineInventoryController : Controller
         if (!string.IsNullOrWhiteSpace(normalizedSearch))
         {
             query = query.Where(b =>
-                (!string.IsNullOrEmpty(b.WineVintage.Wine.Name) && b.WineVintage.Wine.Name.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase)) ||
-                (b.WineVintage.Wine.SubAppellation?.Name?.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (b.WineVintage.Wine.SubAppellation?.Appellation?.Name?.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                b.WineVintage.Vintage.ToString(CultureInfo.InvariantCulture).Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase));
+                (!string.IsNullOrEmpty(b.WineVintage.Wine.Name) &&
+                 b.WineVintage.Wine.Name.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase)) ||
+                (b.WineVintage.Wine.SubAppellation?.Name?.Contains(normalizedSearch,
+                    StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (b.WineVintage.Wine.SubAppellation?.Appellation?.Name?.Contains(normalizedSearch,
+                    StringComparison.OrdinalIgnoreCase) ?? false) ||
+                b.WineVintage.Vintage.ToString(CultureInfo.InvariantCulture)
+                    .Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase));
         }
 
         var descending = string.Equals(normalizedSortDir, "desc", StringComparison.OrdinalIgnoreCase);
@@ -243,7 +247,7 @@ public class WineInventoryController : Controller
         var highlightedLocationIds = hasActiveFilters
             ? filteredBottles
                 .Where(bottle => bottle.BottleLocationId.HasValue
-                    && userLocationIds.Contains(bottle.BottleLocationId.Value))
+                                 && userLocationIds.Contains(bottle.BottleLocationId.Value))
                 .Select(bottle => bottle.BottleLocationId!.Value)
                 .ToHashSet()
             : new HashSet<Guid>();
@@ -413,7 +417,8 @@ public class WineInventoryController : Controller
         }
         catch (Exception ex)
         {
-            viewModel.BottleUpload.Errors = new[] { $"An unexpected error occurred while importing bottles: {ex.Message}" };
+            viewModel.BottleUpload.Errors = new[]
+                { $"An unexpected error occurred while importing bottles: {ex.Message}" };
         }
     }
 
@@ -570,7 +575,8 @@ public class WineInventoryController : Controller
     }
 
     [HttpGet("wines")]
-    public async Task<IActionResult> GetWineOptions([FromQuery(Name = "search")] string? search, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetWineOptions([FromQuery(Name = "search")] string? search,
+        CancellationToken cancellationToken)
     {
         var trimmedSearch = search?.Trim();
         if (string.IsNullOrWhiteSpace(trimmedSearch) || trimmedSearch.Length < 3)
@@ -598,7 +604,8 @@ public class WineInventoryController : Controller
     }
 
     [HttpGet("catalog/countries")]
-    public async Task<IActionResult> SearchCountries([FromQuery(Name = "search")] string? search, CancellationToken cancellationToken)
+    public async Task<IActionResult> SearchCountries([FromQuery(Name = "search")] string? search,
+        CancellationToken cancellationToken)
     {
         var trimmedSearch = search?.Trim();
         if (string.IsNullOrWhiteSpace(trimmedSearch) || trimmedSearch.Length < 1)
@@ -668,7 +675,9 @@ public class WineInventoryController : Controller
             return Json(Array.Empty<WineAppellationSuggestion>());
         }
 
-        var matches = await _appellationRepository.SearchByApproximateNameAsync(trimmedSearch, regionId.Value, 10, cancellationToken);
+        var matches =
+            await _appellationRepository.SearchByApproximateNameAsync(trimmedSearch, regionId.Value, 10,
+                cancellationToken);
         var response = matches
             .Where(appellation => !string.IsNullOrWhiteSpace(appellation.Name))
             .Select(appellation => new WineAppellationSuggestion
@@ -702,7 +711,9 @@ public class WineInventoryController : Controller
             return Json(Array.Empty<WineSubAppellationSuggestion>());
         }
 
-        var matches = await _subAppellationRepository.SearchByApproximateNameAsync(trimmedSearch, appellationId.Value, 10, cancellationToken);
+        var matches =
+            await _subAppellationRepository.SearchByApproximateNameAsync(trimmedSearch, appellationId.Value, 10,
+                cancellationToken);
         var response = matches
             .Where(sub => !string.IsNullOrWhiteSpace(sub.Name))
             .Select(sub => new WineSubAppellationSuggestion
@@ -723,7 +734,8 @@ public class WineInventoryController : Controller
 
     [HttpPost("catalog/wines")]
     [HttpPost("wine-surfer/wines")]
-    public async Task<IActionResult> CreateWine([FromBody] CreateWineRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> CreateWine([FromBody] CreateWineRequest request,
+        CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -758,14 +770,17 @@ public class WineInventoryController : Controller
             {
                 ModelState.AddModelError(nameof(request.Name), "Wine name is required.");
             }
+
             if (string.IsNullOrWhiteSpace(color))
             {
                 ModelState.AddModelError(nameof(request.Color), "Color is required.");
             }
+
             if (string.IsNullOrWhiteSpace(region))
             {
                 ModelState.AddModelError(nameof(request.Region), "Region is required.");
             }
+
             if (string.IsNullOrWhiteSpace(appellation))
             {
                 ModelState.AddModelError(nameof(request.Appellation), "Appellation is required.");
@@ -825,7 +840,8 @@ public class WineInventoryController : Controller
         BottleLocation? bottleLocation = null;
         if (request.BottleLocationId.HasValue)
         {
-            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            bottleLocation =
+                await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
             if (bottleLocation is null)
             {
                 ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
@@ -833,7 +849,8 @@ public class WineInventoryController : Controller
             }
         }
 
-        var wineVintage = await _wineVintageRepository.GetOrCreateAsync(wine!.Id, request.Vintage!.Value, cancellationToken);
+        var wineVintage =
+            await _wineVintageRepository.GetOrCreateAsync(wine!.Id, request.Vintage!.Value, cancellationToken);
 
         for (var i = 0; i < quantity; i++)
         {
@@ -878,7 +895,8 @@ public class WineInventoryController : Controller
     }
 
     [HttpPost("groups")]
-    public async Task<IActionResult> CreateGroup([FromBody] WineGroupCreateRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> CreateGroup([FromBody] WineGroupCreateRequest request,
+        CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -904,17 +922,20 @@ public class WineInventoryController : Controller
             return ValidationProblem(ModelState);
         }
 
-        var duplicate = await _wineRepository.FindByNameAsync(trimmedName, subAppellation.Name, subAppellation.Appellation?.Name, cancellationToken);
+        var duplicate = await _wineRepository.FindByNameAsync(trimmedName, subAppellation.Name,
+            subAppellation.Appellation?.Name, cancellationToken);
         if (duplicate is not null)
         {
-            ModelState.AddModelError(nameof(request.WineName), "A wine with the same name already exists for the selected sub-appellation.");
+            ModelState.AddModelError(nameof(request.WineName),
+                "A wine with the same name already exists for the selected sub-appellation.");
             return ValidationProblem(ModelState);
         }
 
         BottleLocation? bottleLocation = null;
         if (request.BottleLocationId.HasValue)
         {
-            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            bottleLocation =
+                await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
             if (bottleLocation is null)
             {
                 ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
@@ -960,7 +981,8 @@ public class WineInventoryController : Controller
     }
 
     [HttpPost("inventory")]
-    public async Task<IActionResult> AddWineToInventory([FromBody] AddWineToInventoryRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> AddWineToInventory([FromBody] AddWineToInventoryRequest request,
+        CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -995,7 +1017,8 @@ public class WineInventoryController : Controller
         BottleLocation? bottleLocation = null;
         if (request.BottleLocationId.HasValue)
         {
-            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            bottleLocation =
+                await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
             if (bottleLocation is null)
             {
                 ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
@@ -1041,7 +1064,8 @@ public class WineInventoryController : Controller
     }
 
     [HttpPut("groups/{wineVintageId:guid}")]
-    public async Task<IActionResult> UpdateGroup(Guid wineVintageId, [FromBody] WineGroupUpdateRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateGroup(Guid wineVintageId, [FromBody] WineGroupUpdateRequest request,
+        CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -1079,10 +1103,12 @@ public class WineInventoryController : Controller
             return ValidationProblem(ModelState);
         }
 
-        var duplicate = await _wineRepository.FindByNameAsync(trimmedName, subAppellation.Name, subAppellation.Appellation?.Name, cancellationToken);
+        var duplicate = await _wineRepository.FindByNameAsync(trimmedName, subAppellation.Name,
+            subAppellation.Appellation?.Name, cancellationToken);
         if (duplicate is not null && duplicate.Id != existingVintage.WineId)
         {
-            ModelState.AddModelError(nameof(request.WineName), "A wine with the same name already exists for the selected sub-appellation.");
+            ModelState.AddModelError(nameof(request.WineName),
+                "A wine with the same name already exists for the selected sub-appellation.");
             return ValidationProblem(ModelState);
         }
 
@@ -1161,7 +1187,8 @@ public class WineInventoryController : Controller
     }
 
     [HttpPost("bottles")]
-    public async Task<IActionResult> CreateBottle([FromBody] BottleMutationRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> CreateBottle([FromBody] BottleMutationRequest request,
+        CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -1182,7 +1209,8 @@ public class WineInventoryController : Controller
         BottleLocation? bottleLocation = null;
         if (request.BottleLocationId.HasValue)
         {
-            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            bottleLocation =
+                await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
             if (bottleLocation is null)
             {
                 ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
@@ -1224,7 +1252,8 @@ public class WineInventoryController : Controller
     }
 
     [HttpPut("bottles/{id:guid}")]
-    public async Task<IActionResult> UpdateBottle(Guid id, [FromBody] BottleMutationRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateBottle(Guid id, [FromBody] BottleMutationRequest request,
+        CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -1245,7 +1274,8 @@ public class WineInventoryController : Controller
         BottleLocation? bottleLocation = null;
         if (request.BottleLocationId.HasValue)
         {
-            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            bottleLocation =
+                await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
             if (bottleLocation is null)
             {
                 ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
@@ -1273,7 +1303,8 @@ public class WineInventoryController : Controller
 
     // Fallback endpoint to support environments that disallow HTTP PUT from the client
     [HttpPost("bottles/{id:guid}/drink")]
-    public async Task<IActionResult> DrinkBottle(Guid id, [FromBody] BottleMutationRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> DrinkBottle(Guid id, [FromBody] BottleMutationRequest request,
+        CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -1294,7 +1325,8 @@ public class WineInventoryController : Controller
         BottleLocation? bottleLocation = null;
         if (request.BottleLocationId.HasValue)
         {
-            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            bottleLocation =
+                await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
             if (bottleLocation is null)
             {
                 ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
@@ -1321,7 +1353,8 @@ public class WineInventoryController : Controller
     }
 
     [HttpPost("notes")]
-    public async Task<IActionResult> CreateNote([FromBody] TastingNoteCreateRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> CreateNote([FromBody] TastingNoteCreateRequest request,
+        CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -1405,7 +1438,8 @@ public class WineInventoryController : Controller
     }
 
     [HttpPut("notes/{noteId:guid}")]
-    public async Task<IActionResult> UpdateNote(Guid noteId, [FromBody] TastingNoteUpdateRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateNote(Guid noteId, [FromBody] TastingNoteUpdateRequest request,
+        CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -1516,7 +1550,8 @@ public class WineInventoryController : Controller
         return Json(response);
     }
 
-    private async Task<BottleGroupDetailsResponse> BuildBottleGroupResponseAsync(Guid wineVintageId, Guid userId, CancellationToken cancellationToken)
+    private async Task<BottleGroupDetailsResponse> BuildBottleGroupResponseAsync(Guid wineVintageId, Guid userId,
+        CancellationToken cancellationToken)
     {
         var userBottles = await _bottleRepository.GetForUserAsync(userId, cancellationToken);
         var userLocations = await GetUserLocationsAsync(userId, cancellationToken);
@@ -1638,7 +1673,8 @@ public class WineInventoryController : Controller
             .ToList();
     }
 
-    private async Task<BottleNotesResponse?> BuildBottleNotesResponseAsync(Guid bottleId, Guid userId, CancellationToken cancellationToken)
+    private async Task<BottleNotesResponse?> BuildBottleNotesResponseAsync(Guid bottleId, Guid userId,
+        CancellationToken cancellationToken)
     {
         var bottle = await _bottleRepository.GetByIdAsync(bottleId, cancellationToken);
         if (bottle is null || bottle.UserId != userId)
@@ -1692,7 +1728,8 @@ public class WineInventoryController : Controller
         };
     }
 
-    private static WineInventoryBottleViewModel CreateBottleGroupViewModel(Guid groupId, IReadOnlyCollection<Bottle> bottles, decimal? averageScore)
+    private static WineInventoryBottleViewModel CreateBottleGroupViewModel(Guid groupId,
+        IReadOnlyCollection<Bottle> bottles, decimal? averageScore)
     {
         var firstBottle = bottles.First();
         var totalCount = bottles.Count;
@@ -1823,7 +1860,7 @@ public class WineInventoryController : Controller
         var country = region?.Country;
 
         var vintages = wine.WineVintages?.Select(v => v.Vintage).Distinct().OrderByDescending(v => v).ToList()
-            ?? new List<int>();
+                       ?? new List<int>();
 
         return new WineInventoryWineOption
         {
@@ -1842,297 +1879,289 @@ public class WineInventoryController : Controller
     {
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
+}
 
 public class WineInventoryViewModel
-{
-    public string Status { get; set; } = "all";
-    public string? Color { get; set; }
-    public string? Search { get; set; }
-    public string SortField { get; set; } = "wine";
-    public string SortDirection { get; set; } = "asc";
-    public IReadOnlyList<WineInventoryBottleViewModel> Bottles { get; set; } = Array.Empty<WineInventoryBottleViewModel>();
-    public Guid CurrentUserId { get; set; }
-    public IReadOnlyList<WineInventoryLocationViewModel> Locations { get; set; } = Array.Empty<WineInventoryLocationViewModel>();
-    public InventoryAddModalViewModel InventoryAddModal { get; set; } = new();
-    public bool HasActiveFilters { get; set; }
-    public IReadOnlySet<Guid> HighlightedLocationIds { get; set; } = new HashSet<Guid>();
-    public IReadOnlyList<FilterOption> StatusOptions { get; set; } = Array.Empty<FilterOption>();
-    public IReadOnlyList<FilterOption> ColorOptions { get; set; } = Array.Empty<FilterOption>();
-}
+    {
+        public string Status { get; set; } = "all";
+        public string? Color { get; set; }
+        public string? Search { get; set; }
+        public string SortField { get; set; } = "wine";
+        public string SortDirection { get; set; } = "asc";
 
-public class WineInventoryBottleViewModel
-{
-    public Guid WineVintageId { get; set; }
-    public Guid WineId { get; set; }
-    public string WineName { get; set; } = string.Empty;
-    public string? SubAppellation { get; set; }
-    public string? Appellation { get; set; }
-    public Guid? SubAppellationId { get; set; }
-    public Guid? AppellationId { get; set; }
-    public int Vintage { get; set; }
-    public string Color { get; set; } = string.Empty;
-    public int BottleCount { get; set; }
-    public string StatusLabel { get; set; } = string.Empty;
-    public string StatusCssClass { get; set; } = string.Empty;
-    public decimal? AverageScore { get; set; }
-}
+        public IReadOnlyList<WineInventoryBottleViewModel> Bottles { get; set; } =
+            Array.Empty<WineInventoryBottleViewModel>();
 
-public class WineInventoryBottleDetailViewModel
-{
-    public Guid BottleId { get; set; }
-    public decimal? Price { get; set; }
-    public bool IsDrunk { get; set; }
-    public DateTime? DrunkAt { get; set; }
-    public Guid? BottleLocationId { get; set; }
-    public string BottleLocation { get; set; } = string.Empty;
-    public Guid? UserId { get; set; }
-    public string UserName { get; set; } = string.Empty;
-    public int Vintage { get; set; }
-    public string WineName { get; set; } = string.Empty;
-    public decimal? AverageScore { get; set; }
-    public Guid? CurrentUserNoteId { get; set; }
-    public string? CurrentUserNote { get; set; }
-    public decimal? CurrentUserScore { get; set; }
-    // Added to allow client to open a specific vintage group from wine-level view
-    public Guid WineVintageId { get; set; }
-}
+        public Guid CurrentUserId { get; set; }
 
-public class WineInventoryLocationViewModel
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public int? Capacity { get; set; }
-    public int BottleCount { get; set; }
-    public int UniqueWineCount { get; set; }
-    public int CellaredBottleCount { get; set; }
-    public int DrunkBottleCount { get; set; }
-}
+        public IReadOnlyList<WineInventoryLocationViewModel> Locations { get; set; } =
+            Array.Empty<WineInventoryLocationViewModel>();
 
-public class BottleGroupDetailsResponse
-{
-    public WineInventoryBottleViewModel? Group { get; set; }
-    public IReadOnlyList<WineInventoryBottleDetailViewModel> Details { get; set; } = Array.Empty<WineInventoryBottleDetailViewModel>();
-    public IReadOnlyList<WineInventoryLocationViewModel> Locations { get; set; } = Array.Empty<WineInventoryLocationViewModel>();
-}
+        public InventoryAddModalViewModel InventoryAddModal { get; set; } = new();
+        public bool HasActiveFilters { get; set; }
+        public IReadOnlySet<Guid> HighlightedLocationIds { get; set; } = new HashSet<Guid>();
+        public IReadOnlyList<FilterOption> StatusOptions { get; set; } = Array.Empty<FilterOption>();
+        public IReadOnlyList<FilterOption> ColorOptions { get; set; } = Array.Empty<FilterOption>();
+    }
 
-public class BottleMutationRequest
-{
-    [Required]
-    public Guid WineVintageId { get; set; }
+    public class WineInventoryBottleViewModel
+    {
+        public Guid WineVintageId { get; set; }
+        public Guid WineId { get; set; }
+        public string WineName { get; set; } = string.Empty;
+        public string? SubAppellation { get; set; }
+        public string? Appellation { get; set; }
+        public Guid? SubAppellationId { get; set; }
+        public Guid? AppellationId { get; set; }
+        public int Vintage { get; set; }
+        public string Color { get; set; } = string.Empty;
+        public int BottleCount { get; set; }
+        public string StatusLabel { get; set; } = string.Empty;
+        public string StatusCssClass { get; set; } = string.Empty;
+        public decimal? AverageScore { get; set; }
+    }
 
-    public decimal? Price { get; set; }
+    public class WineInventoryBottleDetailViewModel
+    {
+        public Guid BottleId { get; set; }
+        public decimal? Price { get; set; }
+        public bool IsDrunk { get; set; }
+        public DateTime? DrunkAt { get; set; }
+        public Guid? BottleLocationId { get; set; }
+        public string BottleLocation { get; set; } = string.Empty;
+        public Guid? UserId { get; set; }
+        public string UserName { get; set; } = string.Empty;
+        public int Vintage { get; set; }
+        public string WineName { get; set; } = string.Empty;
+        public decimal? AverageScore { get; set; }
+        public Guid? CurrentUserNoteId { get; set; }
+        public string? CurrentUserNote { get; set; }
 
-    public bool IsDrunk { get; set; }
+        public decimal? CurrentUserScore { get; set; }
 
-    public DateTime? DrunkAt { get; set; }
+        // Added to allow client to open a specific vintage group from wine-level view
+        public Guid WineVintageId { get; set; }
+    }
 
-    public Guid? BottleLocationId { get; set; }
+    public class WineInventoryLocationViewModel
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int? Capacity { get; set; }
+        public int BottleCount { get; set; }
+        public int UniqueWineCount { get; set; }
+        public int CellaredBottleCount { get; set; }
+        public int DrunkBottleCount { get; set; }
+    }
 
-    public Guid? UserId { get; set; }
+    public class BottleGroupDetailsResponse
+    {
+        public WineInventoryBottleViewModel? Group { get; set; }
 
-    [Range(1, 12)]
-    public int Quantity { get; set; } = 1;
-}
+        public IReadOnlyList<WineInventoryBottleDetailViewModel> Details { get; set; } =
+            Array.Empty<WineInventoryBottleDetailViewModel>();
 
-public record FilterOption(string Value, string Label);
+        public IReadOnlyList<WineInventoryLocationViewModel> Locations { get; set; } =
+            Array.Empty<WineInventoryLocationViewModel>();
+    }
 
-public class WineGroupUpdateRequest
-{
-    [Required]
-    [StringLength(256, MinimumLength = 1)]
-    public string WineName { get; set; } = string.Empty;
+    public class BottleMutationRequest
+    {
+        [Required] public Guid WineVintageId { get; set; }
 
-    [Range(1900, 2100)]
-    public int Vintage { get; set; }
+        public decimal? Price { get; set; }
 
-    [Required]
-    public WineColor Color { get; set; }
+        public bool IsDrunk { get; set; }
 
-    [Required]
-    public Guid SubAppellationId { get; set; }
-}
+        public DateTime? DrunkAt { get; set; }
 
-public class WineGroupCreateRequest : WineGroupUpdateRequest
-{
-    [Range(1, 5000)]
-    public int InitialBottleCount { get; set; } = 1;
+        public Guid? BottleLocationId { get; set; }
 
-    public Guid? BottleLocationId { get; set; }
-}
+        public Guid? UserId { get; set; }
 
-public class AddWineToInventoryRequest
-{
-    [Required]
-    public Guid WineId { get; set; }
+        [Range(1, 12)] public int Quantity { get; set; } = 1;
+    }
 
-    [Range(1900, 2100)]
-    public int Vintage { get; set; }
+    public record FilterOption(string Value, string Label);
 
-    [Range(1, 12)]
-    public int Quantity { get; set; } = 1;
+    public class WineGroupUpdateRequest
+    {
+        [Required]
+        [StringLength(256, MinimumLength = 1)]
+        public string WineName { get; set; } = string.Empty;
 
-    public Guid? BottleLocationId { get; set; }
-}
+        [Range(1900, 2100)] public int Vintage { get; set; }
 
-public class CreateWineRequest
-{
-    // When adding bottles for an existing wine, allow WineId
-    public Guid? WineId { get; set; }
+        [Required] public WineColor Color { get; set; }
 
-    [StringLength(256, MinimumLength = 1)]
-    public string Name { get; set; } = string.Empty;
+        [Required] public Guid SubAppellationId { get; set; }
+    }
 
-    [StringLength(32, MinimumLength = 1)]
-    public string Color { get; set; } = string.Empty;
+    public class WineGroupCreateRequest : WineGroupUpdateRequest
+    {
+        [Range(1, 5000)] public int InitialBottleCount { get; set; } = 1;
 
-    [StringLength(128)]
-    public string? Country { get; set; }
+        public Guid? BottleLocationId { get; set; }
+    }
 
-    [StringLength(128, MinimumLength = 0)]
-    public string? Region { get; set; }
+    public class AddWineToInventoryRequest
+    {
+        [Required] public Guid WineId { get; set; }
 
-    [StringLength(256, MinimumLength = 0)]
-    public string? Appellation { get; set; }
+        [Range(1900, 2100)] public int Vintage { get; set; }
 
-    [StringLength(256)]
-    public string? SubAppellation { get; set; }
+        [Range(1, 12)] public int Quantity { get; set; } = 1;
 
-    [StringLength(256)]
-    public string? GrapeVariety { get; set; }
+        public Guid? BottleLocationId { get; set; }
+    }
 
-    // Inventory parameters (optional). If Quantity > 0, will add bottles for current user
-    [Range(1900, 2100)]
-    public int? Vintage { get; set; }
+    public class CreateWineRequest
+    {
+        // When adding bottles for an existing wine, allow WineId
+        public Guid? WineId { get; set; }
 
-    [Range(1, 12)]
-    public int? Quantity { get; set; }
+        [StringLength(256, MinimumLength = 1)] public string Name { get; set; } = string.Empty;
 
-    public Guid? BottleLocationId { get; set; }
-}
+        [StringLength(32, MinimumLength = 1)] public string Color { get; set; } = string.Empty;
 
-public class WineCountrySuggestion
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-}
+        [StringLength(128)] public string? Country { get; set; }
 
-public class WineRegionSuggestion
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public Guid CountryId { get; set; }
-    public string CountryName { get; set; } = string.Empty;
-}
+        [StringLength(128, MinimumLength = 0)] public string? Region { get; set; }
 
-public class WineAppellationSuggestion
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public Guid RegionId { get; set; }
-    public string RegionName { get; set; } = string.Empty;
-    public Guid CountryId { get; set; }
-    public string CountryName { get; set; } = string.Empty;
-}
+        [StringLength(256, MinimumLength = 0)] public string? Appellation { get; set; }
 
-public class WineSubAppellationSuggestion
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public Guid AppellationId { get; set; }
-    public string AppellationName { get; set; } = string.Empty;
-    public Guid RegionId { get; set; }
-    public string RegionName { get; set; } = string.Empty;
-    public Guid CountryId { get; set; }
-    public string CountryName { get; set; } = string.Empty;
-}
+        [StringLength(256)] public string? SubAppellation { get; set; }
 
-public class InventoryReferenceDataResponse
-{
-    public IReadOnlyList<SubAppellationOption> SubAppellations { get; set; } = Array.Empty<SubAppellationOption>();
-    public IReadOnlyList<BottleLocationOption> BottleLocations { get; set; } = Array.Empty<BottleLocationOption>();
-    public IReadOnlyList<UserOption> Users { get; set; } = Array.Empty<UserOption>();
-}
+        [StringLength(256)] public string? GrapeVariety { get; set; }
 
-public class WineInventoryWineOption
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string? SubAppellation { get; set; }
-    public string? Appellation { get; set; }
-    public string? Region { get; set; }
-    public string? Country { get; set; }
-    public string Color { get; set; } = string.Empty;
-    public IReadOnlyList<int> Vintages { get; set; } = Array.Empty<int>();
-}
+        // Inventory parameters (optional). If Quantity > 0, will add bottles for current user
+        [Range(1900, 2100)] public int? Vintage { get; set; }
 
-public class WineImportPageViewModel
-{
-    public WineImportPanelViewModel WineUpload { get; set; } = new();
-    public WineImportPanelViewModel BottleUpload { get; set; } = new();
-}
+        [Range(1, 12)] public int? Quantity { get; set; }
 
-public class WineImportPanelViewModel
-{
-    public string? UploadedFileName { get; set; }
-    public WineImportResult? Result { get; set; }
-    public IReadOnlyList<string> Errors { get; set; } = Array.Empty<string>();
-    public bool HasErrors => Errors.Count > 0;
-    public bool HasResult => Result is not null;
-}
+        public Guid? BottleLocationId { get; set; }
+    }
 
-public class BottleNotesResponse
-{
-    public BottleNotesBottleSummary? Bottle { get; set; }
-    public IReadOnlyList<TastingNoteViewModel> Notes { get; set; } = Array.Empty<TastingNoteViewModel>();
-}
+    public class WineCountrySuggestion
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
 
-public class BottleNotesBottleSummary
-{
-    public Guid BottleId { get; set; }
-    public Guid WineVintageId { get; set; }
-    public string WineName { get; set; } = string.Empty;
-    public int Vintage { get; set; }
-    public string? BottleLocation { get; set; }
-    public Guid? UserId { get; set; }
-    public string UserName { get; set; } = string.Empty;
-    public bool IsDrunk { get; set; }
-    public DateTime? DrunkAt { get; set; }
-    public decimal? BottleAverageScore { get; set; }
-    public decimal? GroupAverageScore { get; set; }
-}
+    public class WineRegionSuggestion
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public Guid CountryId { get; set; }
+        public string CountryName { get; set; } = string.Empty;
+    }
 
-public class TastingNoteViewModel
-{
-    public Guid Id { get; set; }
-    public string Note { get; set; } = string.Empty;
-    public decimal? Score { get; set; }
-    public Guid UserId { get; set; }
-    public string UserName { get; set; } = string.Empty;
-}
+    public class WineAppellationSuggestion
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public Guid RegionId { get; set; }
+        public string RegionName { get; set; } = string.Empty;
+        public Guid CountryId { get; set; }
+        public string CountryName { get; set; } = string.Empty;
+    }
 
-public class TastingNoteUpdateRequest
-{
-    [StringLength(2048)]
-    public string? Note { get; set; }
+    public class WineSubAppellationSuggestion
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public Guid AppellationId { get; set; }
+        public string AppellationName { get; set; } = string.Empty;
+        public Guid RegionId { get; set; }
+        public string RegionName { get; set; } = string.Empty;
+        public Guid CountryId { get; set; }
+        public string CountryName { get; set; } = string.Empty;
+    }
 
-    [Range(0, 10)]
-    public decimal? Score { get; set; }
-}
+    public class InventoryReferenceDataResponse
+    {
+        public IReadOnlyList<SubAppellationOption> SubAppellations { get; set; } = Array.Empty<SubAppellationOption>();
+        public IReadOnlyList<BottleLocationOption> BottleLocations { get; set; } = Array.Empty<BottleLocationOption>();
+        public IReadOnlyList<UserOption> Users { get; set; } = Array.Empty<UserOption>();
+    }
 
-public class TastingNoteCreateRequest : TastingNoteUpdateRequest
-{
-    [Required]
-    public Guid BottleId { get; set; }
-}
+    public class WineInventoryWineOption
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? SubAppellation { get; set; }
+        public string? Appellation { get; set; }
+        public string? Region { get; set; }
+        public string? Country { get; set; }
+        public string Color { get; set; } = string.Empty;
+        public IReadOnlyList<int> Vintages { get; set; } = Array.Empty<int>();
+    }
 
-public class SubAppellationOption
-{
-    public Guid Id { get; set; }
-    public string Label { get; set; } = string.Empty;
-}
+    public class WineImportPageViewModel
+    {
+        public WineImportPanelViewModel WineUpload { get; set; } = new();
+        public WineImportPanelViewModel BottleUpload { get; set; } = new();
+    }
 
-public class UserOption
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-}
+    public class WineImportPanelViewModel
+    {
+        public string? UploadedFileName { get; set; }
+        public WineImportResult? Result { get; set; }
+        public IReadOnlyList<string> Errors { get; set; } = Array.Empty<string>();
+        public bool HasErrors => Errors.Count > 0;
+        public bool HasResult => Result is not null;
+    }
+
+    public class BottleNotesResponse
+    {
+        public BottleNotesBottleSummary? Bottle { get; set; }
+        public IReadOnlyList<TastingNoteViewModel> Notes { get; set; } = Array.Empty<TastingNoteViewModel>();
+    }
+
+    public class BottleNotesBottleSummary
+    {
+        public Guid BottleId { get; set; }
+        public Guid WineVintageId { get; set; }
+        public string WineName { get; set; } = string.Empty;
+        public int Vintage { get; set; }
+        public string? BottleLocation { get; set; }
+        public Guid? UserId { get; set; }
+        public string UserName { get; set; } = string.Empty;
+        public bool IsDrunk { get; set; }
+        public DateTime? DrunkAt { get; set; }
+        public decimal? BottleAverageScore { get; set; }
+        public decimal? GroupAverageScore { get; set; }
+    }
+
+    public class TastingNoteViewModel
+    {
+        public Guid Id { get; set; }
+        public string Note { get; set; } = string.Empty;
+        public decimal? Score { get; set; }
+        public Guid UserId { get; set; }
+        public string UserName { get; set; } = string.Empty;
+    }
+
+    public class TastingNoteUpdateRequest
+    {
+        [StringLength(2048)] public string? Note { get; set; }
+
+        [Range(0, 10)] public decimal? Score { get; set; }
+    }
+
+    public class TastingNoteCreateRequest : TastingNoteUpdateRequest
+    {
+        [Required] public Guid BottleId { get; set; }
+    }
+
+    public class SubAppellationOption
+    {
+        public Guid Id { get; set; }
+        public string Label { get; set; } = string.Empty;
+    }
+
+    public class UserOption
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
