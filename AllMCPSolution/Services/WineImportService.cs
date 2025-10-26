@@ -14,11 +14,15 @@ namespace AllMCPSolution.Services;
 public interface IWineImportService
 {
     Task<WineImportResult> ImportAsync(Stream stream, CancellationToken cancellationToken = default);
+    Task<WineImportResult> ImportBottlesAsync(
+        Stream stream,
+        Guid userId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class WineImportService : IWineImportService
 {
-    private static readonly string[] RequiredColumns =
+    private static readonly string[] WineRequiredColumns =
     [
         "Name",
         "Country",
@@ -28,11 +32,24 @@ public sealed class WineImportService : IWineImportService
         "SubAppellation"
     ];
 
+    private static readonly string[] BottleRequiredColumns =
+    [
+        "Name",
+        "Country",
+        "Region",
+        "Color",
+        "Appellation",
+        "SubAppellation",
+        "Amount"
+    ];
+
     private readonly ICountryRepository _countryRepository;
     private readonly IRegionRepository _regionRepository;
     private readonly IAppellationRepository _appellationRepository;
     private readonly ISubAppellationRepository _subAppellationRepository;
     private readonly IWineRepository _wineRepository;
+    private readonly IWineVintageRepository _wineVintageRepository;
+    private readonly IBottleRepository _bottleRepository;
 
     static WineImportService()
     {
@@ -44,13 +61,17 @@ public sealed class WineImportService : IWineImportService
         IRegionRepository regionRepository,
         IAppellationRepository appellationRepository,
         ISubAppellationRepository subAppellationRepository,
-        IWineRepository wineRepository)
+        IWineRepository wineRepository,
+        IWineVintageRepository wineVintageRepository,
+        IBottleRepository bottleRepository)
     {
         _countryRepository = countryRepository;
         _regionRepository = regionRepository;
         _appellationRepository = appellationRepository;
         _subAppellationRepository = subAppellationRepository;
         _wineRepository = wineRepository;
+        _wineVintageRepository = wineVintageRepository;
+        _bottleRepository = bottleRepository;
     }
 
     public async Task<WineImportResult> ImportAsync(Stream stream, CancellationToken cancellationToken = default)
@@ -64,7 +85,7 @@ public sealed class WineImportService : IWineImportService
 
         using var reader = ExcelReaderFactory.CreateReader(stream);
         var headerMap = ReadHeader(reader);
-        EnsureRequiredColumns(headerMap);
+        EnsureRequiredColumns(headerMap, WineRequiredColumns);
 
         var result = new WineImportResult();
         var cache = new ImportCache();
@@ -75,7 +96,7 @@ public sealed class WineImportService : IWineImportService
             cancellationToken.ThrowIfCancellationRequested();
             rowNumber++;
 
-            var row = ExtractRow(reader, headerMap);
+            var row = ExtractRow(reader, headerMap, includeAmount: false);
             if (row is null || row.IsEmpty)
             {
                 continue;
@@ -83,7 +104,7 @@ public sealed class WineImportService : IWineImportService
 
             result.TotalRows++;
 
-            var missingField = GetMissingRequiredField(row);
+            var missingField = GetMissingRequiredField(row, requireAmount: false);
             if (missingField is not null)
             {
                 result.RowErrors.Add(new WineImportRowError(rowNumber, $"{missingField} is required."));
@@ -100,6 +121,78 @@ public sealed class WineImportService : IWineImportService
             {
                 await ProcessRowAsync(row, color, result, cache, cancellationToken);
                 result.ImportedRows++;
+            }
+            catch (Exception ex)
+            {
+                result.RowErrors.Add(new WineImportRowError(rowNumber, ex.Message));
+            }
+        }
+
+        return result;
+    }
+
+    public async Task<WineImportResult> ImportBottlesAsync(
+        Stream stream,
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("User identifier is required when importing bottles.", nameof(userId));
+        }
+
+        if (!stream.CanRead)
+        {
+            throw new InvalidDataException("The provided stream cannot be read.");
+        }
+
+        using var reader = ExcelReaderFactory.CreateReader(stream);
+        var headerMap = ReadHeader(reader);
+        EnsureRequiredColumns(headerMap, BottleRequiredColumns);
+
+        var result = new WineImportResult();
+        var cache = new ImportCache();
+        var rowNumber = 1;
+
+        while (reader.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            rowNumber++;
+
+            var row = ExtractRow(reader, headerMap, includeAmount: true);
+            if (row is null || row.IsEmpty)
+            {
+                continue;
+            }
+
+            result.TotalRows++;
+
+            var missingField = GetMissingRequiredField(row, requireAmount: true);
+            if (missingField is not null)
+            {
+                result.RowErrors.Add(new WineImportRowError(rowNumber, $"{missingField} is required."));
+                continue;
+            }
+
+            if (!TryParseColor(row.Color, out var color, out var colorError))
+            {
+                result.RowErrors.Add(new WineImportRowError(rowNumber, colorError));
+                continue;
+            }
+
+            if (!TryParseAmount(row.Amount, out var amount, out var amountError))
+            {
+                result.RowErrors.Add(new WineImportRowError(rowNumber, amountError));
+                continue;
+            }
+
+            try
+            {
+                await ProcessBottleRowAsync(row, color, amount, userId, result, cache, cancellationToken);
+                result.ImportedRows++;
+                result.AddedBottles += amount;
             }
             catch (Exception ex)
             {
@@ -132,9 +225,11 @@ public sealed class WineImportService : IWineImportService
         return header;
     }
 
-    private static void EnsureRequiredColumns(IReadOnlyDictionary<string, int> headerMap)
+    private static void EnsureRequiredColumns(
+        IReadOnlyDictionary<string, int> headerMap,
+        IReadOnlyCollection<string> requiredColumns)
     {
-        var missing = RequiredColumns
+        var missing = requiredColumns
             .Where(column => !headerMap.ContainsKey(column))
             .ToArray();
 
@@ -144,7 +239,10 @@ public sealed class WineImportService : IWineImportService
         }
     }
 
-    private static WineImportRow? ExtractRow(IExcelDataReader reader, IReadOnlyDictionary<string, int> headerMap)
+    private static WineImportRow? ExtractRow(
+        IExcelDataReader reader,
+        IReadOnlyDictionary<string, int> headerMap,
+        bool includeAmount)
     {
         string? GetValue(string column) => headerMap.TryGetValue(column, out var index)
             ? reader.GetValue(index)?.ToString()
@@ -156,12 +254,13 @@ public sealed class WineImportService : IWineImportService
             Normalize(GetValue("Region")),
             Normalize(GetValue("Color")),
             Normalize(GetValue("Appellation")),
-            Normalize(GetValue("SubAppellation")));
+            Normalize(GetValue("SubAppellation")),
+            includeAmount ? Normalize(GetValue("Amount")) : null);
     }
 
     private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static string? GetMissingRequiredField(WineImportRow row)
+    private static string? GetMissingRequiredField(WineImportRow row, bool requireAmount)
     {
         if (string.IsNullOrWhiteSpace(row.Name))
         {
@@ -183,7 +282,43 @@ public sealed class WineImportService : IWineImportService
             return "Appellation";
         }
 
+        if (requireAmount && string.IsNullOrWhiteSpace(row.Amount))
+        {
+            return "Amount";
+        }
+
         return null;
+    }
+
+    private static bool TryParseAmount(string? rawValue, out int amount, out string error)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            amount = 0;
+            error = "Amount is required.";
+            return false;
+        }
+
+        if (!int.TryParse(rawValue, out amount))
+        {
+            error = $"Amount '{rawValue}' is not a valid whole number.";
+            return false;
+        }
+
+        if (amount <= 0)
+        {
+            error = "Amount must be greater than zero.";
+            return false;
+        }
+
+        if (amount > 240)
+        {
+            error = "Amount must be 240 bottles or fewer.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
     }
 
     private static bool TryParseColor(string? rawValue, out WineColor color, out string error)
@@ -213,13 +348,74 @@ public sealed class WineImportService : IWineImportService
         ImportCache cache,
         CancellationToken cancellationToken)
     {
+        await GetOrCreateWineHierarchyAsync(row, color, result, cache, cancellationToken);
+    }
+
+    private async Task ProcessBottleRowAsync(
+        WineImportRow row,
+        WineColor color,
+        int amount,
+        Guid userId,
+        WineImportResult result,
+        ImportCache cache,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var wine = await GetOrCreateWineHierarchyAsync(row, color, result, cache, cancellationToken);
+        var wineVintage = await GetOrCreateWineVintageAsync(wine, cache, cancellationToken);
+
+        for (var i = 0; i < amount; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var bottle = new Bottle
+            {
+                Id = Guid.NewGuid(),
+                WineVintageId = wineVintage.Id,
+                IsDrunk = false,
+                DrunkAt = null,
+                Price = null,
+                BottleLocationId = null,
+                UserId = userId
+            };
+
+            await _bottleRepository.AddAsync(bottle, cancellationToken);
+        }
+    }
+
+    private async Task<Wine> GetOrCreateWineHierarchyAsync(
+        WineImportRow row,
+        WineColor color,
+        WineImportResult result,
+        ImportCache cache,
+        CancellationToken cancellationToken)
+    {
         cancellationToken.ThrowIfCancellationRequested();
 
         var country = await GetOrCreateCountryAsync(row.Country!, result, cache, cancellationToken);
         var region = await GetOrCreateRegionAsync(row.Region!, country, result, cache, cancellationToken);
         var appellation = await GetOrCreateAppellationAsync(row.Appellation!, region, result, cache, cancellationToken);
         var subAppellation = await GetOrCreateSubAppellationAsync(row.SubAppellation, appellation, result, cache, cancellationToken);
-        await GetOrCreateWineAsync(row.Name!, color, appellation, subAppellation, result, cache, cancellationToken);
+        return await GetOrCreateWineAsync(row.Name!, color, appellation, subAppellation, result, cache, cancellationToken);
+    }
+
+    private async Task<WineVintage> GetOrCreateWineVintageAsync(
+        Wine wine,
+        ImportCache cache,
+        CancellationToken cancellationToken)
+    {
+        var cacheKey = wine.Id.ToString("D");
+        if (cache.WineVintages.TryGetValue(cacheKey, out var cached))
+        {
+            return cached;
+        }
+
+        var existing = await _wineVintageRepository.FindByWineAndVintageAsync(wine.Id, 0, cancellationToken)
+            ?? await _wineVintageRepository.GetOrCreateAsync(wine.Id, 0, cancellationToken);
+
+        cache.WineVintages[cacheKey] = existing;
+        return existing;
     }
 
     private async Task<Country> GetOrCreateCountryAsync(
@@ -395,14 +591,16 @@ public sealed class WineImportService : IWineImportService
         string? Region,
         string? Color,
         string? Appellation,
-        string? SubAppellation)
+        string? SubAppellation,
+        string? Amount)
     {
         public bool IsEmpty => string.IsNullOrWhiteSpace(Name)
             && string.IsNullOrWhiteSpace(Country)
             && string.IsNullOrWhiteSpace(Region)
             && string.IsNullOrWhiteSpace(Color)
             && string.IsNullOrWhiteSpace(Appellation)
-            && string.IsNullOrWhiteSpace(SubAppellation);
+            && string.IsNullOrWhiteSpace(SubAppellation)
+            && string.IsNullOrWhiteSpace(Amount);
     }
 
     private sealed class ImportCache
@@ -412,6 +610,7 @@ public sealed class WineImportService : IWineImportService
         public Dictionary<string, Appellation> Appellations { get; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, SubAppellation> SubAppellations { get; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, Wine> Wines { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, WineVintage> WineVintages { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 }
 
@@ -425,6 +624,7 @@ public sealed class WineImportResult
     public int CreatedSubAppellations { get; set; }
     public int CreatedWines { get; set; }
     public int UpdatedWines { get; set; }
+    public int AddedBottles { get; set; }
     public List<WineImportRowError> RowErrors { get; } = [];
     public bool HasRowErrors => RowErrors.Count > 0;
 }

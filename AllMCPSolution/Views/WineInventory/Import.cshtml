@@ -4,12 +4,17 @@
 @{
     Layout = null;
     var pageModel = Model ?? new WineImportPageViewModel();
+    var winePanel = pageModel.WineUpload ?? new WineImportPanelViewModel();
+    var bottlePanel = pageModel.BottleUpload ?? new WineImportPanelViewModel();
     var currentPath = Context.Request.Path.Value ?? string.Empty;
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
         ?? WineSurferTopBarModel.Empty(currentPath);
-    var hasErrors = pageModel.HasErrors;
-    var hasResult = pageModel.HasResult;
-    var result = pageModel.Result;
+    var wineHasErrors = winePanel.HasErrors;
+    var wineHasResult = winePanel.HasResult;
+    var wineResult = winePanel.Result;
+    var bottleHasErrors = bottlePanel.HasErrors;
+    var bottleHasResult = bottlePanel.HasResult;
+    var bottleResult = bottlePanel.Result;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -29,25 +34,27 @@
     <main class="inventory-shell">
         @await Html.PartialAsync("_WineSurferPageHeader", new WineSurferPageHeaderModel("Import Wines"))
         <section class="wine-surface wine-surface-border wine-card-hover import-panel">
+            <h2>Import Wines</h2>
             <form action="/wine-manager/import" method="post" enctype="multipart/form-data" class="wine-import-form">
                 @Html.AntiForgeryToken()
+                <input type="hidden" name="importType" value="wines" />
                 <div class="form-field">
-                    <label for="file">Excel File</label>
-                    <input type="file" id="file" name="file" accept=".xlsx,.xls" />
+                    <label for="wineFile">Excel File</label>
+                    <input type="file" id="wineFile" name="wineFile" accept=".xlsx,.xls" />
                     <p class="field-description">
                         Upload a spreadsheet with columns <strong>Name</strong>, <strong>Country</strong>, <strong>Region</strong>,
                         <strong>Color</strong>, <strong>Appellation</strong>, and <strong>SubAppellation</strong>.
                     </p>
                 </div>
-                <button type="submit" class="submit-button">Upload and Import</button>
+                <button type="submit" class="submit-button">Upload and Import Wines</button>
             </form>
 
-            @if (hasErrors)
+            @if (wineHasErrors)
             {
                 <div class="import-errors wine-surface wine-surface-border">
                     <h3>Upload Issues</h3>
                     <ul>
-                        @foreach (var error in pageModel.Errors)
+                        @foreach (var error in winePanel.Errors)
                         {
                             <li>@error</li>
                         }
@@ -55,23 +62,23 @@
                 </div>
             }
 
-            @if (hasResult && result is not null)
+            @if (wineHasResult && wineResult is not null)
             {
                 <div class="import-summary wine-surface wine-surface-border">
-                    <h3>Import Summary@if (!string.IsNullOrWhiteSpace(pageModel.UploadedFileName)) {<text> for @pageModel.UploadedFileName</text>}</h3>
+                    <h3>Wine Import Summary@if (!string.IsNullOrWhiteSpace(winePanel.UploadedFileName)) {<text> for @winePanel.UploadedFileName</text>}</h3>
                     <dl class="summary-list">
-                        <div><dt>Total rows processed</dt><dd>@result.TotalRows</dd></div>
-                        <div><dt>Rows imported</dt><dd>@result.ImportedRows</dd></div>
-                        <div><dt>Countries created</dt><dd>@result.CreatedCountries</dd></div>
-                        <div><dt>Regions created</dt><dd>@result.CreatedRegions</dd></div>
-                        <div><dt>Appellations created</dt><dd>@result.CreatedAppellations</dd></div>
-                        <div><dt>Sub-appellations created</dt><dd>@result.CreatedSubAppellations</dd></div>
-                        <div><dt>Wines created</dt><dd>@result.CreatedWines</dd></div>
-                        <div><dt>Wines updated</dt><dd>@result.UpdatedWines</dd></div>
+                        <div><dt>Total rows processed</dt><dd>@wineResult.TotalRows</dd></div>
+                        <div><dt>Rows imported</dt><dd>@wineResult.ImportedRows</dd></div>
+                        <div><dt>Countries created</dt><dd>@wineResult.CreatedCountries</dd></div>
+                        <div><dt>Regions created</dt><dd>@wineResult.CreatedRegions</dd></div>
+                        <div><dt>Appellations created</dt><dd>@wineResult.CreatedAppellations</dd></div>
+                        <div><dt>Sub-appellations created</dt><dd>@wineResult.CreatedSubAppellations</dd></div>
+                        <div><dt>Wines created</dt><dd>@wineResult.CreatedWines</dd></div>
+                        <div><dt>Wines updated</dt><dd>@wineResult.UpdatedWines</dd></div>
                     </dl>
                 </div>
 
-                @if (result.HasRowErrors)
+                @if (wineResult.HasRowErrors)
                 {
                     <div class="row-errors wine-surface wine-surface-border">
                         <h3>Rows Skipped</h3>
@@ -83,7 +90,80 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var error in result.RowErrors)
+                                @foreach (var error in wineResult.RowErrors)
+                                {
+                                    <tr>
+                                        <td>@error.RowNumber</td>
+                                        <td>@error.Message</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+        </section>
+
+        <section class="wine-surface wine-surface-border wine-card-hover import-panel">
+            <h2>Import Bottles</h2>
+            <form action="/wine-manager/import" method="post" enctype="multipart/form-data" class="wine-import-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="importType" value="bottles" />
+                <div class="form-field">
+                    <label for="bottleFile">Excel File</label>
+                    <input type="file" id="bottleFile" name="bottleFile" accept=".xlsx,.xls" />
+                    <p class="field-description">
+                        Upload a spreadsheet with columns <strong>Name</strong>, <strong>Country</strong>, <strong>Region</strong>,
+                        <strong>Color</strong>, <strong>Appellation</strong>, <strong>SubAppellation</strong>, and <strong>Amount</strong>.
+                        Each row will add the specified number of bottles to your inventory.
+                    </p>
+                </div>
+                <button type="submit" class="submit-button">Upload and Import Bottles</button>
+            </form>
+
+            @if (bottleHasErrors)
+            {
+                <div class="import-errors wine-surface wine-surface-border">
+                    <h3>Upload Issues</h3>
+                    <ul>
+                        @foreach (var error in bottlePanel.Errors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            @if (bottleHasResult && bottleResult is not null)
+            {
+                <div class="import-summary wine-surface wine-surface-border">
+                    <h3>Bottle Import Summary@if (!string.IsNullOrWhiteSpace(bottlePanel.UploadedFileName)) {<text> for @bottlePanel.UploadedFileName</text>}</h3>
+                    <dl class="summary-list">
+                        <div><dt>Total rows processed</dt><dd>@bottleResult.TotalRows</dd></div>
+                        <div><dt>Rows imported</dt><dd>@bottleResult.ImportedRows</dd></div>
+                        <div><dt>Countries created</dt><dd>@bottleResult.CreatedCountries</dd></div>
+                        <div><dt>Regions created</dt><dd>@bottleResult.CreatedRegions</dd></div>
+                        <div><dt>Appellations created</dt><dd>@bottleResult.CreatedAppellations</dd></div>
+                        <div><dt>Sub-appellations created</dt><dd>@bottleResult.CreatedSubAppellations</dd></div>
+                        <div><dt>Wines created</dt><dd>@bottleResult.CreatedWines</dd></div>
+                        <div><dt>Wines updated</dt><dd>@bottleResult.UpdatedWines</dd></div>
+                        <div><dt>Bottles added</dt><dd>@bottleResult.AddedBottles</dd></div>
+                    </dl>
+                </div>
+
+                @if (bottleResult.HasRowErrors)
+                {
+                    <div class="row-errors wine-surface wine-surface-border">
+                        <h3>Rows Skipped</h3>
+                        <table class="row-errors__table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Row</th>
+                                    <th scope="col">Issue</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var error in bottleResult.RowErrors)
                                 {
                                     <tr>
                                         <td>@error.RowNumber</td>
