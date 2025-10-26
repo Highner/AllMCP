@@ -129,7 +129,7 @@ body.wine-app--with-bottom-nav {
     }
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
     body.wine-app--with-bottom-nav {
         padding-bottom: 48px;
     }
