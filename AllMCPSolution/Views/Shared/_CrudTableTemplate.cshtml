@@ -1,5 +1,5 @@
 @model AllMCPSolution.Models.CrudTableTemplateModel
-@{
+@{ 
     var dataCrudTable = string.IsNullOrWhiteSpace(Model.DataTableKey) ? null : Model.DataTableKey;
     var backgroundClass = string.IsNullOrWhiteSpace(Model.BackgroundCssClass)
         ? "crud-table wine-surface wine-surface-border wine-card-hover"
@@ -7,9 +7,10 @@
     var bodyClass = string.IsNullOrWhiteSpace(Model.BodyCssClass)
         ? "crud-table__body wine-surface wine-surface-border"
         : Model.BodyCssClass;
+    var hasHeaderTemplate = Model.HeaderTemplate?.HasContent ?? false;
 }
 <section class="@backgroundClass" data-crud-table="@dataCrudTable">
-    @if (!string.IsNullOrWhiteSpace(Model.Title) || Model.TitleContent is not null || Model.HeaderContent is not null || !string.IsNullOrWhiteSpace(Model.Description))
+    @if (!string.IsNullOrWhiteSpace(Model.Title) || Model.TitleContent is not null || Model.HeaderContent is not null || hasHeaderTemplate || !string.IsNullOrWhiteSpace(Model.Description))
     {
         <header class="crud-table__header">
             <div class="crud-table__header-content">
@@ -29,6 +30,10 @@
             @if (Model.HeaderContent is not null)
             {
                 @Model.HeaderContent(null)
+            }
+            else if (hasHeaderTemplate && Model.HeaderTemplate is not null)
+            {
+                @Model.HeaderTemplate.Render(null)
             }
         </header>
     }

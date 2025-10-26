@@ -17,6 +17,8 @@ public class CrudTableTemplateModel
 
     public Func<object?, IHtmlContent>? TitleContent { get; init; }
 
+    public CrudTableHeaderTemplateModel? HeaderTemplate { get; init; }
+
     public Func<object?, IHtmlContent>? HeaderContent { get; init; }
 
     public Func<object?, IHtmlContent>? BodyContent { get; init; }

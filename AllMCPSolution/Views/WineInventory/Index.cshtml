@@ -51,15 +51,22 @@
     ViewData["WineSurferPageTitle"] = "Wine Inventory";
 
 
+    var addWineHeaderTemplate = new CrudTableHeaderTemplateModel
+    {
+        ContainerCssClass = "inventory-table-actions",
+        ActionLabel = "Add wine",
+        ActionCssClass = "sisterhood-button inventory-add-trigger",
+        ActionAttributes = new Dictionary<string, string?>
+        {
+            ["data-add-wine-trigger"] = string.Empty
+        }
+    };
+
     var yourCellarTable = new CrudTableTemplateModel
     {
         Title = "Your Cellar",
         DataTableKey = "summary",
-        HeaderContent = @<text>
-            <div class="inventory-table-actions">
-                <button type="button" class="sisterhood-button inventory-add-trigger" data-add-wine-trigger>Add wine</button>
-            </div>
-        </text>,
+        HeaderTemplate = addWineHeaderTemplate,
         BodyContent = @<text>
             <table id="inventory-table" class="inventory-table crud-table__table">
                 <thead>
