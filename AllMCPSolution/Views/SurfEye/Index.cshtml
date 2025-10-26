@@ -439,9 +439,9 @@
                     <input type="file" id="surf-eye-photo" class="surf-eye-input" accept="image/*" capture="environment" name="Photo" />
                     <div class="surf-eye-actions">
                         <label for="surf-eye-photo" class="surf-eye-button secondary">Open Camera</label>
-                        <button type="button" class="surf-eye-button" id="surf-eye-analyze">Analyze Photo</button>
+                        <button type="button" class="surf-eye-button" id="surf-eye-analyze" @(hasTasteProfile ? "" : "disabled")>Analyze Photo</button>
                     </div>
-                    <div id="surf-eye-status" class="surf-eye-status">@(hasTasteProfile ? "Snap a photo to begin." : "Snap a photo to identify wines. Add a taste profile to see alignment scores.")</div>
+                    <div id="surf-eye-status" class="surf-eye-status">@(hasTasteProfile ? "Snap a photo to begin." : "Add a taste profile to unlock Surf Eye.")</div>
                     <div id="surf-eye-results" class="surf-eye-results">
                         <p id="surf-eye-summary" class="surf-eye-summary"></p>
                         <p class="surf-eye-cellar-message" data-favorite-message hidden role="status"></p>
@@ -500,18 +500,6 @@
     const analyzeUrl = form.dataset.analyzeUrl ?? '';
     const hasTasteProfile = form.dataset.hasTasteProfile === 'true';
     const maxBytes = Number(form.dataset.maxBytes ?? '0');
-    const readyStatusMessage = hasTasteProfile
-        ? 'Snap a photo to begin.'
-        : 'Snap a photo to identify wines. Add a taste profile to see alignment scores.';
-    const photoReadyMessage = hasTasteProfile
-        ? 'Photo ready. Tap analyze to see what Surf Eye spots.'
-        : 'Photo ready. Surf Eye will identify wines, but it needs your taste profile to show alignment scores.';
-    const analysisInProgressMessage = hasTasteProfile
-        ? 'Surf Eye is analyzing your photo…'
-        : 'Surf Eye is identifying the wines in your photo. Alignment scores need a taste profile.';
-    const analysisCompleteMessage = hasTasteProfile
-        ? 'Surf Eye finished analyzing your photo.'
-        : 'Surf Eye spotted wines from your photo. Add a taste profile to unlock alignment scores.';
 
     let previewUrl = null;
 
@@ -588,12 +576,10 @@
             const header = document.createElement('div');
             header.className = 'surf-eye-wine__header';
 
-            if (hasTasteProfile) {
-                const rank = document.createElement('span');
-                rank.className = 'surf-eye-wine__rank';
-                rank.textContent = `#${index + 1}`;
-                header.appendChild(rank);
-            }
+            const rank = document.createElement('span');
+            rank.className = 'surf-eye-wine__rank';
+            rank.textContent = `#${index + 1}`;
+            header.appendChild(rank);
 
             const titleBlock = document.createElement('div');
             titleBlock.className = 'surf-eye-wine__title';
@@ -628,28 +614,26 @@
 
             header.appendChild(titleBlock);
 
-            if (hasTasteProfile) {
-                const scoreBlock = document.createElement('div');
-                scoreBlock.className = 'surf-eye-wine__score';
+            const scoreBlock = document.createElement('div');
+            scoreBlock.className = 'surf-eye-wine__score';
 
-                const scoreValue = document.createElement('span');
-                scoreValue.className = 'surf-eye-wine__score-value';
-                const alignmentScore = typeof wine.alignmentScore === 'number' ? Math.round(wine.alignmentScore) : 0;
-                scoreValue.textContent = `${alignmentScore}`;
-                scoreBlock.appendChild(scoreValue);
+            const scoreValue = document.createElement('span');
+            scoreValue.className = 'surf-eye-wine__score-value';
+            const alignmentScore = typeof wine.alignmentScore === 'number' ? Math.round(wine.alignmentScore) : 0;
+            scoreValue.textContent = `${alignmentScore}`;
+            scoreBlock.appendChild(scoreValue);
 
-                const scoreLabel = document.createElement('span');
-                scoreLabel.textContent = 'Alignment';
-                scoreBlock.appendChild(scoreLabel);
+            const scoreLabel = document.createElement('span');
+            scoreLabel.textContent = 'Alignment';
+            scoreBlock.appendChild(scoreLabel);
 
-                header.appendChild(scoreBlock);
-            }
+            header.appendChild(scoreBlock);
             item.appendChild(header);
 
             const body = document.createElement('div');
             body.className = 'surf-eye-wine__body';
 
-            if (hasTasteProfile && wine.alignmentSummary) {
+            if (wine.alignmentSummary) {
                 const alignment = document.createElement('p');
                 alignment.textContent = wine.alignmentSummary;
                 body.appendChild(alignment);
@@ -667,11 +651,9 @@
             const footMeta = document.createElement('div');
             footMeta.className = 'surf-eye-wine__foot-meta';
 
-            if (hasTasteProfile) {
-                const confidence = document.createElement('span');
-                confidence.textContent = formatConfidence(Number(wine.confidence));
-                footMeta.appendChild(confidence);
-            }
+            const confidence = document.createElement('span');
+            confidence.textContent = formatConfidence(Number(wine.confidence));
+            footMeta.appendChild(confidence);
             const detailParts = [];
             if (wine.variety) {
                 detailParts.push(wine.variety);
@@ -694,9 +676,7 @@
                 footMeta.appendChild(details);
             }
 
-            if (footMeta.childElementCount > 0) {
-                foot.appendChild(footMeta);
-            }
+            foot.appendChild(footMeta);
 
             const footActions = document.createElement('div');
             footActions.className = 'surf-eye-wine__foot-actions';
@@ -825,7 +805,7 @@
         if (!file) {
             clearPreview();
             setAnalyzeBusy(false);
-            setStatus(readyStatusMessage);
+            setStatus(hasTasteProfile ? 'Snap a photo to begin.' : 'Add a taste profile to unlock Surf Eye.');
             return;
         }
 
@@ -845,7 +825,7 @@
         previewImage.src = previewUrl;
         previewImage.style.display = 'block';
         placeholder.style.display = 'none';
-        setStatus(photoReadyMessage);
+        setStatus('Photo ready. Tap analyze to see what Surf Eye spots.');
         setAnalyzeBusy(false);
     });
 
@@ -857,8 +837,14 @@
             return;
         }
 
+        if (!hasTasteProfile) {
+            setStatus('Add a taste profile to unlock Surf Eye.', 'error');
+            setAnalyzeBusy(false);
+            return;
+        }
+
         setAnalyzeBusy(true);
-        setStatus(analysisInProgressMessage, 'progress');
+        setStatus('Surf Eye is analyzing your photo…', 'progress');
 
         const formData = new FormData(form);
         try {
@@ -902,7 +888,7 @@
                     }
                 }
                 resultsSection.classList.add('is-visible');
-                setStatus(analysisCompleteMessage, hasTasteProfile ? 'success' : 'info');
+                setStatus('Surf Eye finished analyzing your photo.', 'success');
             }
         }
         catch (error) {
