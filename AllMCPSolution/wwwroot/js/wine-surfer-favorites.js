@@ -269,7 +269,7 @@
         let bottleLocationsPromise = null;
         let modalLoading = false;
 
-        const triggerSelector = '[data-add-wine-trigger="favorites"], [data-add-wine-trigger="surf-eye"], [data-add-wine-trigger="inventory"]';
+        const triggerSelector = '[data-add-wine-trigger="favorites"], [data-add-wine-trigger="surf-eye"]';
 
         const normalizeContext = (context) => {
             if (!context) {
