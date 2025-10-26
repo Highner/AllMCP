@@ -65,6 +65,10 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (event.request.mode === 'navigate') {
+    if (shouldBypassNavigationHandling(requestUrl)) {
+      return;
+    }
+
     event.respondWith(handleNavigationRequest(event.request));
     return;
   }
@@ -232,6 +236,14 @@ function isUserSpecificRequest(url, request) {
   ];
 
   return userSpecificKeywords.some((keyword) => lowerPath.includes(keyword));
+}
+
+function shouldBypassNavigationHandling(url) {
+  const protectedPrefixes = ['/wine-manager', '/sip-session', '/wine-surfer/sessions'];
+
+  return protectedPrefixes.some((prefix) =>
+    url.pathname === prefix || url.pathname.startsWith(`${prefix}/`)
+  );
 }
 
 function buildOfflineResponse(contentType) {
