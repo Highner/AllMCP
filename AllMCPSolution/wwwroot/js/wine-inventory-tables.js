@@ -92,7 +92,25 @@ window.WineInventoryTables.initialize = function () {
                 const __addBtn = document.querySelector('.inventory-add-trigger');
                 const __overlay = document.getElementById('inventory-add-overlay');
                 const __popover = document.getElementById('inventory-add-popover');
-                if (__addBtn && __overlay && __popover) {
+                const __sharedController = window.wineSurferFavorites;
+                const __openSharedModal = typeof __sharedController?.openAddWineModal === 'function'
+                    ? (event) => {
+                        event?.preventDefault?.();
+                        try {
+                            const __result = __sharedController.openAddWineModal({ source: 'inventory' });
+                            if (__result && typeof __result.catch === 'function') {
+                                __result.catch(() => { /* status handled by shared controller */ });
+                            }
+                        } catch { /* no-op */ }
+                    }
+                    : null;
+
+                if (!__addBtn) {
+                    // No trigger available, skip binding entirely
+                } else if (__openSharedModal) {
+                    window.WineInventoryTables.__addModalBound = true;
+                    __addBtn.addEventListener('click', __openSharedModal);
+                } else if (__overlay && __popover) {
                     window.WineInventoryTables.__addModalBound = true;
 
                     // If the dedicated InventoryAddModal exists, delegate to it to avoid duplicate logic/listeners
@@ -275,8 +293,9 @@ window.WineInventoryTables.initialize = function () {
             initializeSummaryRows();
             bindGroupingControl();
             refreshGrouping({ resetState: true });
-            // Avoid binding the legacy Add Wine popover logic if the dedicated InventoryAddModal is present
-            if (!window.InventoryAddModal) {
+            const sharedAddWineModalAvailable = typeof window.wineSurferFavorites?.openAddWineModal === 'function';
+            // Avoid binding the legacy Add Wine popover logic if the shared controller or dedicated InventoryAddModal is present
+            if (!sharedAddWineModalAvailable && !window.InventoryAddModal) {
                 bindAddWinePopover();
             }
             bindDetailAddRow();
