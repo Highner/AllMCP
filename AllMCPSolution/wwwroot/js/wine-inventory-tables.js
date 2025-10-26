@@ -2221,14 +2221,7 @@ window.WineInventoryTables.initialize = function () {
 
                 const promise = performDrinkModalSubmission(submitDetail);
                 submitDetail.setSubmitPromise?.(promise);
-                const isNoteOnly = submitDetail.noteOnly === true
-                    || submitDetail.noteOnly === 'true'
-                    || submitDetail.noteOnly === 1
-                    || submitDetail.noteOnly === '1';
-                const successMessage = isNoteOnly
-                    ? 'Tasting note saved.'
-                    : 'Bottle marked as drunk and tasting note saved.';
-                submitDetail.setSuccessMessage?.(successMessage);
+                submitDetail.setSuccessMessage?.('Bottle marked as drunk and tasting note saved.');
             }
 
             async function performDrinkModalSubmission(submitDetail) {
@@ -2248,17 +2241,11 @@ window.WineInventoryTables.initialize = function () {
                     throw new Error('Unable to determine the selected bottle.');
                 }
 
-                const noteOnly = submitDetail.noteOnly === true
-                    || submitDetail.noteOnly === 'true'
-                    || submitDetail.noteOnly === 1
-                    || submitDetail.noteOnly === '1';
-                const rawDateValue = submitDetail.date ?? '';
-                if (!noteOnly) {
-                    if (!rawDateValue) {
-                        submitDetail.showError?.('Choose when you drank this bottle.');
-                        submitDetail.focusField?.('date');
-                        throw new Error('Choose when you drank this bottle.');
-                    }
+                const dateValue = submitDetail.date ?? '';
+                if (!dateValue) {
+                    submitDetail.showError?.('Choose when you drank this bottle.');
+                    submitDetail.focusField?.('date');
+                    throw new Error('Choose when you drank this bottle.');
                 }
 
                 const noteValue = (submitDetail.note ?? '').trim();
@@ -2275,14 +2262,11 @@ window.WineInventoryTables.initialize = function () {
                     throw new Error('Add a tasting note or score.');
                 }
 
-                let drunkAt = null;
-                if (!noteOnly) {
-                    drunkAt = parseDateOnly(rawDateValue);
-                    if (!drunkAt) {
-                        submitDetail.showError?.('Choose a valid drinking date.');
-                        submitDetail.focusField?.('date');
-                        throw new Error('Choose a valid drinking date.');
-                    }
+                const drunkAt = parseDateOnly(dateValue);
+                if (!drunkAt) {
+                    submitDetail.showError?.('Choose a valid drinking date.');
+                    submitDetail.focusField?.('date');
+                    throw new Error('Choose a valid drinking date.');
                 }
 
                 const row = detailsBody.querySelector(`.detail-row[data-bottle-id="${bottleId}"]`);
@@ -2292,42 +2276,40 @@ window.WineInventoryTables.initialize = function () {
                 const payloadUserId = rowUserId
                     || (drinkTarget.userId ? String(drinkTarget.userId) : null);
 
-                const payload = !noteOnly ? {
+                const payload = {
                     wineVintageId: selectedSummary.wineVintageId,
                     price: parsePrice(priceValue),
                     isDrunk: true,
                     drunkAt,
                     bottleLocationId: locationValue || null,
                     userId: payloadUserId
-                } : null;
+                };
 
                 drinkModalLoading = true;
                 setLoading(true);
 
-                let finalMessage = noteOnly ? 'Tasting note saved.' : 'Bottle marked as drunk.';
+                let finalMessage = 'Bottle marked as drunk.';
 
                 try {
-                    if (!noteOnly) {
-                        let response;
+                    let response;
+                    try {
+                        response = await sendJson(`/wine-manager/bottles/${bottleId}`, {
+                            method: 'PUT',
+                            body: JSON.stringify(payload)
+                        });
+                    } catch (err) {
                         try {
-                            response = await sendJson(`/wine-manager/bottles/${bottleId}`, {
-                                method: 'PUT',
+                            response = await sendJson(`/wine-manager/bottles/${bottleId}/drink`, {
+                                method: 'POST',
                                 body: JSON.stringify(payload)
                             });
-                        } catch (err) {
-                            try {
-                                response = await sendJson(`/wine-manager/bottles/${bottleId}/drink`, {
-                                    method: 'POST',
-                                    body: JSON.stringify(payload)
-                                });
-                            } catch (err2) {
-                                throw err;
-                            }
+                        } catch (err2) {
+                            throw err;
                         }
-
-                        await renderDetails(response, true);
-                        showMessage('Bottle marked as drunk.', 'success');
                     }
+
+                    await renderDetails(response, true);
+                    showMessage('Bottle marked as drunk.', 'success');
 
                     const notePayload = {
                         note: noteValue,
@@ -2336,7 +2318,7 @@ window.WineInventoryTables.initialize = function () {
                     let noteUrl = '/wine-manager/notes';
                     let noteMethod = 'POST';
 
-                    if (!noteOnly && drinkTarget.noteId) {
+                    if (drinkTarget.noteId) {
                         noteUrl = `/wine-manager/notes/${drinkTarget.noteId}`;
                         noteMethod = 'PUT';
                     } else {
@@ -2354,17 +2336,11 @@ window.WineInventoryTables.initialize = function () {
                             || summary?.userId
                             || summary?.UserId
                             || '';
-                        const targetUserId = noteOnly
-                            ? (currentUserId ? String(currentUserId) : '')
-                            : (ownerUserId ? String(ownerUserId) : '');
-                        const userNote = extractUserNoteFromNotesResponse(notesResponse, targetUserId);
-                        const noteIdFromResponse = userNote?.id
-                            ?? userNote?.Id
-                            ?? (!noteOnly ? drinkTarget.noteId : null)
-                            ?? null;
-                        const noteTextFromResponse = userNote?.note ?? userNote?.Note ?? noteValue;
+                        const ownerNote = extractUserNoteFromNotesResponse(notesResponse, ownerUserId ? String(ownerUserId) : '');
+                        const noteIdFromResponse = ownerNote?.id ?? ownerNote?.Id ?? drinkTarget.noteId ?? null;
+                        const noteTextFromResponse = ownerNote?.note ?? ownerNote?.Note ?? noteValue;
                         const noteScoreFromResponse = (() => {
-                            const value = userNote?.score ?? userNote?.Score;
+                            const value = ownerNote?.score ?? ownerNote?.Score;
                             if (value == null || value === '') {
                                 return parsedScore;
                             }
@@ -2373,12 +2349,10 @@ window.WineInventoryTables.initialize = function () {
                             return Number.isFinite(parsedOwnerScore) ? parsedOwnerScore : parsedScore;
                         })();
 
-                        if (!noteOnly) {
-                            updateDetailRowNote(bottleId, noteIdFromResponse, noteTextFromResponse, noteScoreFromResponse);
+                        updateDetailRowNote(bottleId, noteIdFromResponse, noteTextFromResponse, noteScoreFromResponse);
 
-                            if (noteIdFromResponse) {
-                                drinkTarget.noteId = String(noteIdFromResponse);
-                            }
+                        if (noteIdFromResponse) {
+                            drinkTarget.noteId = String(noteIdFromResponse);
                         }
 
                         const currentBottleId = notesSelectedBottleId ?? '';
@@ -2389,9 +2363,7 @@ window.WineInventoryTables.initialize = function () {
                             updateScoresFromNotesSummary(summary);
                         }
 
-                        finalMessage = noteOnly
-                            ? 'Tasting note saved.'
-                            : 'Bottle marked as drunk and tasting note saved.';
+                        finalMessage = 'Bottle marked as drunk and tasting note saved.';
                         showMessage(finalMessage, 'success');
                     } catch (noteError) {
                         const message = noteError instanceof Error ? noteError.message : String(noteError);

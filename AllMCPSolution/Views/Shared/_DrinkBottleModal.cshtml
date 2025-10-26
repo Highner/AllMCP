@@ -31,7 +31,6 @@
     var noteRows = options.NoteRows > 0 ? options.NoteRows : DrinkBottleModalViewModel.Default.NoteRows;
     var scoreDisplayId = $"{popoverId}-score-display";
     var scoreTicksId = $"{popoverId}-score-ticks";
-    var noteOnlyToggleId = $"{popoverId}-note-only";
 
     var modal = new WineSurferModalShell
     {
@@ -80,7 +79,7 @@
             }
             @if (options.ShowDate)
             {
-                <label class="inventory-add-field drink-bottle-date-field">
+                <label class="inventory-add-field">
                     <span class="inventory-add-label">@options.DateLabel</span>
                     <input type="date" class="drink-bottle-date" value="@defaultDateValue" aria-label="@options.DateInputAriaLabel" @(options.RequireDate ? "required" : null) />
                 </label>
@@ -89,18 +88,6 @@
             {
                 <input type="hidden" class="drink-bottle-date" value="@defaultDateValue" />
             }
-            <div class="inventory-add-field drink-bottle-note-only-field">
-                <div class="drink-bottle-note-only-option">
-                    <input type="checkbox"
-                           class="drink-bottle-note-only-toggle"
-                           id="@noteOnlyToggleId"
-                           aria-describedby="@($"{noteOnlyToggleId}-hint")" />
-                    <label for="@noteOnlyToggleId" class="drink-bottle-note-only-label">
-                        <span class="drink-bottle-note-only-title">Add a note without marking the bottle as drunk</span>
-                        <span id="@($"{noteOnlyToggleId}-hint")" class="drink-bottle-note-only-hint">Use this when you're tasting someone else's bottle.</span>
-                    </label>
-                </div>
-            </div>
             @if (options.ShowScore)
             {
                 <label class="inventory-add-field drink-bottle-score-field">
