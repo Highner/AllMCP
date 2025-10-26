@@ -784,34 +784,10 @@
             setLoading(true);
             showFeedback('');
 
-            let prevented = !window.dispatchEvent(new CustomEvent('drinkmodal:submit', {
+            const prevented = !window.dispatchEvent(new CustomEvent('drinkmodal:submit', {
                 cancelable: true,
                 detail: submitDetail
             }));
-
-            if (!prevented) {
-                const context = typeof submitDetail.context === 'string'
-                    ? submitDetail.context.trim().toLowerCase()
-                    : '';
-
-                if (context === 'inventory') {
-                    const fallbackHandler = window.WineInventoryTables?.handleInventoryDrinkModalSubmission;
-                    if (typeof fallbackHandler === 'function') {
-                        try {
-                            const fallbackPromise = fallbackHandler(submitDetail);
-                            if (fallbackPromise && typeof fallbackPromise.then === 'function') {
-                                submitPromise = Promise.resolve(fallbackPromise);
-                                prevented = true;
-                            }
-                        } catch (error) {
-                            const message = error instanceof Error ? error.message : String(error);
-                            setLoading(false);
-                            showFeedback(message);
-                            return;
-                        }
-                    }
-                }
-            }
 
             if (!prevented) {
                 setLoading(false);
