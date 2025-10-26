@@ -215,6 +215,8 @@
             ?? scoreInput?.getAttribute('min')
             ?? '5';
         const dateInput = popover.querySelector('.drink-bottle-date');
+        const dateField = form.querySelector('.drink-bottle-date-field');
+        const noteOnlyMessage = form.querySelector('.drink-bottle-note-only-message');
         const errorElement = popover.querySelector('.drink-bottle-error');
         const cancelButton = popover.querySelector('.drink-bottle-cancel');
         const headerCloseButton = popover.querySelector('[data-drink-bottle-close]');
@@ -231,6 +233,7 @@
         const editTitleBase = 'Update tasting note';
         const editSubmitLabel = 'Update note';
         const modalModeAttribute = 'data-form-mode';
+        const dateInputHadRequired = dateInput?.hasAttribute('required');
 
         const scoreControl = createScoreController({
             input: scoreInput,
@@ -240,6 +243,50 @@
         });
 
         const resolveDefaultDateValue = () => getTodayDateString();
+
+        const setNoteOnlyState = (state) => {
+            const isNoteOnly = Boolean(state);
+
+            if (form) {
+                if (isNoteOnly) {
+                    form.dataset.noteOnly = 'true';
+                } else {
+                    delete form.dataset.noteOnly;
+                    form.removeAttribute('data-note-only');
+                }
+            }
+
+            if (noteOnlyMessage) {
+                noteOnlyMessage.hidden = !isNoteOnly;
+                noteOnlyMessage.classList.toggle('is-active', isNoteOnly);
+            }
+
+            if (dateInput) {
+                if (isNoteOnly) {
+                    if (dateInputHadRequired) {
+                        dateInput.removeAttribute('required');
+                    }
+                    dateInput.value = '';
+                    dateInput.setAttribute('aria-disabled', 'true');
+                    dateInput.setAttribute('disabled', 'disabled');
+                } else {
+                    dateInput.removeAttribute('disabled');
+                    dateInput.removeAttribute('aria-disabled');
+                    if (dateInputHadRequired) {
+                        dateInput.setAttribute('required', 'required');
+                    }
+                    if (!dateInput.value) {
+                        dateInput.value = resolveDefaultDateValue();
+                    }
+                }
+            }
+
+            if (dateField) {
+                dateField.classList.toggle('is-disabled', isNoteOnly);
+            }
+        };
+
+        setNoteOnlyState(false);
 
         if (dateInput && !dateInput.value) {
             dateInput.value = resolveDefaultDateValue();
@@ -253,6 +300,7 @@
             data: null,
             external: null,
             requireDate: false,
+            noteOnly: false,
             successMessage: '',
             initialFocus: null
         };
@@ -382,6 +430,7 @@
             contextState.data = null;
             contextState.external = null;
             contextState.requireDate = false;
+            contextState.noteOnly = false;
             contextState.successMessage = '';
             contextState.initialFocus = null;
         };
@@ -405,6 +454,7 @@
 
             form.reset();
             scoreControl.reset();
+            setNoteOnlyState(false);
 
             if (dateInput) {
                 dateInput.value = resolveDefaultDateValue();
@@ -461,7 +511,8 @@
                 requireDate = false,
                 successMessage = '',
                 external = null,
-                initialFocus = null
+                initialFocus = null,
+                noteOnly = false
             } = openOptions;
 
             resetCloseTimer();
@@ -470,6 +521,7 @@
             contextState.data = { bottleId, noteId };
             contextState.external = external;
             contextState.requireDate = Boolean(requireDate);
+            contextState.noteOnly = Boolean(noteOnly);
             contextState.successMessage = successMessage || '';
             contextState.initialFocus = initialFocus;
 
@@ -494,6 +546,8 @@
                 const fallbackDateValue = resolveDefaultDateValue();
                 dateInput.value = normalizedDate ?? fallbackDateValue;
             }
+
+            setNoteOnlyState(contextState.noteOnly);
 
             if (score != null && score !== '') {
                 scoreControl.setValue(score);
@@ -540,7 +594,8 @@
                 requireDate: Boolean(detail.requireDate),
                 successMessage: detail.successMessage ?? '',
                 external: detail,
-                initialFocus: detail.initialFocus ?? null
+                initialFocus: detail.initialFocus ?? null,
+                noteOnly: Boolean(detail.noteOnly)
             });
         };
 
@@ -561,6 +616,8 @@
             const hasExisting = normalizedNoteId.length > 0
                 || noteText.trim().length > 0
                 || normalizedScore.length > 0;
+            const ownedByCurrentUser = card.dataset.bottleOwnedByCurrentUser ?? card.getAttribute('data-bottle-owned-by-current-user') ?? '';
+            const isNoteOnly = (ownedByCurrentUser || '').toLowerCase() === 'false';
 
             openModal({
                 context: 'sip-session',
@@ -570,7 +627,8 @@
                 note: noteText,
                 score: normalizedScore,
                 mode: hasExisting ? 'edit' : 'create',
-                card
+                card,
+                noteOnly: isNoteOnly
             });
         };
 
@@ -757,8 +815,11 @@
                 return;
             }
 
-            if (contextState.requireDate) {
-                const dateValue = dateInput?.value ?? '';
+            const isNoteOnly = Boolean(contextState.noteOnly);
+            const requireDate = contextState.requireDate && !isNoteOnly;
+            let dateValue = dateInput?.value ?? '';
+
+            if (requireDate) {
                 if (!dateValue) {
                     showFeedback('Choose when you drank this bottle.');
                     focusField('date');
@@ -770,6 +831,8 @@
                     focusField('date');
                     return;
                 }
+            } else if (isNoteOnly) {
+                dateValue = '';
             }
 
             if (contextState.context === 'sip-session') {
@@ -789,10 +852,11 @@
                 noteId: detail.noteId ?? external.noteId ?? hiddenNoteId?.value ?? '',
                 note: noteValue,
                 score: parsedScore,
-                date: dateInput?.value ?? '',
+                date: dateValue,
                 mode: external.mode ?? form.getAttribute(modalModeAttribute) ?? 'create',
                 extras: external,
-                requireDate: contextState.requireDate,
+                requireDate,
+                noteOnly: isNoteOnly,
                 showError: (message) => {
                     showFeedback(message);
                 },
