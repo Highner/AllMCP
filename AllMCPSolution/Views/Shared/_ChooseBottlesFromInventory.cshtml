@@ -1,0 +1,68 @@
+@using System
+@using System.Collections.Generic
+@using AllMCPSolution.Models
+@{
+    var modal = new WineSurferModalShell
+    {
+        BackdropId = "choose-bottles-overlay",
+        BackdropCssClass = "wine-surfer-modal-backdrop choose-bottles-overlay",
+        BackdropAttributes = new Dictionary<string, string?>
+        {
+            ["hidden"] = null,
+            ["aria-hidden"] = "true"
+        },
+        DialogId = "choose-bottles-modal",
+        DialogCssClass = "wine-surfer-modal choose-bottles-modal",
+        DialogAttributes = new Dictionary<string, string?>
+        {
+            ["aria-labelledby"] = "choose-bottles-title",
+            ["data-choose-bottles-modal"] = "true"
+        },
+        HeaderCssClass = "wine-surfer-modal__header choose-bottles-header",
+        Title = "Choose Bottles from Inventory",
+        TitleCssClass = "wine-surfer-modal__title choose-bottles-title",
+        TitleElementId = "choose-bottles-title",
+        BodyCssClass = "wine-surfer-modal__body choose-bottles-body",
+        CloseButtonCssClass = "wine-surfer-modal__close choose-bottles-close",
+        CloseButtonLabel = "Close choose bottles dialog",
+        CloseButtonAttributes = new Dictionary<string, string?>
+        {
+            ["data-choose-bottles-close"] = null
+        },
+        BodyContent = @<section class="choose-bottles-section">
+            <div class="choose-bottles-toolbar">
+                <label class="choose-bottles-filter-label">
+                    <span class="sr-only">Filter</span>
+                    <input type="search"
+                           class="choose-bottles-filter-input"
+                           placeholder="Filter by wine name or appellation"
+                           aria-label="Filter by wine name or appellation"
+                           autocomplete="off"
+                           spellcheck="false" />
+                </label>
+            </div>
+            <div class="choose-bottles-list-container">
+                <table class="crud-table__table choose-bottles-table">
+                    <thead>
+                        <tr class="crud-table__header-row">
+                            <th scope="col" class="choose-col-select" aria-label="Select"></th>
+                            <th scope="col" class="choose-col-wine">Wine</th>
+                            <th scope="col" class="choose-col-vintage">Vintage</th>
+                            <th scope="col" class="choose-col-appellation">Appellation</th>
+                            <th scope="col" class="choose-col-location">Location</th>
+                        </tr>
+                    </thead>
+                    <tbody id="choose-bottles-tbody">
+                        <tr class="empty-row"><td colspan="5">Loading available bottles…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="choose-bottles-actions">
+                <button type="button" class="crud-table__action-button secondary choose-bottles-cancel">Cancel</button>
+                <button type="button" class="crud-table__action-button choose-bottles-select" disabled>Select</button>
+            </div>
+        </section>
+    };
+}
+@await Html.PartialAsync("_WineSurferModalShell", modal)
+<script src="/js/choose-bottles-modal.js" defer></script>
