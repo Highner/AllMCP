@@ -21,6 +21,8 @@ public interface IChatGptPromptService
 
     string BuildSurfEyePrompt(string? tasteProfileSummary, string tasteProfile);
 
+    string BuildSurfEyePromptWithoutTasteProfile();
+
     string BuildSipSessionFoodSuggestionPrompt(SipSession session);
 
     string BuildWineWavesPrompt(IReadOnlyList<WineWavesPromptItem> vintages);
@@ -141,6 +143,20 @@ Only include wineVintageId values provided by the user and omit any commentary o
         builder.AppendLine(tasteProfile.Trim());
         builder.AppendLine("Identify each distinct wine label that appears in the photo and return at most five wines.");
         builder.AppendLine("Prioritize wines that match the user's taste preferences and explain the ranking succinctly.");
+
+        return builder.ToString();
+    }
+
+    public string BuildSurfEyePromptWithoutTasteProfile()
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("Analyze the attached photo of wine bottles.");
+        builder.AppendLine("The user does not have a taste profile yet.");
+        builder.AppendLine("Identify each distinct wine label in the photo and return at most five wines.");
+        builder.AppendLine("Sort wines from the most confidently identified to the least confidently identified.");
+        builder.AppendLine("Provide concise notes to help the user verify each label.");
+        builder.AppendLine("Set alignmentScore to 0 and leave alignmentSummary empty for every wine.");
+        builder.AppendLine("Confidence must reflect how certain you are about the label identification.");
 
         return builder.ToString();
     }
