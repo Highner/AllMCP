@@ -1879,6 +1879,41 @@ public class WineInventoryController : Controller
     {
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
+
+    [HttpGet("available-bottles")]
+    public async Task<IActionResult> GetAvailableBottles(CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Challenge();
+        }
+
+        var bottles = await _bottleRepository.GetAvailableForUserAsync(userId, cancellationToken);
+
+        var results = bottles
+            .Select(b => new AvailableBottleOption
+            {
+                Id = b.Id,
+                Wine = b.WineVintage?.Wine?.Name ?? string.Empty,
+                Vintage = b.WineVintage?.Vintage,
+                Appellation = BuildSubAppellationLabel(b.WineVintage?.Wine?.SubAppellation!),
+                Location = b.BottleLocation?.Name
+            })
+            .OrderBy(b => b.Wine)
+            .ThenByDescending(b => b.Vintage)
+            .ToList();
+
+        return Json(results);
+    }
+}
+
+public class AvailableBottleOption
+{
+    public Guid Id { get; set; }
+    public string Wine { get; set; } = string.Empty;
+    public int? Vintage { get; set; }
+    public string? Appellation { get; set; }
+    public string? Location { get; set; }
 }
 
 public class WineInventoryViewModel

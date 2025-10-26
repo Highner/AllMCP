@@ -280,6 +280,17 @@
                 <article class="wine-card wine-surface wine-surface-border wine-card-hover session-bottles-card">
                     <div class="session-section__header wine-card__header">
                         <h2 id="session-bottles-title" class="wine-card__title">Bottle lineup</h2>
+                        @if (Model.CanManageSession || Model.IsSisterhoodMember)
+                        {
+                            <div class="session-actions">
+                                <form method="post" action="@Url.Action("ContributeSipSessionBottles", "WineSurfer")" data-contribute-bottles-form>
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+                                    <input type="hidden" name="SipSessionId" value="@session.Id" />
+                                    <button type="button" class="sisterhood-button sisterhood-button--primary" id="contribute-bottles-btn">Contribute bottles</button>
+                                </form>
+                            </div>
+                        }
                     </div>
                     @if (bottleCount > 0)
                     {
@@ -332,10 +343,45 @@
                     }
                 </article>
             </section>
+            @await Html.PartialAsync("_ChooseBottlesFromInventory")
             @await Html.PartialAsync("_DrinkBottleModal", DrinkBottleModalViewModel.Default)
         </main>
     </div>
     <script defer src="/js/drink-bottle-modal.js"></script>
+    <script>
+        (function(){
+            'use strict';
+            const contributeBtn = document.getElementById('contribute-bottles-btn');
+            const form = document.querySelector('[data-contribute-bottles-form]');
+            if(contributeBtn){
+                contributeBtn.addEventListener('click', function(){
+                    if(window.ChooseBottlesModal && typeof window.ChooseBottlesModal.open === 'function'){
+                        window.ChooseBottlesModal.open();
+                    }
+                });
+            }
+            // handle selection event from modal
+            document.addEventListener('DOMContentLoaded', function(){
+                const dialog = document.getElementById('choose-bottles-modal');
+                if(!dialog){ return; }
+                dialog.addEventListener('choose-bottles:selected', function(ev){
+                    const ids = (ev.detail && Array.isArray(ev.detail.ids)) ? ev.detail.ids : [];
+                    if(!form || ids.length === 0){ return; }
+                    // remove any prior BottleIds
+                    Array.from(form.querySelectorAll('input[name="BottleIds"]')).forEach(n => n.remove());
+                    // append selected ids
+                    ids.forEach(id => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'BottleIds';
+                        input.value = id;
+                        form.appendChild(input);
+                    });
+                    form.submit();
+                });
+            });
+        })();
+    </script>
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>

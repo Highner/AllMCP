@@ -15,6 +15,31 @@ namespace AllMCPSolution.Controllers;
 [Authorize]
 public sealed class WishlistsController : WineSurferControllerBase
 {
+    public sealed class WishlistsViewModel
+    {
+        public Guid? SelectedWishlistId { get; set; }
+        public string SelectedWishlistName { get; set; } = string.Empty;
+        public IReadOnlyList<WishlistOption> Wishlists { get; set; } = Array.Empty<WishlistOption>();
+        public IReadOnlyList<WishlistItemViewModel> Items { get; set; } = Array.Empty<WishlistItemViewModel>();
+    }
+
+    public sealed class WishlistOption
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int WishCount { get; set; }
+    }
+
+    public sealed class WishlistItemViewModel
+    {
+        public Guid WishId { get; set; }
+        public Guid WineId { get; set; }
+        public Guid WineVintageId { get; set; }
+        public string WineName { get; set; } = string.Empty;
+        public string Region { get; set; } = string.Empty;
+        public string Appellation { get; set; } = string.Empty;
+        public int Vintage { get; set; }
+    }
 
 
     public sealed class CreateWishlistRequest
@@ -262,17 +287,66 @@ public sealed class WishlistsController : WineSurferControllerBase
     }
 
     [HttpGet("/wine-surfer/wishlists")]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index([FromQuery] Guid? wishlistId, CancellationToken cancellationToken)
     {
-        if (!TryGetCurrentUserId(out _))
+        if (!TryGetCurrentUserId(out var currentUserId))
         {
             return Challenge();
         }
 
         var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
         ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
+
+        var wishlists = await _wishlistRepository.GetForUserAsync(currentUserId, cancellationToken);
+        var wishlistOptions = wishlists
+            .OrderBy(w => w.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(w => new WishlistOption
+            {
+                Id = w.Id,
+                Name = w.Name,
+                WishCount = w.Wishes?.Count ?? 0
+            })
+            .ToList();
+
+        Guid? selectedId = null;
+        if (wishlistId.HasValue && wishlists.Any(w => w.Id == wishlistId.Value))
+        {
+            selectedId = wishlistId.Value;
+        }
+        else if (wishlists.Count > 0)
+        {
+            selectedId = wishlists[0].Id;
+        }
+
+        var items = new List<WishlistItemViewModel>();
+        string selectedName = string.Empty;
+        if (selectedId.HasValue)
+        {
+            var selectedWishlist = wishlists.First(w => w.Id == selectedId.Value);
+            selectedName = selectedWishlist.Name;
+            var wishes = await _wishRepository.GetForWishlistAsync(selectedId.Value, cancellationToken);
+            items = wishes.Select(w => new WishlistItemViewModel
+            {
+                WishId = w.Id,
+                WineId = w.WineVintage.Wine.Id,
+                WineVintageId = w.WineVintage.Id,
+                WineName = w.WineVintage.Wine.Name ?? string.Empty,
+                Region = w.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name ?? string.Empty,
+                Appellation = w.WineVintage.Wine.SubAppellation?.Appellation?.Name ?? string.Empty,
+                Vintage = w.WineVintage.Vintage
+            }).ToList();
+        }
+
+        var viewModel = new WishlistsViewModel
+        {
+            SelectedWishlistId = selectedId,
+            SelectedWishlistName = selectedName,
+            Wishlists = wishlistOptions,
+            Items = items
+        };
+
         Response.ContentType = "text/html; charset=utf-8";
-        return View("Index");
+        return View("Index", viewModel);
     }
 
 

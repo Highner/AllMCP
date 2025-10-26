@@ -1,3 +1,4 @@
+@model AllMCPSolution.Controllers.WishlistsController.WishlistsViewModel
 @using AllMCPSolution.Controllers
 @using AllMCPSolution.Models
 @{
@@ -8,28 +9,43 @@
 
     var table = new CrudTableTemplateModel
     {
-        Title = "Wishlist Wines",
-        DataTableKey = "wishlist",
-        HeaderContent = @<text>
-            <div class="wishlist-selector">
-                <label class="sr-only" for="wishlist-select">Select wishlist</label>
-                <select id="wishlist-select" class="shadcn-select" aria-label="Select wishlist"></select>
-            </div>
-        </text>,
+        Title = string.IsNullOrWhiteSpace(Model.SelectedWishlistName) ? "Wishlist" : Model.SelectedWishlistName,
+        DataTableKey = "wishlist-wines",
         BodyContent = @<text>
-            <table id="wishlist-table" class="crud-table__table">
+            <table class="crud-table__table">
                 <thead>
-                    <tr class="header-row crud-table__header-row">
-                        <th class="summary-header"><span class="header-text">Name</span></th>
-                        <th class="summary-header"><span class="header-text">Region</span></th>
-                        <th class="summary-header"><span class="header-text">Appellation</span></th>
-                        <th class="summary-header"><span class="header-text">Vintage</span></th>
+                    <tr class="crud-table__header-row">
+                        <th class="summary-header summary-header--wine"><span class="header-text">Wine</span></th>
+                        <th class="summary-header summary-header--appellation"><span class="header-text">Appellation</span></th>
+                        <th class="summary-header summary-header--vintage"><span class="header-text">Vintage</span></th>
                     </tr>
                 </thead>
-                <tbody id="wishlist-tbody">
-                    <tr class="crud-table__empty-row empty-row" id="wishlist-empty" hidden>
-                        <td colspan="4">No wines in this wishlist yet.</td>
+                <tbody>
+                @if (Model.Items is { Count: > 0 })
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        <tr class="crud-table__row">
+                            <td class="summary-cell summary-cell--wine">
+                                <a class="link" href="/wine/@item.WineId">@item.WineName</a>
+                            </td>
+                            <td class="summary-cell summary-cell--appellation">
+                                <span class="appellation">@item.Appellation</span>
+                                @if (!string.IsNullOrWhiteSpace(item.Region))
+                                {
+                                    <span class="region"> (@item.Region)</span>
+                                }
+                            </td>
+                            <td class="summary-cell summary-cell--vintage">@item.Vintage</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="3" class="empty-state">No wines in this wishlist yet.</td>
                     </tr>
+                }
                 </tbody>
             </table>
         </text>
@@ -47,21 +63,37 @@
     <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
     <script defer src="/js/pwa.js"></script>
-    <script defer src="/js/wishlists.js"></script>
     <style>
         :root { color-scheme: dark; }
         body { margin: 0; background: var(--wine-app-background); color: hsl(var(--foreground)); }
         .wishlists-page { min-height: 100vh; }
-        .wishlist-selector { display: flex; align-items: center; gap: .5rem; }
-        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+        .wishlist-select-group { padding: 16px; display: flex; gap: 12px; align-items: center; }
+        .wishlist-select-group select { padding: 8px 10px; border-radius: 8px; background: var(--wine-surface-gradient); color: hsl(var(--foreground)); border: 1px solid var(--wine-surface-border); }
     </style>
 </head>
 <body class="wine-app wine-app--with-bottom-nav">
     <div class="wishlists-page">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
-        <main class="inventory-shell">
-            @await Html.PartialAsync("_CrudTableTemplate", table)
-        </main>
+
+        <div class="wishlist-select-group">
+            <label for="wishlistSelect">Wishlist</label>
+            <select id="wishlistSelect" onchange="if (this.value) { window.location = '/wine-surfer/wishlists?wishlistId=' + this.value; }">
+                @if (Model.Wishlists is { Count: > 0 })
+                {
+                    foreach (var wl in Model.Wishlists)
+                    {
+                        var isSelected = Model.SelectedWishlistId.HasValue && wl.Id == Model.SelectedWishlistId.Value;
+                        <option value="@wl.Id" selected="@(isSelected ? "selected" : null)">@wl.Name (@wl.WishCount)</option>
+                    }
+                }
+                else
+                {
+                    <option value="">No wishlists yet</option>
+                }
+            </select>
+        </div>
+
+        @await Html.PartialAsync("_CrudTableTemplate", table)
     </div>
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>

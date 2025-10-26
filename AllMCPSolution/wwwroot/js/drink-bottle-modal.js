@@ -657,9 +657,12 @@
                 return;
             }
 
-            prompt.textContent = hasNote
-                ? 'Click to update your tasting note.'
-                : 'Click to add your tasting note.';
+            if (hasNote) {
+                prompt.textContent = 'Click to update your tasting note.';
+            } else {
+                // Remove the prompt entirely when there is no note
+                prompt.remove();
+            }
         };
 
         const updateCardFromResponse = (card, payload) => {
@@ -687,7 +690,14 @@
             card.setAttribute('data-bottle-note-id', noteIdValue ? String(noteIdValue) : '');
 
             if (noteDisplay) {
-                noteDisplay.textContent = trimmedNote || 'No tasting note yet.';
+                if (trimmedNote) {
+                    noteDisplay.textContent = trimmedNote;
+                    noteDisplay.style.display = '';
+                } else {
+                    // Hide the note display entirely when empty
+                    noteDisplay.textContent = '';
+                    noteDisplay.style.display = 'none';
+                }
             }
 
             if (scoreDisplayElement) {
