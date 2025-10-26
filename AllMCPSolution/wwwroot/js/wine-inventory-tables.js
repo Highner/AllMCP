@@ -87,6 +87,38 @@ window.WineInventoryTables.initialize = function () {
             let nextSummaryRowIndex = 0;
             const MAX_LOCATION_CAPACITY = 10000;
 
+            // Ensure the Inventory Add modal can open even if other sections fail initialization
+            if (!window.WineInventoryTables.__addModalBound) {
+                const __addBtn = document.querySelector('.inventory-add-trigger');
+                const __overlay = document.getElementById('inventory-add-overlay');
+                const __popover = document.getElementById('inventory-add-popover');
+                if (__addBtn && __overlay && __popover) {
+                    window.WineInventoryTables.__addModalBound = true;
+                    const __open = () => {
+                        try {
+                            __overlay.hidden = false;
+                            __overlay.setAttribute('aria-hidden', 'false');
+                            __overlay.classList.add('is-open');
+                            document.body.style.overflow = 'hidden';
+                            const __search = __popover.querySelector('.inventory-add-wine-search');
+                            __search && typeof __search.focus === 'function' && __search.focus();
+                        } catch { /* no-op */ }
+                    };
+                    const __close = () => {
+                        try {
+                            __overlay.classList.remove('is-open');
+                            __overlay.setAttribute('aria-hidden', 'true');
+                            __overlay.hidden = true;
+                            document.body.style.overflow = '';
+                        } catch { /* no-op */ }
+                    };
+                    __addBtn.addEventListener('click', __open);
+                    __overlay.addEventListener('click', (e) => { if (e.target === __overlay) { __close(); } });
+                    __popover.querySelector('[data-add-wine-close]')?.addEventListener('click', __close);
+                    __popover.querySelector('.inventory-add-cancel')?.addEventListener('click', __close);
+                }
+            }
+
             // Relaxed guard: allow initialization even if detailAddRow is missing; most features check for elements when needed.
             if (!inventoryTable || !detailsTable || !detailsBody || !emptyRow || !detailsTitle || !detailsSubtitle || !messageBanner) {
                 return;
