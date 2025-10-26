@@ -1,6 +1,7 @@
 using System.ClientModel;
 using System.Globalization;
 using System.Security.Claims;
+using AllMCPSolution.Repositories;
 using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -15,10 +16,10 @@ public class SurfEyeController: WineSurferControllerBase
 {
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IBottleLocationRepository _bottleLocationRepository;
+    private readonly IWineRepository _wineRepository;
     private readonly IChatGptPromptService _chatGptPromptService;
-    private readonly IChatGptService _chatGptService;    
-    private readonly IWineCatalogService _wineCatalogService;
-    
+    private readonly IChatGptService _chatGptService;
+
     private const int SurfEyeMaxUploadBytes = 8 * 1024 * 1024;
     private static readonly string[] SurfEyeSupportedContentTypes = new[] { "image/jpeg", "image/png", "image/webp" };
     private static readonly JsonDocumentOptions SurfEyeJsonDocumentOptions = new()
@@ -30,17 +31,17 @@ public class SurfEyeController: WineSurferControllerBase
     public SurfEyeController(
         IUserRepository userRepository,
         IBottleLocationRepository bottleLocationRepository,
+        IWineRepository wineRepository,
         IWineSurferTopBarService topBarService,
         IChatGptPromptService chatGptPromptService,
         IChatGptService chatGptService,
-        IWineCatalogService wineCatalogService,       
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _bottleLocationRepository = bottleLocationRepository;
+        _wineRepository = wineRepository;
         _chatGptPromptService = chatGptPromptService;
         _topBarService = topBarService;
         _chatGptService = chatGptService;
-        _wineCatalogService = wineCatalogService;       
     }
     
     [Authorize]
@@ -203,8 +204,8 @@ public class SurfEyeController: WineSurferControllerBase
                 : "Surf Eye couldn't recognize any wines in this photo.")
             : parsedResult.Summary.Trim();
 
-        var persistedMatches = await PersistSurfEyeMatchesAsync(orderedMatches, cancellationToken);
-        var response = new SurfEyeAnalysisResponse(summary, persistedMatches);
+        var resolvedMatches = await ResolveSurfEyeMatchesAsync(orderedMatches, cancellationToken);
+        var response = new SurfEyeAnalysisResponse(summary, resolvedMatches);
         return Json(response);
     }
     
@@ -322,7 +323,7 @@ public class SurfEyeController: WineSurferControllerBase
         }
     }
 
-    private async Task<IReadOnlyList<SurfEyeWineMatch>> PersistSurfEyeMatchesAsync(
+    private async Task<IReadOnlyList<SurfEyeWineMatch>> ResolveSurfEyeMatchesAsync(
         IReadOnlyList<SurfEyeWineMatch> matches,
         CancellationToken cancellationToken)
     {
@@ -351,43 +352,46 @@ public class SurfEyeController: WineSurferControllerBase
 
             try
             {
-                var request = new WineCatalogRequest(
-                    match.Name,
-                    match.Color,
-                    match.Country,
-                    match.Region,
-                    match.Appellation,
+                var existing = await _wineRepository.FindByNameAsync(
+                    match.Name!,
                     match.SubAppellation,
-                    match.Variety);
+                    match.Appellation,
+                    cancellationToken);
 
-                var result = await _wineCatalogService.EnsureWineAsync(request, cancellationToken);
-                if (result.IsSuccess && result.Wine is not null)
+                if (existing is null && !string.IsNullOrWhiteSpace(match.Appellation))
                 {
-                    var wine = result.Wine;
-                    var subAppellation = wine.SubAppellation;
-                    var appellation = subAppellation?.Appellation;
-                    var region = appellation?.Region;
-                    var country = region?.Country;
-
-                    var updated = match with
-                    {
-                        WineId = wine.Id,
-                        Country = country?.Name ?? match.Country,
-                        Region = region?.Name ?? match.Region,
-                        Appellation = appellation?.Name ?? match.Appellation,
-                        SubAppellation = subAppellation?.Name ?? match.SubAppellation,
-                        Color = wine.Color.ToString(),
-                        Variety = string.IsNullOrWhiteSpace(match.Variety) && !string.IsNullOrWhiteSpace(wine.GrapeVariety)
-                            ? wine.GrapeVariety
-                            : match.Variety
-                    };
-
-                    persisted.Add(updated);
+                    existing = await _wineRepository.FindByNameAsync(
+                        match.Name!,
+                        null,
+                        match.Appellation,
+                        cancellationToken);
                 }
-                else
+
+                if (existing is null)
                 {
                     persisted.Add(match);
+                    continue;
                 }
+
+                var subAppellation = existing.SubAppellation;
+                var appellation = subAppellation?.Appellation;
+                var region = appellation?.Region;
+                var country = region?.Country;
+
+                var updated = match with
+                {
+                    WineId = existing.Id,
+                    Country = country?.Name ?? match.Country,
+                    Region = region?.Name ?? match.Region,
+                    Appellation = appellation?.Name ?? match.Appellation,
+                    SubAppellation = subAppellation?.Name ?? match.SubAppellation,
+                    Color = existing.Color.ToString(),
+                    Variety = string.IsNullOrWhiteSpace(match.Variety) && !string.IsNullOrWhiteSpace(existing.GrapeVariety)
+                        ? existing.GrapeVariety
+                        : match.Variety
+                };
+
+                persisted.Add(updated);
             }
             catch
             {
