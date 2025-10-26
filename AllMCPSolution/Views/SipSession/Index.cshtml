@@ -344,7 +344,20 @@
                 </article>
             </section>
             @await Html.PartialAsync("_ChooseBottlesFromInventory")
-            @await Html.PartialAsync("_DrinkBottleModal", DrinkBottleModalViewModel.Default)
+            @await Html.PartialAsync("_DrinkBottleModal", new DrinkBottleModalViewModel
+            {
+                IncludeAntiForgeryToken = true,
+                FormMethod = "post",
+                FormAction = Url.Action("RateSipSessionBottle", "WineSurfer"),
+                HiddenFields = new[]
+                {
+                    new DrinkBottleModalHiddenField("SisterhoodId", Model.SisterhoodId.ToString()),
+                    new DrinkBottleModalHiddenField("SipSessionId", Model.Session.Id.ToString()),
+                    // These will be filled by JS when opening the modal for a specific card
+                    new DrinkBottleModalHiddenField("BottleId", string.Empty),
+                    new DrinkBottleModalHiddenField("NoteId", string.Empty)
+                }
+            })
         </main>
     </div>
     <script defer src="/js/drink-bottle-modal.js"></script>
