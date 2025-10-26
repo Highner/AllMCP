@@ -897,6 +897,13 @@ window.WineInventoryTables.initialize = function () {
                     }
                 };
 
+                const handleCloseWithPointerSuppression = () => {
+                    if (typeof suppressNextPointerSequence === 'function') {
+                        suppressNextPointerSequence(350);
+                    }
+                    handleClose();
+                };
+
                 const intercept = (event) => {
                     if (!event) return;
                     if (typeof event.preventDefault === 'function') event.preventDefault();
@@ -914,8 +921,7 @@ window.WineInventoryTables.initialize = function () {
                     // Intercept as early as possible so underlying elements don’t react
                     detailsCloseButton.addEventListener('pointerdown', (event) => {
                         intercept(event);
-                        if (typeof suppressNextPointerSequence === 'function') suppressNextPointerSequence(350);
-                        handleClose();
+                        handleCloseWithPointerSuppression();
                     }, { capture: true });
 
                     detailsCloseButton.addEventListener('mousedown', (event) => {
@@ -959,6 +965,7 @@ window.WineInventoryTables.initialize = function () {
                 // Global defensive delegate to ensure the close works even if the section reference is missing
                 const docEarlyIntercept = (event) => {
                     if (!isCloseTarget(event)) return;
+                    handleCloseWithPointerSuppression();
                     intercept(event);
                 };
                 document.addEventListener('pointerdown', docEarlyIntercept, { capture: true });
