@@ -276,6 +276,29 @@
                     }
                 </article>
             </section>
+            <section class="session-section" id="session-bottles" aria-labelledby="session-bottles-title">
+                <article class="wine-card wine-surface wine-surface-border wine-card-hover session-bottles-card">
+                    <div class="session-section__header wine-card__header">
+                        <h2 id="session-bottles-title" class="wine-card__title">Bottle lineup</h2>
+                    </div>
+                    @if (bottleCount > 0)
+                    {
+                        <div class="session-bottle-grid">
+                            @foreach (var bottle in bottleSummaries)
+                            {
+                                @await Html.PartialAsync("_BottleCard", bottle)
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-state wine-surface wine-surface-border wine-card-hover session-empty-state" role="status">
+                            <h2>No bottles yet</h2>
+                            <p>Add wines from your cellar to start the tasting lineup.</p>
+                        </div>
+                    }
+                </article>
+            </section>
             <section class="session-section" id="session-food" aria-labelledby="session-food-title">
                 <article class="wine-card wine-surface wine-surface-border wine-card-hover session-food-card">
                     <div class="session-section__header wine-card__header">
@@ -306,29 +329,6 @@
                                 Request food pairings
                             </button>
                         </form>
-                    }
-                </article>
-            </section>
-            <section class="session-section" id="session-bottles" aria-labelledby="session-bottles-title">
-                <article class="wine-card wine-surface wine-surface-border wine-card-hover session-bottles-card">
-                    <div class="session-section__header wine-card__header">
-                        <h2 id="session-bottles-title" class="wine-card__title">Bottle lineup</h2>
-                    </div>
-                    @if (bottleCount > 0)
-                    {
-                        <div class="session-bottle-grid">
-                            @foreach (var bottle in bottleSummaries)
-                            {
-                                @await Html.PartialAsync("_BottleCard", bottle)
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="empty-state wine-surface wine-surface-border wine-card-hover session-empty-state" role="status">
-                            <h2>No bottles yet</h2>
-                            <p>Add wines from your cellar to start the tasting lineup.</p>
-                        </div>
                     }
                 </article>
             </section>
