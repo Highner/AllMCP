@@ -1893,7 +1893,14 @@ th a:hover {
 
 /* Limit generic hover highlight to normal data rows, not group headers or subtables */
 tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
-    background: hsla(var(--accent) / 0.22);
+    background: hsla(var(--accent) / 0.3);
+    box-shadow: inset 0 0 0 1px hsla(var(--accent-foreground) / 0.35);
+}
+
+.crud-table__table tbody tr.selected,
+.crud-table__table tbody tr[aria-selected="true"] {
+    background: hsla(var(--accent) / 0.34);
+    box-shadow: inset 0 0 0 1px hsla(var(--accent-foreground) / 0.45);
 }
 
 .inventory-table-actions {
