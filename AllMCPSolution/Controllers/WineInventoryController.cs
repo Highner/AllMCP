@@ -806,45 +806,134 @@ public class WineInventoryController : Controller
             return ValidationProblem(ModelState);
         }
 
-        if (!TryGetCurrentUserId(out _))
+        if (!TryGetCurrentUserId(out var currentUserId))
         {
             return Challenge();
         }
 
-        var result = await _wineCatalogService.EnsureWineAsync(
-            new WineCatalogRequest(
-                request.Name,
-                request.Color,
-                request.Country,
-                request.Region,
-                request.Appellation,
-                request.SubAppellation,
-                request.GrapeVariety),
-            cancellationToken);
+        Wine? wine = null;
 
-        if (!result.IsSuccess || result.Wine is null)
+        if (request.WineId.HasValue && request.WineId.Value != Guid.Empty)
         {
-            if (result.Errors.Count > 0)
+            wine = await _wineRepository.GetByIdAsync(request.WineId.Value, cancellationToken);
+            if (wine is null)
             {
-                foreach (var entry in result.Errors)
+                ModelState.AddModelError(nameof(request.WineId), "The selected wine could not be found.");
+                return ValidationProblem(ModelState);
+            }
+        }
+        else
+        {
+            // For creating/ensuring a wine, require basic catalog fields
+            var name = request.Name?.Trim();
+            var color = request.Color?.Trim();
+            var region = request.Region?.Trim();
+            var appellation = request.Appellation?.Trim();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                ModelState.AddModelError(nameof(request.Name), "Wine name is required.");
+            }
+            if (string.IsNullOrWhiteSpace(color))
+            {
+                ModelState.AddModelError(nameof(request.Color), "Color is required.");
+            }
+            if (string.IsNullOrWhiteSpace(region))
+            {
+                ModelState.AddModelError(nameof(request.Region), "Region is required.");
+            }
+            if (string.IsNullOrWhiteSpace(appellation))
+            {
+                ModelState.AddModelError(nameof(request.Appellation), "Appellation is required.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
+            var result = await _wineCatalogService.EnsureWineAsync(
+                new WineCatalogRequest(
+                    name!,
+                    color!,
+                    request.Country,
+                    region!,
+                    appellation!,
+                    request.SubAppellation,
+                    request.GrapeVariety),
+                cancellationToken);
+
+            if (!result.IsSuccess || result.Wine is null)
+            {
+                if (result.Errors.Count > 0)
                 {
-                    var key = string.IsNullOrWhiteSpace(entry.Key) ? string.Empty : entry.Key;
-                    foreach (var message in entry.Value)
+                    foreach (var entry in result.Errors)
                     {
-                        ModelState.AddModelError(key, message);
+                        var key = string.IsNullOrWhiteSpace(entry.Key) ? string.Empty : entry.Key;
+                        foreach (var message in entry.Value)
+                        {
+                            ModelState.AddModelError(key, message);
+                        }
                     }
                 }
-            }
-            else
-            {
-                ModelState.AddModelError(string.Empty, "Unable to add wine to the catalog.");
+                else
+                {
+                    ModelState.AddModelError(string.Empty, "Unable to add wine to the catalog.");
+                }
+
+                return ValidationProblem(ModelState);
             }
 
-            return ValidationProblem(ModelState);
+            wine = result.Wine;
         }
 
-        var option = CreateWineOption(result.Wine);
-        return Json(option);
+        // If no inventory addition requested, return the wine option (backwards compatible)
+        var wantsInventoryAdd = request.Quantity.HasValue && request.Quantity.Value > 0 && request.Vintage.HasValue;
+        if (!wantsInventoryAdd)
+        {
+            var optionOnly = CreateWineOption(wine!);
+            return Json(optionOnly);
+        }
+
+        // Add bottles for the current user
+        var quantity = Math.Clamp(request.Quantity!.Value, 1, 12);
+
+        BottleLocation? bottleLocation = null;
+        if (request.BottleLocationId.HasValue)
+        {
+            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            if (bottleLocation is null)
+            {
+                ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
+                return ValidationProblem(ModelState);
+            }
+        }
+
+        var wineVintage = await _wineVintageRepository.GetOrCreateAsync(wine!.Id, request.Vintage!.Value, cancellationToken);
+
+        for (var i = 0; i < quantity; i++)
+        {
+            var bottle = new Bottle
+            {
+                Id = Guid.NewGuid(),
+                WineVintageId = wineVintage.Id,
+                IsDrunk = false,
+                DrunkAt = null,
+                Price = null,
+                BottleLocationId = bottleLocation?.Id,
+                UserId = currentUserId
+            };
+
+            await _bottleRepository.AddAsync(bottle, cancellationToken);
+        }
+
+        var response = await BuildBottleGroupResponseAsync(wineVintage.Id, currentUserId, cancellationToken);
+        if (response.Group is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, "Unable to load wine group after creation.");
+        }
+
+        return Json(response);
     }
 
     [HttpGet("bottles/{bottleId:guid}/notes")]
@@ -2138,30 +2227,38 @@ public class AddWineToInventoryRequest
 
 public class CreateWineRequest
 {
-    [Required]
+    // When adding bottles for an existing wine, allow WineId
+    public Guid? WineId { get; set; }
+
     [StringLength(256, MinimumLength = 1)]
     public string Name { get; set; } = string.Empty;
 
-    [Required]
     [StringLength(32, MinimumLength = 1)]
     public string Color { get; set; } = string.Empty;
 
     [StringLength(128)]
     public string? Country { get; set; }
 
-    [Required]
-    [StringLength(128, MinimumLength = 1)]
-    public string Region { get; set; } = string.Empty;
+    [StringLength(128, MinimumLength = 0)]
+    public string? Region { get; set; }
 
-    [Required]
-    [StringLength(256, MinimumLength = 1)]
-    public string Appellation { get; set; } = string.Empty;
+    [StringLength(256, MinimumLength = 0)]
+    public string? Appellation { get; set; }
 
     [StringLength(256)]
     public string? SubAppellation { get; set; }
 
     [StringLength(256)]
     public string? GrapeVariety { get; set; }
+
+    // Inventory parameters (optional). If Quantity > 0, will add bottles for current user
+    [Range(1900, 2100)]
+    public int? Vintage { get; set; }
+
+    [Range(1, 12)]
+    public int? Quantity { get; set; }
+
+    public Guid? BottleLocationId { get; set; }
 }
 
 public class WineCountrySuggestion
