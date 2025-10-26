@@ -96,21 +96,9 @@
         };
     }
 
-    function createWineSurferOption(query) {
-        const trimmed = (query ?? '').trim();
-        return {
-            id: '__wine_surfer__',
-            name: 'Find with Wine Surfer',
-            label: 'Find with Wine Surfer',
-            isWineSurfer: true,
-            isAction: true,
-            query: trimmed
-        };
-    }
-
     function appendActionOptions(options, query, { includeCreate } = {}) {
         const baseOptions = Array.isArray(options)
-            ? options.filter(option => option && option.isWineSurfer !== true && option.isCreateWine !== true)
+            ? options.filter(option => option && option.isCreateWine !== true)
             : [];
         const trimmed = (query ?? '').trim();
         const shouldIncludeCreate = includeCreate ?? (trimmed.length >= 3 && baseOptions.length === 0);
@@ -118,8 +106,6 @@
         if (shouldIncludeCreate) {
             baseOptions.push(createCreateWineOption(trimmed));
         }
-
-        baseOptions.push(createWineSurferOption(trimmed));
         return baseOptions;
     }
 
@@ -787,63 +773,18 @@
             }
         }
 
-        async function handleWineSurferSelection(result) {
+        function handleWineSurferSelection(result) {
             if (!result || wineSurferSelectionPending) {
                 return;
             }
 
-            const payload = {
-                name: result.name,
-                country: result.country ?? null,
-                region: result.region ?? null,
-                appellation: result.appellation ?? null,
-                subAppellation: result.subAppellation ?? null,
-                color: result.color ?? null
-            };
-
-            // Validate required fields for unified endpoint
-            if (!payload.color || !payload.region || !payload.appellation) {
-                wineSurferError = 'Wine requires color, region, and appellation. Please refine your selection.';
-                renderWineSurferResults();
-                return;
-            }
-
-            wineSurferSelectionPending = true;
-            wineSurferError = '';
+            wineSurferSelectionPending = false;
+            wineSurferError = 'Wine Surfer can no longer add wines automatically. Please create the wine manually.';
             renderWineSurferResults();
 
-            try {
-                const response = await sendJson('/wine-manager/wine-surfer/wines', {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
-
-                const option = normalizeWineOption(response);
-                if (!option) {
-                    throw new Error('Wine Surfer returned an unexpected response.');
-                }
-
-                wineOptions = appendActionOptions([option], option.name);
-                setSelectedWine(option);
-                showError('');
-                // Close the suggestions popover and show a transient confirmation
-                closeWineSurferPopover({ restoreFocus: true });
-                if (statusMessage) {
-                    statusMessage.textContent = `Added ${option.name} to your catalog.`;
-                    statusMessage.hidden = false;
-                    setTimeout(() => {
-                        if (statusMessage) {
-                            statusMessage.textContent = '';
-                            statusMessage.hidden = true;
-                        }
-                    }, 3500);
-                }
-            } catch (error) {
-                wineSurferError = error?.message ?? 'Wine Surfer could not add that wine right now.';
-            } finally {
-                wineSurferSelectionPending = false;
-                renderWineSurferResults();
-            }
+            const query = (result.query ?? result.name ?? wineSurferActiveQuery ?? '').trim();
+            closeWineSurferPopover({ restoreFocus: false });
+            openCreateWinePopover(query);
         }
 
         function closeWineSurferPopover({ restoreFocus = true } = {}) {
@@ -1054,9 +995,8 @@
                 return;
             }
 
-            const hasWineSurferOption = wineOptions.some(option => option?.isWineSurfer);
             const hasCreateOption = wineOptions.some(option => option?.isCreateWine);
-            const cellarOptions = wineOptions.filter(option => option && !option.isWineSurfer && !option.isCreateWine);
+            const cellarOptions = wineOptions.filter(option => option && !option.isCreateWine);
             const hasCellarOptions = cellarOptions.length > 0;
 
             if (wineSearchError) {
@@ -1066,10 +1006,8 @@
             } else if (!hasCellarOptions) {
                 if (trimmedQuery === lastCompletedQuery) {
                     const message = hasCreateOption
-                        ? 'No wines found in your cellar. Create a new wine or try Wine Surfer.'
-                        : hasWineSurferOption
-                            ? 'No wines found in your cellar. Try Wine Surfer for more matches.'
-                            : 'No wines found.';
+                        ? 'No wines found in your cellar. Create a new wine.'
+                        : 'No wines found.';
                     wineResults.appendChild(buildWineStatusElement(message));
                 } else {
                     wineResults.appendChild(buildWineStatusElement('Keep typing to search the cellar.'));
@@ -1094,37 +1032,29 @@
                 element.setAttribute('role', 'option');
                 element.dataset.index = String(index);
 
-                if (!option.isWineSurfer && !option.isCreateWine && option.id) {
+                if (!option.isCreateWine && option.id) {
                     element.dataset.wineId = option.id;
                 }
 
-                if (option.isWineSurfer || option.isCreateWine) {
+                if (option.isCreateWine) {
                     element.classList.add('inventory-add-wine-option--action');
-                    if (option.isCreateWine) {
-                        element.classList.add('create-wine-option--action');
-                    }
+                    element.classList.add('create-wine-option--action');
                 }
 
-                const optionId = option.isWineSurfer
-                    ? 'inventory-add-wine-option-wine-surfer'
-                    : option.isCreateWine
-                        ? 'inventory-add-wine-option-create'
-                        : `inventory-add-wine-option-${option.id}`;
+                const optionId = option.isCreateWine
+                    ? 'inventory-add-wine-option-create'
+                    : `inventory-add-wine-option-${option.id}`;
                 element.id = optionId;
 
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'inventory-add-wine-option__name';
                 nameSpan.textContent = option.label
                     ?? option.name
-                    ?? (option.isWineSurfer ? 'Find with Wine Surfer' : option.id ?? 'Wine option');
+                    ?? option.id
+                    ?? 'Wine option';
                 element.appendChild(nameSpan);
 
-                if (option.isWineSurfer) {
-                    const actionMeta = document.createElement('span');
-                    actionMeta.className = 'inventory-add-wine-option__meta';
-                    actionMeta.textContent = 'Ask Wine Surfer to suggest wines beyond your cellar.';
-                    element.appendChild(actionMeta);
-                } else if (option.isCreateWine) {
+                if (option.isCreateWine) {
                     const actionMeta = document.createElement('span');
                     actionMeta.className = 'inventory-add-wine-option__meta';
                     actionMeta.textContent = 'Create a new wine with custom details.';
@@ -1269,13 +1199,6 @@
                 return;
             }
 
-            if (option.isWineSurfer) {
-                closeWineResults();
-                const queryValue = (option.query ?? currentWineQuery ?? wineSearch?.value ?? '').trim();
-                openWineSurferPopover(queryValue);
-                return;
-            }
-
             if (option.isCreateWine) {
                 closeWineResults();
                 const queryValue = (option.query ?? currentWineQuery ?? wineSearch?.value ?? '').trim();
@@ -1289,7 +1212,7 @@
         }
 
         function setSelectedWine(option, { preserveSearchValue = false } = {}) {
-            const isActionOption = option?.isWineSurfer === true || option?.isCreateWine === true;
+            const isActionOption = option?.isCreateWine === true;
             selectedWineOption = isActionOption ? null : option ?? null;
             if (wineIdInput) {
                 wineIdInput.value = selectedWineOption?.id ?? '';
