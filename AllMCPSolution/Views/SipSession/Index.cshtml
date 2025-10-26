@@ -240,8 +240,6 @@
     var hasFoodSuggestions = Model.FoodSuggestions is { Count: > 0 };
     var cheeseSuggestion = Model.CheeseSuggestion;
     var foodError = Model.FoodSuggestionError;
-    var updatedLabel = session.UpdatedAtUtc.ToLocalTime().ToString("f");
-    var createdLabel = session.CreatedAtUtc.ToLocalTime().ToString("f");
     var returnUrl = string.Concat(requestPath, requestQuery);
 
     ViewData["IsAuthenticated"] = Model.CurrentUser is not null;
@@ -253,27 +251,6 @@
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="wine-surfer-layout session-main" aria-label="Sip session workspace">
-            <header class="wine-surfer-page-header">
-                <h1 class="wine-surfer-page-header__title">@pageTitle</h1>
-                <p class="wine-surfer-page-header__subtitle">
-                    @if (!string.IsNullOrWhiteSpace(Model.SisterhoodName))
-                    {
-                        <text>Gather with @Model.SisterhoodName to explore the wines in this session.</text>
-                    }
-                    else
-                    {
-                        <text>A curated tasting to share with your sisterhood.</text>
-                    }
-                </p>
-            </header>
-            <div class="action-bar" role="navigation" aria-label="Sip session navigation">
-                <a class="sisterhood-button sisterhood-button--ghost" href="@sisterhoodListUrl">All sisterhoods</a>
-                <a class="sisterhood-button" href="@sisterhoodLink">View sisterhood</a>
-                @if (Model.CanManageSession)
-                {
-                    <a class="sisterhood-button sisterhood-button--primary" href="@sisterhoodLink">Manage session</a>
-                }
-            </div>
             @if (!string.IsNullOrWhiteSpace(foodError))
             {
                 <div class="status-banner error" role="alert">@foodError</div>
@@ -282,10 +259,6 @@
                 <article class="wine-card wine-surface wine-surface-border wine-card-hover session-overview-card">
                     <div class="session-section__header wine-card__header">
                         <h2 id="session-overview-title" class="wine-card__title">Session overview</h2>
-                        @if (!string.IsNullOrWhiteSpace(Model.SisterhoodName))
-                        {
-                            <span class="session-badge">@Model.SisterhoodName</span>
-                        }
                     </div>
                     <dl class="session-meta-grid">
                         <div class="session-meta-item">
@@ -296,22 +269,10 @@
                             <dt>Where</dt>
                             <dd>@locationLabel</dd>
                         </div>
-                        <div class="session-meta-item">
-                            <dt>Planned bottles</dt>
-                            <dd>@bottleCount</dd>
-                        </div>
                     </dl>
                     @if (!string.IsNullOrWhiteSpace(session.Description))
                     {
                         <p class="session-description">@session.Description</p>
-                    }
-                    <div class="session-timestamps">
-                        <span>Created @createdLabel</span>
-                        <span>Updated @updatedLabel</span>
-                    </div>
-                    @if (Model.CanManageSession)
-                    {
-                        <p class="session-footnote">Manage this session from the sisterhood view to edit details or invite bottles.</p>
                     }
                 </article>
             </section>
@@ -352,7 +313,6 @@
                 <article class="wine-card wine-surface wine-surface-border wine-card-hover session-bottles-card">
                     <div class="session-section__header wine-card__header">
                         <h2 id="session-bottles-title" class="wine-card__title">Bottle lineup</h2>
-                        <span class="wine-card__subtitle">@bottleCount @((bottleCount == 1) ? "bottle" : "bottles") planned</span>
                     </div>
                     @if (bottleCount > 0)
                     {
