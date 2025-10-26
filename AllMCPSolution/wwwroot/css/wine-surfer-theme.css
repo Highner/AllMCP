@@ -375,6 +375,15 @@ a.wine-card:focus {
     padding: 0;
 }
 
+.wine-surfer-modal.bottle-management-modal {
+    width: min(960px, 100%);
+    max-width: 1120px;
+}
+
+.wine-surfer-modal__body.bottle-management-modal__body {
+    padding: 0;
+}
+
 .wishlist-fieldset {
     margin: 0;
     padding: 16px;

@@ -2047,6 +2047,30 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     color: hsla(var(--primary) / 0.9);
 }
 
+.details-header {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.details-header-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+@media (min-width: 768px) {
+    .details-header {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: space-between;
+    }
+
+    .details-header-actions {
+        align-items: flex-end;
+    }
+}
+
 .details-panel {
     margin-top: 32px;
     background: hsla(var(--card) / 0.75);
@@ -2104,6 +2128,21 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 .details-message[data-state="info"] {
     background: hsla(var(--accent) / 0.25);
     color: hsla(var(--muted-foreground) / 0.9);
+}
+
+.bottle-management-modal__body .details-panel {
+    margin-top: 0;
+    background: transparent;
+    padding: 24px 24px 28px;
+    gap: 20px;
+}
+
+.bottle-management-modal__body .details-header-actions {
+    align-items: stretch;
+}
+
+.bottle-management-modal__body .details-message {
+    margin-bottom: 0;
 }
 
 .details-controls {

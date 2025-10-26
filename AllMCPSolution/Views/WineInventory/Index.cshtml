@@ -165,49 +165,10 @@
         </text>
     };
 
-    var bottleDetailsTable = new CrudTableTemplateModel
+    var bottleManagementModal = new BottleManagementModalViewModel
     {
-        DataTableKey = "details",
-        TitleContent = @<text>
-            <div class="details-header-main">
-                <div class="details-header-titles">
-                    <h2 id="details-title" class="crud-table__title">
-                        <span id="details-title-name" class="details-title__name">Bottles</span>
-                        <span id="details-title-separator" class="details-title__separator" aria-hidden="true">•</span>
-                        <span id="details-title-vintage" class="details-title__vintage"></span>
-                    </h2>
-                    <p id="details-subtitle" class="crud-table__description"></p>
-                </div>
-                <button type="button"
-                        id="details-close-button"
-                        class="details-close-button"
-                        aria-label="Close bottle details"
-                        data-details-close>
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-        </text>,
         HeaderContent = @<text>
             @bottleHeaderContent
-        </text>,
-        BodyContent = @<text>
-            <div id="details-message" class="details-message" role="status"></div>
-            <table class="details-table crud-table__table" id="details-table">
-                <thead>
-                    <tr class="header-row crud-table__header-row">
-                        <th scope="col" class="details-header--location">Bottle Location</th>
-                        <th scope="col" class="details-header--price">Price</th>
-                        <th scope="col" class="details-header--score">Avg Score</th>
-                        <th scope="col" class="details-header--enjoyed">Enjoyed at</th>
-                        <th scope="col" class="details-header--actions">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="details-table-body">
-                    <tr class="empty-row">
-                        <td colspan="5">Select a wine group to see its bottles.</td>
-                    </tr>
-                </tbody>
-            </table>
         </text>
     };
 }
@@ -528,13 +489,12 @@
 
         @await Html.PartialAsync("_DrinkBottleModal", AllMCPSolution.Models.DrinkBottleModalViewModel.Default)
 
-        <div id="details-view" class="details-panel" hidden aria-hidden="true">
-            @await Html.PartialAsync("_CrudTableTemplate", bottleDetailsTable)
-        </div>
+        @await Html.PartialAsync("_BottleManagementModal", bottleManagementModal)
     </main>
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
     <script src="/js/drink-bottle-modal.js"></script>
     <script src="/js/inventory-add-modal.js"></script>
+    <script src="/js/bottle-management-modal.js"></script>
     <script src="/js/wine-inventory-tables.js"></script>
 </body>
 </html>
