@@ -7,7 +7,18 @@
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
         ?? WineSurferTopBarModel.Empty(currentPath);
 
-    var wishlistHeaderTemplate = new CrudTableHeaderTemplateModel();
+    var inventoryAddModalModel = ViewData["InventoryAddModal"] as InventoryAddModalViewModel
+        ?? new InventoryAddModalViewModel();
+
+    var wishlistHeaderTemplate = new CrudTableHeaderTemplateModel
+    {
+        ActionLabel = "Add wine",
+        ActionCssClass = "sisterhood-button wishlist-add-trigger",
+        ActionAttributes = new Dictionary<string, string?>
+        {
+            ["data-wishlist-add-trigger"] = string.Empty
+        }
+    };
 
     var table = new CrudTableTemplateModel
     {
@@ -103,6 +114,8 @@
         </div>
 
         @await Html.PartialAsync("_CrudTableTemplate", table)
+        @await Html.PartialAsync("_InventoryAddModal", inventoryAddModalModel)
+        @await Html.PartialAsync("_WishlistPopover")
 
         @{ var createModal = new WineSurferModalShell
            {
@@ -153,6 +166,7 @@
         @await Html.PartialAsync("_WineSurferModalShell", renameModal)
 
     </div>
+    <script defer src="/js/inventory-add-modal.js"></script>
     <script defer src="/js/wishlists.js"></script>
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>

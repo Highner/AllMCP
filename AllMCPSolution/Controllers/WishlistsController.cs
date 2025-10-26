@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
+using AllMCPSolution.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -85,6 +86,7 @@ public sealed class WishlistsController : WineSurferControllerBase
     private readonly IWineVintageRepository _wineVintageRepository;
     private readonly IWineRepository _wineRepository;
     private readonly IWineSurferTopBarService _topBarService;
+    private readonly IBottleLocationRepository _bottleLocationRepository;
 
     public WishlistsController(
         IWishlistRepository wishlistRepository,
@@ -93,6 +95,7 @@ public sealed class WishlistsController : WineSurferControllerBase
         IWineRepository wineRepository,
         IUserRepository userRepository,
         IWineSurferTopBarService topBarService,
+        IBottleLocationRepository bottleLocationRepository,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _wishlistRepository = wishlistRepository;
@@ -100,6 +103,7 @@ public sealed class WishlistsController : WineSurferControllerBase
         _wineVintageRepository = wineVintageRepository;
         _wineRepository = wineRepository;
         _topBarService = topBarService;
+        _bottleLocationRepository = bottleLocationRepository;
     }
 
     [HttpGet("/wine-manager/wishlists")]
@@ -352,6 +356,7 @@ public sealed class WishlistsController : WineSurferControllerBase
 
         var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
         ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
+        await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken);
 
         var wishlists = await _wishlistRepository.GetForUserAsync(currentUserId, cancellationToken);
         var wishlistOptions = wishlists
@@ -417,5 +422,36 @@ public sealed class WishlistsController : WineSurferControllerBase
 
         userId = Guid.Empty;
         return false;
+    }
+
+    private async Task SetInventoryAddModalViewDataAsync(Guid? currentUserId, CancellationToken cancellationToken)
+    {
+        InventoryAddModalViewModel viewModel;
+
+        if (!currentUserId.HasValue)
+        {
+            viewModel = new InventoryAddModalViewModel();
+        }
+        else
+        {
+            var bottleLocations = await _bottleLocationRepository.GetAllAsync(cancellationToken);
+            var userLocations = bottleLocations
+                .Where(location => location.UserId == currentUserId.Value)
+                .OrderBy(location => location.Name)
+                .Select(location => new BottleLocationOption
+                {
+                    Id = location.Id,
+                    Name = location.Name,
+                    Capacity = location.Capacity
+                })
+                .ToList();
+
+            viewModel = new InventoryAddModalViewModel
+            {
+                Locations = userLocations
+            };
+        }
+
+        ViewData["InventoryAddModal"] = viewModel;
     }
 }
