@@ -1,6 +1,17 @@
 (() => {
     const NOT_RATED_LABEL = 'Not rated';
 
+    const getTodayDateString = () => {
+        const now = new Date();
+        const utcDate = new Date(Date.UTC(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+        ));
+
+        return utcDate.toISOString().slice(0, 10);
+    };
+
     const formatScore = (value) => {
         if (value == null || value === '') {
             return '—';
@@ -228,6 +239,14 @@
             defaultValue: scoreDefaultValue
         });
 
+        const resolveDefaultDateValue = () => getTodayDateString();
+
+        if (dateInput && !dateInput.value) {
+            dateInput.value = resolveDefaultDateValue();
+        }
+
+        scoreControl.setValue(scoreDefaultValue);
+
         const contextState = {
             context: null,
             card: null,
@@ -386,6 +405,10 @@
 
             form.reset();
             scoreControl.reset();
+
+            if (dateInput) {
+                dateInput.value = resolveDefaultDateValue();
+            }
             showFeedback('');
 
             if (hiddenBottle) {
@@ -460,18 +483,24 @@
                 hiddenNoteId.value = noteId ?? '';
             }
 
+            const normalizedMode = (mode ?? '').toLowerCase() === 'edit' ? 'edit' : 'create';
+
             if (noteInput) {
                 noteInput.value = typeof note === 'string' ? note : note != null ? String(note) : '';
             }
 
             if (dateInput) {
-                dateInput.value = date ?? '';
+                const normalizedDate = parseDateOnly(date);
+                const fallbackDateValue = resolveDefaultDateValue();
+                dateInput.value = normalizedDate ?? fallbackDateValue;
             }
 
             if (score != null && score !== '') {
                 scoreControl.setValue(score);
-            } else {
+            } else if (normalizedMode === 'edit') {
                 scoreControl.setValue('');
+            } else {
+                scoreControl.setValue(scoreDefaultValue);
             }
 
             showFeedback('');
