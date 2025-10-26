@@ -163,10 +163,10 @@ window.WineInventoryTables.initialize = function () {
             const drinkTitle = drinkPopover?.querySelector('.drink-bottle-title');
             const drinkHeaderCloseButton = drinkPopover?.querySelector('[data-drink-bottle-close]');
 
-            const detailAddLocation = detailAddRow.querySelector('.detail-add-location');
-            const detailAddPrice = detailAddRow.querySelector('.detail-add-price');
-            const detailAddQuantity = detailAddRow.querySelector('.detail-add-quantity-select');
-            const detailAddButton = detailAddRow.querySelector('.detail-add-submit');
+            const detailAddLocation = detailAddRow?.querySelector('.detail-add-location');
+            const detailAddPrice = detailAddRow?.querySelector('.detail-add-price');
+            const detailAddQuantity = detailAddRow?.querySelector('.detail-add-quantity-select');
+            const detailAddButton = detailAddRow?.querySelector('.detail-add-submit');
             const inventorySection = document.getElementById('inventory-view');
             const detailsSection = document.getElementById('details-view');
             const detailsCloseButton = document.getElementById('details-close-button');
@@ -2315,7 +2315,11 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function bindDetailAddRow() {
-                detailAddButton?.addEventListener('click', handleAddBottle);
+                if (!detailAddRow || !detailAddButton) {
+                    return;
+                }
+
+                detailAddButton.addEventListener('click', handleAddBottle);
             }
 
             function initializeDrinkScoreControl() {
@@ -4052,7 +4056,9 @@ window.WineInventoryTables.initialize = function () {
 
                 setDetailsTitle('Bottle Details', '');
                 detailsSubtitle.textContent = 'Select a wine group to view individual bottles.';
-                detailAddRow.hidden = true;
+                if (detailAddRow) {
+                    detailAddRow.hidden = true;
+                }
 
                 if (detailAddPrice) {
                     detailAddPrice.value = '';
@@ -4149,18 +4155,28 @@ window.WineInventoryTables.initialize = function () {
                 if (summary) {
                     setDetailsTitle(summary.wineName ?? '', summary.vintage ?? '');
                     detailsSubtitle.textContent = `${summary.bottleCount ?? 0} bottle${summary.bottleCount === 1 ? '' : 's'} · ${summary.statusLabel ?? ''}`;
-                    detailAddRow.hidden = false;
-                    detailAddPrice.value = '';
-                    populateLocationSelect(detailAddLocation, '');
+                    if (detailAddRow) {
+                        detailAddRow.hidden = false;
+                    }
+                    if (detailAddPrice) {
+                        detailAddPrice.value = '';
+                    }
+                    if (detailAddLocation) {
+                        populateLocationSelect(detailAddLocation, '');
+                    }
                     if (detailAddQuantity) {
                         detailAddQuantity.value = '1';
                     }
-                    detailAddButton.disabled = loading;
+                    if (detailAddButton) {
+                        detailAddButton.disabled = loading;
+                    }
                     disableNotesAddRow(notesLoading || !notesSelectedBottleId);
                 } else {
                     setDetailsTitle('Bottle Details', '');
                     detailsSubtitle.textContent = 'No bottles remain for the selected group.';
-                    detailAddRow.hidden = true;
+                    if (detailAddRow) {
+                        detailAddRow.hidden = true;
+                    }
                     closeNotesPanel();
                 }
 
@@ -4560,7 +4576,7 @@ window.WineInventoryTables.initialize = function () {
 
                 const payload = {
                     wineVintageId: selectedSummary.wineVintageId,
-                    price: parsePrice(detailAddPrice.value),
+                    price: parsePrice(detailAddPrice?.value ?? ''),
                     isDrunk: false,
                     drunkAt: null,
                     bottleLocationId: locationValue || null,
@@ -4575,7 +4591,9 @@ window.WineInventoryTables.initialize = function () {
                         body: JSON.stringify(payload)
                     });
 
-                    detailAddPrice.value = '';
+                    if (detailAddPrice) {
+                        detailAddPrice.value = '';
+                    }
                     if (detailAddLocation) {
                         detailAddLocation.value = '';
                     }
@@ -4598,7 +4616,7 @@ window.WineInventoryTables.initialize = function () {
                     addWineButton.disabled = state;
                 }
                 if (detailAddButton) {
-                    detailAddButton.disabled = state || detailAddRow.hidden;
+                    detailAddButton.disabled = state || Boolean(detailAddRow?.hidden);
                 }
             }
 
