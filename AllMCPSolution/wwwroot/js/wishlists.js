@@ -8,6 +8,7 @@
   const renameBtn = qs('#renameWishlistBtn');
   const deleteBtn = qs('#deleteWishlistBtn');
   const selectEl = qs('#wishlistSelect');
+  const addWineTrigger = qs('[data-wishlist-add-trigger]');
 
   // Create modal elements
   const createOverlay = qs('#create-wishlist-overlay');
@@ -36,8 +37,33 @@
     overlay.setAttribute('aria-hidden', 'true');
   }
 
+  function currentWishlistOption(){
+    if (!selectEl) return null;
+    const index = selectEl.selectedIndex;
+    if (index < 0 || index >= selectEl.options.length) return null;
+    return selectEl.options[index];
+  }
+
   function currentWishlistId(){
     return selectEl && selectEl.value ? selectEl.value : null;
+  }
+
+  function buildWishlistContext(){
+    const context = { source: 'wishlists' };
+    const id = currentWishlistId();
+    if (id) {
+      context.wishlistId = id;
+    }
+
+    const option = currentWishlistOption();
+    if (option && option.textContent) {
+      const text = option.textContent.split(' (')[0].trim();
+      if (text) {
+        context.wishlistName = text;
+      }
+    }
+
+    return context;
   }
 
   function showError(el, msg){
@@ -66,6 +92,25 @@
       }
       if (data && data.message) errors.push(data.message);
       return errors.length ? errors.join(' ') : 'Something went wrong. Please try again.';
+    });
+  }
+
+  if (addWineTrigger) {
+    addWineTrigger.addEventListener('click', (event) => {
+      const openWishlist = window.wishlistPopover?.open;
+      if (typeof openWishlist !== 'function') {
+        console.warn('Wishlist popover is unavailable.');
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const context = buildWishlistContext();
+      openWishlist(context).catch(error => {
+        console.error('Unable to open wishlist popover', error);
+        alert('Unable to open the add wine dialog right now.');
+      });
     });
   }
 
