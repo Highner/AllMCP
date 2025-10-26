@@ -269,7 +269,7 @@
         let bottleLocationsPromise = null;
         let modalLoading = false;
 
-        const triggerSelector = '[data-add-wine-trigger="favorites"], [data-add-wine-trigger="surf-eye"]';
+        const triggerSelector = '[data-add-wine-trigger="favorites"], [data-add-wine-trigger="surf-eye"], [data-add-wine-trigger="inventory"]';
 
         const normalizeContext = (context) => {
             if (!context) {
@@ -700,10 +700,16 @@
 
             try {
                 setModalLoading(true);
-                await sendJson('/wine-manager/inventory', {
+                const response = await sendJson('/wine-manager/inventory', {
                     method: 'POST',
                     body: JSON.stringify({ wineId, vintage: vintageValue, quantity: quantityValue, bottleLocationId: locationValue || null })
                 });
+                document.dispatchEvent(new CustomEvent('wineSurfer:inventoryAdded', {
+                    detail: {
+                        response,
+                        quantity: quantityValue
+                    }
+                }));
                 closeModal();
                 const message = quantityValue === 1
                     ? 'Bottle added to your inventory.'
