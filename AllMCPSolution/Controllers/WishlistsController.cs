@@ -286,6 +286,62 @@ public sealed class WishlistsController : WineSurferControllerBase
         return Json(response);
     }
 
+    [HttpPut("/wine-manager/wishlists/{id:guid}")]
+    public async Task<IActionResult> Rename(Guid id, [FromBody] CreateWishlistRequest? request, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        var wishlist = await _wishlistRepository.GetByIdAsync(id, cancellationToken);
+        if (wishlist is null || wishlist.UserId != currentUserId)
+        {
+            return NotFound();
+        }
+
+        request ??= new CreateWishlistRequest();
+        var validation = WishlistNameValidator.NormalizeAndValidate(request.Name, "Wishlist name is required.");
+
+        var userLists = await _wishlistRepository.GetForUserAsync(currentUserId, cancellationToken);
+        if (userLists.Any(list => list.Id != id && string.Equals(list.Name, validation.NormalizedName, StringComparison.OrdinalIgnoreCase)))
+        {
+            validation.Errors.Add("You already have a wishlist with that name.");
+        }
+
+        if (validation.Errors.Count > 0)
+        {
+            foreach (var error in validation.Errors)
+            {
+                ModelState.AddModelError(nameof(request.Name), error);
+            }
+
+            return ValidationProblem(ModelState);
+        }
+
+        wishlist.Name = validation.NormalizedName;
+        await _wishlistRepository.UpdateAsync(wishlist, cancellationToken);
+        return Json(new WishlistSummaryResponse(wishlist.Id, wishlist.Name, wishlist.Wishes?.Count ?? 0));
+    }
+
+    [HttpDelete("/wine-manager/wishlists/{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        var wishlist = await _wishlistRepository.GetByIdAsync(id, cancellationToken);
+        if (wishlist is null || wishlist.UserId != currentUserId)
+        {
+            return NotFound();
+        }
+
+        await _wishlistRepository.DeleteAsync(id, cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet("/wine-surfer/wishlists")]
     public async Task<IActionResult> Index([FromQuery] Guid? wishlistId, CancellationToken cancellationToken)
     {

@@ -91,10 +91,66 @@
                     <option value="">No wishlists yet</option>
                 }
             </select>
+            <button type="button" class="crud-table__action-button secondary" id="createWishlistBtn">Create wishlist</button>
+            @if (Model.SelectedWishlistId.HasValue)
+            {
+                <button type="button" class="crud-table__action-button" id="renameWishlistBtn">Edit name</button>
+                <button type="button" class="crud-table__action-button danger" id="deleteWishlistBtn">Delete</button>
+            }
         </div>
 
         @await Html.PartialAsync("_CrudTableTemplate", table)
+
+        @{ var createModal = new WineSurferModalShell
+           {
+               BackdropId = "create-wishlist-overlay",
+               BackdropCssClass = "wine-surfer-modal-backdrop",
+               BackdropAttributes = new Dictionary<string, string?> { ["hidden"] = null, ["aria-hidden"] = "true" },
+               DialogId = "create-wishlist-modal",
+               DialogCssClass = "wine-surfer-modal",
+               DialogAttributes = new Dictionary<string, string?> { ["aria-labelledby"] = "create-wishlist-title" },
+               Title = "Create wishlist",
+               TitleElementId = "create-wishlist-title",
+               BodyContent = @<form id="create-wishlist-form" class="inventory-add-form" novalidate>
+                   <label class="inventory-add-field">
+                       <span class="inventory-add-label">Name</span>
+                       <input type="text" id="create-wishlist-name" maxlength="256" placeholder="e.g. Summer Sippers" aria-label="Wishlist name" required />
+                   </label>
+                   <p class="inventory-add-error" id="create-wishlist-error" role="alert" aria-hidden="true"></p>
+                   <div class="inventory-add-actions">
+                       <button type="button" class="crud-table__action-button secondary" data-close-create>Cancel</button>
+                       <button type="submit" class="crud-table__action-button">Create</button>
+                   </div>
+               </form>
+           }; }
+        @await Html.PartialAsync("_WineSurferModalShell", createModal)
+
+        @{ var renameModal = new WineSurferModalShell
+           {
+               BackdropId = "rename-wishlist-overlay",
+               BackdropCssClass = "wine-surfer-modal-backdrop",
+               BackdropAttributes = new Dictionary<string, string?> { ["hidden"] = null, ["aria-hidden"] = "true" },
+               DialogId = "rename-wishlist-modal",
+               DialogCssClass = "wine-surfer-modal",
+               DialogAttributes = new Dictionary<string, string?> { ["aria-labelledby"] = "rename-wishlist-title" },
+               Title = "Rename wishlist",
+               TitleElementId = "rename-wishlist-title",
+               BodyContent = @<form id="rename-wishlist-form" class="inventory-add-form" novalidate>
+                   <label class="inventory-add-field">
+                       <span class="inventory-add-label">New name</span>
+                       <input type="text" id="rename-wishlist-name" maxlength="256" placeholder="e.g. Summer Sippers" aria-label="New wishlist name" required />
+                   </label>
+                   <p class="inventory-add-error" id="rename-wishlist-error" role="alert" aria-hidden="true"></p>
+                   <div class="inventory-add-actions">
+                       <button type="button" class="crud-table__action-button secondary" data-close-rename>Cancel</button>
+                       <button type="submit" class="crud-table__action-button">Save</button>
+                   </div>
+               </form>
+           }; }
+        @await Html.PartialAsync("_WineSurferModalShell", renameModal)
+
     </div>
+    <script defer src="/js/wishlists.js"></script>
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>
