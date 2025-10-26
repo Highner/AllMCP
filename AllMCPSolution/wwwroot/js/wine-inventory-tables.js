@@ -2102,6 +2102,8 @@ window.WineInventoryTables.initialize = function () {
                         drinkTarget = null;
                     }
                 });
+
+                window.WineInventoryTables.handleInventoryDrinkModalSubmission = handleInventoryDrinkModalSubmission;
             }
 
             function bindNotesPanel() {
@@ -2187,9 +2189,28 @@ window.WineInventoryTables.initialize = function () {
                 }));
             }
 
+            function handleInventoryDrinkModalSubmission(submitDetail) {
+                const promise = performDrinkModalSubmission(submitDetail);
+                submitDetail.setSubmitPromise?.(promise);
+                submitDetail.setSuccessMessage?.('Bottle marked as drunk and tasting note saved.');
+                return promise;
+            }
+
+            function isInventoryDrinkModalDetail(detail) {
+                if (!detail) {
+                    return false;
+                }
+
+                const context = typeof detail.context === 'string'
+                    ? detail.context.trim().toLowerCase()
+                    : '';
+
+                return context === 'inventory';
+            }
+
             function handleDrinkModalSubmit(event) {
                 const submitDetail = event?.detail;
-                if (!submitDetail || submitDetail.context !== 'inventory') {
+                if (!isInventoryDrinkModalDetail(submitDetail)) {
                     return;
                 }
 
@@ -2200,9 +2221,7 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                const promise = performDrinkModalSubmission(submitDetail);
-                submitDetail.setSubmitPromise?.(promise);
-                submitDetail.setSuccessMessage?.('Bottle marked as drunk and tasting note saved.');
+                handleInventoryDrinkModalSubmission(submitDetail);
             }
 
             async function performDrinkModalSubmission(submitDetail) {
