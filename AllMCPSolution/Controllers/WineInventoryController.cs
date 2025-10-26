@@ -326,9 +326,13 @@ public class WineInventoryController : Controller
 
     [HttpPost("import")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Import(IFormFile? file, CancellationToken cancellationToken)
+    public async Task<IActionResult> Import(
+        string importType = "wines",
+        IFormFile? wineFile = null,
+        IFormFile? bottleFile = null,
+        CancellationToken cancellationToken = default)
     {
-        if (!TryGetCurrentUserId(out _))
+        if (!TryGetCurrentUserId(out var currentUserId))
         {
             return Challenge();
         }
@@ -338,37 +342,98 @@ public class WineInventoryController : Controller
 
         var viewModel = new WineImportPageViewModel();
 
+        var normalizedType = importType?.Trim().ToLowerInvariant();
+        var isBottleImport = string.Equals(normalizedType, "bottles", StringComparison.Ordinal);
+
+        if (isBottleImport)
+        {
+            await HandleBottleImportAsync(bottleFile, currentUserId, viewModel, cancellationToken);
+        }
+        else
+        {
+            await HandleWineImportAsync(wineFile, viewModel, cancellationToken);
+        }
+
+        return View("Import", viewModel);
+    }
+
+    private async Task HandleWineImportAsync(
+        IFormFile? file,
+        WineImportPageViewModel viewModel,
+        CancellationToken cancellationToken)
+    {
         if (file is null || file.Length == 0)
         {
-            viewModel.Errors = new[] { "Please select an Excel file to upload." };
-            return View("Import", viewModel);
+            viewModel.WineUpload.Errors = new[] { "Please select an Excel file to upload." };
+            return;
         }
 
         var extension = Path.GetExtension(file.FileName);
         if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(extension, ".xls", StringComparison.OrdinalIgnoreCase))
         {
-            viewModel.Errors = new[] { "Unsupported file type. Please upload an .xlsx or .xls file." };
-            return View("Import", viewModel);
+            viewModel.WineUpload.Errors = new[] { "Unsupported file type. Please upload an .xlsx or .xls file." };
+            return;
         }
 
         try
         {
             await using var stream = file.OpenReadStream();
             var result = await _wineImportService.ImportAsync(stream, cancellationToken);
-            viewModel.Result = result;
-            viewModel.UploadedFileName = file.FileName;
+            viewModel.WineUpload.Result = result;
+            viewModel.WineUpload.UploadedFileName = file.FileName;
         }
         catch (InvalidDataException ex)
         {
-            viewModel.Errors = new[] { ex.Message };
+            viewModel.WineUpload.Errors = new[] { ex.Message };
         }
         catch (Exception ex)
         {
-            viewModel.Errors = new[] { $"An unexpected error occurred while importing wines: {ex.Message}" };
+            viewModel.WineUpload.Errors = new[] { $"An unexpected error occurred while importing wines: {ex.Message}" };
+        }
+    }
+
+    private async Task HandleBottleImportAsync(
+        IFormFile? file,
+        Guid? currentUserId,
+        WineImportPageViewModel viewModel,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            viewModel.BottleUpload.Errors = new[] { "Please select an Excel file to upload." };
+            return;
         }
 
-        return View("Import", viewModel);
+        var extension = Path.GetExtension(file.FileName);
+        if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(extension, ".xls", StringComparison.OrdinalIgnoreCase))
+        {
+            viewModel.BottleUpload.Errors = new[] { "Unsupported file type. Please upload an .xlsx or .xls file." };
+            return;
+        }
+
+        if (!currentUserId.HasValue || currentUserId.Value == Guid.Empty)
+        {
+            viewModel.BottleUpload.Errors = new[] { "You must be signed in to import bottles." };
+            return;
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var result = await _wineImportService.ImportBottlesAsync(stream, currentUserId.Value, cancellationToken);
+            viewModel.BottleUpload.Result = result;
+            viewModel.BottleUpload.UploadedFileName = file.FileName;
+        }
+        catch (InvalidDataException ex)
+        {
+            viewModel.BottleUpload.Errors = new[] { ex.Message };
+        }
+        catch (Exception ex)
+        {
+            viewModel.BottleUpload.Errors = new[] { $"An unexpected error occurred while importing bottles: {ex.Message}" };
+        }
     }
 
     [HttpGet("bottles/{wineVintageId:guid}")]
@@ -2225,6 +2290,12 @@ public class WineInventoryWineOption
 }
 
 public class WineImportPageViewModel
+{
+    public WineImportPanelViewModel WineUpload { get; set; } = new();
+    public WineImportPanelViewModel BottleUpload { get; set; } = new();
+}
+
+public class WineImportPanelViewModel
 {
     public string? UploadedFileName { get; set; }
     public WineImportResult? Result { get; set; }
