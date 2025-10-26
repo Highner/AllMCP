@@ -913,7 +913,7 @@
 
             if (!prevented) {
                 setLoading(false);
-                showFeedback('No handler configured for this action.');
+                // No handler configured: silently abort without user-facing error.
                 return;
             }
 

@@ -1,237 +1,189 @@
-(function () {
-    'use strict';
+(function(){
+  'use strict';
 
-    function onReady(callback) {
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', callback, { once: true });
-        } else {
-            callback();
-        }
+  const qs = (sel, root=document) => root.querySelector(sel);
+  const qsa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+  const createBtn = qs('#createWishlistBtn');
+  const renameBtn = qs('#renameWishlistBtn');
+  const deleteBtn = qs('#deleteWishlistBtn');
+  const selectEl = qs('#wishlistSelect');
+
+  // Create modal elements
+  const createOverlay = qs('#create-wishlist-overlay');
+  const createModal = qs('#create-wishlist-modal');
+  const createForm = qs('#create-wishlist-form');
+  const createName = qs('#create-wishlist-name');
+  const createError = qs('#create-wishlist-error');
+  const createClose = qs('[data-close-create]');
+
+  // Rename modal elements
+  const renameOverlay = qs('#rename-wishlist-overlay');
+  const renameModal = qs('#rename-wishlist-modal');
+  const renameForm = qs('#rename-wishlist-form');
+  const renameName = qs('#rename-wishlist-name');
+  const renameError = qs('#rename-wishlist-error');
+  const renameClose = qs('[data-close-rename]');
+
+  function openOverlay(overlay){
+    if (!overlay) return;
+    overlay.removeAttribute('hidden');
+    overlay.setAttribute('aria-hidden', 'false');
+  }
+  function closeOverlay(overlay){
+    if (!overlay) return;
+    overlay.setAttribute('hidden', '');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+
+  function currentWishlistId(){
+    return selectEl && selectEl.value ? selectEl.value : null;
+  }
+
+  function showError(el, msg){
+    if (!el) return;
+    el.textContent = msg || '';
+    if (msg) {
+      el.removeAttribute('aria-hidden');
+    } else {
+      el.setAttribute('aria-hidden', 'true');
     }
+  }
 
-    function getWishlistSelect() {
-        return document.getElementById('wishlistSelect');
-    }
+  function jsonHeaders(){
+    return { 'Content-Type': 'application/json' };
+  }
 
-    function getSelectedWishlistId() {
-        const select = getWishlistSelect();
-        if (!select) {
-            return '';
+  function handleFetchError(res){
+    if (res.ok) return null;
+    return res.json().catch(() => ({})).then(data => {
+      const errors = [];
+      if (data && data.errors) {
+        for (const key in data.errors) {
+          const arr = data.errors[key];
+          if (Array.isArray(arr)) errors.push(...arr);
         }
-
-        const value = typeof select.value === 'string' ? select.value.trim() : '';
-        return value;
-    }
-
-    function normalizeId(value) {
-        return typeof value === 'string' ? value.trim().toLowerCase() : '';
-    }
-
-    async function fetchJson(url, options = {}) {
-        const requestInit = {
-            headers: {
-                'Accept': 'application/json'
-            },
-            credentials: 'same-origin',
-            ...options
-        };
-
-        const response = await fetch(url, requestInit);
-        if (!response.ok) {
-            let message = `${response.status} ${response.statusText}`;
-            try {
-                const payload = await response.json();
-                if (typeof payload === 'string') {
-                    message = payload;
-                } else if (payload?.title) {
-                    message = payload.title;
-                } else if (payload?.message) {
-                    message = payload.message;
-                }
-            } catch (error) {
-                if (error) {
-                    // Ignore parsing errors, use the default message instead
-                }
-            }
-
-            throw new Error(message);
-        }
-
-        if (response.status === 204) {
-            return null;
-        }
-
-        const text = await response.text();
-        return text ? JSON.parse(text) : null;
-    }
-
-    function buildEmptyRow() {
-        const row = document.createElement('tr');
-        const cell = document.createElement('td');
-        cell.colSpan = 3;
-        cell.className = 'empty-state';
-        cell.textContent = 'No wines in this wishlist yet.';
-        row.appendChild(cell);
-        return row;
-    }
-
-    function buildWishlistRow(item) {
-        const row = document.createElement('tr');
-        row.className = 'crud-table__row';
-
-        const wineCell = document.createElement('td');
-        wineCell.className = 'summary-cell summary-cell--wine';
-        const link = document.createElement('a');
-        link.className = 'link';
-        const wineId = typeof item?.wineId === 'string' ? item.wineId : '';
-        link.href = wineId ? `/wine/${encodeURIComponent(wineId)}` : '#';
-        link.textContent = typeof item?.name === 'string' && item.name.trim().length > 0
-            ? item.name.trim()
-            : 'Unnamed wine';
-        wineCell.appendChild(link);
-        row.appendChild(wineCell);
-
-        const appellationCell = document.createElement('td');
-        appellationCell.className = 'summary-cell summary-cell--appellation';
-        const appellationSpan = document.createElement('span');
-        appellationSpan.className = 'appellation';
-        const appellation = typeof item?.appellation === 'string' ? item.appellation.trim() : '';
-        const region = typeof item?.region === 'string' ? item.region.trim() : '';
-        if (appellation) {
-            appellationSpan.textContent = appellation;
-        } else if (!region) {
-            appellationSpan.textContent = '—';
-        }
-        appellationCell.appendChild(appellationSpan);
-        if (region) {
-            const regionSpan = document.createElement('span');
-            regionSpan.className = 'region';
-            regionSpan.textContent = ` (${region})`;
-            appellationCell.appendChild(regionSpan);
-        }
-        row.appendChild(appellationCell);
-
-        const vintageCell = document.createElement('td');
-        vintageCell.className = 'summary-cell summary-cell--vintage';
-        const rawVintage = Number.parseInt(item?.vintage, 10);
-        if (Number.isFinite(rawVintage)) {
-            vintageCell.textContent = String(rawVintage);
-        } else {
-            vintageCell.textContent = '—';
-        }
-        row.appendChild(vintageCell);
-
-        return row;
-    }
-
-    function renderWishlistItems(items) {
-        const section = document.querySelector('[data-crud-table="wishlist-wines"]');
-        if (!section) {
-            return;
-        }
-
-        const tbody = section.querySelector('tbody');
-        if (!tbody) {
-            return;
-        }
-
-        tbody.innerHTML = '';
-        if (!Array.isArray(items) || items.length === 0) {
-            tbody.appendChild(buildEmptyRow());
-            return;
-        }
-
-        items.forEach(item => {
-            tbody.appendChild(buildWishlistRow(item));
-        });
-    }
-
-    async function refreshWishlistItems(wishlistId) {
-        if (!wishlistId) {
-            return;
-        }
-
-        try {
-            const response = await fetchJson(`/wine-manager/wishlists/${encodeURIComponent(wishlistId)}/wishes`, { method: 'GET' });
-            const items = Array.isArray(response) ? response : [];
-            renderWishlistItems(items);
-        } catch (error) {
-            console.error('Failed to refresh wishlist items', error);
-        }
-    }
-
-    async function updateWishlistSummary(wishlistId) {
-        if (!wishlistId) {
-            return;
-        }
-
-        const select = getWishlistSelect();
-        if (!select) {
-            return;
-        }
-
-        const options = Array.from(select.options);
-        const option = options.find(opt => opt.value === wishlistId);
-        if (!option) {
-            return;
-        }
-
-        try {
-            const summary = await fetchJson(`/wine-manager/wishlists/${encodeURIComponent(wishlistId)}`, { method: 'GET' });
-            if (!summary) {
-                return;
-            }
-
-            const name = typeof summary.name === 'string' ? summary.name.trim() : '';
-            const count = Number.isFinite(summary.wishCount) ? summary.wishCount : Number.parseInt(summary.wishCount, 10);
-            if (name) {
-                const formattedCount = Number.isFinite(count) ? count : 0;
-                option.textContent = `${name} (${formattedCount})`;
-            }
-        } catch (error) {
-            console.error('Failed to update wishlist summary', error);
-        }
-    }
-
-    function bindAddButton() {
-        const trigger = document.querySelector('[data-wishlist-add-trigger]');
-        if (!trigger) {
-            return;
-        }
-
-        trigger.addEventListener('click', (event) => {
-            event.preventDefault();
-            const api = window.wishlistPopover;
-            if (!api || typeof api.open !== 'function') {
-                console.error('Wishlist popover is unavailable.');
-                return;
-            }
-
-            const selectedId = getSelectedWishlistId();
-            const context = selectedId ? { wishlistId: selectedId } : {};
-            api.open(context).catch(error => {
-                console.error('Failed to open wishlist dialog', error);
-            });
-        });
-    }
-
-    function handleWishlistAdded(event) {
-        const detail = event?.detail ?? {};
-        const addedId = normalizeId(detail.wishlistId);
-        if (!addedId) {
-            return;
-        }
-
-        updateWishlistSummary(detail.wishlistId);
-
-        const selectedId = normalizeId(getSelectedWishlistId());
-        if (selectedId && selectedId === addedId) {
-            refreshWishlistItems(detail.wishlistId);
-        }
-    }
-
-    onReady(() => {
-        bindAddButton();
-        document.addEventListener('wishlist:added', handleWishlistAdded);
+      }
+      if (data && data.message) errors.push(data.message);
+      return errors.length ? errors.join(' ') : 'Something went wrong. Please try again.';
     });
+  }
+
+  // Create wishlist
+  if (createBtn && createOverlay && createForm) {
+    createBtn.addEventListener('click', () => {
+      showError(createError, '');
+      createName && (createName.value = '');
+      openOverlay(createOverlay);
+      setTimeout(() => createName && createName.focus(), 0);
+    });
+    createClose && createClose.addEventListener('click', () => closeOverlay(createOverlay));
+
+    createForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = (createName && createName.value || '').trim();
+      if (!name) {
+        showError(createError, 'Please enter a name.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/wine-manager/wishlists', {
+          method: 'POST',
+          headers: jsonHeaders(),
+          body: JSON.stringify({ name })
+        });
+        if (!res.ok) {
+          const msg = await handleFetchError(res);
+          showError(createError, msg);
+          return;
+        }
+        const data = await res.json();
+        // Redirect to new wishlist
+        window.location = '/wine-surfer/wishlists?wishlistId=' + encodeURIComponent(data.id);
+      } catch {
+        showError(createError, 'Network error. Please try again.');
+      }
+    });
+  }
+
+  // Rename wishlist
+  if (renameBtn && renameOverlay && renameForm) {
+    renameBtn.addEventListener('click', () => {
+      const id = currentWishlistId();
+      if (!id) return;
+      showError(renameError, '');
+      // preload current name from selected option text (before count and parentheses)
+      const opt = selectEl.options[selectEl.selectedIndex];
+      let name = '';
+      if (opt) {
+        const text = opt.textContent || '';
+        const idx = text.lastIndexOf(' (');
+        name = idx > 0 ? text.substring(0, idx) : text;
+      }
+      renameName && (renameName.value = name.trim());
+      openOverlay(renameOverlay);
+      setTimeout(() => renameName && renameName.focus(), 0);
+    });
+    renameClose && renameClose.addEventListener('click', () => closeOverlay(renameOverlay));
+
+    renameForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = currentWishlistId();
+      if (!id) return;
+      const name = (renameName && renameName.value || '').trim();
+      if (!name) {
+        showError(renameError, 'Please enter a new name.');
+        return;
+      }
+      try {
+        const res = await fetch(`/wine-manager/wishlists/${encodeURIComponent(id)}`, {
+          method: 'PUT',
+          headers: jsonHeaders(),
+          body: JSON.stringify({ name })
+        });
+        if (!res.ok) {
+          const msg = await handleFetchError(res);
+          showError(renameError, msg);
+          return;
+        }
+        // reload to update names and header
+        window.location = '/wine-surfer/wishlists?wishlistId=' + encodeURIComponent(id);
+      } catch {
+        showError(renameError, 'Network error. Please try again.');
+      }
+    });
+  }
+
+  // Delete wishlist
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', async () => {
+      const id = currentWishlistId();
+      if (!id) return;
+      const opt = selectEl.options[selectEl.selectedIndex];
+      const name = (opt && (opt.textContent || '')).split(' (')[0];
+      if (!confirm(`Are you sure you want to delete the wishlist "${name}"? This cannot be undone.`)) {
+        return;
+      }
+      try {
+        const res = await fetch(`/wine-manager/wishlists/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (!res.ok && res.status !== 204) {
+          alert('Failed to delete the wishlist.');
+          return;
+        }
+        // After delete, redirect to list without wishlistId to pick default
+        window.location = '/wine-surfer/wishlists';
+      } catch {
+        alert('Network error. Please try again.');
+      }
+    });
+  }
+
+  // Close modals when clicking backdrop
+  [createOverlay, renameOverlay].forEach(overlay => {
+    if (!overlay) return;
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeOverlay(overlay);
+    });
+  });
 })();

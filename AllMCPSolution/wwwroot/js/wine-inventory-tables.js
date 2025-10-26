@@ -2113,6 +2113,12 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function bindDrinkBottleModal() {
+                // Ensure we only bind these global listeners once even if initialize() re-runs or early calls occur
+                if (window.WineInventoryTables.__drinkModalBound) {
+                    return;
+                }
+                window.WineInventoryTables.__drinkModalBound = true;
+
                 window.addEventListener('drinkmodal:submit', handleDrinkModalSubmit);
                 window.addEventListener('drinkmodal:closed', (event) => {
                     const detail = event?.detail ?? {};
