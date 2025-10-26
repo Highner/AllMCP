@@ -12,7 +12,7 @@
     var titleId = string.IsNullOrWhiteSpace(options.TitleElementId)
         ? DrinkBottleModalViewModel.Default.TitleElementId
         : options.TitleElementId;
-    var formMethod = string.IsNullOrWhiteSpace(options.FormMethod) ? "post" : options.FormMethod;
+    var formMethod = string.IsNullOrWhiteSpace(options.FormMethod) ? "get" : options.FormMethod;
     var formAction = string.IsNullOrWhiteSpace(options.FormAction) ? null : options.FormAction;
     var encoder = HtmlEncoder.Default;
     var formAttributes = options.FormAttributes ?? new Dictionary<string, string>();
@@ -59,7 +59,7 @@
         {
             ["data-drink-bottle-close"] = null
         },
-        BodyContent = @<form class="@options.FormCssClass" method="@formMethod"@((formAction is null ? string.Empty : $" action=\"{encoder.Encode(formAction)}\""))@Html.Raw(attributeString)>
+        BodyContent = @<form class="drink-bottle-form @options.FormCssClass" method="@formMethod"@((formAction is null ? string.Empty : $" action=\"{encoder.Encode(formAction)}\""))@Html.Raw(attributeString)>
             @if (options.IncludeAntiForgeryToken)
             {
                 @Html.AntiForgeryToken()
@@ -125,8 +125,8 @@
             </label>
             <p class="inventory-add-error drink-bottle-error" role="alert" aria-hidden="true"></p>
             <div class="inventory-add-actions drink-bottle-actions">
-                <button type="button" class="@options.CancelButtonCssClass">@cancelLabel</button>
-                <button type="submit" class="@options.SubmitButtonCssClass">@submitLabel</button>
+                <button type="button" class="drink-bottle-cancel @options.CancelButtonCssClass">@cancelLabel</button>
+                <button type="submit" class="drink-bottle-submit @options.SubmitButtonCssClass">@submitLabel</button>
             </div>
         </form>
     };

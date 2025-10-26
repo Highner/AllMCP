@@ -38,7 +38,7 @@ public record DrinkBottleModalViewModel
 
     public string? FormAction { get; init; }
 
-    public string FormMethod { get; init; } = "post";
+    public string FormMethod { get; init; } = "get";
 
     public bool IncludeAntiForgeryToken { get; init; }
 

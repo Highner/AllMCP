@@ -2680,10 +2680,23 @@ window.WineInventoryTables.initialize = function () {
                     setDrinkModalLoading(true);
                     setLoading(true);
 
-                    const response = await sendJson(`/wine-manager/bottles/${bottleId}`, {
-                        method: 'PUT',
-                        body: JSON.stringify(payload)
-                    });
+                    let response;
+                    try {
+                        response = await sendJson(`/wine-manager/bottles/${bottleId}`, {
+                            method: 'PUT',
+                            body: JSON.stringify(payload)
+                        });
+                    } catch (err) {
+                        // Fallback for environments or proxies that block PUT
+                        try {
+                            response = await sendJson(`/wine-manager/bottles/${bottleId}/drink`, {
+                                method: 'POST',
+                                body: JSON.stringify(payload)
+                            });
+                        } catch (err2) {
+                            throw err; // rethrow original error to show accurate message
+                        }
+                    }
 
                     await renderDetails(response, true);
                     showMessage('Bottle marked as drunk.', 'success');

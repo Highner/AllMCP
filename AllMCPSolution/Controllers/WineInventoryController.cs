@@ -1347,6 +1347,55 @@ public class WineInventoryController : Controller
         return Json(response);
     }
 
+    // Fallback endpoint to support environments that disallow HTTP PUT from the client
+    [HttpPost("bottles/{id:guid}/drink")]
+    public async Task<IActionResult> DrinkBottle(Guid id, [FromBody] BottleMutationRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        var bottle = await _bottleRepository.GetByIdAsync(id, cancellationToken);
+        if (bottle is null || bottle.UserId != currentUserId)
+        {
+            return NotFound();
+        }
+
+        BottleLocation? bottleLocation = null;
+        if (request.BottleLocationId.HasValue)
+        {
+            bottleLocation = await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
+            if (bottleLocation is null)
+            {
+                ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
+                return ValidationProblem(ModelState);
+            }
+        }
+
+        if (request.UserId.HasValue && request.UserId.Value != currentUserId)
+        {
+            ModelState.AddModelError(nameof(request.UserId), "You can only assign bottles to your account.");
+            return ValidationProblem(ModelState);
+        }
+
+        bottle.UserId = currentUserId;
+        bottle.Price = request.Price;
+        bottle.IsDrunk = request.IsDrunk;
+        bottle.DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt);
+        bottle.BottleLocationId = bottleLocation?.Id;
+
+        await _bottleRepository.UpdateAsync(bottle, cancellationToken);
+
+        var response = await BuildBottleGroupResponseAsync(bottle.WineVintageId, currentUserId, cancellationToken);
+        return Json(response);
+    }
+
     [HttpPost("notes")]
     public async Task<IActionResult> CreateNote([FromBody] TastingNoteCreateRequest request, CancellationToken cancellationToken)
     {
