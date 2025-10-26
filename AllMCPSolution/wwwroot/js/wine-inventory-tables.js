@@ -94,28 +94,48 @@ window.WineInventoryTables.initialize = function () {
                 const __popover = document.getElementById('inventory-add-popover');
                 if (__addBtn && __overlay && __popover) {
                     window.WineInventoryTables.__addModalBound = true;
-                    const __open = () => {
-                        try {
-                            __overlay.hidden = false;
-                            __overlay.setAttribute('aria-hidden', 'false');
-                            __overlay.classList.add('is-open');
-                            document.body.style.overflow = 'hidden';
-                            const __search = __popover.querySelector('.inventory-add-wine-search');
-                            __search && typeof __search.focus === 'function' && __search.focus();
-                        } catch { /* no-op */ }
-                    };
-                    const __close = () => {
-                        try {
-                            __overlay.classList.remove('is-open');
-                            __overlay.setAttribute('aria-hidden', 'true');
-                            __overlay.hidden = true;
-                            document.body.style.overflow = '';
-                        } catch { /* no-op */ }
-                    };
-                    __addBtn.addEventListener('click', __open);
-                    __overlay.addEventListener('click', (e) => { if (e.target === __overlay) { __close(); } });
-                    __popover.querySelector('[data-add-wine-close]')?.addEventListener('click', __close);
-                    __popover.querySelector('.inventory-add-cancel')?.addEventListener('click', __close);
+
+                    // If the dedicated InventoryAddModal exists, delegate to it to avoid duplicate logic/listeners
+                    if (window.InventoryAddModal) {
+                        const __open = () => {
+                            try {
+                                window.InventoryAddModal.open();
+                            } catch { /* no-op */ }
+                        };
+                        const __close = () => {
+                            try {
+                                window.InventoryAddModal.close();
+                            } catch { /* no-op */ }
+                        };
+                        __addBtn.addEventListener('click', __open);
+                        __overlay.addEventListener('click', (e) => { if (e.target === __overlay) { __close(); } });
+                        __popover.querySelector('[data-add-wine-close]')?.addEventListener('click', __close);
+                        __popover.querySelector('.inventory-add-cancel')?.addEventListener('click', __close);
+                    } else {
+                        // Fallback lightweight open/close if the dedicated modal controller is not available
+                        const __open = () => {
+                            try {
+                                __overlay.hidden = false;
+                                __overlay.setAttribute('aria-hidden', 'false');
+                                __overlay.classList.add('is-open');
+                                document.body.style.overflow = 'hidden';
+                                const __search = __popover.querySelector('.inventory-add-wine-search');
+                                __search && typeof __search.focus === 'function' && __search.focus();
+                            } catch { /* no-op */ }
+                        };
+                        const __close = () => {
+                            try {
+                                __overlay.classList.remove('is-open');
+                                __overlay.setAttribute('aria-hidden', 'true');
+                                __overlay.hidden = true;
+                                document.body.style.overflow = '';
+                            } catch { /* no-op */ }
+                        };
+                        __addBtn.addEventListener('click', __open);
+                        __overlay.addEventListener('click', (e) => { if (e.target === __overlay) { __close(); } });
+                        __popover.querySelector('[data-add-wine-close]')?.addEventListener('click', __close);
+                        __popover.querySelector('.inventory-add-cancel')?.addEventListener('click', __close);
+                    }
                 }
             }
 
@@ -255,7 +275,10 @@ window.WineInventoryTables.initialize = function () {
             initializeSummaryRows();
             bindGroupingControl();
             refreshGrouping({ resetState: true });
-            bindAddWinePopover();
+            // Avoid binding the legacy Add Wine popover logic if the dedicated InventoryAddModal is present
+            if (!window.InventoryAddModal) {
+                bindAddWinePopover();
+            }
             bindDetailAddRow();
             bindDrinkBottleModal();
             initializeDrinkScoreControl();
@@ -1727,7 +1750,7 @@ window.WineInventoryTables.initialize = function () {
                 renderWineSearchResults();
 
                 try {
-                    const data = await sendJson(`/wine-manager/wines?search=${encodeURIComponent(query)}`, {
+                    const response = await sendJson(`/wine-manager/wine-surfer?query=${encodeURIComponent(query)}`, {
                         method: 'GET',
                         signal: controller.signal
                     });
@@ -1735,8 +1758,8 @@ window.WineInventoryTables.initialize = function () {
                         return;
                     }
 
-                    const items = Array.isArray(data) ? data : [];
-                    const normalized = items
+                    const wines = Array.isArray(response?.wines) ? response.wines : [];
+                    const normalized = wines
                         .map(normalizeWineOption)
                         .filter(Boolean);
                     wineOptions = appendActionOptions(normalized, query);
