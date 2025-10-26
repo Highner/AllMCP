@@ -16,13 +16,15 @@ body.wine-app {
 }
 
 body.wine-app--with-bottom-nav {
-    padding-left: 120px;
+    --wine-surfer-left-gutter: 120px;
+    padding-left: var(--wine-surfer-left-gutter);
     padding-bottom: 48px;
 }
 
 @supports (padding-left: calc(120px + env(safe-area-inset-left))) {
     body.wine-app--with-bottom-nav {
-        padding-left: calc(120px + env(safe-area-inset-left));
+        --wine-surfer-left-gutter: calc(120px + env(safe-area-inset-left));
+        padding-left: var(--wine-surfer-left-gutter);
     }
 }
 
@@ -108,6 +110,7 @@ body.wine-app--with-bottom-nav {
 
 @media (max-width: 768px) and (orientation: portrait) {
     body.wine-app--with-bottom-nav {
+        --wine-surfer-left-gutter: 0px;
         padding-left: 0;
         padding-bottom: 120px;
     }
@@ -141,6 +144,7 @@ body.wine-app--with-bottom-nav {
 @supports (padding-bottom: calc(120px + env(safe-area-inset-bottom))) {
     @media (max-width: 768px) and (orientation: portrait) {
         body.wine-app--with-bottom-nav {
+            --wine-surfer-left-gutter: 0px;
             padding-bottom: calc(120px + env(safe-area-inset-bottom));
         }
     }
