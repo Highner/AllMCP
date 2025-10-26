@@ -906,18 +906,19 @@
             setLoading(true);
             showFeedback('');
 
-            const prevented = !window.dispatchEvent(new CustomEvent('drinkmodal:submit', {
+            const dispatchSucceeded = window.dispatchEvent(new CustomEvent('drinkmodal:submit', {
                 cancelable: true,
                 detail: submitDetail
             }));
+            const hasSubmitPromise = Boolean(submitPromise);
 
-            if (!prevented) {
+            if (dispatchSucceeded && !hasSubmitPromise) {
                 setLoading(false);
                 // No handler configured: silently abort without user-facing error.
                 return;
             }
 
-            if (!submitPromise) {
+            if (!hasSubmitPromise) {
                 setLoading(false);
                 showFeedback('Submission handler did not provide a completion promise.');
                 return;
