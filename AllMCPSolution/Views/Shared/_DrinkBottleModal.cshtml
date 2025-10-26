@@ -1,8 +1,9 @@
 @model AllMCPSolution.Models.DrinkBottleModalViewModel
 @using System.Text.Encodings.Web
 @using AllMCPSolution.Models
-@{
+@{ 
     var options = Model ?? DrinkBottleModalViewModel.Default;
+    var defaultDateValue = DateTime.Today.ToString("yyyy-MM-dd");
     var overlayId = string.IsNullOrWhiteSpace(options.OverlayId)
         ? DrinkBottleModalViewModel.Default.OverlayId
         : options.OverlayId;
@@ -80,12 +81,12 @@
             {
                 <label class="inventory-add-field">
                     <span class="inventory-add-label">@options.DateLabel</span>
-                    <input type="date" class="drink-bottle-date" aria-label="@options.DateInputAriaLabel" @(options.RequireDate ? "required" : null) />
+                    <input type="date" class="drink-bottle-date" value="@defaultDateValue" aria-label="@options.DateInputAriaLabel" @(options.RequireDate ? "required" : null) />
                 </label>
             }
             else
             {
-                <input type="hidden" class="drink-bottle-date" />
+                <input type="hidden" class="drink-bottle-date" value="@defaultDateValue" />
             }
             @if (options.ShowScore)
             {
