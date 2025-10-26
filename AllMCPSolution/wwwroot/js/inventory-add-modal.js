@@ -102,7 +102,7 @@
             ? options.filter(option => option && option.isCreateWine !== true)
             : [];
         const trimmed = (query ?? '').trim();
-        const shouldIncludeCreate = includeCreate ?? (trimmed.length >= 3 && baseOptions.length === 0);
+        const shouldIncludeCreate = includeCreate ?? (trimmed.length >= 3);
 
         if (shouldIncludeCreate) {
             baseOptions.push(createCreateWineOption(trimmed));
