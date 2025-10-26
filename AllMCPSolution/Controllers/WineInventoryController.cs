@@ -798,7 +798,8 @@ public class WineInventoryController : Controller
     }
 
     [HttpPost("catalog/wines")]
-    public async Task<IActionResult> CreateWine([FromBody] CreateWineCatalogRequest request, CancellationToken cancellationToken)
+    [HttpPost("wine-surfer/wines")]
+    public async Task<IActionResult> CreateWine([FromBody] CreateWineRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -819,55 +820,6 @@ public class WineInventoryController : Controller
                 request.Appellation,
                 request.SubAppellation,
                 request.GrapeVariety),
-            cancellationToken);
-
-        if (!result.IsSuccess || result.Wine is null)
-        {
-            if (result.Errors.Count > 0)
-            {
-                foreach (var entry in result.Errors)
-                {
-                    var key = string.IsNullOrWhiteSpace(entry.Key) ? string.Empty : entry.Key;
-                    foreach (var message in entry.Value)
-                    {
-                        ModelState.AddModelError(key, message);
-                    }
-                }
-            }
-            else
-            {
-                ModelState.AddModelError(string.Empty, "Unable to add wine to the catalog.");
-            }
-
-            return ValidationProblem(ModelState);
-        }
-
-        var option = CreateWineOption(result.Wine);
-        return Json(option);
-    }
-
-    [HttpPost("wine-surfer/wines")]
-    public async Task<IActionResult> CreateWineFromWineSurfer([FromBody] WineSurferAddWineRequest request, CancellationToken cancellationToken)
-    {
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(ModelState);
-        }
-
-        if (!TryGetCurrentUserId(out _))
-        {
-            return Challenge();
-        }
-
-        var result = await _wineCatalogService.EnsureWineAsync(
-            new WineCatalogRequest(
-                request.Name,
-                request.Color,
-                request.Country,
-                request.Region,
-                request.Appellation,
-                request.SubAppellation,
-                null),
             cancellationToken);
 
         if (!result.IsSuccess || result.Wine is null)
@@ -2184,29 +2136,7 @@ public class AddWineToInventoryRequest
     public Guid? BottleLocationId { get; set; }
 }
 
-public class WineSurferAddWineRequest
-{
-    [Required]
-    [StringLength(256, MinimumLength = 1)]
-    public string Name { get; set; } = string.Empty;
-
-    [StringLength(128)]
-    public string? Country { get; set; }
-
-    [StringLength(128)]
-    public string? Region { get; set; }
-
-    [StringLength(256)]
-    public string? Appellation { get; set; }
-
-    [StringLength(256)]
-    public string? SubAppellation { get; set; }
-
-    [StringLength(32)]
-    public string? Color { get; set; }
-}
-
-public class CreateWineCatalogRequest
+public class CreateWineRequest
 {
     [Required]
     [StringLength(256, MinimumLength = 1)]

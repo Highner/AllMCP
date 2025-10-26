@@ -838,6 +838,13 @@
                 color: result.color ?? null
             };
 
+            // Validate required fields for unified endpoint
+            if (!payload.color || !payload.region || !payload.appellation) {
+                wineSurferError = 'Wine requires color, region, and appellation. Please refine your selection.';
+                renderWineSurferResults();
+                return;
+            }
+
             wineSurferSelectionPending = true;
             wineSurferError = '';
             renderWineSurferResults();
