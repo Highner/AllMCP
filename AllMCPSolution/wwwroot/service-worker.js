@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wine-surfer-pwa-v2';
+const CACHE_NAME = 'wine-surfer-pwa-v3';
 const OFFLINE_URL = '/offline.html';
 const PRECACHE_ASSETS = [
   '/manifest.json',
@@ -65,7 +65,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (event.request.mode === 'navigate') {
-    event.respondWith(handleNavigationRequest(event.request));
     return;
   }
 
@@ -81,25 +80,6 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(handleDefaultRequest(event.request));
 });
-
-async function handleNavigationRequest(request) {
-  try {
-    const networkResponse = await fetch(request);
-    return networkResponse;
-  } catch (error) {
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-
-    const offlinePage = await caches.match(OFFLINE_URL);
-    if (offlinePage) {
-      return offlinePage;
-    }
-
-    return buildOfflineResponse('text/html');
-  }
-}
 
 async function handleJsonApiRequest(request) {
   try {
