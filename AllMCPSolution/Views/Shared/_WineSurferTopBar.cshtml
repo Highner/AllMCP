@@ -28,6 +28,11 @@
 
     navItems.Add(("/wine-manager", "Wine Inventory"));
 
+    if (isAdmin)
+    {
+        navItems.Add(("/wine-manager/import", "Import Wines"));
+    }
+
     if (!isAdmin)
     {
         navItems = navItems
