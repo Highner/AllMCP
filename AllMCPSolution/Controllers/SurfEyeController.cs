@@ -113,13 +113,11 @@ public class SurfEyeController: WineSurferControllerBase
         }
 
         var (activeSummary, activeProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(user);
-        if (string.IsNullOrWhiteSpace(activeProfile))
-        {
-            return BadRequest(new SurfEyeAnalysisError("Add a taste profile before using Surf Eye."));
-        }
-
-        var normalizedTasteProfile = activeProfile;
-        var tasteProfileSummary = string.IsNullOrWhiteSpace(activeSummary) ? null : activeSummary;
+        var hasTasteProfile = !string.IsNullOrWhiteSpace(activeProfile);
+        var normalizedTasteProfile = hasTasteProfile ? activeProfile!.Trim() : null;
+        var tasteProfileSummary = hasTasteProfile && !string.IsNullOrWhiteSpace(activeSummary)
+            ? activeSummary!.Trim()
+            : null;
 
         byte[] imageBytes;
         await using (var stream = new MemoryStream())
@@ -137,7 +135,9 @@ public class SurfEyeController: WineSurferControllerBase
             ? "image/jpeg"
             : contentType!;
 
-        var prompt = _chatGptPromptService.BuildSurfEyePrompt(tasteProfileSummary, normalizedTasteProfile);
+        var prompt = hasTasteProfile
+            ? _chatGptPromptService.BuildSurfEyePrompt(tasteProfileSummary, normalizedTasteProfile!)
+            : _chatGptPromptService.BuildSurfEyePromptWithoutTasteProfile();
 
         ChatCompletion completion;
         try
@@ -173,12 +173,29 @@ public class SurfEyeController: WineSurferControllerBase
             return StatusCode(StatusCodes.Status502BadGateway, new SurfEyeAnalysisError("We couldn't understand Surf Eye's response. Please try again."));
         }
 
-        var orderedMatches = parsedResult!.Wines
-            .OrderByDescending(match => match.AlignmentScore)
-            .ThenByDescending(match => match.Confidence)
-            .ThenBy(match => match.Name, StringComparer.OrdinalIgnoreCase)
-            .Take(5)
-            .ToList();
+        IReadOnlyList<SurfEyeWineMatch> orderedMatches;
+        if (hasTasteProfile)
+        {
+            orderedMatches = parsedResult!.Wines
+                .OrderByDescending(match => match.AlignmentScore)
+                .ThenByDescending(match => match.Confidence)
+                .ThenBy(match => match.Name, StringComparer.OrdinalIgnoreCase)
+                .Take(5)
+                .ToList();
+        }
+        else
+        {
+            orderedMatches = parsedResult!.Wines
+                .Select(match => match with
+                {
+                    AlignmentScore = 0,
+                    AlignmentSummary = string.Empty
+                })
+                .OrderByDescending(match => match.Confidence)
+                .ThenBy(match => match.Name, StringComparer.OrdinalIgnoreCase)
+                .Take(5)
+                .ToList();
+        }
 
         var summary = string.IsNullOrWhiteSpace(parsedResult.Summary)
             ? (orderedMatches.Count > 0
