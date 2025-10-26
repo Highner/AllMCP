@@ -55,6 +55,19 @@ window.WineInventoryTables.initialize = function () {
             const messageBanner = document.getElementById('details-message');
             const bottleModal = window.BottleManagementModal;
             const detailsPanel = bottleModal?.getContainer?.() ?? document.querySelector('.details-panel') ?? document.querySelector('[data-crud-table="details"]');
+            const notesPanel = document.getElementById('notes-panel');
+            const notesTable = document.getElementById('notes-table');
+            const notesBody = notesTable?.querySelector('tbody');
+            const notesAddRow = notesTable?.querySelector('#note-add-row');
+            const notesEmptyRow = notesBody?.querySelector('.empty-row');
+            const notesAddUserDisplay = notesAddRow?.querySelector('.note-add-user-name');
+            const notesAddScore = notesAddRow?.querySelector('.note-add-score');
+            const notesAddText = notesAddRow?.querySelector('.note-add-text');
+            const notesAddButton = notesAddRow?.querySelector('.note-add-submit');
+            const notesMessage = document.getElementById('notes-message');
+            const notesTitle = document.getElementById('notes-title');
+            const notesSubtitle = document.getElementById('notes-subtitle');
+            const notesCloseButton = document.getElementById('notes-close');
             const locationSection = document.getElementById('inventory-locations');
             const locationList = locationSection?.querySelector('[data-location-list]');
             const locationTemplate = document.getElementById('inventory-location-template');
@@ -67,6 +80,7 @@ window.WineInventoryTables.initialize = function () {
             const locationCreateCancel = locationCreateForm?.querySelector('[data-location-cancel]');
             const locationAddButton = locationSection?.querySelector('[data-location-add]');
             const currentUserId = locationSection?.dataset?.currentUserId ?? locationSection?.getAttribute('data-current-user-id') ?? '';
+            const notesEnabled = Boolean(notesPanel && notesTable && notesBody && notesAddRow && notesEmptyRow && notesAddUserDisplay && notesAddScore && notesAddText && notesAddButton && notesMessage && notesTitle && notesSubtitle && notesCloseButton);
             const summaryColumnCount = inventoryTable?.querySelectorAll('thead th')?.length ?? 1;
             const groupingSelect = document.querySelector('[data-inventory-group-select]');
             let activeGroupingKey = groupingSelect?.value ?? 'wine';
@@ -229,8 +243,10 @@ window.WineInventoryTables.initialize = function () {
             let selectedGroupId = null;
             let selectedSummary = null;
             let selectedRow = null;
+            let notesSelectedBottleId = null;
             let selectedDetailRowElement = null;
             let loading = false;
+            let notesLoading = false;
             let modalLoading = false;
             let drinkModalLoading = false;
             let drinkTarget = null;
@@ -271,6 +287,9 @@ window.WineInventoryTables.initialize = function () {
             bindDetailAddRow();
             bindDrinkBottleModal();
             bindDetailsCloseButton();
+            if (notesEnabled) {
+                bindNotesPanel();
+            }
 
             function initializeSummaryRows() {
                 const rows = Array.from(inventoryTable.querySelectorAll('tbody tr.group-row'));
@@ -2110,6 +2129,16 @@ window.WineInventoryTables.initialize = function () {
                 });
             }
 
+            function bindNotesPanel() {
+                if (!notesEnabled) {
+                    return;
+                }
+
+                initializeNotesPanel();
+                notesCloseButton?.addEventListener('click', closeNotesPanel);
+                notesAddButton?.addEventListener('click', handleAddNote);
+            }
+
             function openDrinkBottleModal(detail, summary) {
                 closeAddWinePopover();
                 closeWineSurferPopover({ restoreFocus: false });
@@ -2358,7 +2387,11 @@ window.WineInventoryTables.initialize = function () {
                             }
                         }
 
-                        if (summary) {
+                        const currentBottleId = notesSelectedBottleId ?? '';
+                        if (currentBottleId && currentBottleId === bottleId) {
+                            renderNotes(notesResponse);
+                            showNotesMessage('Note saved.', 'success');
+                        } else if (summary) {
                             updateScoresFromNotesSummary(summary);
                         }
 
@@ -2381,6 +2414,18 @@ window.WineInventoryTables.initialize = function () {
                     setLoading(false);
                 }
             }
+            function initializeNotesPanel() {
+                if (notesAddUserDisplay) {
+                    notesAddUserDisplay.textContent = '—';
+                    notesAddUserDisplay.dataset.userId = '';
+                }
+
+                clearNotesAddInputs();
+                disableNotesAddRow(true);
+                setNotesHeader(null);
+                showNotesMessage('', 'info');
+            }
+
             function initializeLocationSection() {
                 if (!locationSection || !locationList) {
                     return;
@@ -3702,7 +3747,9 @@ window.WineInventoryTables.initialize = function () {
                 selectedGroupId = null;
                 selectedSummary = null;
 
+                closeNotesPanel();
                 selectedDetailRowElement = null;
+                notesSelectedBottleId = null;
 
                 setDetailsTitle('Bottle Details', '');
                 detailsSubtitle.textContent = 'Select a wine group to view individual bottles.';
@@ -3820,12 +3867,14 @@ window.WineInventoryTables.initialize = function () {
                     if (detailAddButton) {
                         detailAddButton.disabled = loading;
                     }
+                    disableNotesAddRow(notesLoading || !notesSelectedBottleId);
                 } else {
                     setDetailsTitle('Bottle Details', '');
                     detailsSubtitle.textContent = 'No bottles remain for the selected group.';
                     if (detailAddRow) {
                         detailAddRow.hidden = true;
                     }
+                    closeNotesPanel();
                 }
 
                 detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
@@ -3833,12 +3882,23 @@ window.WineInventoryTables.initialize = function () {
 
                 if (details.length === 0) {
                     emptyRow.hidden = false;
+                    closeNotesPanel();
                 } else {
                     emptyRow.hidden = true;
+                    let detailMatchFound = false;
                     details.forEach(detail => {
                         const row = buildDetailRow(detail, summary);
                         detailsBody.appendChild(row);
+                        if (notesSelectedBottleId && row.dataset.bottleId === notesSelectedBottleId) {
+                            row.classList.add('selected');
+                            selectedDetailRowElement = row;
+                            detailMatchFound = true;
+                        }
                     });
+
+                    if (notesSelectedBottleId && !detailMatchFound) {
+                        closeNotesPanel();
+                    }
                 }
 
                 updateLocationCardsFromResponse(data);
@@ -4072,6 +4132,21 @@ window.WineInventoryTables.initialize = function () {
                     }
                 });
 
+                if (notesEnabled) {
+                    row.addEventListener('click', async (event) => {
+                        if (shouldIgnoreDetailRowClick(event)) {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        try {
+                            await handleDetailRowSelection(row, detail, summary);
+                        } catch (error) {
+                            showNotesMessage(error?.message ?? String(error), 'error');
+                        }
+                    });
+                }
+
                 return row;
             }
 
@@ -4277,6 +4352,438 @@ window.WineInventoryTables.initialize = function () {
                 }
             }
 
+            function disableNotesAddRow(disabled) {
+                if (notesAddScore) {
+                    notesAddScore.disabled = disabled;
+                }
+                if (notesAddText) {
+                    notesAddText.disabled = disabled;
+                }
+                if (notesAddButton) {
+                    notesAddButton.disabled = disabled;
+                }
+            }
+
+            function clearNotesAddInputs() {
+                if (notesAddScore) {
+                    notesAddScore.value = '';
+                }
+                if (notesAddText) {
+                    notesAddText.value = '';
+                }
+            }
+
+            function showNotesMessage(text, state) {
+                if (!notesMessage) {
+                    return;
+                }
+
+                if (!text) {
+                    notesMessage.style.display = 'none';
+                    notesMessage.textContent = '';
+                    return;
+                }
+
+                notesMessage.dataset.state = state ?? 'info';
+                notesMessage.textContent = text;
+                notesMessage.style.display = 'block';
+            }
+
+            function setNotesHeader(summary, noteCount) {
+                if (!notesTitle || !notesSubtitle) {
+                    return;
+                }
+
+                if (!summary) {
+                    notesTitle.textContent = 'Consumption Notes';
+                    notesSubtitle.textContent = 'Select a bottle to view consumption notes.';
+                    if (notesAddUserDisplay) {
+                        notesAddUserDisplay.textContent = '—';
+                        notesAddUserDisplay.dataset.userId = '';
+                    }
+                    return;
+                }
+
+                const wineName = summary.wineName ?? '';
+                const vintage = summary.vintage ?? '';
+                notesTitle.textContent = wineName && vintage ? `${wineName} • ${vintage}` : wineName || 'Consumption Notes';
+
+                const parts = [];
+
+                if (typeof noteCount === 'number') {
+                    parts.push(`${noteCount} note${noteCount === 1 ? '' : 's'}`);
+                }
+
+                const owner = summary.userName ?? summary.UserName ?? '';
+                const summaryUserId = summary.userId ?? summary.UserId ?? '';
+                if (owner) {
+                    parts.push(`Owner: ${owner}`);
+                } else if (summaryUserId) {
+                    parts.push('Owner: You');
+                }
+
+                const location = summary.bottleLocation ?? '';
+                if (location) {
+                    parts.push(`Location: ${location}`);
+                }
+
+                if (summary.isDrunk) {
+                    const formatted = formatDateTime(summary.drunkAt ?? '')?.replace('T', ' ');
+                    parts.push(formatted ? `Drunk at ${formatted}` : 'Drunk');
+                }
+
+                notesSubtitle.textContent = parts.length > 0 ? parts.join(' · ') : 'Consumption notes';
+
+                if (notesAddUserDisplay) {
+                    notesAddUserDisplay.dataset.userId = summaryUserId ? String(summaryUserId) : '';
+                    if (owner) {
+                        notesAddUserDisplay.textContent = owner;
+                    } else if (summaryUserId) {
+                        notesAddUserDisplay.textContent = 'You';
+                    } else {
+                        notesAddUserDisplay.textContent = '—';
+                    }
+                }
+            }
+
+            function setNotesLoading(state) {
+                notesLoading = state;
+                disableNotesAddRow(state || !notesSelectedBottleId);
+            }
+
+            function setNoteRowLoading(row, state) {
+                if (!row) {
+                    return;
+                }
+
+                if (state) {
+                    row.classList.add('loading');
+                } else {
+                    row.classList.remove('loading');
+                }
+
+                row.querySelectorAll('button, select, textarea, input').forEach(element => {
+                    element.disabled = state;
+                });
+            }
+
+            function shouldIgnoreDetailRowClick(event) {
+                const target = event.target;
+                return Boolean(target && target.closest('button, select, input, textarea, label, a'));
+            }
+
+            async function handleDetailRowSelection(row, detail, summary) {
+                if (!notesEnabled || !row || !detail) {
+                    return;
+                }
+
+                await referenceDataPromise;
+                await openNotesPanel(row, detail, summary);
+            }
+
+            async function openNotesPanel(row, detail, summary) {
+                if (!notesEnabled || !detailsPanel || !notesPanel) {
+                    return;
+                }
+
+                const bottleId = detail?.bottleId ?? detail?.BottleId ?? row?.dataset?.bottleId;
+                if (!bottleId) {
+                    return;
+                }
+
+                notesSelectedBottleId = bottleId;
+
+                if (selectedDetailRowElement && selectedDetailRowElement !== row) {
+                    selectedDetailRowElement.classList.remove('selected');
+                }
+
+                selectedDetailRowElement = row;
+                row.classList.add('selected');
+
+                detailsPanel.classList.add('notes-visible');
+                notesPanel.setAttribute('aria-hidden', 'false');
+
+                const headerSummary = {
+                    wineName: summary?.wineName ?? summary?.WineName ?? '',
+                    vintage: summary?.vintage ?? summary?.Vintage,
+                    bottleLocation: detail?.bottleLocation ?? detail?.BottleLocation ?? '',
+                    userId: detail?.userId ?? detail?.UserId ?? '',
+                    userName: detail?.userName ?? detail?.UserName ?? '',
+                    isDrunk: Boolean(detail?.isDrunk ?? detail?.IsDrunk),
+                    drunkAt: detail?.drunkAt ?? detail?.DrunkAt ?? null
+                };
+
+                setNotesHeader(headerSummary);
+                showNotesMessage('', 'info');
+                clearNotesAddInputs();
+                disableNotesAddRow(notesLoading);
+
+                await loadNotesForBottle(bottleId);
+            }
+
+            async function loadNotesForBottle(bottleId) {
+                if (!notesEnabled || !notesBody) {
+                    return;
+                }
+
+                notesBody.querySelectorAll('.note-row').forEach(r => r.remove());
+                if (notesEmptyRow) {
+                    notesEmptyRow.hidden = false;
+                }
+
+                if (!bottleId) {
+                    return;
+                }
+
+                try {
+                    setNotesLoading(true);
+                    showNotesMessage('Loading consumption notes…', 'info');
+                    const response = await sendJson(`/wine-manager/bottles/${bottleId}/notes`, { method: 'GET' });
+                    renderNotes(response);
+                    showNotesMessage('', 'info');
+                } catch (error) {
+                    showNotesMessage(error.message, 'error');
+                } finally {
+                    setNotesLoading(false);
+                }
+            }
+
+            function renderNotes(data) {
+                if (!notesEnabled || !notesBody) {
+                    return;
+                }
+
+                const rawBottle = data?.bottle ?? data?.Bottle ?? null;
+                const summary = normalizeBottleNoteSummary(rawBottle);
+                const rawNotes = Array.isArray(data?.notes)
+                    ? data.notes
+                    : Array.isArray(data?.Notes)
+                        ? data.Notes
+                        : [];
+                const notes = rawNotes.map(normalizeNote).filter(Boolean);
+
+                if (summary) {
+                    setNotesHeader(summary, notes.length);
+                    updateScoresFromNotesSummary(summary);
+                } else if (!notesSelectedBottleId) {
+                    setNotesHeader(null);
+                }
+
+                notesBody.querySelectorAll('.note-row').forEach(r => r.remove());
+
+                if (notes.length === 0) {
+                    if (notesEmptyRow) {
+                        notesEmptyRow.hidden = false;
+                    }
+                    return;
+                }
+
+                if (notesEmptyRow) {
+                    notesEmptyRow.hidden = true;
+                }
+
+                notes.forEach(note => {
+                    const row = buildNoteRow(note);
+                    notesBody.appendChild(row);
+                });
+            }
+
+            function buildNoteRow(note) {
+                const row = document.createElement('tr');
+                row.className = 'note-row';
+                row.dataset.noteId = note.id ?? note.Id ?? '';
+
+                const rawScore = note.score ?? note.Score ?? null;
+                const scoreValue = rawScore == null ? '' : String(rawScore);
+                const scoreDisplayValue = formatScore(rawScore);
+                const noteText = note.note ?? note.Note ?? '';
+                const userId = note.userId ?? note.UserId ?? '';
+                const userName = note.userName ?? note.UserName ?? '';
+                const normalizedUserId = userId ? String(userId) : '';
+                const currentUserId = notesAddUserDisplay?.dataset?.userId ?? '';
+                let userLabel = userName;
+                if (!userLabel) {
+                    if (normalizedUserId && currentUserId && normalizedUserId === currentUserId) {
+                        userLabel = 'You';
+                    } else {
+                        userLabel = '—';
+                    }
+                }
+
+                row.dataset.userId = normalizedUserId;
+                const canEdit = Boolean(normalizedUserId) && Boolean(currentUserId)
+                    ? normalizedUserId === currentUserId
+                    : false;
+
+                if (!canEdit) {
+                    row.classList.add('note-row--readonly');
+                }
+
+                const noteDisplayValue = noteText
+                    ? escapeHtml(noteText).replace(/\r?\n/g, '<br />')
+                    : '—';
+
+                const scoreCellContent = canEdit
+                    ? `<input type="number" class="note-score" min="0" max="10" step="0.1" value="${escapeHtml(scoreValue)}" placeholder="0-10" />`
+                    : `<span class="note-score-display">${escapeHtml(scoreDisplayValue)}</span>`;
+
+                const noteCellContent = canEdit
+                    ? `<textarea class="note-text" rows="3">${escapeHtml(noteText)}</textarea>`
+                    : `<div class="note-text-display">${noteDisplayValue}</div>`;
+
+                const actionsCellContent = canEdit
+                    ? `<button type="button" class="crud-table__action-button save-note">Save</button>
+                        <button type="button" class="crud-table__action-button secondary delete-note">Delete</button>`
+                    : `<span class="note-actions-readonly" aria-hidden="true">—</span>`;
+
+                row.dataset.editable = canEdit ? 'true' : 'false';
+
+                row.innerHTML = `
+                    <td class="note-user"><span class="note-user-name">${escapeHtml(userLabel)}</span></td>
+                    <td>${scoreCellContent}</td>
+                    <td>${noteCellContent}</td>
+                    <td class="actions">
+                        ${actionsCellContent}
+                    </td>`;
+
+                if (canEdit) {
+                    const scoreInput = row.querySelector('.note-score');
+                    const noteTextarea = row.querySelector('.note-text');
+                    const saveButton = row.querySelector('.save-note');
+                    const deleteButton = row.querySelector('.delete-note');
+
+                    saveButton?.addEventListener('click', async () => {
+                        if (!notesSelectedBottleId || notesLoading) {
+                            return;
+                        }
+
+                        const noteValue = noteTextarea?.value?.trim() ?? '';
+                        if (!noteValue) {
+                            showNotesMessage('Note text is required.', 'error');
+                            return;
+                        }
+
+                        const parsedScore = parseScore(scoreInput?.value ?? '');
+                        if (parsedScore === undefined) {
+                            showNotesMessage('Score must be between 0 and 10.', 'error');
+                            return;
+                        }
+
+                        const payload = {
+                            note: noteValue,
+                            score: parsedScore
+                        };
+
+                        try {
+                            setNoteRowLoading(row, true);
+                            const response = await sendJson(`/wine-manager/notes/${note.id ?? note.Id}`, {
+                                method: 'PUT',
+                                body: JSON.stringify(payload)
+                            });
+                            renderNotes(response);
+                            showNotesMessage('Note updated.', 'success');
+                        } catch (error) {
+                            showNotesMessage(error.message, 'error');
+                        } finally {
+                            setNoteRowLoading(row, false);
+                        }
+                    });
+
+                    deleteButton?.addEventListener('click', async () => {
+                        if (!notesSelectedBottleId || notesLoading) {
+                            return;
+                        }
+
+                        const confirmed = window.confirm('Delete this consumption note?');
+                        if (!confirmed) {
+                            return;
+                        }
+
+                        try {
+                            setNoteRowLoading(row, true);
+                            const response = await sendJson(`/wine-manager/notes/${note.id ?? note.Id}`, {
+                                method: 'DELETE'
+                            });
+                            renderNotes(response);
+                            showNotesMessage('Note deleted.', 'success');
+                        } catch (error) {
+                            showNotesMessage(error.message, 'error');
+                        } finally {
+                            setNoteRowLoading(row, false);
+                        }
+                    });
+                }
+
+                return row;
+            }
+
+            function closeNotesPanel() {
+                if (!notesEnabled || !detailsPanel || !notesPanel) {
+                    return;
+                }
+
+                if (selectedDetailRowElement) {
+                    selectedDetailRowElement.classList.remove('selected');
+                }
+
+                selectedDetailRowElement = null;
+                notesSelectedBottleId = null;
+                detailsPanel.classList.remove('notes-visible');
+                notesPanel.setAttribute('aria-hidden', 'true');
+
+                if (notesBody) {
+                    notesBody.querySelectorAll('.note-row').forEach(r => r.remove());
+                }
+
+                if (notesEmptyRow) {
+                    notesEmptyRow.hidden = false;
+                }
+
+                clearNotesAddInputs();
+                disableNotesAddRow(true);
+                setNotesHeader(null);
+                showNotesMessage('', 'info');
+            }
+
+            async function handleAddNote() {
+                if (!notesEnabled || !notesSelectedBottleId || notesLoading) {
+                    return;
+                }
+
+                const noteValue = notesAddText?.value?.trim() ?? '';
+                if (!noteValue) {
+                    showNotesMessage('Note text is required.', 'error');
+                    return;
+                }
+
+                const parsedScore = parseScore(notesAddScore?.value ?? '');
+                if (parsedScore === undefined) {
+                    showNotesMessage('Score must be between 0 and 10.', 'error');
+                    return;
+                }
+
+                const payload = {
+                    bottleId: notesSelectedBottleId,
+                    note: noteValue,
+                    score: parsedScore
+                };
+
+                try {
+                    setNotesLoading(true);
+                    const response = await sendJson('/wine-manager/notes', {
+                        method: 'POST',
+                        body: JSON.stringify(payload)
+                    });
+                    renderNotes(response);
+                    showNotesMessage('Note saved.', 'success');
+                    clearNotesAddInputs();
+                } catch (error) {
+                    showNotesMessage(error.message, 'error');
+                } finally {
+                    setNotesLoading(false);
+                }
+            }
+
             function normalizeBottleNoteSummary(raw) {
                 if (!raw) {
                     return null;
@@ -4302,7 +4809,7 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                const bottleId = summary.bottleId ?? summary.BottleId ?? null;
+                const bottleId = summary.bottleId ?? summary.BottleId ?? notesSelectedBottleId;
                 const bottleAverage = summary.bottleAverageScore ?? summary.BottleAverageScore ?? null;
                 if (bottleId) {
                     const detailRow = detailsBody.querySelector(`.detail-row[data-bottle-id="${bottleId}"]`);
