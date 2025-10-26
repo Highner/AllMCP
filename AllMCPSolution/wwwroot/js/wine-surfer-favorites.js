@@ -83,43 +83,6 @@
         };
     }
 
-    function normalizeWineSurferResult(raw) {
-        if (!raw) {
-            return null;
-        }
-
-        const nameValue = pick(raw, ['name', 'Name', 'label', 'Label']);
-        if (!nameValue) {
-            return null;
-        }
-
-        const name = String(nameValue).trim();
-        if (!name) {
-            return null;
-        }
-
-        const countryValue = pick(raw, ['country', 'Country']);
-        const regionValue = pick(raw, ['region', 'Region']);
-        const appellationValue = pick(raw, ['appellation', 'Appellation']);
-        const subAppellationValue = pick(raw, ['subAppellation', 'SubAppellation', 'sub_appellation', 'Sub_Appellation']);
-        const colorValue = pick(raw, ['color', 'Color']);
-
-        const country = typeof countryValue === 'string' ? countryValue.trim() : countryValue != null ? String(countryValue).trim() : '';
-        const region = typeof regionValue === 'string' ? regionValue.trim() : regionValue != null ? String(regionValue).trim() : '';
-        const appellation = typeof appellationValue === 'string' ? appellationValue.trim() : appellationValue != null ? String(appellationValue).trim() : '';
-        const subAppellation = typeof subAppellationValue === 'string' ? subAppellationValue.trim() : subAppellationValue != null ? String(subAppellationValue).trim() : '';
-        const color = typeof colorValue === 'string' ? colorValue.trim() : colorValue != null ? String(colorValue).trim() : '';
-
-        return {
-            name,
-            country: country || null,
-            region: region || null,
-            appellation: appellation || null,
-            subAppellation: subAppellation || null,
-            color: color || null
-        };
-    }
-
     function createCreateWineOption(query) {
         const trimmed = (query ?? '').trim();
         const hasQuery = trimmed.length > 0;
@@ -904,7 +867,7 @@
             }
         }
 
-        async function openWineSurferPopover(query) {
+        function openWineSurferPopover(query) {
             if (!wineSurferOverlay || !wineSurferPopover) {
                 return;
             }
@@ -920,50 +883,16 @@
             wineSurferOverlay.classList.add('is-open');
 
             cancelWineSurferRequest();
-            wineSurferLoading = true;
-            wineSurferError = '';
+            wineSurferController = null;
+            wineSurferLoading = false;
+            wineSurferSelectionPending = false;
+            wineSurferError = 'Wine Surfer search is no longer available.';
             wineSurferResults = [];
             wineSurferActiveQuery = trimmedQuery;
             renderWineSurferResults();
 
-            const controller = new AbortController();
-            wineSurferController = controller;
-
-            try {
-                const response = await sendJson(`/wine-manager/wine-surfer?query=${encodeURIComponent(trimmedQuery)}`, {
-                    method: 'GET',
-                    signal: controller.signal
-                });
-
-                if (wineSurferController !== controller) {
-                    return;
-                }
-
-                const items = Array.isArray(response?.wines)
-                    ? response.wines
-                    : [];
-                wineSurferResults = items
-                    .map(normalizeWineSurferResult)
-                    .filter(Boolean);
-                wineSurferError = '';
-            } catch (error) {
-                if (controller.signal.aborted) {
-                    return;
-                }
-
-                wineSurferResults = [];
-                wineSurferError = error?.message ?? 'Wine Surfer could not search right now.';
-            } finally {
-                if (wineSurferController === controller) {
-                    wineSurferController = null;
-                }
-
-                wineSurferLoading = false;
-                renderWineSurferResults();
-
-                if (wineSurferClose) {
-                    wineSurferClose.focus();
-                }
+            if (wineSurferClose) {
+                wineSurferClose.focus();
             }
         }
 
