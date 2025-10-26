@@ -1098,6 +1098,7 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
+                closeDrinkBottleModal();
                 addWineOverlay.hidden = false;
                 addWineOverlay.setAttribute('aria-hidden', 'false');
                 addWineOverlay.classList.add('is-open');
@@ -1134,6 +1135,7 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
+                closeDrinkBottleModal();
                 closeWineSurferPopover({ restoreFocus: false });
                 setModalLoading(false);
                 addWineOverlay.classList.remove('is-open');
@@ -2477,6 +2479,9 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
+                closeAddWinePopover();
+                closeWineSurferPopover({ restoreFocus: false });
+
                 const bottleId = detail?.bottleId ?? detail?.BottleId ?? '';
                 if (!bottleId) {
                     showMessage('Unable to determine the selected bottle.', 'error');
@@ -2537,6 +2542,7 @@ window.WineInventoryTables.initialize = function () {
                 setDrinkModalLoading(false);
 
                 drinkOverlay.hidden = false;
+                drinkOverlay.setAttribute('aria-hidden', 'false');
                 drinkOverlay.classList.add('is-open');
                 document.body.style.overflow = 'hidden';
 
@@ -2551,6 +2557,7 @@ window.WineInventoryTables.initialize = function () {
                 drinkTarget = null;
                 setDrinkModalLoading(false);
                 drinkOverlay.classList.remove('is-open');
+                drinkOverlay.setAttribute('aria-hidden', 'true');
                 drinkOverlay.hidden = true;
                 document.body.style.overflow = '';
 

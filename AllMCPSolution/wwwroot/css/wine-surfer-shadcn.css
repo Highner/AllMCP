@@ -1434,6 +1434,10 @@ textarea:focus {
     justify-content: space-between;
 }
 
+.drink-bottle-modal__header {
+    justify-content: space-between;
+}
+
 .inventory-add-title {
     font-size: 1.4rem;
     letter-spacing: 0.6px;
