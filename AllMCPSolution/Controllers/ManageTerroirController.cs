@@ -243,6 +243,7 @@ public class ManageTerroirController : WineSurferControllerBase
                     email,
                     domainUserSummary,
                     domainUserProfile,
+                    domainUser?.SuggestionBudget,
                     isAdmin);
             }
 

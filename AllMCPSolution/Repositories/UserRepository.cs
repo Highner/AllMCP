@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Identity;
@@ -19,7 +20,13 @@ public interface IUserRepository
     Task AddAsync(ApplicationUser user, CancellationToken ct = default);
     Task UpdateAsync(ApplicationUser user, CancellationToken ct = default);
     Task<ApplicationUser?> UpdateDisplayNameAsync(Guid id, string displayName, CancellationToken ct = default);
-    Task<ApplicationUser?> UpdateTasteProfileAsync(Guid id, Guid? tasteProfileId, string tasteProfile, string? tasteProfileSummary, CancellationToken ct = default);
+    Task<ApplicationUser?> UpdateTasteProfileAsync(
+        Guid id,
+        Guid? tasteProfileId,
+        string tasteProfile,
+        string? tasteProfileSummary,
+        decimal? suggestionBudget,
+        CancellationToken ct = default);
     Task<TasteProfile?> AddGeneratedTasteProfileAsync(Guid id, string tasteProfile, string? tasteProfileSummary, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 }
@@ -265,6 +272,8 @@ public class UserRepository : IUserRepository
             existing.UserName = existing.Name;
         }
 
+        existing.SuggestionBudget = NormalizeSuggestionBudget(user.SuggestionBudget);
+
         var updateTarget = TasteProfileUtilities.GetActiveTasteProfile(user);
 
         if (updateTarget is not null || (user.TasteProfiles?.Count ?? 0) > 0)
@@ -315,7 +324,13 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.Id == id, ct);
     }
 
-    public async Task<ApplicationUser?> UpdateTasteProfileAsync(Guid id, Guid? tasteProfileId, string tasteProfile, string? tasteProfileSummary, CancellationToken ct = default)
+    public async Task<ApplicationUser?> UpdateTasteProfileAsync(
+        Guid id,
+        Guid? tasteProfileId,
+        string tasteProfile,
+        string? tasteProfileSummary,
+        decimal? suggestionBudget,
+        CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -331,6 +346,8 @@ public class UserRepository : IUserRepository
         var (normalizedProfile, normalizedSummary) = NormalizeTasteProfileValues(tasteProfile, tasteProfileSummary);
 
         ApplyManualTasteProfileUpdate(user, normalizedProfile, normalizedSummary, tasteProfileId);
+
+        user.SuggestionBudget = NormalizeSuggestionBudget(suggestionBudget);
 
         NormalizeUser(user);
 
@@ -459,6 +476,8 @@ public class UserRepository : IUserRepository
 
     private void NormalizeUser(ApplicationUser user)
     {
+        user.SuggestionBudget = NormalizeSuggestionBudget(user.SuggestionBudget);
+
         if (!string.IsNullOrWhiteSpace(user.Name))
         {
             var trimmed = user.Name.Trim();
@@ -471,6 +490,23 @@ public class UserRepository : IUserRepository
         {
             user.UserName = user.UserName.Trim();
         }
+    }
+
+    private static decimal? NormalizeSuggestionBudget(decimal? suggestionBudget)
+    {
+        if (!suggestionBudget.HasValue)
+        {
+            return null;
+        }
+
+        var value = suggestionBudget.Value;
+
+        if (value < 0)
+        {
+            value = 0;
+        }
+
+        return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
     }
 
     private static void EnsureSucceeded(IdentityResult result, string message)
