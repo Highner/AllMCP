@@ -106,7 +106,7 @@
         }
 
         try {
-            const response = await fetch(`/wine-inventory/bottles/${wineVintageId}`, {
+            const response = await fetch(`/wine-manager/bottles/${wineVintageId}`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json'
