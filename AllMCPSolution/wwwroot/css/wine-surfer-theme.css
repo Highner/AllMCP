@@ -562,6 +562,10 @@ a.wine-card:focus {
     .bottle-management-actions {
         justify-content: flex-start;
     }
+
+    .bottle-management-table .bottle-management-col-price {
+        display: none;
+    }
 }
 
 .wishlist-fieldset {
