@@ -495,6 +495,8 @@
 
         @await Html.PartialAsync("_InventoryAddModal", Model.InventoryAddModal)
 
+        @await Html.PartialAsync("_BottleManagementModal")
+
         @await Html.PartialAsync("_DrinkBottleModal", AllMCPSolution.Models.DrinkBottleModalViewModel.Default)
     </main>
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
