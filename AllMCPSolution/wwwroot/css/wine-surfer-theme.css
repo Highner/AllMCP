@@ -482,6 +482,49 @@ a.wine-card:focus {
     justify-content: space-between;
 }
 
+.bottle-management-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.bottle-management-control {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.875rem;
+    color: rgba(244, 241, 234, 0.85);
+}
+
+.bottle-management-control-label {
+    font-weight: 600;
+}
+
+.bottle-management-select {
+    appearance: none;
+    background-color: rgba(16, 16, 20, 0.6);
+    border: 1px solid rgba(244, 241, 234, 0.16);
+    border-radius: 10px;
+    color: #f4f1ea;
+    padding: 6px 12px;
+    min-width: 140px;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.bottle-management-select:focus {
+    outline: none;
+    border-color: rgba(244, 241, 234, 0.32);
+    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.14);
+}
+
+.bottle-management-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .bottle-management-table-title {
     margin: 0;
     font-size: 1.125rem;
@@ -502,6 +545,10 @@ a.wine-card:focus {
 
     .bottle-management-table-section {
         gap: 14px;
+    }
+
+    .bottle-management-actions {
+        justify-content: flex-start;
     }
 }
 
