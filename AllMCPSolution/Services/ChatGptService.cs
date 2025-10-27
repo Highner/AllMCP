@@ -213,6 +213,7 @@ public sealed record ChatGptOptions
 
     public string? ApiKey { get; init; }
     public string? DefaultModel { get; init; }
+    public string? WebSearchModel { get; init; }
 }
 
 public sealed class ChatGptServiceNotConfiguredException : InvalidOperationException
