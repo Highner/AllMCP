@@ -278,54 +278,7 @@
                     countCell.textContent = displayCount;
                 }
 
-                bindVintageInlineRow(templateRow, vintage);
                 tbody.appendChild(templateRow);
-            });
-        }
-
-        function bindVintageInlineRow(row, vintage) {
-            if (!(row instanceof HTMLTableRowElement)) {
-                return;
-            }
-
-            const rawId = vintage?.wineVintageId ?? '';
-            const wineVintageId = typeof rawId === 'string'
-                ? rawId
-                : (rawId != null ? String(rawId) : '');
-
-            if (!wineVintageId) {
-                row.classList.remove('inventory-inline-row--interactive');
-                row.removeAttribute('tabindex');
-                row.removeAttribute('role');
-                return;
-            }
-
-            row.dataset.wineVintageId = wineVintageId;
-            row.classList.add('inventory-inline-row--interactive');
-            row.setAttribute('tabindex', '0');
-            row.setAttribute('role', 'button');
-
-            const vintageLabel = formatVintageLabel(vintage?.vintage);
-            const countValue = typeof vintage?.count === 'number' ? vintage.count : 0;
-            const bottleNoun = countValue === 1 ? 'bottle' : 'bottles';
-            row.setAttribute('aria-label', `View ${countValue} ${bottleNoun} from vintage ${vintageLabel}`);
-
-            const openBottleModal = () => {
-                if (window.BottleManagementModal?.open) {
-                    window.BottleManagementModal.open(wineVintageId);
-                }
-            };
-
-            row.addEventListener('click', (event) => {
-                event.preventDefault();
-                openBottleModal();
-            });
-
-            row.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    openBottleModal();
-                }
             });
         }
 
