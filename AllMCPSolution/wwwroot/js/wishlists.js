@@ -95,6 +95,220 @@
     });
   }
 
+  function wishlistTableBody(){
+    return qs('[data-crud-table="wishlist-wines"] tbody');
+  }
+
+  function normalizeWishlistName(optionText){
+    if (typeof optionText !== 'string') return '';
+    const idx = optionText.lastIndexOf(' (');
+    const name = idx >= 0 ? optionText.substring(0, idx) : optionText;
+    return name.trim();
+  }
+
+  function updateWishlistTitle(forcedName){
+    const titleEl = qs('[data-crud-table="wishlist-wines"] .crud-table__title');
+    if (!titleEl) return;
+
+    let titleText = '';
+    if (typeof forcedName === 'string' && forcedName.trim().length > 0) {
+      titleText = forcedName.trim();
+    } else {
+      const option = currentWishlistOption();
+      titleText = normalizeWishlistName(option?.textContent ?? '') || 'Wishlist';
+    }
+
+    titleEl.textContent = titleText;
+  }
+
+  function renderWishlistMessage(message){
+    const tbody = wishlistTableBody();
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 3;
+    cell.className = 'empty-state';
+    cell.textContent = message;
+    row.appendChild(cell);
+    tbody.appendChild(row);
+  }
+
+  function renderWishlistItems(items){
+    const tbody = wishlistTableBody();
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    if (!Array.isArray(items) || items.length === 0) {
+      renderWishlistMessage('No wines in this wishlist yet.');
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    items.forEach(item => {
+      const row = document.createElement('tr');
+      row.className = 'crud-table__row';
+
+      const wineCell = document.createElement('td');
+      wineCell.className = 'summary-cell summary-cell--wine';
+      const wineLink = document.createElement('a');
+      wineLink.className = 'link';
+      const wineId = item?.wineId ? String(item.wineId) : '';
+      wineLink.href = wineId ? `/wine/${wineId}` : '#';
+      wineLink.textContent = (item?.name ?? '').trim() || 'Wine';
+      wineCell.appendChild(wineLink);
+      row.appendChild(wineCell);
+
+      const appellationCell = document.createElement('td');
+      appellationCell.className = 'summary-cell summary-cell--appellation';
+      const appellation = document.createElement('span');
+      appellation.className = 'appellation';
+      appellation.textContent = (item?.appellation ?? '').trim();
+      appellationCell.appendChild(appellation);
+      const regionText = (item?.region ?? '').trim();
+      if (regionText) {
+        const region = document.createElement('span');
+        region.className = 'region';
+        region.textContent = ` (${regionText})`;
+        appellationCell.appendChild(region);
+      }
+      row.appendChild(appellationCell);
+
+      const vintageCell = document.createElement('td');
+      vintageCell.className = 'summary-cell summary-cell--vintage';
+      const vintage = Number.parseInt(item?.vintage, 10);
+      vintageCell.textContent = Number.isFinite(vintage) ? String(vintage) : '';
+      row.appendChild(vintageCell);
+
+      fragment.appendChild(row);
+    });
+
+    tbody.appendChild(fragment);
+  }
+
+  async function fetchWishlistSummaries(){
+    const response = await fetch('/wine-manager/wishlists', { headers: { 'Accept': 'application/json' }});
+    if (!response.ok) {
+      const message = await handleFetchError(response);
+      throw new Error(message || 'Unable to load wishlists.');
+    }
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  }
+
+  function setWishlistOptions(wishlists, preferredId){
+    if (!selectEl) return null;
+
+    const lists = Array.isArray(wishlists) ? wishlists.slice() : [];
+    lists.sort((a, b) => {
+      const nameA = (a?.name ?? '').toString().toLowerCase();
+      const nameB = (b?.name ?? '').toString().toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    const previousValue = currentWishlistId();
+    const ids = new Set(lists.map(entry => entry?.id ? String(entry.id) : ''));
+
+    let selectedId = null;
+    if (previousValue && ids.has(previousValue)) {
+      selectedId = previousValue;
+    } else if (preferredId && ids.has(preferredId)) {
+      selectedId = preferredId;
+    } else if (lists.length > 0) {
+      const first = lists.find(entry => entry?.id);
+      selectedId = first ? String(first.id) : null;
+    }
+
+    selectEl.innerHTML = '';
+
+    if (lists.length === 0) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'No wishlists yet';
+      option.selected = true;
+      selectEl.appendChild(option);
+      selectEl.value = '';
+      return null;
+    }
+
+    const fragment = document.createDocumentFragment();
+    lists.forEach(entry => {
+      if (!entry?.id) {
+        return;
+      }
+      const option = document.createElement('option');
+      const id = String(entry.id);
+      option.value = id;
+      const name = (entry.name ?? '').toString().trim() || 'Wishlist';
+      const count = Number.isFinite(entry.wishCount) ? entry.wishCount : 0;
+      option.textContent = `${name} (${count})`;
+      if (selectedId && id === selectedId) {
+        option.selected = true;
+      }
+      fragment.appendChild(option);
+    });
+
+    selectEl.appendChild(fragment);
+    if (selectedId) {
+      selectEl.value = selectedId;
+    }
+
+    return selectedId;
+  }
+
+  async function refreshWishlistOptions(preferredId){
+    try {
+      const wishlists = await fetchWishlistSummaries();
+      const selectedId = setWishlistOptions(wishlists, preferredId);
+      updateWishlistTitle();
+      return selectedId;
+    } catch (error) {
+      console.error('Unable to refresh wishlist options', error);
+      return currentWishlistId();
+    }
+  }
+
+  async function refreshWishlistItems(wishlistId){
+    if (!wishlistId) {
+      return;
+    }
+
+    renderWishlistMessage('Updating wishlist…');
+    try {
+      const response = await fetch(`/wine-manager/wishlists/${encodeURIComponent(wishlistId)}/wishes`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!response.ok) {
+        const message = await handleFetchError(response);
+        throw new Error(message || 'Unable to update wishlist.');
+      }
+      const data = await response.json();
+      renderWishlistItems(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Unable to refresh wishlist items', error);
+      renderWishlistMessage(error?.message || 'Unable to update wishlist right now.');
+    }
+  }
+
+  async function handleWishlistAdded(event){
+    if (!selectEl) {
+      return;
+    }
+
+    const detail = event?.detail ?? {};
+    const wishlistId = detail?.wishlistId ? String(detail.wishlistId) : '';
+    const wishlistName = typeof detail?.wishlistName === 'string' ? detail.wishlistName : '';
+
+    const selectedId = await refreshWishlistOptions(wishlistId);
+
+    if (wishlistId && selectedId === wishlistId) {
+      await refreshWishlistItems(wishlistId);
+      updateWishlistTitle(wishlistName);
+    } else {
+      updateWishlistTitle();
+    }
+  }
+
   if (addWineTrigger) {
     addWineTrigger.addEventListener('click', (event) => {
       const openWishlist = window.wishlistPopover?.open;
@@ -229,6 +443,12 @@
     if (!overlay) return;
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) closeOverlay(overlay);
+    });
+  });
+
+  document.addEventListener('wishlist:added', (event) => {
+    handleWishlistAdded(event).catch(error => {
+      console.error('Wishlist update failed', error);
     });
   });
 })();
