@@ -53,14 +53,12 @@
     var yourCellarTable = new CrudTableTemplateModel
     {
         TitleContent = @<text>
-            @(await Html.PartialAsync("_InventorySectionHeader", new InventorySectionHeaderModel
-            {
-                Title = "Your Cellar",
-                AdditionalCssClass = "location-header--table",
-                Actions = @<button type="button"
-                                   class="wine-surfer-button wine-surfer-button--orange inventory-add-trigger"
-                                   data-add-wine-trigger="inventory">Add wine</button>
-            }))
+            <div class="location-header location-header--table">
+                <h2 class="location-title">Your Cellar</h2>
+                <button type="button"
+                        class="wine-surfer-button wine-surfer-button--orange inventory-add-trigger"
+                        data-add-wine-trigger="inventory">Add wine</button>
+            </div>
         </text>,
         DataTableKey = "summary",
         BackgroundCssClass = "crud-table crud-table--bare",
@@ -194,13 +192,10 @@
                 <section id="inventory-locations"
                          class="inventory-locations"
                          data-current-user-id="@Model.CurrentUserId">
-                    @(await Html.PartialAsync("_InventorySectionHeader", new InventorySectionHeaderModel
-                    {
-                        Title = "Storage Locations",
-                        Actions = @<button type="button"
-                                           class="wine-surfer-button wine-surfer-button--orange"
-                                           data-location-add>Add location</button>
-                    }))
+            <div class="location-header">
+                <h2 class="location-title">Storage Locations</h2>
+                <button type="button" class="wine-surfer-button wine-surfer-button--orange" data-location-add>Add location</button>
+            </div>
             <div class="location-message" data-location-message hidden aria-live="polite"></div>
             <div class="location-grid" data-location-list>
                 <article class="wine-card wine-surface wine-surface-border wine-card-hover location-card location-card--create"
@@ -448,12 +443,10 @@
                 </section>
 
                 <section class="inventory-filters">
+                    <div class="location-header">
+                        <h2 class="location-title">Filters</h2>
+                    </div>
                     <form method="get" class="filters">
-                        @(await Html.PartialAsync("_InventorySectionHeader", new InventorySectionHeaderModel
-                        {
-                            Title = "Filters",
-                            Actions = @<button type="submit" class="wine-surfer-button wine-surfer-button--orange">Apply</button>
-                        }))
                         <label>
                             Status
                             <select name="status" data-default-value="all">
@@ -482,6 +475,7 @@
                         </label>
                         <input type="hidden" name="sortField" value="@Model.SortField" data-default-value="wine" />
                         <input type="hidden" name="sortDir" value="@Model.SortDirection" data-default-value="asc" />
+                        <button type="submit" class="wine-surfer-button wine-surfer-button--orange">Apply</button>
                         <button type="button" class="wine-surfer-button wine-surfer-button--red filters__clear-button" data-clear-filters>Clear filters</button>
                     </form>
                 </section>
