@@ -2,6 +2,7 @@ using System.ClientModel;
 using System.Globalization;
 using System.Security.Claims;
 using AllMCPSolution.Repositories;
+using AllMCPSolution.Services;
 using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -19,6 +20,7 @@ public class SurfEyeController: WineSurferControllerBase
     private readonly IWineRepository _wineRepository;
     private readonly IChatGptPromptService _chatGptPromptService;
     private readonly IChatGptService _chatGptService;
+    private readonly IOcrService _ocrService;
 
     private const int SurfEyeMaxUploadBytes = 8 * 1024 * 1024;
     private static readonly string[] SurfEyeSupportedContentTypes = new[] { "image/jpeg", "image/png", "image/webp" };
@@ -35,6 +37,7 @@ public class SurfEyeController: WineSurferControllerBase
         IWineSurferTopBarService topBarService,
         IChatGptPromptService chatGptPromptService,
         IChatGptService chatGptService,
+        IOcrService ocrService,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _bottleLocationRepository = bottleLocationRepository;
@@ -42,6 +45,7 @@ public class SurfEyeController: WineSurferControllerBase
         _chatGptPromptService = chatGptPromptService;
         _topBarService = topBarService;
         _chatGptService = chatGptService;
+        _ocrService = ocrService;
     }
     
     [Authorize]
@@ -140,6 +144,38 @@ public class SurfEyeController: WineSurferControllerBase
             ? _chatGptPromptService.BuildSurfEyePrompt(tasteProfileSummary, normalizedTasteProfile!)
             : _chatGptPromptService.BuildSurfEyePromptWithoutTasteProfile();
 
+        // Run OCR on the uploaded image using Azure Vision OCR service
+        string? ocrText = null;
+        try
+        {
+            await using var ocrStream = new MemoryStream(imageBytes);
+            var ocrResult = await _ocrService.ExtractTextAsync(ocrStream, cancellationToken);
+            if (ocrResult?.Lines is { Count: > 0 })
+            {
+                ocrText = string.Join("\n", ocrResult.Lines.Select(l => l.Text).Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+                if (string.IsNullOrWhiteSpace(ocrText))
+                {
+                    ocrText = null;
+                }
+            }
+        }
+        catch(Exception ex)
+        {
+            // If OCR fails, proceed without it.
+            ocrText = null;
+        }
+
+        // Compose the chat messages: system prompt, then user prompt with image and extracted text if available
+        var parts = new List<ChatMessageContentPart>
+        {
+            ChatMessageContentPart.CreateTextPart(prompt),
+            ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(imageBytes), normalizedContentType, ChatImageDetailLevel.High)
+        };
+        if (!string.IsNullOrWhiteSpace(ocrText))
+        {
+            parts.Add(ChatMessageContentPart.CreateTextPart($"OCR detected text from image (verbatim):\n{ocrText}"));
+        }
+
         ChatCompletion completion;
         try
         {
@@ -147,11 +183,7 @@ public class SurfEyeController: WineSurferControllerBase
                 new ChatMessage[]
                 {
                     new SystemChatMessage(_chatGptPromptService.SurfEyeSystemPrompt),
-                    new UserChatMessage(new[]
-                    {
-                        ChatMessageContentPart.CreateTextPart(prompt),
-                        ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(imageBytes), normalizedContentType, ChatImageDetailLevel.High)
-                    })
+                    new UserChatMessage(parts)
                 },
                 ct: cancellationToken);
         }

@@ -62,6 +62,8 @@ builder.Services.AddScoped<IChatGptPromptService, ChatGptPromptService>();
 builder.Services.AddScoped<IWineCatalogService, WineCatalogService>();
 builder.Services.AddScoped<ISuggestedAppellationService, SuggestedAppellationService>();
 
+builder.Services.AddScoped<IOcrService, AzureVisionOcrService>();
+
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
     {

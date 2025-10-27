@@ -183,4 +183,130 @@
     } else {
         ensureInitialized();
     }
+    // --- Begin: Drink Bottle Modal integration for Bottle Management context ---
+    (function attachDrinkModalHandlerOnce(){
+        if (global.__BottleManagementDrinkHandlerBound) {
+            return;
+        }
+        global.__BottleManagementDrinkHandlerBound = true;
+
+        async function sendJson(url, options) {
+            const defaultHeaders = {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            };
+
+            const opts = Object.assign({ method: 'GET' }, options || {});
+            // Merge headers so caller-supplied headers (e.g., anti-forgery token) don't wipe defaults
+            const callerHeaders = (opts && opts.headers) ? opts.headers : {};
+            opts.headers = Object.assign({}, defaultHeaders, callerHeaders);
+
+            // If sending a JSON body and Content-Type is missing/null, set it
+            if (opts.body != null && !opts.headers['Content-Type']) {
+                opts.headers['Content-Type'] = 'application/json';
+            }
+
+            const res = await fetch(url, opts);
+            const text = await res.text();
+            let data = null;
+            try {
+                data = text ? JSON.parse(text) : null;
+            } catch {
+                data = null;
+            }
+            if (!res.ok) {
+                const msg = (data && (data.message || data.error)) || text || 'Request failed.';
+                throw new Error(typeof msg === 'string' ? msg : 'Request failed.');
+            }
+            return data;
+        }
+
+        function getAntiForgeryToken() {
+            const formToken = document.querySelector('#drink-bottle-popover form input[name="__RequestVerificationToken"]');
+            return formToken ? formToken.value : '';
+        }
+
+        window.addEventListener('drinkmodal:submit', (event) => {
+            const d = event && event.detail;
+            // Handle only when Bottle Management modal is open; otherwise let other contexts handle it
+            if (!d || !global.BottleManagementModal || !global.BottleManagementModal.isOpen()) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const promise = (async () => {
+                const bottleId = (d.bottleId || '').toString();
+                if (!bottleId) {
+                    d.showError && d.showError('Unable to determine the selected bottle.');
+                    throw new Error('Unable to determine the selected bottle.');
+                }
+
+                const noteOnly = d.noteOnly === true || d.noteOnly === 'true' || d.noteOnly === 1 || d.noteOnly === '1';
+                const token = getAntiForgeryToken();
+
+                const headers = token ? { 'RequestVerificationToken': token } : undefined;
+
+                // If not note-only, mark bottle as drunk (or update drunk state) first
+                if (!noteOnly) {
+                    const payload = {
+                        isDrunk: true,
+                        drunkAt: d.date || null
+                    };
+                    // Try PUT /bottles/{id}, fallback to POST /bottles/{id}/drink
+                    try {
+                        await sendJson(`/wine-manager/bottles/${encodeURIComponent(bottleId)}`, {
+                            method: 'PUT',
+                            headers,
+                            body: JSON.stringify(payload)
+                        });
+                    } catch (err) {
+                        // Fallback endpoint
+                        try {
+                            await sendJson(`/wine-manager/bottles/${encodeURIComponent(bottleId)}/drink`, {
+                                method: 'POST',
+                                headers,
+                                body: JSON.stringify(payload)
+                            });
+                        } catch {
+                            throw err;
+                        }
+                    }
+                }
+
+                // Now upsert tasting note
+                const notePayload = {
+                    note: d.note || '',
+                    score: d.score
+                };
+                let noteUrl = '/wine-manager/notes';
+                let noteMethod = 'POST';
+                if (d.noteId) {
+                    noteUrl = `/wine-manager/notes/${encodeURIComponent(d.noteId)}`;
+                    noteMethod = 'PUT';
+                } else {
+                    notePayload.bottleId = bottleId;
+                }
+
+                await sendJson(noteUrl, {
+                    method: noteMethod,
+                    headers,
+                    body: JSON.stringify(notePayload)
+                });
+
+                const successMessage = noteOnly ? 'Tasting note saved.' : 'Bottle marked as drunk and tasting note saved.';
+                return { message: successMessage };
+            })();
+
+            if (d && typeof d.setSubmitPromise === 'function') {
+                d.setSubmitPromise(promise);
+            }
+            if (d && typeof d.setSuccessMessage === 'function') {
+                const isNoteOnly = d.noteOnly === true || d.noteOnly === 'true' || d.noteOnly === 1 || d.noteOnly === '1';
+                d.setSuccessMessage(isNoteOnly ? 'Tasting note saved.' : 'Bottle marked as drunk and tasting note saved.');
+            }
+        });
+    })();
+    // --- End: Drink Bottle Modal integration ---
 })(window);
