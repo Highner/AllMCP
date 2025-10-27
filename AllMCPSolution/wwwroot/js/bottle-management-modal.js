@@ -4,8 +4,7 @@
         overlay: null,
         dialog: null,
         container: null,
-        lastFocusedElement: null,
-        context: null
+        lastFocusedElement: null
     };
 
     function ensureInitialized() {
@@ -75,17 +74,6 @@
 
         state.lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
-        const context = options.context && typeof options.context === 'object' ? options.context : null;
-        state.context = context;
-
-        if (state.dialog) {
-            if (context?.wineVintageId) {
-                state.dialog.dataset.wineVintageId = String(context.wineVintageId);
-            } else {
-                delete state.dialog.dataset.wineVintageId;
-            }
-        }
-
         state.overlay.hidden = false;
         state.overlay.setAttribute('aria-hidden', 'false');
         state.overlay.classList.add('is-open');
@@ -104,8 +92,7 @@
 
         state.dialog.dispatchEvent(new CustomEvent('bottle-management-modal:opened', {
             detail: {
-                source: options.source ?? 'api',
-                context
+                source: options.source ?? 'api'
             }
         }));
 
@@ -120,8 +107,7 @@
         }
 
         const detail = {
-            source: options.source ?? 'api',
-            context: state.context
+            source: options.source ?? 'api'
         };
 
         const closingEvent = new CustomEvent('bottle-management-modal:closing', {
@@ -143,12 +129,6 @@
         state.dialog.dispatchEvent(new CustomEvent('bottle-management-modal:closed', {
             detail
         }));
-
-        if (state.dialog) {
-            delete state.dialog.dataset.wineVintageId;
-        }
-
-        state.context = null;
 
         const shouldRestoreFocus = options.restoreFocus !== false;
         if (shouldRestoreFocus && state.lastFocusedElement && typeof state.lastFocusedElement.focus === 'function') {
