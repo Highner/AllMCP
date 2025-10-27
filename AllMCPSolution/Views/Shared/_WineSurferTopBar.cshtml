@@ -50,6 +50,8 @@
         currentPath = "/";
     }
 
+    var mainViewUrl = Url.Action("Index", "WineSurfer") ?? "/wine-surfer";
+
     var visibleNavItems = navItems
         .Where(item => !string.Equals(item.Href, currentPath, StringComparison.OrdinalIgnoreCase))
         .ToList();
@@ -345,6 +347,7 @@
         </button>
     </div>
     <nav id="menuPanel" class="menu-panel" aria-hidden="true">
+        <a class="menu-home-button" href="@mainViewUrl">Main view</a>
         @if (visibleNavItems.Count > 0)
         {
             <div class="menu-links">
