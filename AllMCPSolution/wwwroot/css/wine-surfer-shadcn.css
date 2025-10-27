@@ -1970,6 +1970,62 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     background: hsla(var(--accent) / 0.7);
 }
 
+.inventory-inline-shell {
+    padding: 18px 24px;
+    border-radius: var(--radius);
+    display: block;
+}
+
+.inventory-inline-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+}
+
+.inventory-inline-table thead th {
+    text-align: left;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: hsla(var(--muted-foreground) / 0.9);
+    padding: 0 0 10px;
+}
+
+.inventory-inline-table td {
+    padding: 10px 0;
+    border-top: 1px solid hsla(var(--border) / 0.55);
+    font-size: 0.95rem;
+}
+
+.inventory-inline-table tbody tr:first-child td {
+    border-top: 1px solid hsla(var(--border) / 0.55);
+}
+
+.inventory-inline-vintage {
+    color: hsla(var(--foreground) / 0.95);
+}
+
+.inventory-inline-count,
+.inventory-inline-count-header {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.inventory-inline-status,
+.inventory-inline-empty {
+    font-size: 0.95rem;
+    color: hsla(var(--muted-foreground) / 0.9);
+}
+
+.inventory-inline-status {
+    display: block;
+}
+
+.inventory-inline-status--error {
+    color: hsla(var(--destructive-foreground) / 0.95);
+}
+
 .summary-group-row {
     background: hsla(var(--accent) / 0.08);
     cursor: pointer;
