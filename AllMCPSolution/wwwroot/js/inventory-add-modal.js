@@ -199,6 +199,28 @@
         const wineSurferIntro = wineSurferPopover?.querySelector('.inventory-wine-surfer-intro');
         const wineSurferQueryLabel = wineSurferPopover?.querySelector('.inventory-wine-surfer-query');
         const statusMessage = document.querySelector('[data-favorite-message]');
+        const inventoryStatusStorageKey = 'wine-inventory:last-status';
+
+        let persistedInventoryStatus = null;
+        try {
+            persistedInventoryStatus = sessionStorage.getItem(inventoryStatusStorageKey);
+            if (persistedInventoryStatus) {
+                sessionStorage.removeItem(inventoryStatusStorageKey);
+            }
+        } catch {
+            persistedInventoryStatus = null;
+        }
+
+        if (persistedInventoryStatus && statusMessage) {
+            try {
+                const parsedStatus = JSON.parse(persistedInventoryStatus);
+                if (parsedStatus && parsedStatus.message) {
+                    showStatus(parsedStatus.message, parsedStatus.state ?? 'success');
+                }
+            } catch {
+                showStatus(persistedInventoryStatus, 'success');
+            }
+        }
 
         let wineOptions = [];
         let selectedWineOption = null;
@@ -655,10 +677,28 @@
                     method: 'POST',
                     body: JSON.stringify({ wineId, vintage: vintageValue, quantity: quantityValue, bottleLocationId: locationValue || null })
                 });
-                closeModal();
                 const message = quantityValue === 1
                     ? 'Bottle added to your inventory.'
                     : `${quantityValue} bottles added to your inventory.`;
+
+                const isInventoryView = document.getElementById('inventory-table') instanceof HTMLTableElement;
+                if (isInventoryView) {
+                    try {
+                        sessionStorage.setItem(inventoryStatusStorageKey, JSON.stringify({ message, state: 'success' }));
+                    } catch {
+                        try {
+                            sessionStorage.removeItem(inventoryStatusStorageKey);
+                        } catch {
+                            // Ignore storage cleanup errors
+                        }
+                    }
+
+                    closeModal();
+                    window.location.reload();
+                    return;
+                }
+
+                closeModal();
                 showStatus(message, 'success');
             } catch (error) {
                 showError(error?.message ?? 'Unable to add wine to your inventory.');
