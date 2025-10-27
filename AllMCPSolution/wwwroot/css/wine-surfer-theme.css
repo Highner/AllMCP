@@ -16,15 +16,21 @@ body.wine-app {
 }
 
 body.wine-app--with-bottom-nav {
-    --wine-surfer-left-gutter: 120px;
+    --wine-surfer-side-nav-offset: 32px;
+    --wine-surfer-side-nav-width: 96px;
+    --wine-surfer-side-nav-gap: 24px;
+    --wine-surfer-left-gutter: calc(
+        var(--wine-surfer-side-nav-offset) +
+        var(--wine-surfer-side-nav-width) +
+        var(--wine-surfer-side-nav-gap)
+    );
     padding-left: var(--wine-surfer-left-gutter);
     padding-bottom: 48px;
 }
 
-@supports (padding-left: calc(120px + env(safe-area-inset-left))) {
+@supports (padding-left: calc(1px + env(safe-area-inset-left))) {
     body.wine-app--with-bottom-nav {
-        --wine-surfer-left-gutter: calc(120px + env(safe-area-inset-left));
-        padding-left: var(--wine-surfer-left-gutter);
+        --wine-surfer-side-nav-offset: calc(32px + env(safe-area-inset-left));
     }
 }
 
@@ -32,7 +38,8 @@ body.wine-app--with-bottom-nav {
     position: fixed;
     top: 50%;
     bottom: auto;
-    left: 32px;
+    left: var(--wine-surfer-side-nav-offset);
+    width: var(--wine-surfer-side-nav-width);
     display: flex;
     justify-content: center;
     padding: 24px 0;
@@ -55,6 +62,7 @@ body.wine-app--with-bottom-nav {
     box-shadow: 0 18px 40px rgba(5, 5, 5, 0.6);
     backdrop-filter: blur(14px);
     pointer-events: auto;
+    width: 100%;
 }
 
 .bottom-nav__item {
@@ -110,13 +118,13 @@ body.wine-app--with-bottom-nav {
 
 @media (max-width: 1024px) and (orientation: landscape) {
     body.wine-app--with-bottom-nav {
-        --wine-surfer-left-gutter: 88px;
-        padding-left: var(--wine-surfer-left-gutter);
+        --wine-surfer-side-nav-offset: 20px;
+        --wine-surfer-side-nav-width: 88px;
+        --wine-surfer-side-nav-gap: 16px;
         padding-bottom: 32px;
     }
 
     .wine-surfer-bottom-nav {
-        left: 20px;
         padding: 12px 0;
         max-height: calc(100vh - 32px);
     }
@@ -146,6 +154,9 @@ body.wine-app--with-bottom-nav {
 
 @media (max-width: 768px) and (orientation: portrait) {
     body.wine-app--with-bottom-nav {
+        --wine-surfer-side-nav-offset: 0px;
+        --wine-surfer-side-nav-width: auto;
+        --wine-surfer-side-nav-gap: 0px;
         --wine-surfer-left-gutter: 0px;
         padding-left: 0;
         padding-bottom: 120px;
@@ -155,6 +166,7 @@ body.wine-app--with-bottom-nav {
         top: auto;
         bottom: 16px;
         left: 50%;
+        width: auto;
         padding: 0 24px;
         transform: translateX(-50%);
     }
