@@ -20,6 +20,7 @@
 
     var navItems = new (string Href, string Label, bool RequiresAuthentication, string IconKey)[]
     {
+        ("/", "Home", false, "home"),
         ("/wine-manager", "Inventory", false, "inventory"),
         ("/wine-surfer/surf-eye", "Surf Eye", true, "surf-eye"),
         ("/wine-surfer/taste-profile", "Taste Profile", true, "taste-profile"),
@@ -56,6 +57,13 @@
                         <span class="bottom-nav__icon" aria-hidden="true">
                             @switch (item.IconKey)
                             {
+                                case "home":
+                                    <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                                        <path d="M3 11.5 12 4l9 7.5"></path>
+                                        <path d="M5 10v10h14V10"></path>
+                                        <path d="M10 17h4"></path>
+                                    </svg>
+                                    break;
                                 case "inventory":
                                     <svg viewBox="0 0 24 24" role="presentation" focusable="false">
                                         <rect x="4" y="4" width="16" height="16" rx="2"></rect>
