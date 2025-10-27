@@ -1,6 +1,7 @@
 @model AllMCPSolution.Controllers.WineSurferSipSessionDetailViewModel
 @using AllMCPSolution.Controllers
 @using AllMCPSolution.Models
+@using System.Linq
 
 @{
     Layout = null;
@@ -33,6 +34,24 @@
         var localDate = NormalizeDateTime(session.Date);
         return localDate?.ToString("D") ?? "Schedule TBD";
     }
+
+    private static string FormatSipSessionDateValue(WineSurferSipSessionSummary session)
+    {
+        var localDateTime = NormalizeDateTime(session.ScheduledAtUtc);
+        if (localDateTime.HasValue)
+        {
+            return localDateTime.Value.ToString("yyyy-MM-dd");
+        }
+
+        var localDate = NormalizeDateTime(session.Date);
+        return localDate?.ToString("yyyy-MM-dd") ?? string.Empty;
+    }
+
+    private static string FormatSipSessionTimeValue(WineSurferSipSessionSummary session)
+    {
+        var localDateTime = NormalizeDateTime(session.ScheduledAtUtc);
+        return localDateTime.HasValue ? localDateTime.Value.ToString("HH:mm") : string.Empty;
+    }
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -47,6 +66,7 @@
     <link rel="stylesheet" href="/css/wine-surfer-shared-ui.css" />
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
     <script defer src="/js/pwa.js"></script>
+    <script defer src="/js/sip-session-modal.js"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -370,6 +390,39 @@
     ViewData["SisterhoodId"] = Model.SisterhoodId;
     ViewData["SipSessionId"] = session.Id;
     ViewData["ReturnUrl"] = returnUrl;
+
+    var editContainerId = $"sip-session-edit-container-{session.Id}";
+    var scheduledDateValue = FormatSipSessionDateValue(session);
+    var scheduledTimeValue = FormatSipSessionTimeValue(session);
+    SipSessionModalTemplateModel? editTemplateModel = null;
+    if (Model.CanManageSession)
+    {
+        var sisterhoodOptions = Model.ManageableSisterhoods?
+            .Select(option => new SipSessionOption(option.Id, option.Name))
+            .ToList();
+
+        var deleteModel = new SipSessionModalDeleteModel(
+            Url.Action("DeleteSipSession", "WineSurfer") ?? "/wine-surfer/sisterhoods/sessions/delete",
+            "Delete sip session",
+            deleteReturnUrl);
+
+        editTemplateModel = new SipSessionModalTemplateModel(
+            SipSessionModalKind.Edit,
+            editContainerId,
+            $"sip-session-edit-{session.Id}",
+            Url.Action("UpdateSipSession", "WineSurfer"),
+            "Save changes",
+            Model.SisterhoodId,
+            session.Id,
+            sisterhoodOptions,
+            session.Name,
+            scheduledDateValue,
+            scheduledTimeValue,
+            session.Location,
+            session.Description,
+            deleteModel,
+            "Cancel");
+    }
 }
 <body class="wine-app wine-app--with-bottom-nav session-page @bodyClass">
     <div class="page-content">
@@ -386,6 +439,15 @@
                         @if (Model.CanManageSession)
                         {
                             <div class="session-actions">
+                                <button type="button"
+                                        class="sisterhood-button"
+                                        data-sip-session-edit-toggle
+                                        data-sip-session-name="@pageTitle"
+                                        data-sip-session-edit-close-label="Close edit"
+                                        aria-expanded="false"
+                                        aria-controls="@editContainerId">
+                                    Edit sip session
+                                </button>
                                 <form method="post" action="@Url.Action("DeleteSipSession", "WineSurfer")">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
@@ -479,6 +541,10 @@
                     }
                 </article>
             </section>
+            @if (editTemplateModel is not null)
+            {
+                @await Html.PartialAsync("_SipSessionModalRegion", editTemplateModel)
+            }
             @await Html.PartialAsync("_ChooseBottlesFromInventory")
             @await Html.PartialAsync("_DrinkBottleModal", new DrinkBottleModalViewModel
             {
@@ -509,6 +575,36 @@
                     }
                 });
             }
+            const editButton = document.querySelector('[data-sip-session-edit-toggle]');
+            if(editButton){
+                editButton.addEventListener('click', function(){
+                    const sipSessionModal = window.WineSurfer?.SipSessionModal;
+                    if(!sipSessionModal){
+                        return;
+                    }
+
+                    const controlsId = editButton.getAttribute('aria-controls');
+                    const region = controlsId ? document.getElementById(controlsId) : null;
+                    const template = region ? region.querySelector('template[data-sip-session-edit-template]') : null;
+                    if(!template){
+                        return;
+                    }
+
+                    const sessionName = (editButton.getAttribute('data-sip-session-name') || '').trim();
+                    const closeLabelAttribute = (editButton.getAttribute('data-sip-session-edit-close-label') || '').trim();
+                    const closeLabel = closeLabelAttribute || 'Close edit';
+
+                    if(sipSessionModal.isOpen?.() && sipSessionModal.getActiveButton?.() === editButton){
+                        sipSessionModal.close();
+                        return;
+                    }
+
+                    sipSessionModal.openFromTemplate(editButton, template, {
+                        title: sessionName ? `Edit sip session · ${sessionName}` : 'Edit sip session',
+                        closeLabel
+                    });
+                });
+            }
             // handle selection event from modal
             document.addEventListener('DOMContentLoaded', function(){
                 const dialog = document.getElementById('choose-bottles-modal');
@@ -531,6 +627,7 @@
             });
         })();
     </script>
+    @await Html.PartialAsync("_SipSessionEditModalShell")
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>
