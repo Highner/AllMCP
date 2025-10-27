@@ -1,15 +1,9 @@
-using System.ClientModel;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
-using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using OpenAI.Chat;
-
-using AllMCPSolution.Utilities;
 
 namespace AllMCPSolution.Controllers;
 
@@ -31,16 +25,6 @@ public class WineInventoryController : Controller
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IWineImportService _wineImportService;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly IChatGptService _chatGptService;
-    private readonly IChatGptPromptService _chatGptPromptService;
-
-    private static readonly IReadOnlyDictionary<string, string> CellarPlannerFocusDescriptions =
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["aging"] = "Prioritize aging potential: stage long-lived wines in the most stable locations and separate ready-to-drink bottles.",
-            ["regions"] = "Highlight regional storytelling: cluster bottles to showcase geography and terroir narratives.",
-            ["prestige"] = "Spotlight prestige: give the rarest and most collectible wines pride of place while preserving their condition."
-        };
 
     public WineInventoryController(
         IBottleRepository bottleRepository,
@@ -56,9 +40,7 @@ public class WineInventoryController : Controller
         IWineCatalogService wineCatalogService,
         IWineSurferTopBarService topBarService,
         IWineImportService wineImportService,
-        UserManager<ApplicationUser> userManager,
-        IChatGptService chatGptService,
-        IChatGptPromptService chatGptPromptService)
+        UserManager<ApplicationUser> userManager)
     {
         _bottleRepository = bottleRepository;
         _bottleLocationRepository = bottleLocationRepository;
@@ -74,8 +56,6 @@ public class WineInventoryController : Controller
         _topBarService = topBarService;
         _wineImportService = wineImportService;
         _userManager = userManager;
-        _chatGptService = chatGptService;
-        _chatGptPromptService = chatGptPromptService;
     }
 
     [HttpGet("")]
@@ -1944,183 +1924,6 @@ public class WineInventoryController : Controller
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
-    [HttpPost("cellar-plan")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> GenerateCellarPlan(
-        [FromBody] CellarPlannerRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (!TryGetCurrentUserId(out var userId))
-        {
-            return Challenge();
-        }
-
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(ModelState);
-        }
-
-        var focusKey = string.IsNullOrWhiteSpace(request?.Focus)
-            ? "aging"
-            : request.Focus!.Trim().ToLowerInvariant();
-
-        if (!CellarPlannerFocusDescriptions.TryGetValue(focusKey, out var focusDescription))
-        {
-            ModelState.AddModelError(nameof(request.Focus), "Focus must be aging, regions, or prestige.");
-            return ValidationProblem(ModelState);
-        }
-
-        var availableBottles = await _bottleRepository
-            .GetAvailableForUserAsync(userId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (availableBottles.Count == 0)
-        {
-            return Json(new CellarPlannerResponse(
-                "You don't have any available bottles to plan right now."));
-        }
-
-        var allLocations = await _bottleLocationRepository
-            .GetAllAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        var userLocations = allLocations
-            .Where(location => location.UserId == userId)
-            .OrderBy(location => location.Name)
-            .ToList();
-
-        var locationBottleCounts = availableBottles
-            .Where(bottle => bottle.BottleLocationId.HasValue)
-            .GroupBy(bottle => bottle.BottleLocationId!.Value)
-            .ToDictionary(group => group.Key, group => group.Count());
-
-        var locationPrompts = userLocations
-            .Select(location =>
-            {
-                locationBottleCounts.TryGetValue(location.Id, out var assignedCount);
-                return new CellarPlannerLocationPromptItem(
-                    location.Name,
-                    location.Capacity,
-                    assignedCount,
-                    false);
-            })
-            .ToList();
-
-        var unassignedCount = availableBottles.Count(bottle => !bottle.BottleLocationId.HasValue);
-        if (unassignedCount > 0 || locationPrompts.Count == 0)
-        {
-            locationPrompts.Add(new CellarPlannerLocationPromptItem(
-                "Unassigned",
-                null,
-                unassignedCount,
-                true));
-        }
-
-        static string? ComposeAppellationLabel(Bottle bottle)
-        {
-            var wine = bottle.WineVintage?.Wine;
-            var subAppellation = wine?.SubAppellation?.Name;
-            var appellation = wine?.SubAppellation?.Appellation?.Name;
-
-            if (string.IsNullOrWhiteSpace(subAppellation) && string.IsNullOrWhiteSpace(appellation))
-            {
-                return null;
-            }
-
-            if (string.IsNullOrWhiteSpace(appellation))
-            {
-                return subAppellation;
-            }
-
-            if (string.IsNullOrWhiteSpace(subAppellation))
-            {
-                return appellation;
-            }
-
-            return string.Equals(subAppellation, appellation, StringComparison.OrdinalIgnoreCase)
-                ? appellation
-                : $"{subAppellation} ({appellation})";
-        }
-
-        string? ComposeRegionLabel(Bottle bottle)
-        {
-            var region = bottle.WineVintage?.Wine?.SubAppellation?.Appellation?.Region?.Name;
-            return string.IsNullOrWhiteSpace(region) ? null : region;
-        }
-
-        var bottlePrompts = availableBottles
-            .GroupBy(bottle => new
-            {
-                Name = string.IsNullOrWhiteSpace(bottle.WineVintage?.Wine?.Name)
-                    ? "Unknown wine"
-                    : bottle.WineVintage!.Wine!.Name!,
-                Vintage = bottle.WineVintage?.Vintage ?? 0,
-                Region = ComposeRegionLabel(bottle),
-                Appellation = ComposeAppellationLabel(bottle)
-            })
-            .Select(group => new CellarPlannerBottlePromptItem(
-                group.Key.Name,
-                group.Key.Region,
-                group.Key.Appellation,
-                group.Key.Vintage,
-                group.Count()))
-            .OrderBy(item => item.Name)
-            .ThenByDescending(item => item.Vintage)
-            .ToList();
-
-        var prompt = _chatGptPromptService.BuildCellarPlannerPrompt(
-            locationPrompts,
-            bottlePrompts,
-            focusKey,
-            focusDescription);
-
-        if (string.IsNullOrWhiteSpace(prompt))
-        {
-            return Json(new CellarPlannerResponse(
-                "We couldn't collect enough information to build a cellar plan."));
-        }
-
-        ChatCompletion completion;
-        try
-        {
-            completion = await _chatGptService.GetChatCompletionAsync(
-                new ChatMessage[]
-                {
-                    new SystemChatMessage(_chatGptPromptService.CellarPlannerSystemPrompt),
-                    new UserChatMessage(prompt)
-                },
-                ct: cancellationToken).ConfigureAwait(false);
-        }
-        catch (ChatGptServiceNotConfiguredException)
-        {
-            return StatusCode(
-                StatusCodes.Status503ServiceUnavailable,
-                new CellarPlannerError("Cellar planning is not configured."));
-        }
-        catch (ClientResultException)
-        {
-            return StatusCode(
-                StatusCodes.Status502BadGateway,
-                new CellarPlannerError("We couldn't reach the planning assistant. Please try again."));
-        }
-        catch (Exception)
-        {
-            return StatusCode(
-                StatusCodes.Status500InternalServerError,
-                new CellarPlannerError("We couldn't generate a cellar plan right now. Please try again."));
-        }
-
-        var planText = StringUtilities.ExtractCompletionText(completion);
-        if (string.IsNullOrWhiteSpace(planText))
-        {
-            return StatusCode(
-                StatusCodes.Status502BadGateway,
-                new CellarPlannerError("The planning assistant returned an empty response. Please try again."));
-        }
-
-        return Json(new CellarPlannerResponse(planText.Trim()));
-    }
-
     [HttpGet("available-bottles")]
     public async Task<IActionResult> GetAvailableBottles(CancellationToken cancellationToken)
     {
@@ -2156,17 +1959,6 @@ public class AvailableBottleOption
     public string? Appellation { get; set; }
     public string? Location { get; set; }
 }
-
-public sealed class CellarPlannerRequest
-{
-    [Required]
-    [StringLength(32)]
-    public string Focus { get; set; } = "aging";
-}
-
-public sealed record CellarPlannerResponse(string Plan);
-
-public sealed record CellarPlannerError(string Message);
 
 public class WineInventoryViewModel
     {
