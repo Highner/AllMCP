@@ -408,6 +408,7 @@ a.wine-card:focus {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    margin-left: auto;
     font-size: 18px;
     line-height: 1;
     cursor: pointer;
