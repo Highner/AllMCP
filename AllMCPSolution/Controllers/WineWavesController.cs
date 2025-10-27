@@ -174,7 +174,10 @@ public sealed class WineWavesController : WineSurferControllerBase
             return BadRequest(new WineWavesMakeResponse(false, "We couldn't gather enough information about the selected wines."));
         }
 
-        var prompt = _chatGptPromptService.BuildWineWavesPrompt(promptItems);
+        var currentUser = await _userRepository.GetByIdAsync(userId, cancellationToken);
+        var (tasteProfileSummary, tasteProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(currentUser);
+
+        var prompt = _chatGptPromptService.BuildWineWavesPrompt(promptItems, tasteProfileSummary, tasteProfile);
         if (string.IsNullOrWhiteSpace(prompt))
         {
             return StatusCode(StatusCodes.Status500InternalServerError, new WineWavesMakeResponse(false, "We couldn't prepare the request. Please try again."));
