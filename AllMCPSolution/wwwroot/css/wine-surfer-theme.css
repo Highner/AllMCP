@@ -108,6 +108,42 @@ body.wine-app--with-bottom-nav {
     fill: none;
 }
 
+@media (max-width: 1024px) and (orientation: landscape) {
+    body.wine-app--with-bottom-nav {
+        --wine-surfer-left-gutter: 88px;
+        padding-left: var(--wine-surfer-left-gutter);
+        padding-bottom: 32px;
+    }
+
+    .wine-surfer-bottom-nav {
+        left: 20px;
+        padding: 12px 0;
+        max-height: calc(100vh - 32px);
+    }
+
+    .bottom-nav__list {
+        gap: 8px;
+        padding: 12px 12px;
+        border-radius: 20px;
+    }
+
+    .bottom-nav__link {
+        padding: 10px;
+        border-radius: 14px;
+    }
+
+    .bottom-nav__icon {
+        width: 24px;
+        height: 24px;
+    }
+
+    .bottom-nav__icon svg {
+        width: 20px;
+        height: 20px;
+        stroke-width: 1.4;
+    }
+}
+
 @media (max-width: 768px) and (orientation: portrait) {
     body.wine-app--with-bottom-nav {
         --wine-surfer-left-gutter: 0px;
