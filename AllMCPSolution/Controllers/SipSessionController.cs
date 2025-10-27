@@ -242,6 +242,7 @@ public class SipSessionController : WineSurferControllerBase
                     email,
                     domainUserSummary,
                     domainUserProfile,
+                    domainUser?.SuggestionBudget,
                     domainUser?.IsAdmin == true);
             }
 

@@ -169,6 +169,7 @@ public class WineSurferController : WineSurferControllerBase
                     email,
                     domainUserSummary,
                     domainUserProfile,
+                    domainUser?.SuggestionBudget,
                     domainUser?.IsAdmin == true);
             }
 
@@ -581,6 +582,7 @@ public class WineSurferController : WineSurferControllerBase
                     email,
                     domainUserSummary,
                     domainUserProfile,
+                    domainUser?.SuggestionBudget,
                     domainUser?.IsAdmin == true);
             }
 
@@ -819,6 +821,7 @@ public class WineSurferController : WineSurferControllerBase
                 email,
                 domainUserSummary,
                 domainUserProfile,
+                domainUser?.SuggestionBudget,
                 domainUser?.IsAdmin == true);
         }
 
@@ -4002,4 +4005,11 @@ public record RegionInventoryMetrics(
 public record RegionUserAverageScore(Guid UserId, decimal AverageScore);
 
 public record WineSurferUserSummary(Guid Id, string Name, string Email, string TasteProfileSummary, string TasteProfile);
-public record WineSurferCurrentUser(Guid? DomainUserId, string DisplayName, string? Email, string? TasteProfileSummary, string? TasteProfile, bool IsAdmin);
+public record WineSurferCurrentUser(
+    Guid? DomainUserId,
+    string DisplayName,
+    string? Email,
+    string? TasteProfileSummary,
+    string? TasteProfile,
+    decimal? SuggestionBudget,
+    bool IsAdmin);

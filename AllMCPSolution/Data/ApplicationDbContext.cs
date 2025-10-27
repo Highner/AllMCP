@@ -45,6 +45,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
             entity.Property(u => u.IsAdmin)
                 .HasDefaultValue(false);
+
+            entity.Property(u => u.SuggestionBudget)
+                .HasColumnType("decimal(10,2)");
         });
 
         modelBuilder.Entity<TasteProfile>(entity =>

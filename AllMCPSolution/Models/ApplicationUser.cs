@@ -8,6 +8,8 @@ public class ApplicationUser : IdentityUser<Guid>
 
     public bool IsAdmin { get; set; }
 
+    public decimal? SuggestionBudget { get; set; }
+
     public ICollection<Bottle> Bottles { get; set; } = [];
     public ICollection<TastingNote> TastingNotes { get; set; } = [];
     public ICollection<BottleLocation> BottleLocations { get; set; } = [];

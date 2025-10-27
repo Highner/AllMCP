@@ -1,3 +1,4 @@
+using System;
 using System.ClientModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -29,6 +30,8 @@ public class TasteProfileController: WineSurferControllerBase
 
         [StringLength(TasteProfileMaxLength)]
         public string? TasteProfile { get; set; }
+
+        public decimal? SuggestionBudget { get; set; }
     }
     
     private readonly ISuggestedAppellationService _suggestedAppellationService;
@@ -61,6 +64,7 @@ public class TasteProfileController: WineSurferControllerBase
     private const string TasteProfileGenerationGenericErrorMessage = "We couldn't generate a taste profile right now. Please try again.";
     private const string TasteProfileAssistantUnexpectedResponseMessage = "We couldn't understand the taste profile assistant's response. Please try again.";
     private const string TasteProfileInsufficientDataErrorMessage = "Add scores to a few bottles before generating a taste profile.";
+    private const string SuggestionBudgetInvalidErrorMessage = "Suggestion budget must be a number zero or greater.";
     private static readonly Regex MultipleWhitespaceRegex = new(@"\s{2,}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex EmptyParenthesesRegex = new(@"\(\s*\)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex EmptyBracketsRegex = new(@"\[\s*\]", RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -187,6 +191,7 @@ public class TasteProfileController: WineSurferControllerBase
                     email,
                     domainUserSummary,
                     domainUserProfile,
+                    domainUser?.SuggestionBudget,
                     isAdmin);
             }
 
@@ -296,6 +301,14 @@ public class TasteProfileController: WineSurferControllerBase
                 && summaryEntry.Errors.Count > 0;
             var profileErrors = ModelState.TryGetValue(nameof(UpdateTasteProfileRequest.TasteProfile), out var profileEntry)
                 && profileEntry.Errors.Count > 0;
+            var budgetErrors = ModelState.TryGetValue(nameof(UpdateTasteProfileRequest.SuggestionBudget), out var budgetEntry)
+                && budgetEntry.Errors.Count > 0;
+
+            if (budgetErrors)
+            {
+                TempData[TasteProfileErrorTempDataKey] = SuggestionBudgetInvalidErrorMessage;
+                return RedirectToAction(nameof(TasteProfile));
+            }
 
             string errorMessage = profileErrors && summaryErrors
                 ? $"Taste profile must be {TasteProfileMaxLength} characters or fewer and summary must be {TasteProfileSummaryMaxLength} characters or fewer."
@@ -333,6 +346,19 @@ public class TasteProfileController: WineSurferControllerBase
             return RedirectToAction(nameof(TasteProfile));
         }
 
+        decimal? normalizedBudget = null;
+
+        if (request.SuggestionBudget.HasValue)
+        {
+            if (request.SuggestionBudget.Value < 0)
+            {
+                TempData[TasteProfileErrorTempDataKey] = SuggestionBudgetInvalidErrorMessage;
+                return RedirectToAction(nameof(TasteProfile));
+            }
+
+            normalizedBudget = decimal.Round(Math.Max(request.SuggestionBudget.Value, 0m), 2, MidpointRounding.AwayFromZero);
+        }
+
         try
         {
             var updatedUser = await _userRepository.UpdateTasteProfileAsync(
@@ -340,6 +366,7 @@ public class TasteProfileController: WineSurferControllerBase
                 request.TasteProfileId,
                 trimmedTasteProfile,
                 trimmedSummary,
+                normalizedBudget,
                 cancellationToken);
             if (updatedUser is null)
             {
