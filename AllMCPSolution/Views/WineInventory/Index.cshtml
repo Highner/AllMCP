@@ -191,7 +191,9 @@
 <body class="wine-app wine-app--with-bottom-nav">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main class="inventory-shell">
-        <form method="get" class="filters">
+        <div class="inventory-layout">
+            <div class="inventory-left">
+                <form method="get" class="filters">
             <label>
                 Status
                 <select name="status" data-default-value="all">
@@ -220,13 +222,13 @@
             </label>
             <input type="hidden" name="sortField" value="@Model.SortField" data-default-value="wine" />
             <input type="hidden" name="sortDir" value="@Model.SortDirection" data-default-value="asc" />
-            <button type="submit" class="wine-surfer-button wine-surfer-button--orange">Apply</button>
-            <button type="button" class="wine-surfer-button wine-surfer-button--red filters__clear-button" data-clear-filters>Clear filters</button>
-        </form>
+                    <button type="submit" class="wine-surfer-button wine-surfer-button--orange">Apply</button>
+                    <button type="button" class="wine-surfer-button wine-surfer-button--red filters__clear-button" data-clear-filters>Clear filters</button>
+                </form>
 
-        <section id="inventory-locations"
-                 class="inventory-locations"
-                 data-current-user-id="@Model.CurrentUserId">
+                <section id="inventory-locations"
+                         class="inventory-locations"
+                         data-current-user-id="@Model.CurrentUserId">
             <div class="location-header">
                 <div class="location-header-text">
                     <h2 class="location-title">Storage Locations</h2>
@@ -478,15 +480,18 @@
                     </form>
                 </article>
             </template>
-        </section>
+                </section>
+            </div>
+            <div class="inventory-right">
+                @if (!hasBottles)
+                {
+                    <div class="no-results wine-card-hover wine-card-hover--prominent">No bottles match the current filters.</div>
+                }
 
-        @if (!hasBottles)
-        {
-            <div class="no-results wine-card-hover wine-card-hover--prominent">No bottles match the current filters.</div>
-        }
-
-        <div id="inventory-view" class="inventory-view" aria-hidden="false">
-            @await Html.PartialAsync("_CrudTableTemplate", yourCellarTable)
+                <div id="inventory-view" class="inventory-view" aria-hidden="false">
+                    @await Html.PartialAsync("_CrudTableTemplate", yourCellarTable)
+                </div>
+            </div>
         </div>
 
 
