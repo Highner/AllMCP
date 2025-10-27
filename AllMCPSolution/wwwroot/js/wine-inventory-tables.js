@@ -1333,6 +1333,50 @@
 
             return response.json();
         }
+
+        window.WineInventoryTables.updateLocationSummaries = function updateLocationSummariesFromModal(summaries) {
+            if (!Array.isArray(summaries) || !locationList) {
+                return;
+            }
+
+            summaries.forEach((summary) => {
+                const normalized = normalizeLocation(summary);
+                const locationId = normalized?.id;
+
+                if (!locationId) {
+                    return;
+                }
+
+                const card = Array.from(locationList.querySelectorAll('[data-location-card]')).find((candidate) => {
+                    return (candidate?.dataset?.locationId ?? '') === locationId;
+                });
+                if (!card) {
+                    return;
+                }
+
+                const counts = {
+                    bottleCount: Number(summary?.BottleCount ?? summary?.bottleCount ?? 0) || 0,
+                    uniqueCount: Number(summary?.UniqueWineCount ?? summary?.uniqueWineCount ?? 0) || 0,
+                    cellaredCount: Number(summary?.CellaredBottleCount ?? summary?.cellaredBottleCount ?? 0) || 0,
+                    drunkCount: Number(summary?.DrunkBottleCount ?? summary?.drunkBottleCount ?? 0) || 0
+                };
+
+                setLocationDatasetCounts(card, counts);
+
+                const capacityValue = summary?.Capacity ?? summary?.capacity ?? normalized?.capacity ?? null;
+                const normalizedCapacity = normalizeCapacityValue(capacityValue);
+                setLocationCapacity(card, normalizedCapacity);
+
+                updateLocationCardCounts(card);
+                updateReferenceLocation({
+                    id: locationId,
+                    name: normalized?.name ?? summary?.Name ?? summary?.name ?? card.dataset.locationName ?? '',
+                    capacity: normalizedCapacity
+                });
+            });
+
+            updateLocationEmptyState();
+        };
     };
 
     if (document.readyState === 'loading') {
