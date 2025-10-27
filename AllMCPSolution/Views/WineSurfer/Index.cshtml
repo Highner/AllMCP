@@ -148,7 +148,7 @@
             color-scheme: dark;
             --wine-surfer-card-max-width: 960px;
             --wine-surfer-top-bar-height: 96px;
-            --wine-surfer-section-sticky-offset: var(--wine-surfer-top-bar-height, 96px);
+            --wine-surfer-section-sticky-offset: 96px;
             --wine-surfer-section-sticky-gap: 12px;
         }
 
@@ -912,8 +912,8 @@
         .section-header {
             position: sticky;
             top: calc(
-                var(--wine-surfer-section-sticky-offset, 96px) +
-                var(--wine-surfer-section-sticky-gap, 12px)
+                96px +
+                12px
             );
             z-index: 9;
             padding: 12px 20px;
@@ -1665,7 +1665,7 @@
                 <div class="dashboard-column dashboard-column--right">
                     <section class="suggested-wines" aria-label="Suggested wines">
                         <div class="suggested-wines-header section-header">
-                            <h2 class="section-title">Suggested wines</h2>
+                            <h2 class="section-title">Suggested sips</h2>
                             <p class="suggested-wines-subtitle">Curated from your taste profile</p>
                         </div>
                         @if (!isAuthenticated)
