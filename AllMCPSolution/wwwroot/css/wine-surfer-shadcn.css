@@ -863,6 +863,25 @@ body.account-edit-open {
     padding: 40px 24px 80px;
 }
 
+.inventory-layout {
+    display: grid;
+    gap: 24px;
+}
+
+.inventory-left,
+.inventory-right {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+@media (min-width: 1024px) {
+    .inventory-layout {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: flex-start;
+    }
+}
+
 .filters {
     display: flex;
     flex-wrap: wrap;
