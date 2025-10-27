@@ -775,10 +775,11 @@ window.WineInventoryTables.initialize = function () {
 
                         // Click/keyboard to load details for this vintage group
                         const activate = async () => {
-                            if (!v.wineVintageId) return;
+                            const vintageId = v.wineVintageId ? String(v.wineVintageId) : '';
+                            if (!vintageId) return;
                             try {
                                 showDetailsView();
-                                await loadDetails({ groupId: v.wineVintageId }, false);
+                                await loadDetails({ groupId: vintageId }, false);
                             } catch (error) {
                                 showMessage(error?.message ?? String(error), 'error');
                             }
@@ -2106,10 +2107,97 @@ window.WineInventoryTables.initialize = function () {
 
             function bindDetailAddRow() {
                 if (!detailAddRow || !detailAddButton) {
+                    if (typeof window !== 'undefined' && window.console && typeof window.console.warn === 'function') {
+                        window.console.warn('[BottleManagementModal] detail add row not found during bind', {
+                            hasRow: Boolean(detailAddRow),
+                            hasButton: Boolean(detailAddButton)
+                        });
+                    }
                     return;
                 }
 
-                detailAddButton.addEventListener('click', handleAddBottle);
+                if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
+                    window.console.log('[BottleManagementModal] binding Add Bottles button');
+                }
+
+                const pointerCaptureHandler = (event) => {
+                    if (!event) {
+                        return;
+                    }
+
+                    const targetElement = event.target instanceof Element ? event.target : null;
+                    const targetButton = targetElement ? targetElement.closest('.detail-add-submit') : null;
+
+                    if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
+                        window.console.log('[BottleManagementModal] Add Bottles pointerdown', {
+                            buttonDisabled: targetButton?.disabled ?? null,
+                            rowHidden: detailAddRow?.hidden ?? null,
+                            eventTarget: targetElement,
+                            hitButton: Boolean(targetButton)
+                        });
+                        logDetailAddButtonState('pointerdown');
+                    }
+                };
+
+                detailAddRow.addEventListener('pointerdown', pointerCaptureHandler, { capture: true });
+                if (detailsSection) {
+                    detailsSection.addEventListener('pointerdown', (event) => {
+                        if (!event || !detailAddButton) {
+                            return;
+                        }
+
+                        const rect = detailAddButton.getBoundingClientRect?.();
+                        if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.top)) {
+                            return;
+                        }
+
+                        const withinHorizontal = event.clientX >= rect.left && event.clientX <= rect.left + rect.width;
+                        const withinVertical = event.clientY >= rect.top && event.clientY <= rect.top + rect.height;
+
+                        if (!withinHorizontal || !withinVertical) {
+                            return;
+                        }
+
+                        const targetElement = event.target instanceof Element ? event.target : null;
+                        const targetButton = targetElement ? targetElement.closest('.detail-add-submit') : null;
+                        if (targetButton) {
+                            return;
+                        }
+
+                        if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
+                            window.console.log('[BottleManagementModal] pointerdown within Add Bottles bounds but not on button', {
+                                eventTarget: targetElement,
+                                pointerType: event.pointerType ?? null
+                            });
+                            logDetailAddButtonState('pointerdown-outside-button');
+                        }
+                    }, { capture: true });
+                }
+                detailAddRow.addEventListener('mousedown', () => {
+                    logDetailAddButtonState('mousedown');
+                }, { capture: true });
+
+                detailAddRow.addEventListener('click', (event) => {
+                    const button = event?.target instanceof Element
+                        ? event.target.closest('.detail-add-submit')
+                        : null;
+
+                    if (!button) {
+                        return;
+                    }
+
+                    if (button.disabled) {
+                        if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
+                            window.console.log('[BottleManagementModal] Add Bottles click ignored because button is disabled');
+                        }
+                        return;
+                    }
+
+                    logDetailAddButtonState('click');
+                    handleAddBottle(event);
+                });
+
+                logDetailAddButtonState('bindDetailAddRow');
             }
 
             function bindDrinkBottleModal() {
@@ -2331,7 +2419,7 @@ window.WineInventoryTables.initialize = function () {
                             }
                         }
 
-                        await renderDetails(response, true);
+                        await renderDetails(response, true, selectedSummary?.wineVintageId ?? null);
                         showMessage('Bottle marked as drunk.', 'success');
                     }
 
@@ -3648,7 +3736,7 @@ window.WineInventoryTables.initialize = function () {
                     refreshGrouping({ expandForRow: row });
 
                     showMessage('Wine group updated.', 'success');
-                    await renderDetails(response, selectedRow === row);
+                    await renderDetails(response, selectedRow === row, groupId ?? null);
                 } catch (error) {
                     showMessage(error.message, 'error');
                 } finally {
@@ -3766,10 +3854,7 @@ window.WineInventoryTables.initialize = function () {
                 if (detailAddQuantity) {
                     detailAddQuantity.value = '1';
                 }
-                if (detailAddButton) {
-                    detailAddButton.disabled = true;
-                }
-
+                updateDetailAddButtonState();
                 closeActiveDetailActionsMenu();
                 closeActiveDetailActionsMenu();
                 detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
@@ -3806,7 +3891,7 @@ window.WineInventoryTables.initialize = function () {
                 row.setAttribute('aria-expanded', 'true');
 
                 if (options.response) {
-                    await renderDetails(options.response, true);
+                    await renderDetails(options.response, true, groupId ?? null);
                     return;
                 }
 
@@ -3819,14 +3904,21 @@ window.WineInventoryTables.initialize = function () {
                 closeActiveDetailActionsMenu();
                 detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
 
-                const groupId = typeof key === 'string' ? key : key?.groupId;
+                const rawGroupId = typeof key === 'string' ? key : key?.groupId;
                 const wineId = typeof key === 'object' ? key?.wineId : null;
+                const resolvedGroupId = rawGroupId ? String(rawGroupId) : '';
 
                 try {
                     setLoading(true);
-                    const url = wineId ? `/wine-manager/wine/${wineId}/details` : `/wine-manager/bottles/${groupId}`;
+                    if (!wineId && !resolvedGroupId) {
+                        throw new Error('Unable to determine the selected vintage.');
+                    }
+
+                    const url = wineId
+                        ? `/wine-manager/wine/${wineId}/details`
+                        : `/wine-manager/bottles/${encodeURIComponent(resolvedGroupId)}`;
                     const response = await sendJson(url, { method: 'GET' });
-                    await renderDetails(response, updateRow);
+                    await renderDetails(response, updateRow, resolvedGroupId);
                     showMessage('', 'info');
                 } catch (error) {
                     showMessage(error.message, 'error');
@@ -3835,17 +3927,45 @@ window.WineInventoryTables.initialize = function () {
                 }
             }
 
-            async function renderDetails(data, shouldUpdateRow) {
+            async function renderDetails(data, shouldUpdateRow, fallbackWineVintageId) {
                 await referenceDataPromise;
 
                 const rawSummary = data?.group ?? data?.Group ?? null;
-                const summary = normalizeSummary(rawSummary);
+                let summary = normalizeSummary(rawSummary);
                 const rawDetails = Array.isArray(data?.details)
                     ? data.details
                     : Array.isArray(data?.Details)
                         ? data.Details
                         : [];
                 const details = rawDetails.map(normalizeDetail).filter(Boolean);
+                const detailVintageIds = details
+                    .map(detail => detail?.wineVintageId)
+                    .filter(id => id);
+                const uniqueDetailVintageIds = Array.from(new Set(detailVintageIds));
+                const fallbackDetailVintageId = uniqueDetailVintageIds.length === 1
+                    ? uniqueDetailVintageIds[0]
+                    : null;
+                const fallbackVintageId = fallbackWineVintageId ? String(fallbackWineVintageId) : '';
+
+                if (summary) {
+                    const resolvedVintageId = summary.wineVintageId
+                        || fallbackVintageId
+                        || fallbackDetailVintageId
+                        || null;
+                    if (resolvedVintageId) {
+                        summary = { ...summary, wineVintageId: resolvedVintageId };
+                    }
+                }
+
+                if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
+                    window.console.log('[BottleManagementModal] received vintage identifiers', {
+                        rawSummaryVintageId: rawSummary?.wineVintageId ?? rawSummary?.WineVintageId ?? null,
+                        normalizedSummaryVintageId: summary?.wineVintageId ?? null,
+                        fallbackWineVintageId: fallbackWineVintageId ?? null,
+                        fallbackDetailVintageId,
+                        detailVintageIds: uniqueDetailVintageIds
+                    });
+                }
 
                 selectedSummary = summary;
 
@@ -3864,9 +3984,7 @@ window.WineInventoryTables.initialize = function () {
                     if (detailAddQuantity) {
                         detailAddQuantity.value = '1';
                     }
-                    if (detailAddButton) {
-                        detailAddButton.disabled = loading;
-                    }
+                    updateDetailAddButtonState();
                     disableNotesAddRow(notesLoading || !notesSelectedBottleId);
                 } else {
                     setDetailsTitle('Bottle Details', '');
@@ -3874,6 +3992,7 @@ window.WineInventoryTables.initialize = function () {
                     if (detailAddRow) {
                         detailAddRow.hidden = true;
                     }
+                    updateDetailAddButtonState();
                     closeNotesPanel();
                 }
 
@@ -3906,6 +4025,8 @@ window.WineInventoryTables.initialize = function () {
                 if (shouldUpdateRow) {
                     updateSummaryRow(summary ?? null);
                 }
+
+                logDetailAddButtonState('renderDetails');
             }
 
             function setDetailsTitle(name, vintage) {
@@ -4099,7 +4220,7 @@ window.WineInventoryTables.initialize = function () {
                             method: 'PUT',
                             body: JSON.stringify(payload)
                         });
-                        await renderDetails(response, true);
+                        await renderDetails(response, true, selectedSummary?.wineVintageId ?? null);
                         showMessage('Bottle updated.', 'success');
                     } catch (error) {
                         showMessage(error.message, 'error');
@@ -4123,7 +4244,7 @@ window.WineInventoryTables.initialize = function () {
                         const response = await sendJson(`/wine-manager/bottles/${detail.bottleId ?? detail.BottleId}`, {
                             method: 'DELETE'
                         });
-                        await renderDetails(response, true);
+                        await renderDetails(response, true, selectedSummary?.wineVintageId ?? null);
                         showMessage('Bottle removed.', 'success');
                     } catch (error) {
                         showMessage(error.message, 'error');
@@ -4261,25 +4382,53 @@ window.WineInventoryTables.initialize = function () {
                 activeDetailActionsMenu = null;
             }
 
-            async function handleAddBottle() {
+            async function handleAddBottle(event) {
+                if (event?.preventDefault) {
+                    event.preventDefault();
+                }
+
+                const preflightQuantity = detailAddQuantity?.value ?? '';
+                const preflightLocation = detailAddLocation?.value ?? '';
+                const preflightPrice = detailAddPrice?.value ?? '';
+
+                if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
+                    window.console.log('[BottleManagementModal] handleAddBottle invoked', {
+                        hasSelectedSummary: Boolean(selectedSummary),
+                        loading,
+                        buttonDisabled: detailAddButton?.disabled ?? null,
+                        rowHidden: detailAddRow?.hidden ?? null,
+                        preflightQuantity,
+                        preflightLocation,
+                        preflightPrice,
+                        selectedSummary
+                    });
+                }
+
                 if (!selectedSummary || loading) {
                     return;
                 }
 
-                const quantityValue = parseInt(detailAddQuantity?.value ?? '1', 10);
+                const quantityValue = parseInt(preflightQuantity || '1', 10);
                 const quantity = Number.isNaN(quantityValue) ? 1 : Math.min(Math.max(quantityValue, 1), 12);
 
-                const locationValue = detailAddLocation?.value ?? '';
+                const locationValue = preflightLocation ?? '';
 
                 const payload = {
                     wineVintageId: selectedSummary.wineVintageId,
-                    price: parsePrice(detailAddPrice?.value ?? ''),
+                    price: parsePrice(preflightPrice ?? ''),
                     isDrunk: false,
                     drunkAt: null,
                     bottleLocationId: locationValue || null,
                     userId: null,
                     quantity
                 };
+
+                if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
+                    window.console.log('[BottleManagementModal] submitting add-bottle request', {
+                        payload,
+                        selectedSummary
+                    });
+                }
 
                 try {
                     setLoading(true);
@@ -4298,7 +4447,7 @@ window.WineInventoryTables.initialize = function () {
                         detailAddQuantity.value = '1';
                     }
 
-                    await renderDetails(response, true);
+                    await renderDetails(response, true, selectedSummary?.wineVintageId ?? null);
                     showMessage(quantity > 1 ? 'Bottles added successfully.' : 'Bottle added successfully.', 'success');
                 } catch (error) {
                     showMessage(error.message, 'error');
@@ -4307,14 +4456,94 @@ window.WineInventoryTables.initialize = function () {
                 }
             }
 
+            function updateDetailAddButtonState() {
+                if (!detailAddButton) {
+                    return;
+                }
+
+                const hasSummary = Boolean(selectedSummary && (selectedSummary.wineVintageId || selectedSummary.wineId));
+                const shouldDisable = Boolean(detailAddRow?.hidden) || !hasSummary;
+
+                if (detailAddButton.disabled !== shouldDisable) {
+                    detailAddButton.disabled = shouldDisable;
+                }
+
+                if (shouldDisable) {
+                    detailAddButton.setAttribute('aria-disabled', 'true');
+                    detailAddButton.setAttribute('tabindex', '-1');
+                } else {
+                    detailAddButton.removeAttribute('aria-disabled');
+                    detailAddButton.removeAttribute('tabindex');
+                    if (detailAddButton.hasAttribute('disabled') && !detailAddButton.disabled) {
+                        detailAddButton.removeAttribute('disabled');
+                    }
+                }
+            }
+
+            function logDetailAddButtonState(context = '') {
+                if (typeof window === 'undefined' || !window.console || typeof window.console.log !== 'function') {
+                    return;
+                }
+
+                if (!detailAddButton) {
+                    window.console.log('[BottleManagementModal] add button state', {
+                        context,
+                        buttonExists: false
+                    });
+                    return;
+                }
+
+                const rect = detailAddButton.getBoundingClientRect?.() ?? { top: 0, left: 0, width: 0, height: 0 };
+                let topElementSummary = null;
+
+                if (typeof document !== 'undefined'
+                    && typeof document.elementFromPoint === 'function'
+                    && rect
+                    && Number.isFinite(rect.left)
+                    && Number.isFinite(rect.top)) {
+                    const centerX = rect.left + (Number(rect.width) || 0) / 2;
+                    const centerY = rect.top + (Number(rect.height) || 0) / 2;
+                    const topElement = document.elementFromPoint(centerX, centerY);
+                    if (topElement) {
+                        topElementSummary = {
+                            tagName: topElement.tagName,
+                            id: topElement.id || null,
+                            className: typeof topElement.className === 'string' ? topElement.className : null,
+                            matchesButton: topElement === detailAddButton || detailAddButton.contains(topElement)
+                        };
+                    }
+                }
+
+                let computedStyles = null;
+                if (typeof window.getComputedStyle === 'function') {
+                    computedStyles = window.getComputedStyle(detailAddButton);
+                }
+
+                window.console.log('[BottleManagementModal] add button state', {
+                    context,
+                    disabled: detailAddButton.disabled,
+                    hidden: detailAddRow?.hidden ?? null,
+                    hasSelectedSummary: Boolean(selectedSummary),
+                    hasSummaryIdentifier: Boolean(selectedSummary && (selectedSummary.wineVintageId || selectedSummary.wineId)),
+                    pointerEvents: computedStyles?.pointerEvents ?? null,
+                    visibility: computedStyles?.visibility ?? null,
+                    display: computedStyles?.display ?? null,
+                    rect: {
+                        top: rect.top,
+                        left: rect.left,
+                        width: rect.width,
+                        height: rect.height
+                    },
+                    topElement: topElementSummary
+                });
+            }
+
             function setLoading(state) {
                 loading = state;
                 if (addWineButton) {
                     addWineButton.disabled = state;
                 }
-                if (detailAddButton) {
-                    detailAddButton.disabled = state || Boolean(detailAddRow?.hidden);
-                }
+                updateDetailAddButtonState();
             }
 
             function setSummaryRowLoading(row, state) {
