@@ -438,6 +438,8 @@
             </template>
                 </section>
 
+                @await Html.PartialAsync("_CellarPlanner")
+
                 <section class="inventory-filters">
                     <form method="get" class="filters">
                         @(Html.PartialAsync("_InventorySectionHeader", new InventorySectionHeaderModel
@@ -500,6 +502,7 @@
         @await Html.PartialAsync("_DrinkBottleModal", AllMCPSolution.Models.DrinkBottleModalViewModel.Default)
     </main>
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
+    <script src="/js/cellar-planner.js"></script>
     <script src="/js/drink-bottle-modal.js"></script>
     <script src="/js/inventory-add-modal.js"></script>
     <script src="/js/wine-inventory-tables.js"></script>
