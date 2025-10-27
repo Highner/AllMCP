@@ -33,6 +33,8 @@ builder.Services.AddRazorPages();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
+builder.Services.Configure<ChatGptOptions>(
+    builder.Configuration.GetSection(ChatGptOptions.ConfigurationSectionName));
 
 builder.Services.AddScoped<ICountryRepository, CountryRepository>();
 builder.Services.AddScoped<IRegionRepository, RegionRepository>();

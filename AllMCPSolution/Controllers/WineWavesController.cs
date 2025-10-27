@@ -15,6 +15,7 @@ using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
 using AllMCPSolution.Utilities;
+using Microsoft.Extensions.Options;
 
 namespace AllMCPSolution.Controllers;
 
@@ -41,6 +42,7 @@ public sealed class WineWavesController : WineSurferControllerBase
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IChatGptService _chatGptService;
     private readonly IChatGptPromptService _chatGptPromptService;
+    private readonly string _wineWavesModel;
 
     public WineWavesController(
         IWineVintageEvolutionScoreRepository evolutionScoreRepository,
@@ -49,6 +51,7 @@ public sealed class WineWavesController : WineSurferControllerBase
         IWineSurferTopBarService topBarService,
         IChatGptService chatGptService,
         IChatGptPromptService chatGptPromptService,
+        IOptions<ChatGptOptions> chatGptOptions,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _evolutionScoreRepository = evolutionScoreRepository;
@@ -56,6 +59,19 @@ public sealed class WineWavesController : WineSurferControllerBase
         _topBarService = topBarService;
         _chatGptService = chatGptService;
         _chatGptPromptService = chatGptPromptService;
+        if (chatGptOptions is null)
+        {
+            throw new ArgumentNullException(nameof(chatGptOptions));
+        }
+
+        var options = chatGptOptions.Value;
+        var fallbackModel = !string.IsNullOrWhiteSpace(options?.DefaultModel)
+            ? options!.DefaultModel!
+            : ChatGptOptions.FallbackModel;
+
+        _wineWavesModel = string.IsNullOrWhiteSpace(options?.WebSearchModel)
+            ? fallbackModel
+            : options!.WebSearchModel!;
     }
 
     [HttpGet("wine-waves")]
@@ -173,6 +189,7 @@ public sealed class WineWavesController : WineSurferControllerBase
                     new SystemChatMessage(_chatGptPromptService.WineWavesSystemPrompt),
                     new UserChatMessage(prompt)
                 },
+                model: _wineWavesModel,
                 ct: cancellationToken);
         }
         catch (ChatGptServiceNotConfiguredException)
