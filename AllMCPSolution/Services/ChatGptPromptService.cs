@@ -17,6 +17,8 @@ public interface IChatGptPromptService
 
     string WineWavesSystemPrompt { get; }
 
+    string CellarPlannerSystemPrompt { get; }
+
     string BuildTasteProfilePrompt(IReadOnlyList<(Bottle Bottle, TastingNote Note)> scoredBottles);
 
     string BuildSurfEyePrompt(string? tasteProfileSummary, string tasteProfile);
@@ -29,6 +31,12 @@ public interface IChatGptPromptService
         IReadOnlyList<WineWavesPromptItem> vintages,
         string? tasteProfileSummary,
         string? tasteProfile);
+
+    string BuildCellarPlannerPrompt(
+        IReadOnlyList<CellarPlannerLocationPromptItem> locations,
+        IReadOnlyList<CellarPlannerBottlePromptItem> bottles,
+        string focusKey,
+        string focusDescription);
 }
 
 public class ChatGptPromptService : IChatGptPromptService
@@ -72,6 +80,13 @@ If the wine is described as ageworthy, cellar-worthy, long-lived, or similar, ex
 Do not invent new wineVintageId values and omit any prose outside the JSON object.
 """;
 
+    private const string CellarPlannerSystemPromptText = """
+You are Cellar Planner, an elite wine cellar consultant.
+Design efficient bottle storage plans that respect location capacities, highlight notable wines, and align with the requested focus.
+Respond with clear plain-text guidance that the user can follow directly. Organize the plan with headings or bullet points and keep recommendations actionable.
+Avoid JSON, code fences, or markdown tables.
+""";
+
     public string TasteProfileGenerationSystemPrompt => TasteProfileSystemPromptText;
 
     public string SurfEyeSystemPrompt => SurfEyeSystemPromptText;
@@ -79,6 +94,8 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
     public string SipSessionFoodSuggestionSystemPrompt => SipSessionFoodSuggestionSystemPromptText;
 
     public string WineWavesSystemPrompt => WineWavesSystemPromptText;
+
+    public string CellarPlannerSystemPrompt => CellarPlannerSystemPromptText;
 
     public string BuildTasteProfilePrompt(IReadOnlyList<(Bottle Bottle, TastingNote Note)> scoredBottles)
     {
@@ -447,4 +464,110 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
 
         return builder.ToString();
     }
+
+    public string BuildCellarPlannerPrompt(
+        IReadOnlyList<CellarPlannerLocationPromptItem> locations,
+        IReadOnlyList<CellarPlannerBottlePromptItem> bottles,
+        string focusKey,
+        string focusDescription)
+    {
+        var hasLocations = locations is { Count: > 0 };
+        var hasBottles = bottles is { Count: > 0 };
+
+        if (!hasBottles)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("Plan how to arrange the user's available wine bottles across their storage locations.");
+        builder.Append("Focus directive: ");
+        builder.AppendLine(focusDescription);
+        builder.Append("Focus key: ");
+        builder.AppendLine(focusKey);
+        builder.AppendLine("Use the locations as the framework for the plan, noting capacity limits and where flexibility remains.");
+
+        if (!hasLocations)
+        {
+            builder.AppendLine("No dedicated storage locations are configured yet. Offer guidance on how to organize bottles once locations are created and suggest provisional organization steps.");
+        }
+        else
+        {
+            builder.AppendLine("Storage locations:");
+            for (var i = 0; i < locations.Count; i++)
+            {
+                var location = locations[i];
+                builder.Append(i + 1);
+                builder.Append(". ");
+                builder.Append(location.Name);
+                if (location.IsVirtual)
+                {
+                    builder.Append(" (unassigned bottles)");
+                }
+
+                builder.Append(" — ");
+                builder.Append(location.CurrentBottleCount);
+                builder.Append(location.CurrentBottleCount == 1 ? " bottle" : " bottles");
+
+                if (location.Capacity.HasValue)
+                {
+                    var capacity = location.Capacity.Value;
+                    var remaining = capacity - location.CurrentBottleCount;
+                    builder.Append(", capacity ");
+                    builder.Append(capacity);
+                    builder.Append(capacity == 1 ? " bottle" : " bottles");
+                    builder.Append(", ");
+                    if (remaining > 0)
+                    {
+                        builder.Append(remaining);
+                        builder.Append(remaining == 1 ? " slot open" : " slots open");
+                    }
+                    else if (remaining == 0)
+                    {
+                        builder.Append("at capacity");
+                    }
+                    else
+                    {
+                        builder.Append("over capacity by ");
+                        builder.Append(Math.Abs(remaining));
+                        builder.Append(Math.Abs(remaining) == 1 ? " bottle" : " bottles");
+                    }
+                }
+                else
+                {
+                    builder.Append(", capacity not set");
+                }
+
+                builder.AppendLine();
+            }
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("Available bottles (all not yet drunk):");
+        for (var i = 0; i < bottles.Count; i++)
+        {
+            var bottle = bottles[i];
+            builder.Append("- ");
+            builder.Append(bottle.Name);
+            builder.Append(' ');
+            builder.Append('(');
+            builder.Append(bottle.Vintage);
+            builder.Append(") — Region: ");
+            builder.Append(string.IsNullOrWhiteSpace(bottle.Region) ? "Unknown" : bottle.Region);
+            builder.Append(", Appellation: ");
+            builder.Append(string.IsNullOrWhiteSpace(bottle.Appellation) ? "Unknown" : bottle.Appellation);
+            builder.Append(", Quantity: ");
+            builder.Append(bottle.Quantity);
+            builder.AppendLine();
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("Create a detailed storage layout explaining which bottles belong in each location, how to stage them, and why the arrangement matches the focus directive. Suggest any new labels, racks, or tracking tips needed to execute the plan.");
+
+        return builder.ToString();
+    }
 }
+
+public sealed record CellarPlannerLocationPromptItem(string Name, int? Capacity, int CurrentBottleCount, bool IsVirtual);
+
+public sealed record CellarPlannerBottlePromptItem(string Name, string? Region, string? Appellation, int Vintage, int Quantity);
