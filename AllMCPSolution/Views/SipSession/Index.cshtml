@@ -98,6 +98,16 @@
             gap: 12px;
         }
 
+        .session-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .session-actions form {
+            margin: 0;
+        }
+
         .session-meta-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -251,11 +261,50 @@
     var sisterhoodLink = string.IsNullOrWhiteSpace(Model.SisterhoodName)
         ? sisterhoodListUrl
         : $"{sisterhoodListUrl}#sisterhood-{Model.SisterhoodId:D}";
+    var fallbackDeleteReturnUrl = sisterhoodLink;
+    var deleteReturnUrl = fallbackDeleteReturnUrl;
+    var refererHeader = Context?.Request?.Headers?["Referer"].ToString();
+    if (!string.IsNullOrWhiteSpace(refererHeader))
+    {
+        if (System.Uri.TryCreate(refererHeader, System.UriKind.Absolute, out var refererUri))
+        {
+            var requestHost = Context?.Request?.Host;
+            var hostMatches = requestHost.HasValue &&
+                string.Equals(refererUri.Host, requestHost.Value.Host, StringComparison.OrdinalIgnoreCase);
+            var schemeMatches = string.Equals(refererUri.Scheme, Context?.Request?.Scheme, StringComparison.OrdinalIgnoreCase);
+            if (hostMatches && schemeMatches)
+            {
+                var builder = new System.Text.StringBuilder(refererUri.PathAndQuery);
+                if (!string.IsNullOrEmpty(refererUri.Fragment))
+                {
+                    builder.Append(refererUri.Fragment);
+                }
+
+                deleteReturnUrl = builder.ToString();
+            }
+        }
+        else if (System.Uri.TryCreate(refererHeader, System.UriKind.Relative, out var relativeReferer))
+        {
+            deleteReturnUrl = relativeReferer.ToString();
+        }
+    }
+
     var suggestFoodAction = Url.Action("SuggestFood", "SipSession", new { sipSessionId = session.Id });
     var hasFoodSuggestions = Model.FoodSuggestions is { Count: > 0 };
     var cheeseSuggestion = Model.CheeseSuggestion;
     var foodError = Model.FoodSuggestionError;
     var returnUrl = string.Concat(requestPath, requestQuery);
+
+    if (!string.IsNullOrWhiteSpace(deleteReturnUrl) && !Url.IsLocalUrl(deleteReturnUrl))
+    {
+        deleteReturnUrl = fallbackDeleteReturnUrl;
+    }
+
+    if (string.IsNullOrWhiteSpace(deleteReturnUrl) ||
+        string.Equals(deleteReturnUrl, returnUrl, StringComparison.OrdinalIgnoreCase))
+    {
+        deleteReturnUrl = fallbackDeleteReturnUrl;
+    }
 
     ViewData["IsAuthenticated"] = Model.CurrentUser is not null;
     ViewData["SisterhoodId"] = Model.SisterhoodId;
@@ -274,6 +323,18 @@
                 <article class="wine-card wine-surface wine-surface-border wine-card-hover session-overview-card">
                     <div class="session-section__header wine-card__header">
                         <h2 id="session-overview-title" class="wine-card__title">Session overview</h2>
+                        @if (Model.CanManageSession)
+                        {
+                            <div class="session-actions">
+                                <form method="post" action="@Url.Action("DeleteSipSession", "WineSurfer")">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+                                    <input type="hidden" name="SipSessionId" value="@session.Id" />
+                                    <input type="hidden" name="ReturnUrl" value="@deleteReturnUrl" />
+                                    <button type="submit" class="sisterhood-button sisterhood-button--danger">Delete sip session</button>
+                                </form>
+                            </div>
+                        }
                     </div>
                     <dl class="session-meta-grid">
                         <div class="session-meta-item">
