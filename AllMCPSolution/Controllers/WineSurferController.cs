@@ -2406,6 +2406,7 @@ public class WineSurferController : WineSurferControllerBase
         }
 
         var bottle = sessionBottle.Bottle;
+        var isOwnedByCurrentUser = bottle.UserId == currentUserId.Value;
         var noteText = request.Note?.Trim();
 
         decimal? score = null;
@@ -2480,6 +2481,19 @@ public class WineSurferController : WineSurferControllerBase
             }
 
             var noteId = existing.Id;
+
+            if (isOwnedByCurrentUser)
+            {
+                try
+                {
+                    var drunkAt = DetermineSipSessionDrunkAt(session);
+                    await _bottleRepository.MarkAsDrunkAsync(request.BottleId, currentUserId.Value, drunkAt, cancellationToken);
+                }
+                catch (Exception)
+                {
+                    // If we can't mark the bottle as enjoyed, we still want to save the tasting note.
+                }
+            }
 
             decimal? averageScore = null;
             var scoreValues = noteList
