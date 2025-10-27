@@ -242,7 +242,6 @@ window.WineInventoryTables.initialize = function () {
 
             let selectedGroupId = null;
             let selectedSummary = null;
-            let selectedWineVintageId = '';
             let selectedRow = null;
             let notesSelectedBottleId = null;
             let selectedDetailRowElement = null;
@@ -764,9 +763,8 @@ window.WineInventoryTables.initialize = function () {
                         const row = document.createElement('tr');
                         row.setAttribute('tabindex', '0');
                         row.setAttribute('role', 'button');
-                        const vintageGroupId = sanitizeWineVintageId(v.wineVintageId);
-                        if (vintageGroupId) {
-                            row.dataset.groupId = vintageGroupId;
+                        if (v.wineVintageId) {
+                            row.dataset.groupId = v.wineVintageId;
                         }
                         const cVintage = document.createElement('td');
                         cVintage.textContent = v.vintage ? String(v.vintage) : '—';
@@ -777,11 +775,10 @@ window.WineInventoryTables.initialize = function () {
 
                         // Click/keyboard to load details for this vintage group
                         const activate = async () => {
-                            const targetVintageId = sanitizeWineVintageId(v.wineVintageId);
-                            if (!targetVintageId) return;
+                            if (!v.wineVintageId) return;
                             try {
-                                showDetailsView({ wineVintageId: targetVintageId });
-                                await loadDetails({ groupId: targetVintageId }, false);
+                                showDetailsView();
+                                await loadDetails({ groupId: v.wineVintageId }, false);
                             } catch (error) {
                                 showMessage(error?.message ?? String(error), 'error');
                             }
@@ -2301,14 +2298,8 @@ window.WineInventoryTables.initialize = function () {
                 const payloadUserId = rowUserId
                     || (drinkTarget.userId ? String(drinkTarget.userId) : null);
 
-                const activeVintageId = getActiveWineVintageId();
-                if (!noteOnly && !activeVintageId) {
-                    showMessage('Select a specific vintage before updating this bottle.', 'error');
-                    return;
-                }
-
                 const payload = !noteOnly ? {
-                    wineVintageId: activeVintageId,
+                    wineVintageId: selectedSummary.wineVintageId,
                     price: parsePrice(priceValue),
                     isDrunk: true,
                     drunkAt,
@@ -3458,7 +3449,7 @@ window.WineInventoryTables.initialize = function () {
             function applySummaryToRow(row, summary, isNewRow = false) {
                 ensureSummaryRowStructure(row);
 
-                row.dataset.groupId = sanitizeWineVintageId(summary?.wineVintageId ?? summary?.WineVintageId ?? '');
+                row.dataset.groupId = summary?.wineVintageId ?? summary?.WineVintageId ?? '';
                 row.dataset.wineId = summary?.wineId ?? summary?.WineId ?? '';
                 row.dataset.subAppellationId = summary?.subAppellationId ?? summary?.SubAppellationId ?? '';
                 row.dataset.appellationId = summary?.appellationId ?? summary?.AppellationId ?? '';
@@ -3701,7 +3692,7 @@ window.WineInventoryTables.initialize = function () {
 
             function extractSummaryFromRow(row) {
                 return {
-                    wineVintageId: sanitizeWineVintageId(row.dataset.groupId ?? ''),
+                    wineVintageId: row.dataset.groupId ?? '',
                     wineId: row.dataset.wineId ?? '',
                     wineName: row.querySelector('.summary-wine')?.textContent?.trim() ?? '',
                     subAppellation: row.querySelector('.summary-appellation')?.textContent?.trim() ?? '',
@@ -3720,28 +3711,13 @@ window.WineInventoryTables.initialize = function () {
                 };
             }
 
-            function showDetailsView(context = {}) {
-                if (context && Object.prototype.hasOwnProperty.call(context, 'wineVintageId')) {
-                    updateSelectedWineVintageId(context.wineVintageId);
-                } else if (selectedWineVintageId) {
-                    updateSelectedWineVintageId(selectedWineVintageId);
-                } else if (selectedSummary?.wineVintageId) {
-                    updateSelectedWineVintageId(selectedSummary.wineVintageId);
-                } else {
-                    updateSelectedWineVintageId('');
-                }
-
+            function showDetailsView() {
                 if (inventorySection) {
                     inventorySection.hidden = true;
                     inventorySection.setAttribute('aria-hidden', 'true');
                 }
                 if (bottleModal?.open) {
-                    const modalOptions = { focusTarget: '#details-close-button', source: 'inventory-script' };
-                    const activeVintageId = getActiveWineVintageId();
-                    if (activeVintageId) {
-                        modalOptions.context = { wineVintageId: activeVintageId };
-                    }
-                    bottleModal.open(modalOptions);
+                    bottleModal.open({ focusTarget: '#details-close-button', source: 'inventory-script' });
                 } else if (detailsSection) {
                     detailsSection.hidden = false;
                     detailsSection.setAttribute('aria-hidden', 'false');
@@ -3770,7 +3746,6 @@ window.WineInventoryTables.initialize = function () {
                 selectedRow = null;
                 selectedGroupId = null;
                 selectedSummary = null;
-                updateSelectedWineVintageId('');
 
                 closeNotesPanel();
                 selectedDetailRowElement = null;
@@ -3823,7 +3798,7 @@ window.WineInventoryTables.initialize = function () {
                     selectedRow.setAttribute('aria-expanded', 'false');
                 }
 
-                showDetailsView({ wineVintageId: row.dataset.groupId ?? '' });
+                showDetailsView();
 
                 selectedRow = row;
                 selectedGroupId = selectionKey;
@@ -3874,24 +3849,11 @@ window.WineInventoryTables.initialize = function () {
 
                 selectedSummary = summary;
 
-                const summaryVintageId = sanitizeWineVintageId(summary?.wineVintageId);
-                const effectiveVintageId = summary ? (summaryVintageId || selectedWineVintageId) : '';
-                updateSelectedWineVintageId(effectiveVintageId);
-
-                if (selectedSummary) {
-                    selectedSummary.wineVintageId = effectiveVintageId;
-                }
-
                 if (summary) {
                     setDetailsTitle(summary.wineName ?? '', summary.vintage ?? '');
-                    const bottleCount = summary.bottleCount ?? 0;
-                    const statusLabel = summary.statusLabel ?? '';
-                    const statusSuffix = statusLabel ? ` · ${statusLabel}` : '';
-                    const hasVintageContext = Boolean(getActiveWineVintageId());
-                    const guidanceSuffix = hasVintageContext ? '' : ' · Select a specific vintage to add bottles.';
-                    detailsSubtitle.textContent = `${bottleCount} bottle${bottleCount === 1 ? '' : 's'}${statusSuffix}${guidanceSuffix}`;
+                    detailsSubtitle.textContent = `${summary.bottleCount ?? 0} bottle${summary.bottleCount === 1 ? '' : 's'} · ${summary.statusLabel ?? ''}`;
                     if (detailAddRow) {
-                        detailAddRow.hidden = !hasVintageContext;
+                        detailAddRow.hidden = false;
                     }
                     if (detailAddPrice) {
                         detailAddPrice.value = '';
@@ -3903,7 +3865,7 @@ window.WineInventoryTables.initialize = function () {
                         detailAddQuantity.value = '1';
                     }
                     if (detailAddButton) {
-                        detailAddButton.disabled = loading || !hasVintageContext;
+                        detailAddButton.disabled = loading;
                     }
                     disableNotesAddRow(notesLoading || !notesSelectedBottleId);
                 } else {
@@ -3912,7 +3874,6 @@ window.WineInventoryTables.initialize = function () {
                     if (detailAddRow) {
                         detailAddRow.hidden = true;
                     }
-                    updateSelectedWineVintageId('');
                     closeNotesPanel();
                 }
 
@@ -4123,14 +4084,8 @@ window.WineInventoryTables.initialize = function () {
                         || (detailContext?.userId ? String(detailContext.userId) : detailContext?.UserId ? String(detailContext.UserId) : '');
                     const payloadUserId = normalizedUserId ? normalizedUserId : null;
 
-                    const payloadVintageId = getActiveWineVintageId();
-                    if (!payloadVintageId) {
-                        showMessage('Select a specific vintage before saving bottle changes.', 'error');
-                        return;
-                    }
-
                     const payload = {
-                        wineVintageId: payloadVintageId,
+                        wineVintageId: selectedSummary.wineVintageId,
                         price: parsePrice(row.querySelector('.detail-price')?.value ?? ''),
                         isDrunk: row.dataset.isDrunk === 'true',
                         drunkAt: row.dataset.drunkAt || null,
@@ -4311,19 +4266,13 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                const vintageId = getActiveWineVintageId();
-                if (!vintageId) {
-                    showMessage('Select a specific vintage to add bottles.', 'error');
-                    return;
-                }
-
                 const quantityValue = parseInt(detailAddQuantity?.value ?? '1', 10);
                 const quantity = Number.isNaN(quantityValue) ? 1 : Math.min(Math.max(quantityValue, 1), 12);
 
                 const locationValue = detailAddLocation?.value ?? '';
 
                 const payload = {
-                    wineVintageId: vintageId,
+                    wineVintageId: selectedSummary.wineVintageId,
                     price: parsePrice(detailAddPrice?.value ?? ''),
                     isDrunk: false,
                     drunkAt: null,
@@ -4870,8 +4819,7 @@ window.WineInventoryTables.initialize = function () {
                     }
                 }
 
-                const summaryGroupId = sanitizeWineVintageId(summary.wineVintageId ?? summary.WineVintageId ?? '');
-                const groupId = summaryGroupId || selectedGroupId;
+                const groupId = summary.wineVintageId ?? summary.WineVintageId ?? selectedGroupId;
                 const groupAverage = summary.groupAverageScore ?? summary.GroupAverageScore ?? null;
                 if (groupId) {
                     const summaryRow = inventoryTable.querySelector(`.group-row[data-group-id="${groupId}"]`);
@@ -5079,57 +5027,6 @@ window.WineInventoryTables.initialize = function () {
 
                 const value = String(id);
                 return value.length > 8 ? `${value.substring(0, 8)}…` : value;
-            }
-
-            function isEmptyGuid(value) {
-                if (!value) {
-                    return true;
-                }
-
-                const normalized = String(value).trim().toLowerCase();
-                if (!normalized) {
-                    return true;
-                }
-
-                return normalized === '00000000-0000-0000-0000-000000000000';
-            }
-
-            function sanitizeWineVintageId(value) {
-                if (!value) {
-                    return '';
-                }
-
-                const normalized = String(value).trim();
-                if (!normalized || isEmptyGuid(normalized)) {
-                    return '';
-                }
-
-                return normalized;
-            }
-
-            function getActiveWineVintageId() {
-                return sanitizeWineVintageId(selectedWineVintageId || selectedSummary?.wineVintageId);
-            }
-
-            function updateSelectedWineVintageId(value) {
-                const sanitized = sanitizeWineVintageId(value);
-                selectedWineVintageId = sanitized;
-
-                if (detailsPanel) {
-                    if (sanitized) {
-                        detailsPanel.dataset.wineVintageId = sanitized;
-                    } else {
-                        delete detailsPanel.dataset.wineVintageId;
-                    }
-                }
-
-                if (detailAddRow) {
-                    if (sanitized) {
-                        detailAddRow.dataset.wineVintageId = sanitized;
-                    } else {
-                        delete detailAddRow.dataset.wineVintageId;
-                    }
-                }
             }
 
             function showMessage(text, state) {
