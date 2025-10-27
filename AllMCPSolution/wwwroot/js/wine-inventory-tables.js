@@ -261,7 +261,8 @@
                 const templateRow = inventoryInlineRowTemplate.content.firstElementChild.cloneNode(true);
                 const vintageCell = templateRow.querySelector('[data-vintage]');
                 const scoreCell = templateRow.querySelector('[data-score]');
-                const countCell = templateRow.querySelector('[data-count]');
+                const availableCell = templateRow.querySelector('[data-available]');
+                const drunkCell = templateRow.querySelector('[data-drunk]');
 
                 if (vintageCell) {
                     vintageCell.textContent = formatVintageLabel(vintage?.vintage);
@@ -271,14 +272,36 @@
                     scoreCell.textContent = formatAverageScore(vintage?.averageScore);
                 }
 
-                if (countCell) {
-                    const displayCount = typeof vintage?.count === 'number'
-                        ? vintage.count.toLocaleString()
+                const availableCount = typeof vintage?.availableCount === 'number'
+                    ? vintage.availableCount
+                    : (typeof vintage?.count === 'number' ? vintage.count : 0);
+                const drunkCount = typeof vintage?.drunkCount === 'number'
+                    ? vintage.drunkCount
+                    : 0;
+
+                if (availableCell) {
+                    const displayAvailable = Number.isFinite(availableCount)
+                        ? availableCount.toLocaleString()
                         : '0';
-                    countCell.textContent = displayCount;
+                    availableCell.textContent = displayAvailable;
                 }
 
-                bindVintageInlineRow(templateRow, vintage);
+                if (drunkCell) {
+                    const displayDrunk = Number.isFinite(drunkCount)
+                        ? drunkCount.toLocaleString()
+                        : '0';
+                    drunkCell.textContent = displayDrunk;
+                }
+
+                const counts = {
+                    availableCount,
+                    drunkCount,
+                    totalCount: typeof vintage?.totalCount === 'number'
+                        ? vintage.totalCount
+                        : availableCount + drunkCount
+                };
+
+                bindVintageInlineRow(templateRow, { ...vintage, ...counts });
                 tbody.appendChild(templateRow);
             });
         }
@@ -306,9 +329,18 @@
             row.setAttribute('role', 'button');
 
             const vintageLabel = formatVintageLabel(vintage?.vintage);
-            const countValue = typeof vintage?.count === 'number' ? vintage.count : 0;
-            const bottleNoun = countValue === 1 ? 'bottle' : 'bottles';
-            row.setAttribute('aria-label', `View ${countValue} ${bottleNoun} from vintage ${vintageLabel}`);
+            const availableCount = typeof vintage?.availableCount === 'number'
+                ? vintage.availableCount
+                : (typeof vintage?.count === 'number' ? vintage.count : 0);
+            const drunkCount = typeof vintage?.drunkCount === 'number' ? vintage.drunkCount : 0;
+            const totalCount = typeof vintage?.totalCount === 'number'
+                ? vintage.totalCount
+                : availableCount + drunkCount;
+            const totalBottleNoun = totalCount === 1 ? 'bottle' : 'bottles';
+            row.setAttribute(
+                'aria-label',
+                `View ${totalCount} ${totalBottleNoun} from vintage ${vintageLabel} (${availableCount} available, ${drunkCount} enjoyed)`
+            );
 
             const openBottleModal = () => {
                 if (window.BottleManagementModal?.open) {
@@ -347,8 +379,15 @@
                     && Number.isFinite(detail.currentUserScore);
                 const scoreValue = hasScore ? detail.currentUserScore : 0;
 
+                const isDrunk = Boolean(detail?.isDrunk);
+
                 if (existing) {
-                    existing.count += 1;
+                    existing.totalCount += 1;
+                    if (isDrunk) {
+                        existing.drunkCount += 1;
+                    } else {
+                        existing.availableCount += 1;
+                    }
                     if (hasScore) {
                         existing.scoreTotal += scoreValue;
                         existing.scoreCount += 1;
@@ -357,7 +396,9 @@
                     results.set(vintageId, {
                         wineVintageId: vintageId,
                         vintage: detail?.vintage,
-                        count: 1,
+                        totalCount: 1,
+                        availableCount: isDrunk ? 0 : 1,
+                        drunkCount: isDrunk ? 1 : 0,
                         scoreTotal: scoreValue,
                         scoreCount: hasScore ? 1 : 0
                     });
@@ -372,7 +413,10 @@
                 return {
                     wineVintageId: entry.wineVintageId,
                     vintage: entry.vintage,
-                    count: entry.count,
+                    count: entry.availableCount,
+                    availableCount: entry.availableCount,
+                    drunkCount: entry.drunkCount,
+                    totalCount: entry.totalCount,
                     averageScore
                 };
             });

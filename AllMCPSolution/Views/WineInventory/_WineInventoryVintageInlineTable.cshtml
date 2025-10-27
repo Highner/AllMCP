@@ -10,7 +10,8 @@
                         <tr>
                             <th scope="col" class="inventory-inline-vintage-header">Vintage</th>
                             <th scope="col" class="inventory-inline-score-header">Score</th>
-                            <th scope="col" class="inventory-inline-count-header">Bottles</th>
+                            <th scope="col" class="inventory-inline-count-header inventory-inline-available-header">Available</th>
+                            <th scope="col" class="inventory-inline-count-header inventory-inline-drunk-header">Drunk</th>
                         </tr>
                     </thead>
                     <tbody data-inline-body></tbody>
@@ -24,6 +25,7 @@
     <tr class="inventory-inline-row" data-inline-vintage-row>
         <td class="inventory-inline-vintage" data-vintage></td>
         <td class="inventory-inline-score" data-score></td>
-        <td class="inventory-inline-count" data-count></td>
+        <td class="inventory-inline-count inventory-inline-available" data-available></td>
+        <td class="inventory-inline-count inventory-inline-drunk" data-drunk></td>
     </tr>
 </template>
