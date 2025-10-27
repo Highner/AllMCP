@@ -886,10 +886,7 @@ body.account-edit-open {
     display: flex;
     flex-wrap: wrap;
     gap: 15px;
-    margin-bottom: 15px;
-    background: hsla(var(--accent) / 0.18);
-    padding: 20px;
-    border-radius: calc(var(--radius) - 0.25rem);
+    margin: 0;
 }
 
 .filters label {
@@ -900,6 +897,15 @@ body.account-edit-open {
     letter-spacing: 1px;
     color: hsla(var(--muted-foreground) / 0.9);
     gap: 6px;
+}
+
+.inventory-filters {
+    display: grid;
+    gap: 16px;
+}
+
+.location-header--table {
+    width: 100%;
 }
 
 .select,
