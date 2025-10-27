@@ -431,11 +431,6 @@ public class WineInventoryController : Controller
         }
 
         var response = await BuildBottleGroupResponseAsync(wineVintageId, currentUserId, cancellationToken);
-        if (response.Group is null)
-        {
-            return NotFound();
-        }
-
         return Json(response);
     }
 
