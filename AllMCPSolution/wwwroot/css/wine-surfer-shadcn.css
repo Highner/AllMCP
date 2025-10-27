@@ -2571,6 +2571,10 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     gap: 24px;
 }
 
+.inventory-view {
+    padding-top: 36px;
+}
+
 .inventory-section-header {
     width: 100%;
 }
