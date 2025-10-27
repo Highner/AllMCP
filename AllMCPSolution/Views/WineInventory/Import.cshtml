@@ -1,6 +1,7 @@
 @model AllMCPSolution.Controllers.WineImportPageViewModel
 @using AllMCPSolution.Controllers
 @using AllMCPSolution.Services
+@using AllMCPSolution.Models
 @{
     Layout = null;
     var pageModel = Model ?? new WineImportPageViewModel();
@@ -9,12 +10,16 @@
     var currentPath = Context.Request.Path.Value ?? string.Empty;
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
         ?? WineSurferTopBarModel.Empty(currentPath);
+    var inventoryAddModalModel = ViewData["InventoryAddModal"] as InventoryAddModalViewModel
+        ?? new InventoryAddModalViewModel();
     var wineHasErrors = winePanel.HasErrors;
     var wineHasResult = winePanel.HasResult;
     var wineResult = winePanel.Result;
     var bottleHasErrors = bottlePanel.HasErrors;
     var bottleHasResult = bottlePanel.HasResult;
     var bottleResult = bottlePanel.Result;
+    var bottlePreviewRows = bottlePanel.PreviewRows;
+    var hasBottlePreview = bottlePanel.HasPreview;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -27,6 +32,7 @@
     <meta name="theme-color" content="#050505" />
     <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shared-ui.css" />
     <script defer src="/js/pwa.js"></script>
 </head>
 <body class="wine-app wine-app--with-bottom-nav">
@@ -134,7 +140,107 @@
                 </div>
             }
 
-            @if (bottleHasResult && bottleResult is not null)
+            @if (hasBottlePreview)
+            {
+                var previewCount = bottlePreviewRows.Count;
+                <div class="import-preview wine-surface wine-surface-border">
+                    <div class="import-preview__header">
+                        <h3>Bottle Import Preview@if (!string.IsNullOrWhiteSpace(bottlePanel.UploadedFileName)) {<text> for @bottlePanel.UploadedFileName</text>}</h3>
+                        <p class="import-preview__description">Review each row and add bottles individually to your inventory.</p>
+                        <p class="import-preview__count" aria-live="polite">@previewCount bottle@(previewCount == 1 ? string.Empty : "s") ready to review.</p>
+                    </div>
+                    <div class="import-preview__table-wrapper">
+                        <table class="import-preview__table" data-import-preview-table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Row</th>
+                                    <th scope="col">Wine</th>
+                                    <th scope="col">Appellation</th>
+                                    <th scope="col">Region &amp; Country</th>
+                                    <th scope="col">Color</th>
+                                    <th scope="col">Amount</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col" class="import-preview__actions-header">Add</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in bottlePreviewRows)
+                                {
+                                    var displayName = string.IsNullOrWhiteSpace(row.Name) ? "—" : row.Name;
+                                    var hasAppellation = !string.IsNullOrWhiteSpace(row.Appellation) || !string.IsNullOrWhiteSpace(row.SubAppellation);
+                                    var hasRegion = !string.IsNullOrWhiteSpace(row.Region);
+                                    var hasCountry = !string.IsNullOrWhiteSpace(row.Country);
+                                    var buttonAriaLabel = string.IsNullOrWhiteSpace(row.Name)
+                                        ? "Add wine to inventory"
+                                        : $"Add {row.Name} to inventory";
+                                    <tr class="import-preview__row" data-import-preview-row="@row.RowId">
+                                        <td class="import-preview__cell import-preview__cell--row">@row.RowNumber</td>
+                                        <td class="import-preview__cell import-preview__cell--wine">
+                                            <span class="import-preview__wine-name">@displayName</span>
+                                        </td>
+                                        <td class="import-preview__cell import-preview__cell--appellation">
+                                            @if (hasAppellation)
+                                            {
+                                                @if (!string.IsNullOrWhiteSpace(row.SubAppellation))
+                                                {
+                                                    <span>@row.SubAppellation</span>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(row.Appellation))
+                                                {
+                                                    <span class="import-preview__meta">@row.Appellation</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="import-preview__meta">—</span>
+                                            }
+                                        </td>
+                                        <td class="import-preview__cell import-preview__cell--region">
+                                            @if (hasRegion || hasCountry)
+                                            {
+                                                @if (hasRegion)
+                                                {
+                                                    <span>@row.Region</span>
+                                                }
+                                                @if (hasCountry)
+                                                {
+                                                    <span class="import-preview__meta">@row.Country</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="import-preview__meta">—</span>
+                                            }
+                                        </td>
+                                        <td class="import-preview__cell import-preview__cell--color">@(!string.IsNullOrWhiteSpace(row.Color) ? row.Color : "—")</td>
+                                        <td class="import-preview__cell import-preview__cell--amount">@row.Amount</td>
+                                        <td class="import-preview__cell import-preview__cell--status">
+                                            <span class="import-preview__status" data-import-preview-status aria-live="polite">Ready</span>
+                                        </td>
+                                        <td class="import-preview__cell import-preview__cell--actions">
+                                            <button type="button"
+                                                    class="crud-table__action-button import-preview__action-button"
+                                                    data-add-wine-trigger="import-preview"
+                                                    data-preview-row-id="@row.RowId"
+                                                    data-wine-name="@row.Name"
+                                                    data-wine-country="@row.Country"
+                                                    data-wine-region="@row.Region"
+                                                    data-wine-appellation="@row.Appellation"
+                                                    data-wine-sub-appellation="@row.SubAppellation"
+                                                    data-wine-color="@row.Color"
+                                                    data-wine-vintage=""
+                                                    data-import-preview-add
+                                                    aria-label="@buttonAriaLabel">Add</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            @if (bottleHasResult && bottleResult is not null && !hasBottlePreview)
             {
                 <div class="import-summary wine-surface wine-surface-border">
                     <h3>Bottle Import Summary@if (!string.IsNullOrWhiteSpace(bottlePanel.UploadedFileName)) {<text> for @bottlePanel.UploadedFileName</text>}</h3>
@@ -150,33 +256,36 @@
                         <div><dt>Bottles added</dt><dd>@bottleResult.AddedBottles</dd></div>
                     </dl>
                 </div>
+            }
 
-                @if (bottleResult.HasRowErrors)
-                {
-                    <div class="row-errors wine-surface wine-surface-border">
-                        <h3>Rows Skipped</h3>
-                        <table class="row-errors__table">
-                            <thead>
+            @if (bottleHasResult && bottleResult is not null && bottleResult.HasRowErrors)
+            {
+                <div class="row-errors wine-surface wine-surface-border">
+                    <h3>Rows Skipped</h3>
+                    <table class="row-errors__table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Row</th>
+                                <th scope="col">Issue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var error in bottleResult.RowErrors)
+                            {
                                 <tr>
-                                    <th scope="col">Row</th>
-                                    <th scope="col">Issue</th>
+                                    <td>@error.RowNumber</td>
+                                    <td>@error.Message</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var error in bottleResult.RowErrors)
-                                {
-                                    <tr>
-                                        <td>@error.RowNumber</td>
-                                        <td>@error.Message</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
             }
         </section>
     </main>
+    @await Html.PartialAsync("_InventoryAddModal", inventoryAddModalModel)
+    <script defer src="/js/inventory-add-modal.js"></script>
+    <script defer src="/js/wine-import-preview.js"></script>
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>

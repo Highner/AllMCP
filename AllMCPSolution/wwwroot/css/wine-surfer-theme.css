@@ -882,3 +882,140 @@ a.wine-card:focus {
 [hidden] {
     display: none !important;
 }
+
+.import-preview {
+    margin-top: 24px;
+    padding: 24px;
+    border-radius: 18px;
+    border: 1px solid var(--wine-surface-border);
+    background: var(--wine-surface-gradient);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.import-preview__header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.import-preview__header h3 {
+    margin: 0;
+    font-size: 20px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+.import-preview__description {
+    margin: 0;
+    font-size: 14px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(244, 241, 234, 0.65);
+}
+
+.import-preview__count {
+    margin: 0;
+    font-size: 13px;
+    letter-spacing: 1.2px;
+    color: rgba(244, 241, 234, 0.78);
+}
+
+.import-preview__table-wrapper {
+    overflow-x: auto;
+}
+
+.import-preview__table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+}
+
+.import-preview__table th,
+.import-preview__table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(244, 241, 234, 0.08);
+    vertical-align: top;
+}
+
+.import-preview__table th {
+    font-size: 12px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: rgba(244, 241, 234, 0.62);
+}
+
+.import-preview__table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.import-preview__cell--row {
+    width: 72px;
+    font-variant-numeric: tabular-nums;
+}
+
+.import-preview__wine-name {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+}
+
+.import-preview__meta {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    letter-spacing: 0.6px;
+    color: rgba(244, 241, 234, 0.58);
+}
+
+.import-preview__cell--color,
+.import-preview__cell--amount,
+.import-preview__cell--status,
+.import-preview__cell--actions {
+    white-space: nowrap;
+}
+
+.import-preview__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    background: rgba(244, 241, 234, 0.08);
+    color: rgba(244, 241, 234, 0.78);
+}
+
+.import-preview__status[data-state="added"] {
+    background: rgba(46, 173, 108, 0.28);
+    color: #d8f8e4;
+}
+
+.import-preview__row--added {
+    opacity: 0.72;
+}
+
+.import-preview__action-button {
+    min-width: 96px;
+}
+
+.import-preview__action-button--added {
+    cursor: default;
+}
+
+.import-preview__actions-header {
+    text-align: right;
+}
+
+.import-preview__cell--actions {
+    text-align: right;
+}
+
+@media (max-width: 900px) {
+    .import-preview__table {
+        min-width: 0;
+    }
+}
