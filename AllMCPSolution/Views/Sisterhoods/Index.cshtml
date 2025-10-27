@@ -114,6 +114,13 @@
     <link rel="stylesheet" href="/css/wine-surfer-shared-ui.css" />
     <script defer src="/js/pwa.js"></script>
     <style>
+        /* Sisterhood card split layout */
+        .sisterhood-card__grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        .sisterhood-card__left, .sisterhood-card__right { min-width: 0; }
+        @@media (min-width: 900px) {
+            .sisterhood-card__grid { grid-template-columns: 1fr 1fr; align-items: start; }
+        }
+        /* Ensure top header/description remain full width within the card by placing grid only around body sections */
         :root {
             color-scheme: dark;
         }
@@ -747,6 +754,7 @@
             gap: 12px;
             padding: 10px 12px;
             border-radius: 12px;
+            border: 1px solid var(--wine-surface-border);
             background: rgba(244, 241, 234, 0.04);
         }
 
@@ -799,8 +807,8 @@
         .sip-session-section {
             display: flex;
             flex-direction: column;
-            gap: 14px;
-            margin-top: 8px;
+            gap: 12px;
+            margin-top: 0;
         }
 
         .sip-session-section-header {
@@ -808,6 +816,20 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
+        }
+
+        /* Ensure consistent bottom spacing beneath headers in the left column (e.g., Members) */
+        .sisterhood-card__left .sip-session-section-header {
+            margin-bottom: 12px;
+        }
+
+        /* Unified, borderless header toolbar for section titles and optional actions */
+        .sisterhood-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 44px; /* uniform height to accommodate an action button */
         }
 
         .sip-session-title {
@@ -1504,33 +1526,6 @@
             margin: 0;
         }
 
-        .sisterhood-favorite-region {
-            margin: 14px 0;
-            padding: 12px 14px;
-            border-radius: 12px;
-            background: rgba(244, 241, 234, 0.05);
-            display: grid;
-            gap: 4px;
-        }
-
-        .favorite-region-label {
-            font-size: 10px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.6);
-        }
-
-        .favorite-region-name {
-            font-size: 15px;
-            letter-spacing: 1px;
-        }
-
-        .favorite-region-score {
-            font-size: 11px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: rgba(244, 241, 234, 0.65);
-        }
 
         .inline-form {
             margin: 0;
@@ -1578,6 +1573,13 @@
         .invite-form .invite-actions {
             display: flex;
             justify-content: flex-end;
+        }
+
+        .invite-form .invite-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
         }
 
         .invite-feedback {
@@ -1688,8 +1690,8 @@
                 string leadMessage;
                 if (Model.IsAuthenticated && hasMembership)
                 {
-                    var prefix = sanitizedDisplayName is null ? "You're" : $"{sanitizedDisplayName}, you're";
-                    leadMessage = $"{prefix} currently connected with these sisterhoods. Stay close to your fellow members and explore what's next together.";
+                    // Removed verbose lead text for members with existing sisterhoods per issue requirement
+                    leadMessage = null;
                 }
                 else if (Model.IsAuthenticated)
                 {
@@ -1701,7 +1703,10 @@
                     leadMessage = "Across continents and cultures, our Sisterhoods gather to share knowledge, amplify underrepresented voices, and craft cellars that celebrate every story in the vineyard. Explore the communities shaping tomorrow's wine world.";
                 }
             }
-            <p class="lead">@leadMessage</p>
+            @if (!string.IsNullOrWhiteSpace(leadMessage))
+            {
+                <p class="lead">@leadMessage</p>
+            }
 
             @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
             {
@@ -1916,21 +1921,13 @@
                             </form>
                         }
 
-                        @if (sisterhood.FavoriteRegion != null)
-                        {
-                            var favorite = sisterhood.FavoriteRegion;
-                            var favoriteRegionDisplay = string.IsNullOrWhiteSpace(favorite.CountryName)
-                                ? favorite.Name
-                                : $"{favorite.Name}, {favorite.CountryName}";
-                            <div class="sisterhood-favorite-region" role="group" aria-label="Favorite region insight">
-                                <span class="favorite-region-label">Favorite region</span>
-                                <span class="favorite-region-name">@favoriteRegionDisplay</span>
-                                <span class="favorite-region-score">Average score · @favorite.AverageScore.ToString("0.##")</span>
-                            </div>
-                        }
-
+                        <div class="sisterhood-card__grid">
+                        <div class="sisterhood-card__left">
                         @if (sisterhood.Members.Count > 0)
                         {
+                            <div class="sip-session-section-header sisterhood-toolbar">
+                                <span class="sip-session-title">Members</span>
+                            </div>
                             <ul class="member-list">
                                 @foreach (var member in sisterhood.Members)
                                 {
@@ -1981,9 +1978,97 @@
                             </ul>
                         }
 
+                        @if (sisterhood.CanManage && sisterhood.PendingInvitations.Count > 0)
+                        {
+                            <div class="pending-invitations" role="group" aria-label="Pending invitations">
+                                <div class="pending-invitations-header">
+                                    <span class="pending-invitations-title">Pending invitations</span>
+                                    <span class="pending-invitations-count">@sisterhood.PendingInvitations.Count @((sisterhood.PendingInvitations.Count == 1) ? "invite" : "invites")</span>
+                                </div>
+                                @{
+                                    var resendEndpoint = Url.Action("InviteSisterhoodMember", "WineSurfer");
+                                    var removeEndpoint = Url.Action("RemovePendingSisterhoodInvitation", "WineSurfer");
+                                }
+                                @Html.AntiForgeryToken()
+                                <ul class="pending-invitations-list">
+                                    @foreach (var invitation in sisterhood.PendingInvitations)
+                                    {
+                                        var invitationLabel = string.IsNullOrWhiteSpace(invitation.InviteeName)
+                                            ? invitation.Email
+                                            : $"{invitation.InviteeName} · {invitation.Email}";
+                                        <li class="pending-invitations-item" data-pending-invitation>
+                                            <div class="pending-invite-row">
+                                                <span class="pending-invite-email">@invitationLabel</span>
+                                                <span class="pending-invite-status">@invitation.Status</span>
+                                            </div>
+                                            <span class="pending-invite-updated" data-pending-invite-updated>Updated @invitation.UpdatedAtUtc.ToLocalTime().ToString("g")</span>
+                                            <div class="pending-invite-actions">
+                                                <button type="button"
+                                                        class="sisterhood-button"
+                                                        data-resend-invite-button
+                                                        data-endpoint="@(resendEndpoint ?? string.Empty)"
+                                                        data-sisterhood-id="@sisterhood.Id"
+                                                        data-invitation-email="@invitation.Email"
+                                                        data-invitation-user-id="@(invitation.InviteeUserId?.ToString() ?? string.Empty)"
+                                                        data-invitation-name="@(invitation.InviteeName ?? string.Empty)">Resend invitation mail</button>
+                                                <button type="button"
+                                                        class="sisterhood-button sisterhood-button--ghost-danger"
+                                                        data-remove-invite-button
+                                                        data-endpoint="@(removeEndpoint ?? string.Empty)"
+                                                        data-sisterhood-id="@sisterhood.Id"
+                                                        data-invitation-id="@invitation.Id"
+                                                        data-invitation-label="@invitationLabel">Remove invitation</button>
+                                                <p class="invite-feedback pending-invite-feedback" data-resend-invite-feedback aria-live="polite" hidden></p>
+                                            </div>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+
+                        @if (sisterhood.CanManage)
+                        {
+                            <form method="post" action="@Url.Action("InviteSisterhoodMember", "WineSurfer")" class="invite-form" data-sisterhood-invite-form>
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                <input type="hidden" name="UserId" value="" data-sisterhood-invite-user-id />
+                                <input type="hidden" name="MemberEmail" value="" data-sisterhood-invite-email />
+                                <input type="hidden" name="IsEmail" value="false" data-sisterhood-invite-is-email />
+                                <div class="invite-header sisterhood-toolbar">
+                                    <label for="invite-member-@sisterhood.Id">Invite a Wine Surfer</label>
+                                    <div class="invite-actions">
+                                        <button type="submit" class="sisterhood-button">Invite</button>
+                                    </div>
+                                </div>
+                                <div class="inventory-add-combobox sisterhood-invite-combobox" data-sisterhood-invite-combobox>
+                                    <input id="invite-member-@sisterhood.Id"
+                                           name="MemberName"
+                                           type="search"
+                                           class="inventory-add-wine-search sisterhood-invite-input"
+                                           placeholder="Start typing a name or email"
+                                           autocomplete="off"
+                                           spellcheck="false"
+                                           role="combobox"
+                                           aria-autocomplete="list"
+                                           aria-expanded="false"
+                                           aria-controls="invite-results-@sisterhood.Id" />
+                                    <div class="inventory-add-wine-results"
+                                         id="invite-results-@sisterhood.Id"
+                                         data-sisterhood-invite-results
+                                         role="listbox"
+                                         aria-label="Matching Wine Surfers">
+                                        <ul class="inventory-add-wine-options" data-sisterhood-invite-options></ul>
+                                    </div>
+                                </div>
+                                <p class="invite-feedback" data-sisterhood-invite-feedback aria-live="polite" hidden></p>
+                            </form>
+                        }
+
+                        </div>
+                        <div class="sisterhood-card__right">
                         <section class="sip-session-section">
                             @{ var createContainerId = $"sip-session-create-container-{sisterhood.Id}"; }
-                            <div class="sip-session-section-header">
+                            <div class="sip-session-section-header sisterhood-toolbar">
                                 <span class="sip-session-title">Sip sessions</span>
                                 @if (sisterhood.CanManage)
                                 {
@@ -2170,90 +2255,8 @@
                                 </div>
                             }
                         </section>
-
-                        @if (sisterhood.CanManage && sisterhood.PendingInvitations.Count > 0)
-                        {
-                            <div class="pending-invitations" role="group" aria-label="Pending invitations">
-                                <div class="pending-invitations-header">
-                                    <span class="pending-invitations-title">Pending invitations</span>
-                                    <span class="pending-invitations-count">@sisterhood.PendingInvitations.Count @((sisterhood.PendingInvitations.Count == 1) ? "invite" : "invites")</span>
-                                </div>
-                                @{
-                                    var resendEndpoint = Url.Action("InviteSisterhoodMember", "WineSurfer");
-                                    var removeEndpoint = Url.Action("RemovePendingSisterhoodInvitation", "WineSurfer");
-                                }
-                                @Html.AntiForgeryToken()
-                                <ul class="pending-invitations-list">
-                                    @foreach (var invitation in sisterhood.PendingInvitations)
-                                    {
-                                        var invitationLabel = string.IsNullOrWhiteSpace(invitation.InviteeName)
-                                            ? invitation.Email
-                                            : $"{invitation.InviteeName} · {invitation.Email}";
-                                        <li class="pending-invitations-item" data-pending-invitation>
-                                            <div class="pending-invite-row">
-                                                <span class="pending-invite-email">@invitationLabel</span>
-                                                <span class="pending-invite-status">@invitation.Status</span>
-                                            </div>
-                                            <span class="pending-invite-updated" data-pending-invite-updated>Updated @invitation.UpdatedAtUtc.ToLocalTime().ToString("g")</span>
-                                            <div class="pending-invite-actions">
-                                                <button type="button"
-                                                        class="sisterhood-button"
-                                                        data-resend-invite-button
-                                                        data-endpoint="@(resendEndpoint ?? string.Empty)"
-                                                        data-sisterhood-id="@sisterhood.Id"
-                                                        data-invitation-email="@invitation.Email"
-                                                        data-invitation-user-id="@(invitation.InviteeUserId?.ToString() ?? string.Empty)"
-                                                        data-invitation-name="@(invitation.InviteeName ?? string.Empty)">Resend invitation mail</button>
-                                                <button type="button"
-                                                        class="sisterhood-button sisterhood-button--ghost-danger"
-                                                        data-remove-invite-button
-                                                        data-endpoint="@(removeEndpoint ?? string.Empty)"
-                                                        data-sisterhood-id="@sisterhood.Id"
-                                                        data-invitation-id="@invitation.Id"
-                                                        data-invitation-label="@invitationLabel">Remove invitation</button>
-                                                <p class="invite-feedback pending-invite-feedback" data-resend-invite-feedback aria-live="polite" hidden></p>
-                                            </div>
-                                        </li>
-                                    }
-                                </ul>
-                            </div>
-                        }
-
-                        @if (sisterhood.CanManage)
-                        {
-                            <form method="post" action="@Url.Action("InviteSisterhoodMember", "WineSurfer")" class="invite-form" data-sisterhood-invite-form>
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
-                                <input type="hidden" name="UserId" value="" data-sisterhood-invite-user-id />
-                                <input type="hidden" name="MemberEmail" value="" data-sisterhood-invite-email />
-                                <input type="hidden" name="IsEmail" value="false" data-sisterhood-invite-is-email />
-                                <label for="invite-member-@sisterhood.Id">Invite a Wine Surfer</label>
-                                <div class="inventory-add-combobox sisterhood-invite-combobox" data-sisterhood-invite-combobox>
-                                    <input id="invite-member-@sisterhood.Id"
-                                           name="MemberName"
-                                           type="search"
-                                           class="inventory-add-wine-search sisterhood-invite-input"
-                                           placeholder="Start typing a name or email"
-                                           autocomplete="off"
-                                           spellcheck="false"
-                                           role="combobox"
-                                           aria-autocomplete="list"
-                                           aria-expanded="false"
-                                           aria-controls="invite-results-@sisterhood.Id" />
-                                    <div class="inventory-add-wine-results"
-                                         id="invite-results-@sisterhood.Id"
-                                         data-sisterhood-invite-results
-                                         role="listbox"
-                                         aria-label="Matching Wine Surfers">
-                                        <ul class="inventory-add-wine-options" data-sisterhood-invite-options></ul>
-                                    </div>
-                                </div>
-                                <div class="invite-actions">
-                                <button type="submit" class="sisterhood-button">Invite</button>
-                            </div>
-                            <p class="invite-feedback" data-sisterhood-invite-feedback aria-live="polite" hidden></p>
-                        </form>
-                    }
+                        </div>
+                        </div>
                 </article>
             }
             }
