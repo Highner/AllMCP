@@ -947,16 +947,7 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function bindDetailsCloseButton() {
-                const handleClose = (event) => {
-                    if (event) {
-                        event.preventDefault?.();
-                        event.stopPropagation?.();
-                    }
-
-                    if (typeof suppressNextPointerSequence === 'function') {
-                        suppressNextPointerSequence(350);
-                    }
-
+                const handleClose = () => {
                     const rowToFocus = selectedRow;
                     showInventoryView();
                     resetDetailsView();
@@ -965,31 +956,99 @@ window.WineInventoryTables.initialize = function () {
                     }
                 };
 
-                const handleDelegatedClose = (event) => {
-                    const target = event?.target;
-                    if (!(target instanceof Element)) {
-                        return;
-                    }
-
-                    if (target.closest('[data-details-close]')) {
-                        handleClose(event);
-                    }
+                const intercept = (event) => {
+                    if (!event) return;
+                    if (typeof event.preventDefault === 'function') event.preventDefault();
+                    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+                    if (typeof event.stopPropagation === 'function') event.stopPropagation();
                 };
 
-                detailsCloseButton?.addEventListener('click', handleClose);
+                const isCloseTarget = (evt) => {
+                    const el = evt?.target;
+                    return el instanceof Element ? !!el.closest('[data-details-close]') : false;
+                };
 
-                if (detailsSection) {
-                    detailsSection.addEventListener('click', handleDelegatedClose);
-                }
+                // Direct binding to the explicit close button if present
+                if (detailsCloseButton) {
+                    // Intercept as early as possible so underlying elements don’t react
+                    detailsCloseButton.addEventListener('pointerdown', (event) => {
+                        intercept(event);
+                        if (typeof suppressNextPointerSequence === 'function') suppressNextPointerSequence(350);
+                        handleClose();
+                    }, { capture: true });
 
-                if (modalOverlay) {
-                    modalOverlay.addEventListener('click', (event) => {
-                        if (event.target === modalOverlay) {
-                            handleClose(event);
-                        }
+                    detailsCloseButton.addEventListener('mousedown', (event) => {
+                        intercept(event);
+                    }, { capture: true });
+
+                    detailsCloseButton.addEventListener('touchstart', (event) => {
+                        intercept(event);
+                    }, { capture: true, passive: false });
+
+                    detailsCloseButton.addEventListener('click', (event) => {
+                        intercept(event);
+                        handleClose();
                     });
                 }
 
+                // Delegate inside the details section (covers clicks on child elements like the inner span)
+                if (detailsSection) {
+                    detailsSection.addEventListener('pointerdown', (event) => {
+                        if (!isCloseTarget(event)) return;
+                        intercept(event);
+                    }, { capture: true });
+
+                    detailsSection.addEventListener('mousedown', (event) => {
+                        if (!isCloseTarget(event)) return;
+                        intercept(event);
+                    }, { capture: true });
+
+                    detailsSection.addEventListener('touchstart', (event) => {
+                        if (!isCloseTarget(event)) return;
+                        intercept(event);
+                    }, { capture: true, passive: false });
+
+                    detailsSection.addEventListener('click', (event) => {
+                        if (!isCloseTarget(event)) return;
+                        intercept(event);
+                        handleClose();
+                    });
+                }
+
+                if (modalOverlay) {
+                    modalOverlay.addEventListener('pointerdown', (event) => {
+                        if (event.target !== modalOverlay) return;
+                        intercept(event);
+                    }, { capture: true });
+
+                    modalOverlay.addEventListener('touchstart', (event) => {
+                        if (event.target !== modalOverlay) return;
+                        intercept(event);
+                    }, { capture: true, passive: false });
+
+                    modalOverlay.addEventListener('click', (event) => {
+                        if (event.target !== modalOverlay) return;
+                        intercept(event);
+                        handleClose();
+                    });
+                }
+
+                // Global defensive delegate to ensure the close works even if the section reference is missing
+                const docEarlyIntercept = (event) => {
+                    if (!isCloseTarget(event)) return;
+                    intercept(event);
+                };
+                document.addEventListener('pointerdown', docEarlyIntercept, { capture: true });
+                document.addEventListener('mousedown', docEarlyIntercept, { capture: true });
+                document.addEventListener('touchstart', docEarlyIntercept, { capture: true, passive: false });
+
+                document.addEventListener('click', (event) => {
+                    if (!isCloseTarget(event)) return;
+                    intercept(event);
+                    handleClose();
+                });
+
+                // Allow Esc key to close the details panel for accessibility
                 document.addEventListener('keydown', (event) => {
                     if (event.key === 'Escape') {
                         const isDetailsVisible = typeof bottleModal?.isOpen === 'function'
@@ -997,7 +1056,7 @@ window.WineInventoryTables.initialize = function () {
                             : (detailsSection && detailsSection.hidden === false);
                         if (isDetailsVisible) {
                             event.preventDefault();
-                            handleClose(event);
+                            handleClose();
                         }
                     }
                 });
@@ -2050,14 +2109,7 @@ window.WineInventoryTables.initialize = function () {
                     return;
                 }
 
-                detailAddButton.addEventListener('click', (event) => {
-                    if (event) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                    }
-
-                    handleAddBottle();
-                });
+                detailAddButton.addEventListener('click', handleAddBottle);
             }
 
             function bindDrinkBottleModal() {
@@ -3802,7 +3854,6 @@ window.WineInventoryTables.initialize = function () {
                     detailsSubtitle.textContent = `${summary.bottleCount ?? 0} bottle${summary.bottleCount === 1 ? '' : 's'} · ${summary.statusLabel ?? ''}`;
                     if (detailAddRow) {
                         detailAddRow.hidden = false;
-                        detailAddRow.removeAttribute('hidden');
                     }
                     if (detailAddPrice) {
                         detailAddPrice.value = '';
@@ -3815,9 +3866,6 @@ window.WineInventoryTables.initialize = function () {
                     }
                     if (detailAddButton) {
                         detailAddButton.disabled = loading;
-                        if (!loading) {
-                            detailAddButton.removeAttribute('disabled');
-                        }
                     }
                     disableNotesAddRow(notesLoading || !notesSelectedBottleId);
                 } else {
@@ -4265,11 +4313,7 @@ window.WineInventoryTables.initialize = function () {
                     addWineButton.disabled = state;
                 }
                 if (detailAddButton) {
-                    const shouldDisable = state || Boolean(detailAddRow?.hidden);
-                    detailAddButton.disabled = shouldDisable;
-                    if (!shouldDisable) {
-                        detailAddButton.removeAttribute('disabled');
-                    }
+                    detailAddButton.disabled = state || Boolean(detailAddRow?.hidden);
                 }
             }
 
