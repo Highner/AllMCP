@@ -875,7 +875,7 @@ body.account-edit-open {
     gap: 24px;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
     .inventory-layout {
         grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
         align-items: flex-start;
