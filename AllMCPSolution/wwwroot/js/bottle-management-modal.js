@@ -31,6 +31,8 @@
         quantity: 1
     };
 
+    const bottleDetailMap = new Map();
+
     const qs = (selector, root = document) => root.querySelector(selector);
     const qsa = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
@@ -391,34 +393,115 @@
         });
     };
 
+    const parseNumeric = (value) => {
+        if (typeof value === 'number') {
+            return Number.isFinite(value) ? value : null;
+        }
+
+        if (typeof value === 'string') {
+            const parsed = Number.parseFloat(value);
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        return null;
+    };
+
+    const normalizeId = (value) => {
+        if (value == null) {
+            return '';
+        }
+
+        if (typeof value === 'string') {
+            return value.trim();
+        }
+
+        return String(value).trim();
+    };
+
+    const buildBottleLabel = (wineName, vintage) => {
+        const segments = [];
+
+        if (wineName) {
+            segments.push(wineName);
+        }
+
+        if (vintage) {
+            segments.push(`Vintage ${vintage}`);
+        }
+
+        return segments.join(' · ');
+    };
+
     const renderRows = (details) => {
         const tbody = qs(SELECTORS.tableBody);
         if (!tbody) {
             return;
         }
 
+        bottleDetailMap.clear();
+
         if (!Array.isArray(details) || details.length === 0) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="4">You do not have bottles for this vintage yet.</td></tr>';
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="5">You do not have bottles for this vintage yet.</td></tr>';
             return;
         }
 
         const rows = details.map((detail) => {
+            const bottleId = normalizeId(detail?.BottleId ?? detail?.bottleId ?? detail?.Id ?? detail?.id);
+            const wineVintageId = normalizeId(detail?.WineVintageId ?? detail?.wineVintageId);
+            const locationId = normalizeId(detail?.BottleLocationId ?? detail?.bottleLocationId);
             const location = escapeHtml(detail?.BottleLocation ?? detail?.bottleLocation ?? '—');
-            const price = formatPrice(detail?.Price ?? detail?.price);
-            const score = formatScore(
-                detail?.CurrentUserScore
-                ?? detail?.currentUserScore
-                ?? detail?.AverageScore
-                ?? detail?.averageScore
-            );
+            const priceValue = detail?.Price ?? detail?.price;
+            const price = formatPrice(priceValue);
+            const scoreValue = detail?.CurrentUserScore ?? detail?.currentUserScore ?? detail?.AverageScore ?? detail?.averageScore;
+            const score = formatScore(scoreValue);
             const isDrunk = detail?.IsDrunk ?? detail?.isDrunk ?? false;
             const status = isDrunk ? 'Yes' : 'No';
+            const drunkAt = detail?.DrunkAt ?? detail?.drunkAt ?? null;
+            const noteId = normalizeId(detail?.CurrentUserNoteId ?? detail?.currentUserNoteId ?? detail?.currentUserNoteID);
+            const note = typeof detail?.CurrentUserNote === 'string'
+                ? detail.CurrentUserNote
+                : typeof detail?.currentUserNote === 'string'
+                    ? detail.currentUserNote
+                    : '';
+            const rawScore = parseNumeric(detail?.CurrentUserScore ?? detail?.currentUserScore);
+            const wineName = typeof detail?.WineName === 'string'
+                ? detail.WineName
+                : typeof detail?.wineName === 'string'
+                    ? detail.wineName
+                    : '';
+            const vintageRaw = detail?.Vintage ?? detail?.vintage;
+            const vintageNumeric = parseNumeric(vintageRaw);
+            const vintage = Number.isFinite(vintageNumeric) && vintageNumeric > 0
+                ? String(Math.trunc(vintageNumeric))
+                : '';
+
+            if (bottleId) {
+                bottleDetailMap.set(bottleId, {
+                    bottleId,
+                    wineVintageId,
+                    bottleLocationId: locationId || null,
+                    price: parseNumeric(priceValue),
+                    isDrunk,
+                    drunkAt: drunkAt || null,
+                    noteId: noteId || null,
+                    note: note || '',
+                    score: rawScore,
+                    wineName,
+                    vintage
+                });
+            }
+
+            const actions = bottleId
+                ? buildActionButtons(bottleId)
+                : '';
+
             return (
-                '<tr>' +
+                '<tr data-bottle-management-row>' +
                     `<td class="bottle-management-col-location">${location}</td>` +
                     `<td class="bottle-management-col-price">${price}</td>` +
                     `<td class="bottle-management-col-score">${score}</td>` +
                     `<td class="bottle-management-col-status">${status}</td>` +
+                    `<td class="bottle-management-col-actions">${actions}</td>` +
                 '</tr>'
             );
         }).join('');
@@ -466,6 +549,525 @@
             .replaceAll('\'', '&#39;');
     };
 
+    const getBottleRecord = (bottleId) => {
+        const normalized = typeof bottleId === 'string'
+            ? bottleId.trim()
+            : bottleId != null
+                ? String(bottleId).trim()
+                : '';
+
+        if (!normalized) {
+            return null;
+        }
+
+        return bottleDetailMap.get(normalized) ?? null;
+    };
+
+    const buildActionButtons = (bottleId) => {
+        const record = getBottleRecord(bottleId);
+        if (!record) {
+            return '';
+        }
+
+        const safeBottleId = escapeHtml(record.bottleId);
+        const wineVintageAttr = record.wineVintageId
+            ? ` data-wine-vintage-id="${escapeHtml(record.wineVintageId)}"`
+            : '';
+
+        const removeButton =
+            `<button type="button" class="sisterhood-button bottle-management-remove-button" data-bottle-management-remove data-bottle-id="${safeBottleId}"${wineVintageAttr} aria-label="Remove bottle from your inventory">Remove</button>`;
+
+        if (record.isDrunk) {
+            const noteAttr = record.noteId
+                ? ` data-note-id="${escapeHtml(record.noteId)}"`
+                : '';
+
+            const undrinkButton =
+                `<button type="button" class="sisterhood-button bottle-management-undrink-button" data-bottle-management-undrink data-bottle-id="${safeBottleId}"${wineVintageAttr}${noteAttr} aria-label="Mark bottle as not drunk">Undrink</button>`;
+
+            return `<div class="bottle-management-row-actions">${removeButton}${undrinkButton}</div>`;
+        }
+
+        const drinkButton =
+            `<button type="button" class="sisterhood-button bottle-management-drink-button" data-bottle-management-drink data-bottle-id="${safeBottleId}"${wineVintageAttr} aria-label="Drink this bottle">Drink</button>`;
+
+        return `<div class="bottle-management-row-actions">${removeButton}${drinkButton}</div>`;
+    };
+
+    const setButtonLoading = (button, isLoading) => {
+        if (!(button instanceof HTMLElement)) {
+            return;
+        }
+
+        if (isLoading) {
+            button.dataset.state = 'loading';
+            button.setAttribute('aria-busy', 'true');
+            button.setAttribute('disabled', 'disabled');
+        } else {
+            button.removeAttribute('disabled');
+            button.removeAttribute('aria-busy');
+            delete button.dataset.state;
+        }
+    };
+
+    const openDrinkModalForBottle = (record) => {
+        if (!record) {
+            showError('We could not find that bottle in your inventory.');
+            return;
+        }
+
+        const label = buildBottleLabel(record.wineName, record.vintage);
+        const detail = {
+            context: 'inventory',
+            bottleId: record.bottleId,
+            label: label || 'Bottle',
+            noteId: record.noteId ?? '',
+            note: record.note ?? '',
+            score: record.score != null ? record.score : '',
+            date: record.drunkAt ?? '',
+            mode: record.noteId ? 'edit' : 'create',
+            requireDate: true,
+            successMessage: 'Bottle marked as drunk.',
+            extras: {
+                wineVintageId: record.wineVintageId,
+                bottleLocationId: record.bottleLocationId,
+                price: record.price
+            }
+        };
+
+        window.dispatchEvent(new CustomEvent('drinkmodal:open', { detail }));
+    };
+
+    const handleDrinkClick = (button) => {
+        const bottleId = button?.getAttribute('data-bottle-id')
+            || button?.dataset?.bottleId
+            || '';
+        const record = getBottleRecord(bottleId);
+        if (!record) {
+            showError('We could not find that bottle in your inventory.');
+            return;
+        }
+
+        openDrinkModalForBottle(record);
+    };
+
+    const handleRemoveClick = async (button) => {
+        const bottleId = button?.getAttribute('data-bottle-id')
+            || button?.dataset?.bottleId
+            || '';
+
+        if (!bottleId) {
+            showError('We could not determine which bottle to remove.');
+            return;
+        }
+
+        const record = getBottleRecord(bottleId);
+        const wineVintageId = button?.getAttribute('data-wine-vintage-id')
+            || button?.dataset?.wineVintageId
+            || record?.wineVintageId
+            || '';
+
+        setButtonLoading(button, true);
+
+        try {
+            const response = await fetch(`/wine-manager/bottles/${bottleId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            const raw = await response.text();
+            const contentType = response.headers.get('Content-Type') ?? '';
+            const isJson = contentType.toLowerCase().includes('application/json');
+            let data = null;
+
+            if (raw && isJson) {
+                try {
+                    data = JSON.parse(raw);
+                } catch (parseError) {
+                    console.error('Unable to parse remove bottle response', parseError);
+                }
+            }
+
+            if (!response.ok) {
+                const fallback = raw?.trim()
+                    ? raw.trim()
+                    : 'We could not remove that bottle right now. Please try again.';
+                const message = extractProblemMessage(data, fallback);
+                showError(message);
+                return;
+            }
+
+            clearError();
+
+            if (data) {
+                renderDetails(data);
+            } else if (wineVintageId) {
+                await fetchBottles(wineVintageId);
+            } else if (state.wineVintageId) {
+                await fetchBottles(state.wineVintageId);
+            }
+        } catch (error) {
+            console.error('Failed to remove bottle', error);
+            showError('We could not remove that bottle right now. Please try again.');
+        } finally {
+            setButtonLoading(button, false);
+        }
+    };
+
+    const handleUndrinkClick = async (button) => {
+        const bottleId = button?.getAttribute('data-bottle-id')
+            || button?.dataset?.bottleId
+            || '';
+
+        if (!bottleId) {
+            showError('We could not determine which bottle to update.');
+            return;
+        }
+
+        const record = getBottleRecord(bottleId);
+        if (!record || !record.wineVintageId) {
+            showError('We could not find that bottle in your inventory.');
+            return;
+        }
+
+        const payload = {
+            wineVintageId: record.wineVintageId,
+            price: record.price,
+            isDrunk: false,
+            drunkAt: null
+        };
+
+        if (record.bottleLocationId) {
+            payload.bottleLocationId = record.bottleLocationId;
+        }
+
+        setButtonLoading(button, true);
+
+        try {
+            const response = await fetch(`/wine-manager/bottles/${bottleId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const raw = await response.text();
+            const contentType = response.headers.get('Content-Type') ?? '';
+            const isJson = contentType.toLowerCase().includes('application/json');
+            let data = null;
+
+            if (raw && isJson) {
+                try {
+                    data = JSON.parse(raw);
+                } catch (parseError) {
+                    console.error('Unable to parse undrink response', parseError);
+                }
+            }
+
+            if (!response.ok) {
+                const fallback = raw?.trim()
+                    ? raw.trim()
+                    : 'We could not update that bottle right now. Please try again.';
+                const message = extractProblemMessage(data, fallback);
+                showError(message);
+                return;
+            }
+
+            if (record.noteId) {
+                try {
+                    const noteResponse = await fetch(`/wine-manager/notes/${record.noteId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (!noteResponse.ok && noteResponse.status !== 404) {
+                        const noteRaw = await noteResponse.text();
+                        const noteContentType = noteResponse.headers.get('Content-Type') ?? '';
+                        const noteIsJson = noteContentType.toLowerCase().includes('application/json');
+                        let noteData = null;
+
+                        if (noteRaw && noteIsJson) {
+                            try {
+                                noteData = JSON.parse(noteRaw);
+                            } catch (parseError) {
+                                console.error('Unable to parse tasting note delete response', parseError);
+                            }
+                        }
+
+                        const fallback = noteRaw?.trim()
+                            ? noteRaw.trim()
+                            : 'We could not delete your tasting note. Please try again.';
+                        const message = extractProblemMessage(noteData, fallback);
+                        showError(message);
+                        return;
+                    }
+                } catch (noteError) {
+                    console.error('Failed to delete tasting note', noteError);
+                    showError('We could not delete your tasting note. Please try again.');
+                    return;
+                }
+            }
+
+            clearError();
+            await fetchBottles(record.wineVintageId);
+        } catch (error) {
+            console.error('Failed to undrink bottle', error);
+            showError('We could not update that bottle right now. Please try again.');
+        } finally {
+            setButtonLoading(button, false);
+        }
+    };
+
+    const wireTableBodyActions = () => {
+        const tbody = qs(SELECTORS.tableBody);
+        if (!tbody) {
+            return;
+        }
+
+        tbody.addEventListener('click', (event) => {
+            const element = event.target instanceof Element
+                ? event.target
+                : null;
+
+            if (!element) {
+                return;
+            }
+
+            const removeButton = element.closest('[data-bottle-management-remove]');
+            if (removeButton) {
+                event.preventDefault();
+                void handleRemoveClick(removeButton);
+                return;
+            }
+
+            const drinkButton = element.closest('[data-bottle-management-drink]');
+            if (drinkButton) {
+                event.preventDefault();
+                handleDrinkClick(drinkButton);
+                return;
+            }
+
+            const undrinkButton = element.closest('[data-bottle-management-undrink]');
+            if (undrinkButton) {
+                event.preventDefault();
+                void handleUndrinkClick(undrinkButton);
+            }
+        });
+    };
+
+    const handleDrinkModalSubmit = (event) => {
+        const detail = event?.detail ?? {};
+        if ((detail.context ?? 'external') !== 'inventory') {
+            return;
+        }
+
+        event.preventDefault();
+
+        const bottleId = detail.bottleId ?? '';
+        const record = getBottleRecord(bottleId);
+
+        if (!record || !record.wineVintageId) {
+            if (typeof detail.showError === 'function') {
+                detail.showError('We could not find that bottle in your inventory.');
+            }
+            return;
+        }
+
+        const normalizedDate = typeof detail.date === 'string' && detail.date.trim()
+            ? detail.date.trim()
+            : null;
+        const normalizedNote = typeof detail.note === 'string'
+            ? detail.note.trim()
+            : '';
+        const normalizedScore = typeof detail.score === 'number' && Number.isFinite(detail.score)
+            ? detail.score
+            : null;
+        const rawNoteId = detail.noteId ?? record.noteId ?? null;
+        const normalizedNoteId = typeof rawNoteId === 'string'
+            ? rawNoteId.trim()
+            : rawNoteId != null
+                ? String(rawNoteId).trim()
+                : '';
+
+        const payload = {
+            wineVintageId: record.wineVintageId,
+            price: record.price,
+            isDrunk: true,
+            drunkAt: normalizedDate
+        };
+
+        if (record.bottleLocationId) {
+            payload.bottleLocationId = record.bottleLocationId;
+        }
+
+        const shouldSaveNote = normalizedNote.length > 0 || normalizedScore != null;
+        const shouldDeleteNote = !shouldSaveNote && normalizedNoteId.length > 0;
+
+        const submitPromise = (async () => {
+            const updateResponse = await fetch(`/wine-manager/bottles/${record.bottleId}/drink`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const updateRaw = await updateResponse.text();
+            const updateContentType = updateResponse.headers.get('Content-Type') ?? '';
+            const updateIsJson = updateContentType.toLowerCase().includes('application/json');
+            let updateData = null;
+
+            if (updateRaw && updateIsJson) {
+                try {
+                    updateData = JSON.parse(updateRaw);
+                } catch (parseError) {
+                    console.error('Unable to parse drink bottle response', parseError);
+                }
+            }
+
+            if (!updateResponse.ok) {
+                const fallback = updateRaw?.trim()
+                    ? updateRaw.trim()
+                    : 'We could not mark that bottle as drunk. Please try again.';
+                const message = extractProblemMessage(updateData, fallback);
+                throw new Error(message);
+            }
+
+            if (shouldSaveNote) {
+                const notePayload = {
+                    note: normalizedNote,
+                    score: normalizedScore
+                };
+
+                if (normalizedNoteId) {
+                    const noteResponse = await fetch(`/wine-manager/notes/${normalizedNoteId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(notePayload)
+                    });
+
+                    const noteRaw = await noteResponse.text();
+                    const noteContentType = noteResponse.headers.get('Content-Type') ?? '';
+                    const noteIsJson = noteContentType.toLowerCase().includes('application/json');
+                    let noteData = null;
+
+                    if (noteRaw && noteIsJson) {
+                        try {
+                            noteData = JSON.parse(noteRaw);
+                        } catch (parseError) {
+                            console.error('Unable to parse tasting note update response', parseError);
+                        }
+                    }
+
+                    if (!noteResponse.ok) {
+                        const fallback = noteRaw?.trim()
+                            ? noteRaw.trim()
+                            : 'We could not save your tasting note. Please try again.';
+                        const message = extractProblemMessage(noteData, fallback);
+                        throw new Error(message);
+                    }
+                } else {
+                    const createPayload = {
+                        bottleId: record.bottleId,
+                        note: normalizedNote,
+                        score: normalizedScore
+                    };
+
+                    const noteResponse = await fetch('/wine-manager/notes', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(createPayload)
+                    });
+
+                    const noteRaw = await noteResponse.text();
+                    const noteContentType = noteResponse.headers.get('Content-Type') ?? '';
+                    const noteIsJson = noteContentType.toLowerCase().includes('application/json');
+                    let noteData = null;
+
+                    if (noteRaw && noteIsJson) {
+                        try {
+                            noteData = JSON.parse(noteRaw);
+                        } catch (parseError) {
+                            console.error('Unable to parse tasting note create response', parseError);
+                        }
+                    }
+
+                    if (!noteResponse.ok) {
+                        const fallback = noteRaw?.trim()
+                            ? noteRaw.trim()
+                            : 'We could not save your tasting note. Please try again.';
+                        const message = extractProblemMessage(noteData, fallback);
+                        throw new Error(message);
+                    }
+                }
+            } else if (shouldDeleteNote) {
+                const noteResponse = await fetch(`/wine-manager/notes/${normalizedNoteId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!noteResponse.ok && noteResponse.status !== 404) {
+                    const noteRaw = await noteResponse.text();
+                    const noteContentType = noteResponse.headers.get('Content-Type') ?? '';
+                    const noteIsJson = noteContentType.toLowerCase().includes('application/json');
+                    let noteData = null;
+
+                    if (noteRaw && noteIsJson) {
+                        try {
+                            noteData = JSON.parse(noteRaw);
+                        } catch (parseError) {
+                            console.error('Unable to parse tasting note delete response', parseError);
+                        }
+                    }
+
+                    const fallback = noteRaw?.trim()
+                        ? noteRaw.trim()
+                        : 'We could not delete your tasting note. Please try again.';
+                    const message = extractProblemMessage(noteData, fallback);
+                    throw new Error(message);
+                }
+            }
+
+            await fetchBottles(record.wineVintageId);
+            clearError();
+            return { message: detail.successMessage ?? 'Bottle marked as drunk.' };
+        })();
+
+        if (typeof detail.setSuccessMessage === 'function') {
+            detail.setSuccessMessage('Bottle marked as drunk.');
+        }
+
+        if (typeof detail.setSubmitPromise === 'function') {
+            detail.setSubmitPromise(submitPromise);
+        } else {
+            submitPromise.catch((error) => {
+                const message = error instanceof Error ? error.message : String(error ?? '');
+                if (typeof detail.showError === 'function') {
+                    detail.showError(message || 'Unable to mark bottle as drunk.');
+                }
+            });
+        }
+    };
+
+    const wireDrinkModalSubmit = () => {
+        window.addEventListener('drinkmodal:submit', handleDrinkModalSubmit);
+    };
+
     const setLoadingState = (message = 'Loading bottles…') => {
         setTableMessage(message);
     };
@@ -477,7 +1079,7 @@
         }
 
         const safeMessage = escapeHtml(message ?? '');
-        tbody.innerHTML = `<tr class="empty-row"><td colspan="4">${safeMessage}</td></tr>`;
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="5">${safeMessage}</td></tr>`;
     };
 
     const showError = (message) => {
@@ -694,6 +1296,8 @@
         wireLocationSelect();
         wireQuantitySelect();
         wireAddButton();
+        wireTableBodyActions();
+        wireDrinkModalSubmit();
         syncControlState();
         const overlay = qs(SELECTORS.overlay);
         if (overlay) {
