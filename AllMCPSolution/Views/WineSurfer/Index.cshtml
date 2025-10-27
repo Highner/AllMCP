@@ -658,11 +658,38 @@
 
         main {
             flex: 1;
-            padding: 80px 24px 60px;
+            padding: 48px 24px 60px;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 48px;
+        }
+
+        .dashboard-columns {
+            display: grid;
+            gap: 48px;
+            width: 100%;
+            max-width: calc((var(--wine-surfer-card-max-width, 960px) * 2) + 64px);
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .dashboard-column {
+            display: flex;
+            flex-direction: column;
+            gap: 48px;
+        }
+
+        @media (min-width: 1200px) {
+            .dashboard-columns {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                align-items: start;
+            }
+        }
+
+        @media (max-width: 1199.98px) {
+            .dashboard-columns {
+                grid-template-columns: minmax(0, 1fr);
+            }
         }
 
         .wine-surfer-page-header .wine-surfer-page-header__title {
@@ -932,7 +959,7 @@
 
         .biggest-splash {
             width: min(100%, var(--wine-surfer-card-max-width, 960px));
-            margin: 48px 0;
+            margin: 0;
             display: flex;
             flex-direction: column;
             gap: 18px;
@@ -1133,7 +1160,7 @@
             display: flex;
             flex-direction: column;
             gap: 18px;
-            margin: 48px 0;
+            margin: 0;
             width: min(100%, var(--wine-surfer-card-max-width, 960px));
         }
 
@@ -1234,7 +1261,7 @@
             display: flex;
             flex-direction: column;
             gap: 18px;
-            margin: 48px 0;
+            margin: 0;
             width: min(100%, var(--wine-surfer-card-max-width, 960px));
         }
 
@@ -1531,176 +1558,296 @@
                     }
                 </div>
             </section>
-            <section class="biggest-splash" aria-label="Biggest splash surf score leaders">
-                <div class="biggest-splash-header section-header">
-                    <h2 class="section-title">Biggest splash</h2>
-                    <p class="biggest-splash-subtitle">@biggestSplashYear surf score standouts</p>
-                </div>
-                @if (!isAuthenticated)
-                {
-                    <p class="biggest-splash-empty" role="status">Sign in to see which wines are making the biggest splash this year.</p>
-                }
-                else if (!hasBiggestSplashWines)
-                {
-                    <p class="biggest-splash-empty" role="status">Ask Wine Waves for evolution scores to track this year's rising stars.</p>
-                }
-                else
-                {
-                    <ol class="biggest-splash-list">
-                        @for (var i = 0; i < biggestSplashWines.Count; i++)
+            <div class="dashboard-columns">
+                <div class="dashboard-column dashboard-column--left">
+                    <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
+                        <div class="upcoming-sessions-header section-header">
+                            <h2 class="section-title">Upcoming sip sessions</h2>
+                            @if (canCreateSipSession && sipSessionCreateTemplate is not null)
+                            {
+                                <button type="button"
+                                        class="sisterhood-button"
+                                        data-sip-session-create-toggle
+                                        data-sip-session-create-title="Create sip session"
+                                        data-sip-session-create-close-label="Cancel"
+                                        aria-expanded="false"
+                                        aria-controls="@sipSessionCreateContainerId">
+                                    Create sip session
+                                </button>
+                            }
+                        </div>
+                        @if (Model.UpcomingSipSessions.Count > 0)
                         {
-                            var wine = biggestSplashWines[i];
-                            var rank = i + 1;
-                            var scoreLabel = FormatScore(wine.Score);
-                            var profileParts = new List<string>();
-                            if (!string.IsNullOrWhiteSpace(wine.Color))
+                            foreach (var session in Model.UpcomingSipSessions)
                             {
-                                profileParts.Add(wine.Color);
+                                var scheduleLabel = FormatSipSessionSchedule(session.Session);
+                                var locationLabel = string.IsNullOrWhiteSpace(session.Session.Location)
+                                    ? "Location TBD"
+                                    : session.Session.Location;
+                                var hostLabel = string.IsNullOrWhiteSpace(session.SisterhoodName)
+                                    ? null
+                                    : session.SisterhoodName;
+
+                                var sessionUrl = Url.Action("Index", "SipSession", new { sipSessionId = session.Session.Id })
+                                    ?? $"/wine-surfer/sessions/{session.Session.Id:D}";
+                                var ariaLabel = $"Upcoming sip session: {session.Session.Name}";
+                                var cardModel = new WineSurferSipSessionCardModel(
+                                    session.Session,
+                                    scheduleLabel,
+                                    locationLabel,
+                                    sessionUrl,
+                                    ariaLabel,
+                                    hostLabel);
+
+                                @await Html.PartialAsync("_WineSurferSipSessionCard", cardModel)
                             }
-                            if (!string.IsNullOrWhiteSpace(wine.GrapeVariety))
+                        }
+                        else
+                        {
+                            <p class="sip-session-empty" role="status">No upcoming sip sessions on the calendar yet. Check back soon or gather your sisterhood to plan the next tasting.</p>
+                        }
+                        @if (canCreateSipSession && sipSessionCreateTemplate is not null)
+                        {
+                            @await Html.PartialAsync("_SipSessionModalRegion", sipSessionCreateTemplate)
+                        }
+                    </section>
+                    <section class="favorite-wines" aria-label="Favourite wines">
+                        <div class="favorite-wines-header section-header">
+                            <h2 class="section-title">Favourite wines</h2>
+                            @if (isAuthenticated)
                             {
-                                profileParts.Add(wine.GrapeVariety!);
+                                <button type="button" class="sisterhood-button inventory-add-trigger" data-add-wine-trigger="favorites">Add wine</button>
                             }
-                            var profileLabel = profileParts.Count > 0 ? string.Join(" • ", profileParts) : null;
-                            var locationParts = new[] { wine.SubAppellation, wine.Appellation, wine.Region, wine.Country }
-                                .Where(part => !string.IsNullOrWhiteSpace(part))
-                                .Select(part => part!.Trim())
-                                .ToList();
-                            var locationLabel = locationParts.Count > 0 ? string.Join(" • ", locationParts) : null;
-                            var ariaLabel = $"Rank {rank}: {wine.Name} {wine.Vintage} surf score {scoreLabel}";
-                            <li class="biggest-splash-item" role="listitem">
-                                <article class="biggest-splash-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" aria-label="@ariaLabel">
-                                    <header class="biggest-splash-card__header">
-                                        <div class="biggest-splash-card__title">
-                                            <span class="biggest-splash-rank" aria-hidden="true">@rank</span>
-                                            <div class="biggest-splash-card__heading">
-                                                <h3 class="biggest-splash-name">@wine.Name</h3>
-                                                <span class="biggest-splash-vintage">@wine.Vintage</span>
+                        </div>
+                        <p class="favorite-wines-message" data-favorite-message hidden role="status"></p>
+                        @if (!isAuthenticated)
+                        {
+                            <p class="favorite-wines-empty" role="status">Sign in to rate bottles and see your top picks here.</p>
+                        }
+                        else if (Model.FavoriteBottles.Count > 0)
+                        {
+                            <div class="favorite-wines-grid" role="list">
+                                @foreach (var bottle in Model.FavoriteBottles)
+                                {
+                                    var enjoyedAt = NormalizeDateTime(bottle.DrunkAtUtc);
+                                    var statusLabel = bottle.IsDrunk
+                                        ? (enjoyedAt.HasValue ? $"Enjoyed on {enjoyedAt.Value:MMM d, yyyy}" : "Enjoyed")
+                                        : "Cellared";
+                                    <article class="favorite-wine-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" role="listitem">
+                                        <header class="favorite-wine-header wine-card__header">
+                                            <h3 class="favorite-wine-name wine-card__title">@bottle.WineName</h3>
+                                            @if (bottle.Vintage.HasValue && bottle.Vintage.Value > 0)
+                                            {
+                                                <span class="favorite-wine-vintage wine-card__subtitle">@bottle.Vintage.Value</span>
+                                            }
+                                        </header>
+                                        <dl class="favorite-wine-stats wine-card__stats" aria-label="Tasting stats for @bottle.Label">
+                                            <div class="favorite-wine-stat wine-card__stat">
+                                                <dt>Your score</dt>
+                                                <dd>@FormatScore(bottle.CurrentUserScore)</dd>
                                             </div>
-                                        </div>
-                                        <div class="biggest-splash-score">
-                                            <span class="biggest-splash-score__value">@scoreLabel</span>
-                                            <span class="biggest-splash-score__label">Evolution</span>
-                                        </div>
-                                    </header>
-                                    <div class="biggest-splash-body">
-                                        @if (!string.IsNullOrEmpty(profileLabel))
-                                        {
-                                            <p class="biggest-splash-meta">@profileLabel</p>
-                                        }
-                                        @if (!string.IsNullOrEmpty(locationLabel))
-                                        {
-                                            <p class="biggest-splash-location">@locationLabel</p>
-                                        }
-                                    </div>
-                                </article>
-                            </li>
+                                            <div class="favorite-wine-stat wine-card__stat">
+                                                <dt>Average score</dt>
+                                                <dd>@FormatScore(bottle.AverageScore)</dd>
+                                            </div>
+                                        </dl>
+                                        <p class="favorite-wine-status">@statusLabel</p>
+                                    </article>
+                                }
+                            </div>
                         }
-                    </ol>
-                }
-            </section>
-            <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
-                <div class="upcoming-sessions-header section-header">
-                    <h2 class="section-title">Upcoming sip sessions</h2>
-                    @if (canCreateSipSession && sipSessionCreateTemplate is not null)
-                    {
-                        <button type="button"
-                                class="sisterhood-button"
-                                data-sip-session-create-toggle
-                                data-sip-session-create-title="Create sip session"
-                                data-sip-session-create-close-label="Cancel"
-                                aria-expanded="false"
-                                aria-controls="@sipSessionCreateContainerId">
-                            Create sip session
-                        </button>
-                    }
-                </div>
-                @if (Model.UpcomingSipSessions.Count > 0)
-                {
-                    foreach (var session in Model.UpcomingSipSessions)
-                    {
-                        var scheduleLabel = FormatSipSessionSchedule(session.Session);
-                        var locationLabel = string.IsNullOrWhiteSpace(session.Session.Location)
-                            ? "Location TBD"
-                            : session.Session.Location;
-                        var hostLabel = string.IsNullOrWhiteSpace(session.SisterhoodName)
-                            ? null
-                            : session.SisterhoodName;
-
-                        var sessionUrl = Url.Action("Index", "SipSession", new { sipSessionId = session.Session.Id })
-                            ?? $"/wine-surfer/sessions/{session.Session.Id:D}";
-                        var ariaLabel = $"Upcoming sip session: {session.Session.Name}";
-                        var cardModel = new WineSurferSipSessionCardModel(
-                            session.Session,
-                            scheduleLabel,
-                            locationLabel,
-                            sessionUrl,
-                            ariaLabel,
-                            hostLabel);
-
-                        @await Html.PartialAsync("_WineSurferSipSessionCard", cardModel)
-                    }
-                }
-                else
-                {
-                    <p class="sip-session-empty" role="status">No upcoming sip sessions on the calendar yet. Check back soon or gather your sisterhood to plan the next tasting.</p>
-                }
-                @if (canCreateSipSession && sipSessionCreateTemplate is not null)
-                {
-                    @await Html.PartialAsync("_SipSessionModalRegion", sipSessionCreateTemplate)
-                }
-            </section>
-            <section class="favorite-wines" aria-label="Favourite wines">
-                <div class="favorite-wines-header section-header">
-                    <h2 class="section-title">Favourite wines</h2>
-                    @if (isAuthenticated)
-                    {
-                        <button type="button" class="sisterhood-button inventory-add-trigger" data-add-wine-trigger="favorites">Add wine</button>
-                    }
-                </div>
-                <p class="favorite-wines-message" data-favorite-message hidden role="status"></p>
-                @if (!isAuthenticated)
-                {
-                    <p class="favorite-wines-empty" role="status">Sign in to rate bottles and see your top picks here.</p>
-                }
-                else if (Model.FavoriteBottles.Count > 0)
-                {
-                    <div class="favorite-wines-grid" role="list">
-                        @foreach (var bottle in Model.FavoriteBottles)
+                        else
                         {
-                            var enjoyedAt = NormalizeDateTime(bottle.DrunkAtUtc);
-                            var statusLabel = bottle.IsDrunk
-                                ? (enjoyedAt.HasValue ? $"Enjoyed on {enjoyedAt.Value:MMM d, yyyy}" : "Enjoyed")
-                                : "Cellared";
-                            <article class="favorite-wine-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" role="listitem">
-                                <header class="favorite-wine-header wine-card__header">
-                                    <h3 class="favorite-wine-name wine-card__title">@bottle.WineName</h3>
-                                    @if (bottle.Vintage.HasValue && bottle.Vintage.Value > 0)
-                                    {
-                                        <span class="favorite-wine-vintage wine-card__subtitle">@bottle.Vintage.Value</span>
-                                    }
-                                </header>
-                                <dl class="favorite-wine-stats wine-card__stats" aria-label="Tasting stats for @bottle.Label">
-                                    <div class="favorite-wine-stat wine-card__stat">
-                                        <dt>Your score</dt>
-                                        <dd>@FormatScore(bottle.CurrentUserScore)</dd>
-                                    </div>
-                                    <div class="favorite-wine-stat wine-card__stat">
-                                        <dt>Average score</dt>
-                                        <dd>@FormatScore(bottle.AverageScore)</dd>
-                                    </div>
-                                </dl>
-                                <p class="favorite-wine-status">@statusLabel</p>
-                            </article>
+                            <p class="favorite-wines-empty" role="status">Rate a few bottles to light up your favourites.</p>
                         }
-                    </div>
-                }
-                else
-                {
-                    <p class="favorite-wines-empty" role="status">Rate a few bottles to light up your favourites.</p>
-                }
-            </section>
-            <section class="suggested-wines" aria-label="Suggested wines">
+                    </section>
+                </div>
+                <div class="dashboard-column dashboard-column--right">
+                    <section class="suggested-wines" aria-label="Suggested wines">
+                        <div class="suggested-wines-header section-header">
+                            <h2 class="section-title">Suggested wines</h2>
+                            <p class="suggested-wines-subtitle">Curated from your taste profile</p>
+                        </div>
+                        @if (!isAuthenticated)
+                        {
+                            <p class="suggested-wines-empty" role="status">Sign in to unlock tailored wine suggestions.</p>
+                        }
+                        else if (!hasSuggestedWines)
+                        {
+                            <p class="suggested-wines-empty" role="status">Build your taste profile to receive personalised wine recommendations.</p>
+                        }
+                        else
+                        {
+                            var inventoryWineIds = Model.InventoryWineIds ?? Array.Empty<Guid>();
+                            <p class="suggested-wines-message" data-suggested-message hidden role="status"></p>
+                            <div class="suggested-wine-groups" role="list">
+                                @foreach (var suggestion in suggestionsWithWines)
+                                {
+                                    var wines = suggestion.Wines ?? Array.Empty<WineSurferSuggestedWine>();
+                                    var headline = string.IsNullOrWhiteSpace(suggestion.SubAppellationName)
+                                        ? suggestion.AppellationName
+                                        : suggestion.SubAppellationName!;
+                                    headline = string.IsNullOrWhiteSpace(headline)
+                                        ? suggestion.AppellationName
+                                        : headline;
+                                    var eyebrowParts = new List<string>();
+                                    if (!string.IsNullOrWhiteSpace(suggestion.AppellationName) &&
+                                        !string.Equals(suggestion.AppellationName, headline, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        eyebrowParts.Add(suggestion.AppellationName);
+                                    }
+                                    if (!string.IsNullOrWhiteSpace(suggestion.RegionName))
+                                    {
+                                        eyebrowParts.Add(suggestion.RegionName);
+                                    }
+                                    if (!string.IsNullOrWhiteSpace(suggestion.CountryName))
+                                    {
+                                        eyebrowParts.Add(suggestion.CountryName);
+                                    }
+                                    var eyebrow = eyebrowParts.Count == 0 ? null : string.Join(" • ", eyebrowParts);
+                                    <article class="suggested-wine-group wine-surfer-card wine-surface wine-surface-border" role="listitem">
+                                        <header class="suggested-wine-group__header">
+                                            @if (!string.IsNullOrWhiteSpace(eyebrow))
+                                            {
+                                                <p class="suggested-wine-group__eyebrow">@eyebrow</p>
+                                            }
+                                            <h3 class="suggested-wine-group__title">@headline</h3>
+                                            @if (!string.IsNullOrWhiteSpace(suggestion.Reason))
+                                            {
+                                                <p class="suggested-wine-group__reason">@suggestion.Reason</p>
+                                            }
+                                        </header>
+                                        <ul class="suggested-wine-list" role="list">
+                                            @foreach (var wine in wines)
+                                            {
+                                                var wineMeta = CreateSuggestedWineMetadata(wine);
+                                                var searchUrl = CreateWineSearcherUrl(suggestion, wine);
+                                                var showWineSubApp = !string.IsNullOrWhiteSpace(wine.SubAppellationName) &&
+                                                    !string.Equals(wine.SubAppellationName, headline, StringComparison.OrdinalIgnoreCase);
+                                                var isInInventory = inventoryWineIds.Contains(wine.WineId);
+                                                var addButtonLabel = isInInventory ? "In Inventory" : "add";
+                                                var addButtonAriaLabel = isInInventory
+                                                    ? $"{wine.Name} is already in your inventory"
+                                                    : $"Add {wine.Name} to your inventory";
+                                                var subAppellationData = wine.SubAppellationName ?? string.Empty;
+                                                var varietyData = wine.Variety ?? string.Empty;
+                                                var colorData = wine.Color ?? string.Empty;
+                                                var vintageData = wine.Vintage ?? string.Empty;
+                                                <li class="suggested-wine-item" role="listitem">
+                                                    <div class="suggested-wine-item__content">
+                                                        <p class="suggested-wine-item__name">@wine.Name</p>
+                                                        @if (showWineSubApp)
+                                                        {
+                                                            <p class="suggested-wine-item__meta">@wine.SubAppellationName</p>
+                                                        }
+                                                        @if (!string.IsNullOrEmpty(wineMeta))
+                                                        {
+                                                            <p class="suggested-wine-item__meta">@wineMeta</p>
+                                                        }
+                                                    </div>
+                                                    <div class="suggested-wine-item__actions">
+                                                        <button type="button"
+                                                                class="sisterhood-button suggested-wine-item__action"
+                                                                data-suggested-add-button
+                                                                data-wine-id="@wine.WineId"
+                                                                data-wine-name="@wine.Name"
+                                                                data-wine-country="@suggestion.CountryName"
+                                                                data-wine-region="@suggestion.RegionName"
+                                                                data-wine-appellation="@suggestion.AppellationName"
+                                                                data-wine-sub-appellation="@subAppellationData"
+                                                                data-wine-color="@colorData"
+                                                                data-wine-variety="@varietyData"
+                                                                data-wine-vintage="@vintageData"
+                                                                aria-label="@addButtonAriaLabel"
+                                                                @(isInInventory ? "disabled" : null)>
+                                                            @addButtonLabel
+                                                        </button>
+                                                        <a class="sisterhood-button suggested-wine-item__action"
+                                                           href="@searchUrl"
+                                                           target="_blank"
+                                                           rel="noopener noreferrer"
+                                                           aria-label="Buy @wine.Name on Wine-Searcher">
+                                                            buy
+                                                        </a>
+                                                    </div>
+                                                </li>
+                                            }
+                                        </ul>
+                                    </article>
+                                }
+                            </div>
+                        }
+                    </section>
+                    <section class="biggest-splash" aria-label="Biggest splash surf score leaders">
+                        <div class="biggest-splash-header section-header">
+                            <h2 class="section-title">Biggest splash</h2>
+                            <p class="biggest-splash-subtitle">@biggestSplashYear surf score standouts</p>
+                        </div>
+                        @if (!isAuthenticated)
+                        {
+                            <p class="biggest-splash-empty" role="status">Sign in to see which wines are making the biggest splash this year.</p>
+                        }
+                        else if (!hasBiggestSplashWines)
+                        {
+                            <p class="biggest-splash-empty" role="status">Ask Wine Waves for evolution scores to track this year's rising stars.</p>
+                        }
+                        else
+                        {
+                            <ol class="biggest-splash-list">
+                                @for (var i = 0; i < biggestSplashWines.Count; i++)
+                                {
+                                    var wine = biggestSplashWines[i];
+                                    var rank = i + 1;
+                                    var scoreLabel = FormatScore(wine.Score);
+                                    var profileParts = new List<string>();
+                                    if (!string.IsNullOrWhiteSpace(wine.Color))
+                                    {
+                                        profileParts.Add(wine.Color);
+                                    }
+                                    if (!string.IsNullOrWhiteSpace(wine.GrapeVariety))
+                                    {
+                                        profileParts.Add(wine.GrapeVariety!);
+                                    }
+                                    var profileLabel = profileParts.Count > 0 ? string.Join(" • ", profileParts) : null;
+                                    var locationParts = new[] { wine.SubAppellation, wine.Appellation, wine.Region, wine.Country }
+                                        .Where(part => !string.IsNullOrWhiteSpace(part))
+                                        .Select(part => part!.Trim())
+                                        .ToList();
+                                    var locationLabel = locationParts.Count > 0 ? string.Join(" • ", locationParts) : null;
+                                    var ariaLabel = $"Rank {rank}: {wine.Name} {wine.Vintage} surf score {scoreLabel}";
+                                    <li class="biggest-splash-item" role="listitem">
+                                        <article class="biggest-splash-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" aria-label="@ariaLabel">
+                                            <header class="biggest-splash-card__header">
+                                                <div class="biggest-splash-card__title">
+                                                    <span class="biggest-splash-rank" aria-hidden="true">@rank</span>
+                                                    <div class="biggest-splash-card__heading">
+                                                        <h3 class="biggest-splash-name">@wine.Name</h3>
+                                                        <span class="biggest-splash-vintage">@wine.Vintage</span>
+                                                    </div>
+                                                </div>
+                                                <div class="biggest-splash-score">
+                                                    <span class="biggest-splash-score__value">@scoreLabel</span>
+                                                    <span class="biggest-splash-score__label">Evolution</span>
+                                                </div>
+                                            </header>
+                                            <div class="biggest-splash-body">
+                                                @if (!string.IsNullOrEmpty(profileLabel))
+                                                {
+                                                    <p class="biggest-splash-meta">@profileLabel</p>
+                                                }
+                                                @if (!string.IsNullOrEmpty(locationLabel))
+                                                {
+                                                    <p class="biggest-splash-location">@locationLabel</p>
+                                                }
+                                            </div>
+                                        </article>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+                </div>
+            </div>
                 <div class="suggested-wines-header section-header">
                     <h2 class="section-title">Suggested wines</h2>
                     <p class="suggested-wines-subtitle">Curated from your taste profile</p>
