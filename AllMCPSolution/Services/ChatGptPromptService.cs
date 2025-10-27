@@ -55,10 +55,21 @@ Each suggestion must be a short dish description followed by a concise reason, a
 """;
 
     private const string WineWavesSystemPromptText = """
-You are the Wine Waves cellar intelligence. Project the evolution of wines over time.
-Respond ONLY with minified JSON matching {"vintages":[{"wineVintageId":"...","scores":[{"year":2024,"score":7.4}]}]}.
-Create consecutive yearly scores on a 0-10 scale with one decimal place. Provide at least 20 annual scores per wine and extend to at least 40 when the wine is described as ageworthy, cellar-worthy, long-lived, or similar.
+You are an expert sommellier.
+
+Project the evolution of wines over time and how they align with the user's taste preferences on an absolute scale of 0-10. Provide no descriptions—only scores.
+Respond ONLY with minified JSON matching {"vintages":[{"wineVintageId":"...","CriticsAssessment":"...","scores":[{"year":2024,"score":7.4}]}]}.
 Only include wineVintageId values provided by the user and omit any commentary outside the JSON payload.
+
+Start the scoring timeline three calendar years after each wine's actual vintage. The goal is to provide a comprehensive picture of the wine's evolution over time in a nice curve. Avoid straight lines.
+
+For each wine, crosscheck the user's taste profile and publicly available tasting notes and descriptions (preferably from professional critics) from the web to determine the wine's alignment score.
+Pay special attention to assessments about the wine's development over the course of its life.
+
+Provide consecutive annual scores for at least 20 years starting from that year.
+If the wine is described as ageworthy, cellar-worthy, long-lived, or similar, extend the sequence to at least 60 years or until the scores drop below 5.
+
+Do not invent new wineVintageId values and omit any prose outside the JSON object.
 """;
 
     public string TasteProfileGenerationSystemPrompt => TasteProfileSystemPromptText;
@@ -383,17 +394,13 @@ Only include wineVintageId values provided by the user and omit any commentary o
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine("Generate consecutive yearly evolution scores (0-10 scale, one decimal place) for the following wine vintages.");
-        builder.AppendLine("Align every year's score with the user's taste preferences. Provide no descriptions—only scores.");
-
-        var hasTasteProfileSummary = !string.IsNullOrWhiteSpace(tasteProfileSummary);
         var hasTasteProfile = !string.IsNullOrWhiteSpace(tasteProfile);
 
         builder.AppendLine();
-        builder.AppendLine("User taste profile summary:");
-        builder.AppendLine(hasTasteProfileSummary ? tasteProfileSummary!.Trim() : "(none provided)");
         builder.AppendLine("User taste profile details:");
         builder.AppendLine(hasTasteProfile ? tasteProfile!.Trim() : "(none provided)");
+        builder.AppendLine();
+        builder.AppendLine("Wines:");
         builder.AppendLine();
 
         for (var index = 0; index < vintages.Count; index++)
@@ -418,37 +425,25 @@ Only include wineVintageId values provided by the user and omit any commentary o
 
             builder.AppendLine();
 
-            if (!string.IsNullOrWhiteSpace(vintage.Attributes))
-            {
-                builder.Append("Attributes: ");
-                builder.AppendLine(vintage.Attributes);
-            }
+            // if (!string.IsNullOrWhiteSpace(vintage.Attributes))
+            // {
+            //     builder.Append("Attributes: ");
+            //     builder.AppendLine(vintage.Attributes);
+            // }
 
-            if (vintage.Highlights is { Count: > 0 })
-            {
-                builder.Append("Tasting notes: ");
-                builder.AppendLine(string.Join(" | ", vintage.Highlights));
-            }
-
-            if (vintage.ExistingScores is { Count: > 0 })
-            {
-                var formattedScores = vintage.ExistingScores
-                    .Select(score => $"{score.Year}: {score.Score.ToString("0.##", CultureInfo.InvariantCulture)}")
-                    .ToList();
-                builder.Append("Existing scores: ");
-                builder.AppendLine(string.Join(", ", formattedScores));
-            }
+            // if (vintage.Highlights is { Count: > 0 })
+            // {
+            //     builder.Append("Tasting notes: ");
+            //     builder.AppendLine(string.Join(" | ", vintage.Highlights));
+            // }
 
             builder.Append("wineVintageId: ");
             builder.AppendLine(vintage.WineVintageId.ToString());
             builder.AppendLine();
         }
 
-        builder.AppendLine("Start the scoring timeline three calendar years after each wine's actual vintage.");
-        builder.AppendLine("Provide consecutive annual scores for at least 20 years starting from that year.");
-        builder.AppendLine("If the wine is described as ageworthy, cellar-worthy, long-lived, or similar, extend the sequence to at least 40 years.");
-        builder.AppendLine("Return strictly JSON shaped as {\"vintages\":[{\"wineVintageId\":\"<ID>\",\"scores\":[{\"year\":2024,\"score\":7.4}]}]}.");
-        builder.AppendLine("Do not invent new wineVintageId values and omit any prose outside the JSON object.");
+
+
 
         return builder.ToString();
     }
