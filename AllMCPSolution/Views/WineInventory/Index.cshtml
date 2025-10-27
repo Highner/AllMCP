@@ -193,7 +193,7 @@
                          data-current-user-id="@Model.CurrentUserId">
                     @(Html.PartialAsync("_InventorySectionHeader", new InventorySectionHeaderModel
                     {
-                        Title = "Storage Locations",
+                        Title = "Storage",
                         Actions = _ => new HtmlString("<button type=\"button\" class=\"wine-surfer-button wine-surfer-button--orange\" data-location-add>Add location</button>")
                     }).GetAwaiter().GetResult())
             <div class="location-message" data-location-message hidden aria-live="polite"></div>

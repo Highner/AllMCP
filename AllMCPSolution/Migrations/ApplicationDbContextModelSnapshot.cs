@@ -102,6 +102,9 @@ namespace AllMCPSolution.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal?>("SuggestionBudget")
+                        .HasColumnType("decimal(10,2)");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
