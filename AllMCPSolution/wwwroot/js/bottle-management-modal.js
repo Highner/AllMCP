@@ -455,8 +455,8 @@
             const scoreValue = detail?.CurrentUserScore ?? detail?.currentUserScore ?? detail?.AverageScore ?? detail?.averageScore;
             const score = formatScore(scoreValue);
             const isDrunk = detail?.IsDrunk ?? detail?.isDrunk ?? false;
-            const status = isDrunk ? 'Yes' : 'No';
-            const drunkAt = detail?.DrunkAt ?? detail?.drunkAt ?? null;
+            const drunkAtRaw = detail?.DrunkAt ?? detail?.drunkAt ?? null;
+            const status = escapeHtml(formatEnjoyedStatus(isDrunk, drunkAtRaw));
             const noteId = normalizeId(detail?.CurrentUserNoteId ?? detail?.currentUserNoteId ?? detail?.currentUserNoteID);
             const note = typeof detail?.CurrentUserNote === 'string'
                 ? detail.CurrentUserNote
@@ -482,7 +482,7 @@
                     bottleLocationId: locationId || null,
                     price: parseNumeric(priceValue),
                     isDrunk,
-                    drunkAt: drunkAt || null,
+                    drunkAt: drunkAtRaw || null,
                     noteId: noteId || null,
                     note: note || '',
                     score: rawScore,
@@ -549,6 +549,55 @@
             .replaceAll('\'', '&#39;');
     };
 
+    const parseDateValue = (value) => {
+        if (value == null || value === '') {
+            return null;
+        }
+
+        if (value instanceof Date) {
+            const time = value.getTime();
+            return Number.isFinite(time) ? value : null;
+        }
+
+        if (typeof value === 'number') {
+            if (!Number.isFinite(value)) {
+                return null;
+            }
+
+            const fromNumber = new Date(value);
+            return Number.isFinite(fromNumber.getTime()) ? fromNumber : null;
+        }
+
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (!trimmed) {
+                return null;
+            }
+
+            const parsed = new Date(trimmed);
+            return Number.isFinite(parsed.getTime()) ? parsed : null;
+        }
+
+        return null;
+    };
+
+    const formatEnjoyedStatus = (isDrunk, drunkAt) => {
+        if (!isDrunk) {
+            return 'No';
+        }
+
+        const parsed = parseDateValue(drunkAt);
+        if (!parsed) {
+            return 'Yes';
+        }
+
+        return parsed.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
     const getBottleRecord = (bottleId) => {
         const normalized = typeof bottleId === 'string'
             ? bottleId.trim()
@@ -574,8 +623,13 @@
             ? ` data-wine-vintage-id="${escapeHtml(record.wineVintageId)}"`
             : '';
 
-        const removeButton =
-            `<button type="button" class="wine-surfer-button wine-surfer-button--red bottle-management-remove-button" data-bottle-management-remove data-bottle-id="${safeBottleId}"${wineVintageAttr} aria-label="Remove bottle from your inventory">Remove</button>`;
+        const buttons = [];
+
+        if (!record.isDrunk) {
+            const removeButton =
+                `<button type="button" class="wine-surfer-button wine-surfer-button--red bottle-management-remove-button" data-bottle-management-remove data-bottle-id="${safeBottleId}"${wineVintageAttr} aria-label="Remove bottle from your inventory">Remove</button>`;
+            buttons.push(removeButton);
+        }
 
         if (record.isDrunk) {
             const noteAttr = record.noteId
@@ -584,14 +638,15 @@
 
             const undrinkButton =
                 `<button type="button" class="wine-surfer-button wine-surfer-button--green bottle-management-undrink-button" data-bottle-management-undrink data-bottle-id="${safeBottleId}"${wineVintageAttr}${noteAttr} aria-label="Mark bottle as not drunk">Undrink</button>`;
-
-            return `<div class="bottle-management-row-actions">${removeButton}${undrinkButton}</div>`;
+            buttons.push(undrinkButton);
+            return `<div class="bottle-management-row-actions">${buttons.join('')}</div>`;
         }
 
         const drinkButton =
             `<button type="button" class="wine-surfer-button wine-surfer-button--orange bottle-management-drink-button" data-bottle-management-drink data-bottle-id="${safeBottleId}"${wineVintageAttr} aria-label="Drink this bottle">Drink</button>`;
+        buttons.push(drinkButton);
 
-        return `<div class="bottle-management-row-actions">${removeButton}${drinkButton}</div>`;
+        return `<div class="bottle-management-row-actions">${buttons.join('')}</div>`;
     };
 
     const setButtonLoading = (button, isLoading) => {
