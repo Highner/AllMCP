@@ -460,7 +460,49 @@ a.wine-card:focus {
 }
 
 .wine-surfer-modal__body.bottle-management-modal__body {
-    padding: 0;
+    padding: 24px;
+    gap: 24px;
+}
+
+.bottle-management {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.bottle-management-table-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.bottle-management-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.bottle-management-table-title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: rgba(244, 241, 234, 0.9);
+}
+
+@media (max-width: 640px) {
+    .wine-surfer-modal__body.bottle-management-modal__body {
+        padding: 20px;
+        gap: 20px;
+    }
+
+    .bottle-management {
+        gap: 20px;
+    }
+
+    .bottle-management-table-section {
+        gap: 14px;
+    }
 }
 
 .wishlist-fieldset {

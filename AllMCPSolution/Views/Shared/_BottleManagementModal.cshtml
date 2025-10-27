@@ -1,8 +1,7 @@
 @model AllMCPSolution.Models.BottleManagementModalViewModel?
 @using System
 @using System.Collections.Generic
-@using AllMCPSolution.Models
-@{
+@{ 
     var options = Model ?? BottleManagementModalViewModel.Default;
 
     var overlayId = string.IsNullOrWhiteSpace(options.OverlayId)
@@ -47,28 +46,6 @@
         ["data-bottle-management-close"] = null
     };
 
-    var tableModel = new CrudTableTemplateModel
-    {
-        Title = "Your bottles",
-        DataTableKey = "bottle-management-table",
-        BodyContent = @<div class="bottle-management-table-container">
-            <table class="crud-table__table bottle-management-table" data-bottle-management-table>
-                <caption class="sr-only">Bottles for the selected wine vintage</caption>
-                <thead>
-                    <tr class="crud-table__header-row">
-                        <th scope="col" class="bottle-management-col-location">Location</th>
-                        <th scope="col" class="bottle-management-col-price">Price</th>
-                        <th scope="col" class="bottle-management-col-score">Score</th>
-                        <th scope="col" class="bottle-management-col-status">Drunk</th>
-                    </tr>
-                </thead>
-                <tbody data-bottle-management-rows>
-                    <tr class="empty-row"><td colspan="4">Select a wine to view your bottles.</td></tr>
-                </tbody>
-            </table>
-        </div>
-    };
-
     var modal = new WineSurferModalShell
     {
         BackdropId = overlayId,
@@ -109,12 +86,27 @@
             {
                 @options.HeaderContent(null)
             }
-            @{
-                await Html.RenderPartialAsync("_CrudTableTemplate", tableModel);
-            }
-            <footer class="bottle-management-footer">
-                <button type="button" class="crud-table__action-button secondary" data-bottle-management-close>Close</button>
-            </footer>
+            <section class="bottle-management-table-section">
+                <header class="bottle-management-table-header">
+                    <h4 class="bottle-management-table-title">Your bottles</h4>
+                </header>
+                <div class="bottle-management-table-container">
+                    <table class="crud-table__table bottle-management-table" data-bottle-management-table>
+                        <caption class="sr-only">Bottles for the selected wine vintage</caption>
+                        <thead>
+                            <tr class="crud-table__header-row">
+                                <th scope="col" class="bottle-management-col-location">Location</th>
+                                <th scope="col" class="bottle-management-col-price">Price</th>
+                                <th scope="col" class="bottle-management-col-score">Score</th>
+                                <th scope="col" class="bottle-management-col-status">Drunk</th>
+                            </tr>
+                        </thead>
+                        <tbody data-bottle-management-rows>
+                            <tr class="empty-row"><td colspan="4">Select a wine to view your bottles.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </section>
     };
 }
