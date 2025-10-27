@@ -1,0 +1,25 @@
+@* Template for displaying wine vintage counts inline within the inventory table. *@
+<template id="inventory-wine-vintages-template">
+    <tr class="group-row group-row--child inventory-inline-parent" data-inline-row>
+        <td colspan="7" class="inventory-inline-cell">
+            <div class="inventory-inline-status" data-inline-status>Loading vintages&hellip;</div>
+            <div class="inventory-inline-empty" data-inline-empty hidden>No bottles for this wine are currently in your inventory.</div>
+            <table class="inventory-inline-table" data-inline-table hidden>
+                <thead>
+                    <tr>
+                        <th scope="col" class="inventory-inline-vintage-header">Vintage</th>
+                        <th scope="col" class="inventory-inline-count-header">Bottles</th>
+                    </tr>
+                </thead>
+                <tbody data-inline-body></tbody>
+            </table>
+        </td>
+    </tr>
+</template>
+
+<template id="inventory-wine-vintage-row-template">
+    <tr class="inventory-inline-row">
+        <td class="inventory-inline-vintage" data-vintage></td>
+        <td class="inventory-inline-count" data-count></td>
+    </tr>
+</template>
