@@ -1,0 +1,24 @@
+@model AllMCPSolution.Models.InventorySectionHeaderModel
+@{
+    var headerClasses = "inventory-section-header location-header";
+    if (!string.IsNullOrWhiteSpace(Model.AdditionalCssClass))
+    {
+        headerClasses = $"{headerClasses} {Model.AdditionalCssClass}";
+    }
+}
+
+<div class="@headerClasses">
+    <div class="location-header-text">
+        <h2 class="location-title">@Model.Title</h2>
+        @if (!string.IsNullOrWhiteSpace(Model.Subtitle))
+        {
+            <p class="location-description">@Model.Subtitle</p>
+        }
+    </div>
+    @if (Model.Actions is not null)
+    {
+        <div class="inventory-section-header__actions">
+            @Model.Actions(null)
+        </div>
+    }
+</div>

@@ -2571,6 +2571,17 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     gap: 24px;
 }
 
+.inventory-section-header {
+    width: 100%;
+}
+
+.inventory-section-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+}
+
 .location-header {
     display: flex;
     align-items: center;
