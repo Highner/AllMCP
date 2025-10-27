@@ -903,7 +903,6 @@
             }
 
             const bottleCount = Number(card.dataset.bottleCount ?? '0') || 0;
-            const uniqueCount = Number(card.dataset.uniqueCount ?? '0') || 0;
             const cellaredCount = Number(card.dataset.cellaredCount ?? '0') || 0;
             const drunkCount = Number(card.dataset.drunkCount ?? '0') || 0;
             const capacity = getLocationCapacity(card);
@@ -911,13 +910,6 @@
             const bottleTarget = card.querySelector('[data-location-bottle-count]');
             if (bottleTarget) {
                 bottleTarget.textContent = `${bottleCount} bottle${bottleCount === 1 ? '' : 's'}`;
-            }
-
-            const uniqueTarget = card.querySelector('[data-location-wine-count]');
-            if (uniqueTarget) {
-                uniqueTarget.textContent = uniqueCount > 0
-                    ? `· ${uniqueCount} unique wine${uniqueCount === 1 ? '' : 's'}`
-                    : '';
             }
 
             const fillIndicator = card.querySelector('[data-location-fill-indicator]');
