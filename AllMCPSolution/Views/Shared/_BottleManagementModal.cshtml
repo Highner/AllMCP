@@ -89,9 +89,34 @@
             <section class="bottle-management-table-section">
                 <header class="bottle-management-table-header">
                     <h4 class="bottle-management-table-title">Your bottles</h4>
-                    <button type="button" class="sisterhood-button bottle-management-add-button" data-bottle-management-add disabled>
-                        Add Bottles
-                    </button>
+                    <div class="bottle-management-actions">
+                        <label class="bottle-management-control">
+                            <span class="bottle-management-control-label">Location</span>
+                            <select class="bottle-management-select" data-bottle-management-location disabled>
+                                <option value="">No location</option>
+                            </select>
+                        </label>
+                        <label class="bottle-management-control">
+                            <span class="bottle-management-control-label">Quantity</span>
+                            <select class="bottle-management-select" data-bottle-management-quantity>
+                                <option value="1" selected>1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
+                            </select>
+                        </label>
+                        <button type="button" class="sisterhood-button bottle-management-add-button" data-bottle-management-add disabled>
+                            Add Bottles
+                        </button>
+                    </div>
                 </header>
                 <div class="bottle-management-table-container">
                     <table class="crud-table__table bottle-management-table" data-bottle-management-table>

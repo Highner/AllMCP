@@ -15,7 +15,9 @@
         tableBody: '[data-bottle-management-rows]',
         metaSeparators: '.bottle-management-meta-separator',
         triggers: '[data-open-bottle-management]',
-        addButton: '[data-bottle-management-add]'
+        addButton: '[data-bottle-management-add]',
+        locationSelect: '[data-bottle-management-location]',
+        quantitySelect: '[data-bottle-management-quantity]'
     };
 
     const state = {
@@ -23,11 +25,154 @@
         abortController: null,
         isOpen: false,
         isAdding: false,
-        hasGroup: false
+        hasGroup: false,
+        locations: [],
+        selectedLocationId: null,
+        quantity: 1
     };
 
     const qs = (selector, root = document) => root.querySelector(selector);
     const qsa = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+
+    const normalizeQuantity = (value) => {
+        const numeric = typeof value === 'number' ? value : Number(value);
+        if (!Number.isFinite(numeric)) {
+            return 1;
+        }
+
+        const integral = Math.trunc(numeric);
+        if (!Number.isFinite(integral)) {
+            return 1;
+        }
+
+        if (integral < 1) {
+            return 1;
+        }
+
+        if (integral > 12) {
+            return 12;
+        }
+
+        return integral;
+    };
+
+    const buildLocationLabel = (location) => {
+        const id = typeof location?.id === 'string' ? location.id : '';
+        const rawName = typeof location?.name === 'string' ? location.name : '';
+        const name = rawName.trim() || id;
+        const capacity = location?.capacity;
+
+        if (Number.isFinite(capacity)) {
+            return `${name} (${capacity} capacity)`;
+        }
+
+        return name;
+    };
+
+    const resetControls = (dialog) => {
+        const root = dialog || qs(SELECTORS.dialog);
+        if (!root) {
+            return;
+        }
+
+        const locationSelect = qs(SELECTORS.locationSelect, root);
+        if (locationSelect) {
+            locationSelect.innerHTML = '<option value="">No location</option>';
+            locationSelect.value = '';
+            locationSelect.setAttribute('disabled', '');
+        }
+
+        const quantitySelect = qs(SELECTORS.quantitySelect, root);
+        if (quantitySelect) {
+            const defaultQuantity = normalizeQuantity(1);
+            quantitySelect.value = String(defaultQuantity);
+        }
+    };
+
+    const updateLocationOptions = (locations) => {
+        const select = qs(SELECTORS.locationSelect);
+        if (!select) {
+            state.locations = [];
+            state.selectedLocationId = null;
+            return;
+        }
+
+        const normalized = Array.isArray(locations)
+            ? locations
+                .map((location) => {
+                    const rawId = location?.Id ?? location?.id;
+                    if (rawId == null) {
+                        return null;
+                    }
+
+                    const id = String(rawId).trim();
+                    if (!id) {
+                        return null;
+                    }
+
+                    const rawName = location?.Name ?? location?.name;
+                    const name = typeof rawName === 'string' ? rawName.trim() : '';
+                    const rawCapacity = location?.Capacity ?? location?.capacity;
+                    const numericCapacity = typeof rawCapacity === 'number'
+                        ? rawCapacity
+                        : Number(rawCapacity);
+                    const capacity = Number.isFinite(numericCapacity) ? numericCapacity : null;
+
+                    return {
+                        id,
+                        name,
+                        capacity
+                    };
+                })
+                .filter((value) => value !== null)
+            : [];
+
+        const previousSelection = state.selectedLocationId;
+        state.locations = normalized;
+
+        select.innerHTML = '';
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'No location';
+        select.appendChild(defaultOption);
+
+        if (normalized.length === 0) {
+            select.value = '';
+            select.removeAttribute('disabled');
+            state.selectedLocationId = null;
+            return;
+        }
+
+        normalized.forEach((location) => {
+            const option = document.createElement('option');
+            option.value = location.id;
+            option.textContent = buildLocationLabel(location);
+            select.appendChild(option);
+        });
+
+        const hasPrevious = typeof previousSelection === 'string'
+            && normalized.some((location) => location.id === previousSelection);
+        const targetValue = hasPrevious ? previousSelection : '';
+        select.value = targetValue;
+        state.selectedLocationId = targetValue || null;
+        select.removeAttribute('disabled');
+    };
+
+    const syncControlState = () => {
+        const locationSelect = qs(SELECTORS.locationSelect);
+        if (locationSelect) {
+            state.selectedLocationId = locationSelect.value ? locationSelect.value : null;
+        }
+
+        const quantitySelect = qs(SELECTORS.quantitySelect);
+        if (quantitySelect) {
+            const normalizedQuantity = normalizeQuantity(quantitySelect.value);
+            state.quantity = normalizedQuantity;
+            quantitySelect.value = String(normalizedQuantity);
+        } else {
+            state.quantity = normalizeQuantity(state.quantity);
+        }
+    };
 
     const open = (wineVintageId) => {
         if (!wineVintageId) {
@@ -47,6 +192,11 @@
         state.isOpen = true;
         state.isAdding = false;
         state.hasGroup = false;
+        state.locations = [];
+        state.selectedLocationId = null;
+        state.quantity = normalizeQuantity(1);
+        resetControls(dialog);
+        syncControlState();
         updateAddButtonState();
         attachKeydown();
 
@@ -82,6 +232,11 @@
         state.wineVintageId = null;
         state.isAdding = false;
         state.hasGroup = false;
+        state.locations = [];
+        state.selectedLocationId = null;
+        state.quantity = normalizeQuantity(1);
+        resetControls();
+        syncControlState();
         updateAddButtonState();
         detachKeydown();
     };
@@ -147,9 +302,13 @@
             ? payload.Details
             : (Array.isArray(payload?.details) ? payload.details : []);
         const group = payload?.Group ?? payload?.group ?? null;
+        const locations = Array.isArray(payload?.Locations)
+            ? payload.Locations
+            : (Array.isArray(payload?.locations) ? payload.locations : []);
 
         console.info('[BottleManagementModal] Loaded bottle details', details);
 
+        updateLocationOptions(locations);
         updateSummary(group, details);
         renderRows(details);
         state.hasGroup = Boolean(group);
@@ -360,6 +519,30 @@
         });
     };
 
+    const wireLocationSelect = () => {
+        const select = qs(SELECTORS.locationSelect);
+        if (!select) {
+            return;
+        }
+
+        select.addEventListener('change', () => {
+            state.selectedLocationId = select.value ? select.value : null;
+        });
+    };
+
+    const wireQuantitySelect = () => {
+        const select = qs(SELECTORS.quantitySelect);
+        if (!select) {
+            return;
+        }
+
+        select.addEventListener('change', () => {
+            const normalized = normalizeQuantity(select.value);
+            state.quantity = normalized;
+            select.value = String(normalized);
+        });
+    };
+
     const wireAddButton = () => {
         const button = qs(SELECTORS.addButton);
         if (!button) {
@@ -401,16 +584,25 @@
         updateAddButtonState();
 
         try {
+            syncControlState();
+            const payload = {
+                wineVintageId: state.wineVintageId,
+                quantity: normalizeQuantity(state.quantity)
+            };
+
+            state.quantity = payload.quantity;
+
+            if (state.selectedLocationId) {
+                payload.bottleLocationId = state.selectedLocationId;
+            }
+
             const response = await fetch('/wine-manager/bottles', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({
-                    wineVintageId: state.wineVintageId,
-                    quantity: 1
-                })
+                body: JSON.stringify(payload)
             });
 
             const raw = await response.text();
@@ -492,7 +684,10 @@
     document.addEventListener('DOMContentLoaded', () => {
         wireCloseButtons();
         wireTriggers();
+        wireLocationSelect();
+        wireQuantitySelect();
         wireAddButton();
+        syncControlState();
         const overlay = qs(SELECTORS.overlay);
         if (overlay) {
             overlay.addEventListener('click', (event) => {
