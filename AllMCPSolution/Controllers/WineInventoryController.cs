@@ -297,13 +297,14 @@ public class WineInventoryController : Controller
     [HttpGet("import")]
     public async Task<IActionResult> Import(CancellationToken cancellationToken)
     {
-        if (!TryGetCurrentUserId(out _))
+        if (!TryGetCurrentUserId(out var currentUserId))
         {
             return Challenge();
         }
 
         var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
         ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
+        await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken);
 
         var viewModel = new WineImportPageViewModel();
         return View("Import", viewModel);
@@ -324,6 +325,7 @@ public class WineInventoryController : Controller
 
         var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
         ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
+        await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken);
 
         var viewModel = new WineImportPageViewModel();
 
@@ -407,9 +409,38 @@ public class WineInventoryController : Controller
         try
         {
             await using var stream = file.OpenReadStream();
-            var result = await _wineImportService.ImportBottlesAsync(stream, currentUserId.Value, cancellationToken);
-            viewModel.BottleUpload.Result = result;
+            var preview = await _wineImportService.PreviewBottleImportAsync(stream, cancellationToken);
             viewModel.BottleUpload.UploadedFileName = file.FileName;
+
+            if (preview.TotalRows > 0 || preview.RowErrors.Count > 0)
+            {
+                var result = new WineImportResult
+                {
+                    TotalRows = preview.TotalRows
+                };
+
+                foreach (var error in preview.RowErrors)
+                {
+                    result.RowErrors.Add(error);
+                }
+
+                viewModel.BottleUpload.Result = result;
+            }
+
+            viewModel.BottleUpload.PreviewRows = preview.Rows
+                .Select(row => new WineImportPreviewRowViewModel
+                {
+                    RowId = $"row-{row.RowNumber.ToString(CultureInfo.InvariantCulture)}",
+                    RowNumber = row.RowNumber,
+                    Name = row.Name,
+                    Country = row.Country,
+                    Region = row.Region,
+                    Appellation = row.Appellation,
+                    SubAppellation = row.SubAppellation,
+                    Color = row.Color,
+                    Amount = row.Amount
+                })
+                .ToList();
         }
         catch (InvalidDataException ex)
         {
@@ -1607,6 +1638,24 @@ public class WineInventoryController : Controller
         };
     }
 
+    private async Task SetInventoryAddModalViewDataAsync(Guid currentUserId, CancellationToken cancellationToken)
+    {
+        var userLocations = await GetUserLocationsAsync(currentUserId, cancellationToken);
+        var modalViewModel = new InventoryAddModalViewModel
+        {
+            Locations = userLocations
+                .Select(location => new BottleLocationOption
+                {
+                    Id = location.Id,
+                    Name = location.Name,
+                    Capacity = location.Capacity
+                })
+                .ToList()
+        };
+
+        ViewData["InventoryAddModal"] = modalViewModel;
+    }
+
     private async Task<List<BottleLocation>> GetUserLocationsAsync(Guid userId, CancellationToken cancellationToken)
     {
         var bottleLocations = await _bottleLocationRepository.GetAllAsync(cancellationToken);
@@ -2138,8 +2187,24 @@ public class WineInventoryViewModel
         public string? UploadedFileName { get; set; }
         public WineImportResult? Result { get; set; }
         public IReadOnlyList<string> Errors { get; set; } = Array.Empty<string>();
+        public IReadOnlyList<WineImportPreviewRowViewModel> PreviewRows { get; set; } =
+            Array.Empty<WineImportPreviewRowViewModel>();
         public bool HasErrors => Errors.Count > 0;
         public bool HasResult => Result is not null;
+        public bool HasPreview => PreviewRows.Count > 0;
+    }
+
+    public class WineImportPreviewRowViewModel
+    {
+        public string RowId { get; set; } = string.Empty;
+        public int RowNumber { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string Region { get; set; } = string.Empty;
+        public string Appellation { get; set; } = string.Empty;
+        public string SubAppellation { get; set; } = string.Empty;
+        public string Color { get; set; } = string.Empty;
+        public int Amount { get; set; }
     }
 
     public class BottleNotesResponse

@@ -18,6 +18,9 @@ public interface IWineImportService
         Stream stream,
         Guid userId,
         CancellationToken cancellationToken = default);
+    Task<WineImportPreviewResult> PreviewBottleImportAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class WineImportService : IWineImportService
@@ -201,6 +204,72 @@ public sealed class WineImportService : IWineImportService
         }
 
         return result;
+    }
+
+    public async Task<WineImportPreviewResult> PreviewBottleImportAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        if (!stream.CanRead)
+        {
+            throw new InvalidDataException("The provided stream cannot be read.");
+        }
+
+        using var reader = ExcelReaderFactory.CreateReader(stream);
+        var headerMap = ReadHeader(reader);
+        EnsureRequiredColumns(headerMap, BottleRequiredColumns);
+
+        var preview = new WineImportPreviewResult();
+        var rowNumber = 1;
+
+        while (reader.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            rowNumber++;
+
+            var row = ExtractRow(reader, headerMap, includeAmount: true);
+            if (row is null || row.IsEmpty)
+            {
+                continue;
+            }
+
+            preview.TotalRows++;
+
+            var missingField = GetMissingRequiredField(row, requireAmount: true);
+            if (missingField is not null)
+            {
+                preview.RowErrors.Add(new WineImportRowError(rowNumber, $"{missingField} is required."));
+                continue;
+            }
+
+            if (!TryParseColor(row.Color, out var color, out var colorError))
+            {
+                preview.RowErrors.Add(new WineImportRowError(rowNumber, colorError));
+                continue;
+            }
+
+            if (!TryParseAmount(row.Amount, out var amount, out var amountError))
+            {
+                preview.RowErrors.Add(new WineImportRowError(rowNumber, amountError));
+                continue;
+            }
+
+            preview.Rows.Add(new WineImportPreviewRow
+            {
+                RowNumber = rowNumber,
+                Name = row.Name ?? string.Empty,
+                Country = row.Country ?? string.Empty,
+                Region = row.Region ?? string.Empty,
+                Appellation = row.Appellation ?? string.Empty,
+                SubAppellation = row.SubAppellation ?? string.Empty,
+                Color = color.ToString(),
+                Amount = amount
+            });
+        }
+
+        return preview;
     }
 
     private static Dictionary<string, int> ReadHeader(IExcelDataReader reader)
@@ -630,3 +699,22 @@ public sealed class WineImportResult
 }
 
 public sealed record WineImportRowError(int RowNumber, string Message);
+
+public sealed class WineImportPreviewResult
+{
+    public int TotalRows { get; set; }
+    public List<WineImportPreviewRow> Rows { get; } = [];
+    public List<WineImportRowError> RowErrors { get; } = [];
+}
+
+public sealed class WineImportPreviewRow
+{
+    public int RowNumber { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Country { get; set; } = string.Empty;
+    public string Region { get; set; } = string.Empty;
+    public string Appellation { get; set; } = string.Empty;
+    public string SubAppellation { get; set; } = string.Empty;
+    public string Color { get; set; } = string.Empty;
+    public int Amount { get; set; }
+}

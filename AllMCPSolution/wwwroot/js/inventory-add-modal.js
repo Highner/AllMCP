@@ -2,6 +2,7 @@
     let initialized = false;
     let openModalHandler = null;
     let closeModalHandler = null;
+    let lastOpenContext = null;
 
     function onReady(callback) {
         if (document.readyState === 'loading') {
@@ -250,6 +251,7 @@
 
             return {
                 source: toTrimmedString(context.source),
+                rowId: toTrimmedString(context.rowId),
                 id: toTrimmedString(context.id),
                 name: toTrimmedString(context.name),
                 producer: toTrimmedString(context.producer),
@@ -285,6 +287,7 @@
             const dataset = trigger.dataset;
             return normalizeContext({
                 source: dataset.addWineTrigger,
+                rowId: dataset.previewRowId,
                 id: dataset.wineId,
                 name: dataset.wineName,
                 producer: dataset.wineProducer,
@@ -419,6 +422,7 @@
             document.body.style.overflow = 'hidden';
 
             const normalizedContext = normalizeContext(context);
+            lastOpenContext = normalizedContext;
             resetWineSelection();
             closeWineSurferPopover({ restoreFocus: false });
 
@@ -629,6 +633,7 @@
             document.body.style.overflow = '';
             showError('');
             resetWineSelection();
+            lastOpenContext = null;
             if (vintage) {
                 vintage.value = '';
             }
@@ -680,6 +685,17 @@
                 const message = quantityValue === 1
                     ? 'Bottle added to your inventory.'
                     : `${quantityValue} bottles added to your inventory.`;
+
+                document.dispatchEvent(new CustomEvent('inventoryAddModal:submitted', {
+                    detail: {
+                        context: lastOpenContext,
+                        wineId,
+                        vintage: vintageValue,
+                        quantity: quantityValue,
+                        bottleLocationId: locationValue || null,
+                        message
+                    }
+                }));
 
                 const isInventoryView = document.getElementById('inventory-table') instanceof HTMLTableElement;
                 if (isInventoryView) {
