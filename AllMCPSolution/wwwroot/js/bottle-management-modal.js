@@ -575,7 +575,7 @@
             : '';
 
         const removeButton =
-            `<button type="button" class="sisterhood-button bottle-management-remove-button" data-bottle-management-remove data-bottle-id="${safeBottleId}"${wineVintageAttr} aria-label="Remove bottle from your inventory">Remove</button>`;
+            `<button type="button" class="wine-surfer-button wine-surfer-button--red bottle-management-remove-button" data-bottle-management-remove data-bottle-id="${safeBottleId}"${wineVintageAttr} aria-label="Remove bottle from your inventory">Remove</button>`;
 
         if (record.isDrunk) {
             const noteAttr = record.noteId
@@ -583,13 +583,13 @@
                 : '';
 
             const undrinkButton =
-                `<button type="button" class="sisterhood-button bottle-management-undrink-button" data-bottle-management-undrink data-bottle-id="${safeBottleId}"${wineVintageAttr}${noteAttr} aria-label="Mark bottle as not drunk">Undrink</button>`;
+                `<button type="button" class="wine-surfer-button wine-surfer-button--green bottle-management-undrink-button" data-bottle-management-undrink data-bottle-id="${safeBottleId}"${wineVintageAttr}${noteAttr} aria-label="Mark bottle as not drunk">Undrink</button>`;
 
             return `<div class="bottle-management-row-actions">${removeButton}${undrinkButton}</div>`;
         }
 
         const drinkButton =
-            `<button type="button" class="sisterhood-button bottle-management-drink-button" data-bottle-management-drink data-bottle-id="${safeBottleId}"${wineVintageAttr} aria-label="Drink this bottle">Drink</button>`;
+            `<button type="button" class="wine-surfer-button wine-surfer-button--orange bottle-management-drink-button" data-bottle-management-drink data-bottle-id="${safeBottleId}"${wineVintageAttr} aria-label="Drink this bottle">Drink</button>`;
 
         return `<div class="bottle-management-row-actions">${removeButton}${drinkButton}</div>`;
     };
