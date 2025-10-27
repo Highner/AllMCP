@@ -67,6 +67,8 @@
         Title = "Your Cellar",
         DataTableKey = "summary",
         HeaderTemplate = addWineHeaderTemplate,
+        BackgroundCssClass = "crud-table crud-table--bare",
+        BodyCssClass = "crud-table__body crud-table__body--bare",
         BodyContent = @<text>
             <table id="inventory-table" class="inventory-table inventory-table--grouped crud-table__table">
                 <thead>
@@ -230,10 +232,7 @@
                          class="inventory-locations"
                          data-current-user-id="@Model.CurrentUserId">
             <div class="location-header">
-                <div class="location-header-text">
-                    <h2 class="location-title">Storage Locations</h2>
-                    <p class="location-description">Keep track of where every bottle lives across your cellar.</p>
-                </div>
+                <h2 class="location-title">Storage Locations</h2>
                 <button type="button" class="wine-surfer-button wine-surfer-button--orange" data-location-add>Add location</button>
             </div>
             <div class="location-message" data-location-message hidden aria-live="polite"></div>

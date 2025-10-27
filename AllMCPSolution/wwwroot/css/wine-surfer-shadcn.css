@@ -877,7 +877,7 @@ body.account-edit-open {
 
 @media (min-width: 1024px) {
     .inventory-layout {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
         align-items: flex-start;
     }
 }
@@ -1102,6 +1102,15 @@ textarea:focus {
     box-shadow: 0 25px 60px hsla(var(--background) / 0.35);
 }
 
+.crud-table--bare {
+    padding: 0;
+    margin-top: 0;
+    gap: 12px;
+    box-shadow: none;
+    background: transparent;
+    border-radius: 0;
+}
+
 .crud-table__header {
     display: flex;
     flex-direction: column;
@@ -1135,6 +1144,21 @@ textarea:focus {
 .crud-table__body {
     border-radius: calc(var(--radius) - 0.15rem);
     overflow: hidden;
+}
+
+.crud-table__body--bare {
+    border-radius: 0;
+    background: transparent;
+    overflow: visible;
+}
+
+.crud-table--bare .crud-table__header {
+    padding: 0;
+}
+
+.crud-table--bare .crud-table__header,
+.crud-table--bare .crud-table__header-content {
+    gap: 8px;
 }
 
 @media (min-width: 768px) {
