@@ -2012,21 +2012,6 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     border-top: 1px solid hsla(var(--border) / 0.55);
 }
 
-.inventory-inline-row--interactive {
-    cursor: pointer;
-    transition: background-color 0.2s ease-in-out, outline-color 0.2s ease-in-out;
-}
-
-.inventory-inline-row--interactive:hover {
-    background: hsla(var(--accent) / 0.12);
-}
-
-.inventory-inline-row--interactive:focus-visible {
-    outline: 2px solid hsla(var(--accent) / 0.5);
-    outline-offset: 2px;
-    background: hsla(var(--accent) / 0.18);
-}
-
 .inventory-inline-vintage {
     color: hsla(var(--foreground) / 0.95);
 }
