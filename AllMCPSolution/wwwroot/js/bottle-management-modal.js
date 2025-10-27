@@ -14,13 +14,16 @@
         error: '[data-bottle-management-error]',
         tableBody: '[data-bottle-management-rows]',
         metaSeparators: '.bottle-management-meta-separator',
-        triggers: '[data-open-bottle-management]'
+        triggers: '[data-open-bottle-management]',
+        addButton: '[data-bottle-management-add]'
     };
 
     const state = {
         wineVintageId: null,
         abortController: null,
-        isOpen: false
+        isOpen: false,
+        isAdding: false,
+        hasGroup: false
     };
 
     const qs = (selector, root = document) => root.querySelector(selector);
@@ -42,6 +45,9 @@
         overlay.removeAttribute('hidden');
         overlay.setAttribute('aria-hidden', 'false');
         state.isOpen = true;
+        state.isAdding = false;
+        state.hasGroup = false;
+        updateAddButtonState();
         attachKeydown();
 
         const hiddenField = qs(SELECTORS.vintageField, dialog);
@@ -74,6 +80,9 @@
         overlay.setAttribute('hidden', '');
         state.isOpen = false;
         state.wineVintageId = null;
+        state.isAdding = false;
+        state.hasGroup = false;
+        updateAddButtonState();
         detachKeydown();
     };
 
@@ -100,10 +109,9 @@
         state.abortController = new AbortController();
         const { signal } = state.abortController;
 
-        const tbody = qs(SELECTORS.tableBody);
-        if (tbody) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Loading bottles…</td></tr>';
-        }
+        state.hasGroup = false;
+        updateAddButtonState();
+        setLoadingState();
 
         try {
             const response = await fetch(`/wine-manager/bottles/${wineVintageId}`, {
@@ -127,9 +135,8 @@
 
             console.error(error);
             showError('We could not load your bottles right now. Please try again.');
-            if (tbody) {
-                tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Unable to load bottles.</td></tr>';
-            }
+            setTableMessage('Unable to load bottles.');
+            updateAddButtonState();
         } finally {
             state.abortController = null;
         }
@@ -145,6 +152,8 @@
 
         updateSummary(group, details);
         renderRows(details);
+        state.hasGroup = Boolean(group);
+        updateAddButtonState();
     };
 
     const updateSummary = (group, details) => {
@@ -291,11 +300,18 @@
             .replaceAll('\'', '&#39;');
     };
 
-    const setLoadingState = () => {
+    const setLoadingState = (message = 'Loading bottles…') => {
+        setTableMessage(message);
+    };
+
+    const setTableMessage = (message) => {
         const tbody = qs(SELECTORS.tableBody);
-        if (tbody) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Loading bottles…</td></tr>';
+        if (!tbody) {
+            return;
         }
+
+        const safeMessage = escapeHtml(message ?? '');
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="4">${safeMessage}</td></tr>`;
     };
 
     const showError = (message) => {
@@ -344,9 +360,139 @@
         });
     };
 
+    const wireAddButton = () => {
+        const button = qs(SELECTORS.addButton);
+        if (!button) {
+            return;
+        }
+
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            addBottle();
+        });
+    };
+
+    const updateAddButtonState = () => {
+        const button = qs(SELECTORS.addButton);
+        if (!button) {
+            return;
+        }
+
+        const shouldDisable = !state.isOpen
+            || !state.wineVintageId
+            || state.isAdding
+            || !state.hasGroup;
+
+        if (shouldDisable) {
+            button.setAttribute('disabled', '');
+            button.setAttribute('aria-disabled', 'true');
+        } else {
+            button.removeAttribute('disabled');
+            button.removeAttribute('aria-disabled');
+        }
+    };
+
+    const addBottle = async () => {
+        if (!state.isOpen || state.isAdding || !state.wineVintageId) {
+            return;
+        }
+
+        state.isAdding = true;
+        updateAddButtonState();
+
+        try {
+            const response = await fetch('/wine-manager/bottles', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    wineVintageId: state.wineVintageId,
+                    quantity: 1
+                })
+            });
+
+            const raw = await response.text();
+            const contentType = response.headers.get('Content-Type') ?? '';
+            const isJson = contentType.toLowerCase().includes('application/json');
+            let data = null;
+
+            if (raw && isJson) {
+                try {
+                    data = JSON.parse(raw);
+                } catch (parseError) {
+                    console.error('Unable to parse add bottle response', parseError);
+                }
+            }
+
+            if (!response.ok) {
+                const fallback = raw?.trim() ? raw.trim() : 'We could not add a bottle right now. Please try again.';
+                const message = extractProblemMessage(data, fallback);
+                showError(message);
+                return;
+            }
+
+            if (!data) {
+                showError('We could not add a bottle right now. Please try again.');
+                return;
+            }
+
+            clearError();
+            renderDetails(data);
+        } catch (error) {
+            console.error('Failed to add bottle', error);
+            showError('We could not add a bottle right now. Please try again.');
+        } finally {
+            state.isAdding = false;
+            updateAddButtonState();
+        }
+    };
+
+    const extractProblemMessage = (problem, fallbackMessage) => {
+        if (!problem || typeof problem !== 'object') {
+            return fallbackMessage;
+        }
+
+        const candidates = [
+            problem.message,
+            problem.Message,
+            problem.error,
+            problem.Error,
+            problem.title,
+            problem.Title,
+            problem.detail,
+            problem.Detail
+        ];
+
+        for (const candidate of candidates) {
+            if (typeof candidate === 'string' && candidate.trim()) {
+                return candidate.trim();
+            }
+        }
+
+        const errors = problem.errors || problem.Errors;
+        if (errors && typeof errors === 'object') {
+            for (const key of Object.keys(errors)) {
+                const value = errors[key];
+                if (Array.isArray(value) && value.length > 0) {
+                    const [first] = value;
+                    if (typeof first === 'string' && first.trim()) {
+                        return first.trim();
+                    }
+                } else if (typeof value === 'string' && value.trim()) {
+                    return value.trim();
+                }
+            }
+        }
+
+        return fallbackMessage;
+    };
+
     document.addEventListener('DOMContentLoaded', () => {
         wireCloseButtons();
         wireTriggers();
+        wireAddButton();
         const overlay = qs(SELECTORS.overlay);
         if (overlay) {
             overlay.addEventListener('click', (event) => {
