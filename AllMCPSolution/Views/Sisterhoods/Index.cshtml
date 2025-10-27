@@ -140,6 +140,14 @@
             flex-direction: column;
         }
 
+        body.wine-app .wine-surfer-layout.wine-surfer-layout--sisterhoods {
+            padding-top: 48px;
+        }
+
+        .wine-surfer-layout.wine-surfer-layout--sisterhoods .action-bar {
+            margin-top: 12px;
+        }
+
         body.no-scroll {
             overflow: hidden;
         }
@@ -1683,7 +1691,7 @@
 </head>
 <body class="wine-app wine-app--with-bottom-nav">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
-    <main class="wine-surfer-layout">
+    <main class="wine-surfer-layout wine-surfer-layout--sisterhoods">
         <section>
             @{
                 var sanitizedDisplayName = string.IsNullOrWhiteSpace(Model.DisplayName) ? null : Model.DisplayName;
