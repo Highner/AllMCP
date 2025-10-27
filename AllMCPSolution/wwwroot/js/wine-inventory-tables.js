@@ -775,10 +775,11 @@ window.WineInventoryTables.initialize = function () {
 
                         // Click/keyboard to load details for this vintage group
                         const activate = async () => {
-                            if (!v.wineVintageId) return;
+                            const vintageId = v.wineVintageId ? String(v.wineVintageId) : '';
+                            if (!vintageId) return;
                             try {
                                 showDetailsView();
-                                await loadDetails({ groupId: v.wineVintageId }, false);
+                                await loadDetails({ groupId: vintageId }, false);
                             } catch (error) {
                                 showMessage(error?.message ?? String(error), 'error');
                             }
@@ -2331,7 +2332,7 @@ window.WineInventoryTables.initialize = function () {
                             }
                         }
 
-                        await renderDetails(response, true);
+                        await renderDetails(response, true, selectedSummary?.wineVintageId ?? null);
                         showMessage('Bottle marked as drunk.', 'success');
                     }
 
@@ -3648,7 +3649,7 @@ window.WineInventoryTables.initialize = function () {
                     refreshGrouping({ expandForRow: row });
 
                     showMessage('Wine group updated.', 'success');
-                    await renderDetails(response, selectedRow === row);
+                    await renderDetails(response, selectedRow === row, groupId ?? null);
                 } catch (error) {
                     showMessage(error.message, 'error');
                 } finally {
@@ -3806,7 +3807,7 @@ window.WineInventoryTables.initialize = function () {
                 row.setAttribute('aria-expanded', 'true');
 
                 if (options.response) {
-                    await renderDetails(options.response, true);
+                    await renderDetails(options.response, true, groupId ?? null);
                     return;
                 }
 
@@ -3819,14 +3820,21 @@ window.WineInventoryTables.initialize = function () {
                 closeActiveDetailActionsMenu();
                 detailsBody.querySelectorAll('.detail-row').forEach(r => r.remove());
 
-                const groupId = typeof key === 'string' ? key : key?.groupId;
+                const rawGroupId = typeof key === 'string' ? key : key?.groupId;
                 const wineId = typeof key === 'object' ? key?.wineId : null;
+                const resolvedGroupId = rawGroupId ? String(rawGroupId) : '';
 
                 try {
                     setLoading(true);
-                    const url = wineId ? `/wine-manager/wine/${wineId}/details` : `/wine-manager/bottles/${groupId}`;
+                    if (!wineId && !resolvedGroupId) {
+                        throw new Error('Unable to determine the selected vintage.');
+                    }
+
+                    const url = wineId
+                        ? `/wine-manager/wine/${wineId}/details`
+                        : `/wine-manager/bottles/${encodeURIComponent(resolvedGroupId)}`;
                     const response = await sendJson(url, { method: 'GET' });
-                    await renderDetails(response, updateRow);
+                    await renderDetails(response, updateRow, resolvedGroupId);
                     showMessage('', 'info');
                 } catch (error) {
                     showMessage(error.message, 'error');
@@ -3835,17 +3843,45 @@ window.WineInventoryTables.initialize = function () {
                 }
             }
 
-            async function renderDetails(data, shouldUpdateRow) {
+            async function renderDetails(data, shouldUpdateRow, fallbackWineVintageId) {
                 await referenceDataPromise;
 
                 const rawSummary = data?.group ?? data?.Group ?? null;
-                const summary = normalizeSummary(rawSummary);
+                let summary = normalizeSummary(rawSummary);
                 const rawDetails = Array.isArray(data?.details)
                     ? data.details
                     : Array.isArray(data?.Details)
                         ? data.Details
                         : [];
                 const details = rawDetails.map(normalizeDetail).filter(Boolean);
+                const detailVintageIds = details
+                    .map(detail => detail?.wineVintageId)
+                    .filter(id => id);
+                const uniqueDetailVintageIds = Array.from(new Set(detailVintageIds));
+                const fallbackDetailVintageId = uniqueDetailVintageIds.length === 1
+                    ? uniqueDetailVintageIds[0]
+                    : null;
+                const fallbackVintageId = fallbackWineVintageId ? String(fallbackWineVintageId) : '';
+
+                if (summary) {
+                    const resolvedVintageId = summary.wineVintageId
+                        || fallbackVintageId
+                        || fallbackDetailVintageId
+                        || null;
+                    if (resolvedVintageId) {
+                        summary = { ...summary, wineVintageId: resolvedVintageId };
+                    }
+                }
+
+                if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
+                    window.console.log('[BottleManagementModal] received vintage identifiers', {
+                        rawSummaryVintageId: rawSummary?.wineVintageId ?? rawSummary?.WineVintageId ?? null,
+                        normalizedSummaryVintageId: summary?.wineVintageId ?? null,
+                        fallbackWineVintageId: fallbackWineVintageId ?? null,
+                        fallbackDetailVintageId,
+                        detailVintageIds: uniqueDetailVintageIds
+                    });
+                }
 
                 selectedSummary = summary;
 
@@ -4099,7 +4135,7 @@ window.WineInventoryTables.initialize = function () {
                             method: 'PUT',
                             body: JSON.stringify(payload)
                         });
-                        await renderDetails(response, true);
+                        await renderDetails(response, true, selectedSummary?.wineVintageId ?? null);
                         showMessage('Bottle updated.', 'success');
                     } catch (error) {
                         showMessage(error.message, 'error');
@@ -4123,7 +4159,7 @@ window.WineInventoryTables.initialize = function () {
                         const response = await sendJson(`/wine-manager/bottles/${detail.bottleId ?? detail.BottleId}`, {
                             method: 'DELETE'
                         });
-                        await renderDetails(response, true);
+                        await renderDetails(response, true, selectedSummary?.wineVintageId ?? null);
                         showMessage('Bottle removed.', 'success');
                     } catch (error) {
                         showMessage(error.message, 'error');
@@ -4298,7 +4334,7 @@ window.WineInventoryTables.initialize = function () {
                         detailAddQuantity.value = '1';
                     }
 
-                    await renderDetails(response, true);
+                    await renderDetails(response, true, selectedSummary?.wineVintageId ?? null);
                     showMessage(quantity > 1 ? 'Bottles added successfully.' : 'Bottle added successfully.', 'success');
                 } catch (error) {
                     showMessage(error.message, 'error');
