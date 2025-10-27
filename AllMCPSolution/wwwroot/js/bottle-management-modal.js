@@ -106,7 +106,7 @@
         }
 
         try {
-            const response = await fetch(`/wine-inventory/bottles/${wineVintageId}`, {
+            const response = await fetch(`/wine-manager/bottles/${wineVintageId}`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json'
@@ -136,8 +136,10 @@
     };
 
     const renderDetails = (payload) => {
-        const details = Array.isArray(payload?.Details) ? payload.Details : [];
-        const group = payload?.Group ?? null;
+        const details = Array.isArray(payload?.Details)
+            ? payload.Details
+            : (Array.isArray(payload?.details) ? payload.details : []);
+        const group = payload?.Group ?? payload?.group ?? null;
 
         updateSummary(group, details);
         renderRows(details);
@@ -174,29 +176,36 @@
         }
 
         if (wineNameEl) {
-            wineNameEl.textContent = `${group.WineName ?? 'Unknown wine'}`;
+            wineNameEl.textContent = `${group.WineName ?? group.wineName ?? 'Unknown wine'}`;
         }
 
         if (vintageEl) {
-            const vintage = group.Vintage && Number.isFinite(group.Vintage)
-                ? group.Vintage
-                : '—';
+            const rawVintage = group.Vintage ?? group.vintage;
+            const numericVintage = typeof rawVintage === 'number'
+                ? rawVintage
+                : Number(rawVintage);
+            const hasVintage = Number.isFinite(numericVintage) && numericVintage > 0;
+            const vintage = hasVintage ? numericVintage : '—';
             vintageEl.textContent = `Vintage ${vintage}`;
         }
 
         if (countEl) {
-            const bottleCount = Number.isFinite(group.BottleCount) ? group.BottleCount : details.length;
+            const bottleCountSource = group.BottleCount ?? group.bottleCount;
+            const numericCount = typeof bottleCountSource === 'number'
+                ? bottleCountSource
+                : Number(bottleCountSource);
+            const bottleCount = Number.isFinite(numericCount) ? numericCount : details.length;
             const noun = bottleCount === 1 ? 'bottle' : 'bottles';
             countEl.textContent = `Bottles: ${bottleCount} ${noun}`;
         }
 
         if (statusEl) {
-            const statusLabel = group.StatusLabel ?? '—';
+            const statusLabel = group.StatusLabel ?? group.statusLabel ?? '—';
             statusEl.textContent = `Status: ${statusLabel}`;
         }
 
         if (averageEl) {
-            const score = formatScore(group.AverageScore);
+            const score = formatScore(group.AverageScore ?? group.averageScore);
             averageEl.textContent = `Avg. score: ${score}`;
         }
 
@@ -217,10 +226,16 @@
         }
 
         const rows = details.map((detail) => {
-            const location = escapeHtml(detail?.BottleLocation ?? '—');
-            const price = formatPrice(detail?.Price);
-            const score = formatScore(detail?.CurrentUserScore ?? detail?.AverageScore);
-            const status = detail?.IsDrunk ? 'Yes' : 'No';
+            const location = escapeHtml(detail?.BottleLocation ?? detail?.bottleLocation ?? '—');
+            const price = formatPrice(detail?.Price ?? detail?.price);
+            const score = formatScore(
+                detail?.CurrentUserScore
+                ?? detail?.currentUserScore
+                ?? detail?.AverageScore
+                ?? detail?.averageScore
+            );
+            const isDrunk = detail?.IsDrunk ?? detail?.isDrunk ?? false;
+            const status = isDrunk ? 'Yes' : 'No';
             return (
                 '<tr>' +
                     `<td class="bottle-management-col-location">${location}</td>` +
