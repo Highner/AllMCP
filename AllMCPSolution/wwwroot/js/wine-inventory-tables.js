@@ -66,6 +66,8 @@
         const vintageSummaryCache = new Map();
         let expandedInventoryRow = null;
 
+        setupInventoryTableHeaderOffset();
+
         if (inventoryTable && inventoryInlineTemplate && inventoryInlineRowTemplate) {
             const summaryRows = Array.from(inventoryTable.querySelectorAll('[data-inventory-row]'));
             summaryRows.forEach((row) => {
@@ -240,6 +242,50 @@
             } finally {
                 delete row.dataset.inlineLoading;
             }
+        }
+
+        function setupInventoryTableHeaderOffset() {
+            if (!inventoryTable) {
+                return;
+            }
+
+            const root = document.documentElement;
+            if (!root) {
+                return;
+            }
+
+            const topBar = document.querySelector('.top-bar');
+            if (!(topBar instanceof HTMLElement)) {
+                root.style.removeProperty('--inventory-table-header-offset');
+                return;
+            }
+
+            let resizeObserver = null;
+
+            const updateOffset = () => {
+                const topBarRect = topBar.getBoundingClientRect();
+                const measuredHeight = Number.isFinite(topBarRect.height) ? topBarRect.height : topBar.offsetHeight;
+                const computedHeight = Math.max(0, Math.ceil(measuredHeight));
+                root.style.setProperty('--inventory-table-header-offset', `${computedHeight}px`);
+            };
+
+            updateOffset();
+
+            window.addEventListener('resize', updateOffset);
+
+            if ('ResizeObserver' in window) {
+                resizeObserver = new window.ResizeObserver(() => {
+                    updateOffset();
+                });
+                resizeObserver.observe(topBar);
+            }
+
+            window.addEventListener('beforeunload', () => {
+                window.removeEventListener('resize', updateOffset);
+                if (resizeObserver) {
+                    resizeObserver.disconnect();
+                }
+            }, { once: true });
         }
 
         function createInlineRow() {

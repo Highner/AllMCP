@@ -1889,6 +1889,14 @@ table,
     background: hsla(var(--accent) / 0.3);
 }
 
+.inventory-table thead th {
+    position: sticky;
+    top: var(--inventory-table-header-offset, 88px);
+    z-index: 5;
+    background: hsla(var(--accent) / 0.3);
+    box-shadow: 0 1px 0 hsla(var(--border) / 0.35);
+}
+
 table thead,
 .details-table thead,
 .notes-table thead {
