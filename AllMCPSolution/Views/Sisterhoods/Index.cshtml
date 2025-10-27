@@ -2228,8 +2228,27 @@
                                 <input type="hidden" name="MemberEmail" value="" data-sisterhood-invite-email />
                                 <input type="hidden" name="IsEmail" value="false" data-sisterhood-invite-is-email />
                                 <label for="invite-member-@sisterhood.Id">Invite a Wine Surfer</label>
-                                <input id="invite-member-@sisterhood.Id" name="MemberName" type="text" list="sisterhood-user-options" placeholder="Start typing a name or email" autocomplete="off" />
-                            <div class="invite-actions">
+                                <div class="inventory-add-combobox sisterhood-invite-combobox" data-sisterhood-invite-combobox>
+                                    <input id="invite-member-@sisterhood.Id"
+                                           name="MemberName"
+                                           type="search"
+                                           class="inventory-add-wine-search sisterhood-invite-input"
+                                           placeholder="Start typing a name or email"
+                                           autocomplete="off"
+                                           spellcheck="false"
+                                           role="combobox"
+                                           aria-autocomplete="list"
+                                           aria-expanded="false"
+                                           aria-controls="invite-results-@sisterhood.Id" />
+                                    <div class="inventory-add-wine-results"
+                                         id="invite-results-@sisterhood.Id"
+                                         data-sisterhood-invite-results
+                                         role="listbox"
+                                         aria-label="Matching Wine Surfers">
+                                        <ul class="inventory-add-wine-options" data-sisterhood-invite-options></ul>
+                                    </div>
+                                </div>
+                                <div class="invite-actions">
                                 <button type="submit" class="sisterhood-button">Invite</button>
                             </div>
                             <p class="invite-feedback" data-sisterhood-invite-feedback aria-live="polite" hidden></p>
@@ -2250,7 +2269,6 @@
                 </div>
             }
         </section>
-        <datalist id="sisterhood-user-options"></datalist>
     </main>
     @{ var editModal = new WineSurferModalShell
         {
@@ -2870,8 +2888,9 @@
         const inviteForms = document.querySelectorAll('form[data-sisterhood-invite-form]');
         const userMap = new Map();
         const syncByForm = new WeakMap();
+        const resultsByForm = new WeakMap();
+        const renderByForm = new WeakMap();
         const emailPattern = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
-        const inviteDataList = document.getElementById('sisterhood-user-options');
         const inviteSearchCache = new Map();
         const inviteSearchConfig = {
             endpoint: '/wine-surfer/users',
@@ -2881,6 +2900,7 @@
         let inviteSearchTimerId = null;
         let inviteSearchAbortController = null;
         let inviteSearchCurrentTerm = '';
+        let inviteSearchCurrentForm = null;
 
         const toTrimmedString = (value) => typeof value === 'string' ? value.trim() : '';
         const registerUserLookup = (value, userId) => {
@@ -2889,95 +2909,44 @@
                 userMap.set(lookupKey, userId);
             }
         };
-        const createInviteOption = (value, label, user) => {
-            const trimmedValue = toTrimmedString(value);
-            if (!trimmedValue) {
+        const setInviteResultsVisibility = (form, visible) => {
+            const state = resultsByForm.get(form);
+            if (!state) {
                 return;
             }
 
-            registerUserLookup(trimmedValue, user.id);
-
-            if (!inviteDataList) {
+            if (typeof state.setVisibility === 'function') {
+                state.setVisibility(visible);
                 return;
             }
 
-            const option = document.createElement('option');
-            option.value = trimmedValue;
-            if (label) {
-                option.label = label;
+            if (visible && state.list && state.list.childElementCount > 0) {
+                state.container?.setAttribute('data-visible', 'true');
+                state.input?.setAttribute('aria-expanded', 'true');
+            } else {
+                state.container?.removeAttribute('data-visible');
+                state.input?.setAttribute('aria-expanded', 'false');
             }
-            option.dataset.userId = user.id;
-
-            const trimmedEmail = toTrimmedString(user.email);
-            if (trimmedEmail) {
-                option.dataset.userEmail = trimmedEmail;
-            }
-
-            inviteDataList.appendChild(option);
         };
-
-        const updateInviteUserOptions = (users) => {
-            if (!inviteDataList) {
-                return;
-            }
-
-            inviteDataList.innerHTML = '';
+        const updateInviteUserOptions = (form, users) => {
             userMap.clear();
 
-            users.forEach(user => {
-                if (!user?.id) {
-                    return;
-                }
+            const render = renderByForm.get(form);
+            if (typeof render === 'function') {
+                render(Array.isArray(users) ? users : []);
+            }
 
-                const name = toTrimmedString(user.name);
-                if (!name) {
-                    return;
-                }
-
-                const email = toTrimmedString(user.email);
-                const tasteSummary = toTrimmedString(user.tasteProfileSummary) || toTrimmedString(user.tasteProfile);
-                const descriptorParts = [];
-
-                if (email) {
-                    descriptorParts.push(email);
-                }
-
-                if (tasteSummary) {
-                    descriptorParts.push(tasteSummary);
-                }
-
-                const baseLabel = descriptorParts.length > 0
-                    ? `${name} · ${descriptorParts.join(' · ')}`
-                    : name;
-
-                createInviteOption(name, baseLabel, user);
-
-                if (email && email.toLowerCase() !== name.toLowerCase()) {
-                    const emailLabelParts = [email, name];
-                    if (tasteSummary) {
-                        emailLabelParts.push(tasteSummary);
-                    }
-                    createInviteOption(email, emailLabelParts.join(' · '), user);
-                } else if (email) {
-                    registerUserLookup(email, user.id);
-                }
-            });
-
-            inviteForms.forEach(form => {
-                const sync = syncByForm.get(form);
+            inviteForms.forEach(existingForm => {
+                const sync = syncByForm.get(existingForm);
                 if (typeof sync === 'function') {
                     sync();
                 }
             });
         };
-
-        const scheduleInviteUserSearch = (rawValue) => {
-            if (!inviteDataList) {
-                return;
-            }
-
+        const scheduleInviteUserSearch = (form, rawValue) => {
             const trimmed = (rawValue ?? '').trim();
             inviteSearchCurrentTerm = trimmed;
+            inviteSearchCurrentForm = form;
 
             if (inviteSearchTimerId) {
                 window.clearTimeout(inviteSearchTimerId);
@@ -2990,13 +2959,15 @@
             }
 
             if (trimmed.length < inviteSearchConfig.minLength) {
-                updateInviteUserOptions([]);
+                updateInviteUserOptions(form, []);
                 return;
             }
 
             const cacheKey = trimmed.toLowerCase();
             if (inviteSearchCache.has(cacheKey)) {
-                updateInviteUserOptions(inviteSearchCache.get(cacheKey));
+                if (inviteSearchCurrentForm === form && inviteSearchCurrentTerm === trimmed) {
+                    updateInviteUserOptions(form, inviteSearchCache.get(cacheKey));
+                }
                 return;
             }
 
@@ -3034,11 +3005,11 @@
 
                     inviteSearchCache.set(cacheKey, payload);
 
-                    if (inviteSearchCurrentTerm !== trimmed) {
+                    if (inviteSearchCurrentForm !== form || inviteSearchCurrentTerm !== trimmed) {
                         return;
                     }
 
-                    updateInviteUserOptions(payload);
+                    updateInviteUserOptions(form, payload);
                 } catch (error) {
                     if (!controller.signal.aborted) {
                         /* Non-blocking lookup failure */
@@ -3058,10 +3029,40 @@
             const isEmailField = form.querySelector('input[name="IsEmail"][data-sisterhood-invite-is-email]');
             const feedback = form.querySelector('[data-sisterhood-invite-feedback]');
             const submitButton = form.querySelector('button[type="submit"]');
+            const combobox = form.querySelector('[data-sisterhood-invite-combobox]');
+            const resultsContainer = combobox?.querySelector('[data-sisterhood-invite-results]');
+            const optionsList = combobox?.querySelector('[data-sisterhood-invite-options]');
 
             if (!input || !userIdField || !emailField || !isEmailField) {
                 return;
             }
+
+            const setResultsVisibility = (visible) => {
+                if (!resultsContainer) {
+                    return;
+                }
+
+                if (visible && optionsList && optionsList.childElementCount > 0) {
+                    resultsContainer.setAttribute('data-visible', 'true');
+                    input.setAttribute('aria-expanded', 'true');
+                } else {
+                    resultsContainer.removeAttribute('data-visible');
+                    input.setAttribute('aria-expanded', 'false');
+                }
+            };
+
+            resultsByForm.set(form, {
+                container: resultsContainer || null,
+                list: optionsList || null,
+                input,
+                setVisibility: setResultsVisibility
+            });
+
+            const clearResults = () => {
+                if (optionsList) {
+                    optionsList.innerHTML = '';
+                }
+            };
 
             const clearFeedback = () => {
                 if (!feedback) {
@@ -3106,15 +3107,127 @@
                 }
             };
 
+            const renderInviteOptions = (users) => {
+                clearResults();
+                setResultsVisibility(false);
+
+                if (!Array.isArray(users) || users.length === 0 || !optionsList) {
+                    return;
+                }
+
+                users.forEach(user => {
+                    if (!user?.id) {
+                        return;
+                    }
+
+                    const name = toTrimmedString(user.name);
+                    if (!name) {
+                        return;
+                    }
+
+                    const email = toTrimmedString(user.email);
+                    const tasteSummary = toTrimmedString(user.tasteProfileSummary) || toTrimmedString(user.tasteProfile);
+
+                    const appendOption = (value, primaryText, metaParts) => {
+                        const trimmedValue = toTrimmedString(value);
+                        if (!trimmedValue) {
+                            return;
+                        }
+
+                        registerUserLookup(trimmedValue, user.id);
+
+                        const item = document.createElement('li');
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'inventory-add-wine-option sisterhood-invite-option';
+                        button.setAttribute('role', 'option');
+                        button.dataset.userId = user.id;
+                        button.dataset.inviteValue = trimmedValue;
+
+                        const nameSpan = document.createElement('span');
+                        nameSpan.className = 'inventory-add-wine-option__name';
+                        nameSpan.textContent = primaryText;
+                        button.appendChild(nameSpan);
+
+                        metaParts.forEach(part => {
+                            const trimmedPart = toTrimmedString(part);
+                            if (!trimmedPart) {
+                                return;
+                            }
+
+                            const metaSpan = document.createElement('span');
+                            metaSpan.className = 'inventory-add-wine-option__meta';
+                            metaSpan.textContent = trimmedPart;
+                            button.appendChild(metaSpan);
+                        });
+
+                        button.addEventListener('click', () => {
+                            input.value = trimmedValue;
+                            syncDerivedValues();
+                            clearFeedback();
+                            setResultsVisibility(false);
+                            window.setTimeout(() => {
+                                input.focus();
+                            }, 0);
+                        });
+
+                        item.appendChild(button);
+                        optionsList.appendChild(item);
+                    };
+
+                    const descriptorParts = [];
+                    if (email) {
+                        descriptorParts.push(email);
+                    }
+                    if (tasteSummary) {
+                        descriptorParts.push(tasteSummary);
+                    }
+
+                    appendOption(name, name, descriptorParts);
+
+                    if (email && email.toLowerCase() !== name.toLowerCase()) {
+                        const emailMetaParts = [name];
+                        if (tasteSummary) {
+                            emailMetaParts.push(tasteSummary);
+                        }
+                        appendOption(email, email, emailMetaParts);
+                    } else if (email) {
+                        registerUserLookup(email, user.id);
+                    }
+                });
+
+                if (optionsList.childElementCount > 0) {
+                    setResultsVisibility(true);
+                }
+            };
+
+            renderByForm.set(form, renderInviteOptions);
             syncByForm.set(form, syncDerivedValues);
 
             input.addEventListener('input', () => {
                 syncDerivedValues();
                 clearFeedback();
-                scheduleInviteUserSearch(input.value);
+                scheduleInviteUserSearch(form, input.value);
             });
             input.addEventListener('change', syncDerivedValues);
-            input.addEventListener('blur', syncDerivedValues);
+            input.addEventListener('focus', () => {
+                if (optionsList && optionsList.childElementCount > 0) {
+                    setResultsVisibility(true);
+                }
+            });
+            input.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    setResultsVisibility(false);
+                }
+            });
+            input.addEventListener('blur', () => {
+                syncDerivedValues();
+                window.setTimeout(() => {
+                    setResultsVisibility(false);
+                }, 120);
+            });
+
+            renderInviteOptions([]);
             syncDerivedValues();
 
             form.addEventListener('submit', async event => {
@@ -3197,6 +3310,8 @@
                     userIdField.value = '';
                     emailField.value = '';
                     isEmailField.value = 'false';
+                    clearResults();
+                    setResultsVisibility(false);
                 } catch (error) {
                     setFeedback('We could not send that invitation. Please try again.', 'error');
                 } finally {
@@ -3210,9 +3325,26 @@
         };
 
         if (inviteForms.length > 0) {
-            inviteForms.forEach(setUpInviteForm);
-            updateInviteUserOptions([]);
+            inviteForms.forEach(form => {
+                setUpInviteForm(form);
+                setInviteResultsVisibility(form, false);
+            });
         }
+
+        document.addEventListener('click', event => {
+            if (!(event.target instanceof Node)) {
+                return;
+            }
+
+            inviteForms.forEach(form => {
+                const combobox = form.querySelector('[data-sisterhood-invite-combobox]');
+                if (!combobox || combobox.contains(event.target)) {
+                    return;
+                }
+
+                setInviteResultsVisibility(form, false);
+            });
+        });
 
         const resendButtons = document.querySelectorAll('[data-resend-invite-button]');
         const removeInviteButtons = document.querySelectorAll('[data-remove-invite-button]');
