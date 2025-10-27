@@ -1,0 +1,126 @@
+@model AllMCPSolution.Models.SipSessionModalTemplateModel
+@using AllMCPSolution.Models
+@{
+    var prefix = string.IsNullOrWhiteSpace(Model.InputIdPrefix) ? "sip-session" : Model.InputIdPrefix;
+    var nameId = $"{prefix}-name";
+    var dateId = $"{prefix}-schedule-date";
+    var timeId = $"{prefix}-schedule-time";
+    var locationId = $"{prefix}-location";
+    var descriptionId = $"{prefix}-description";
+    var sisterhoodSelectId = $"{prefix}-sisterhood";
+    var action = !string.IsNullOrWhiteSpace(Model.FormAction)
+        ? Model.FormAction
+        : Model.Kind == SipSessionModalKind.Edit
+            ? (Url.Action("UpdateSipSession", "WineSurfer") ?? "/wine-surfer/sisterhoods/sessions/update")
+            : (Url.Action("CreateSipSession", "WineSurfer") ?? "/wine-surfer/sisterhoods/sessions/create");
+    var submitLabel = string.IsNullOrWhiteSpace(Model.SubmitButtonLabel)
+        ? (Model.Kind == SipSessionModalKind.Edit ? "Save changes" : "Create session")
+        : Model.SubmitButtonLabel!;
+    var cancelLabel = string.IsNullOrWhiteSpace(Model.CancelButtonLabel) ? "Cancel" : Model.CancelButtonLabel!;
+    var options = Model.SisterhoodOptions ?? System.Array.Empty<SipSessionOption>();
+    var showSelect = options.Count > 0;
+    Guid? selectedSisterhoodId = Model.SisterhoodId;
+    if (Model.Kind == SipSessionModalKind.Create && showSelect && selectedSisterhoodId is null && options.Count > 0)
+    {
+        selectedSisterhoodId = options[0].Id;
+    }
+    var regionAttribute = Model.Kind == SipSessionModalKind.Edit
+        ? "data-sip-session-edit-region"
+        : "data-sip-session-create-region";
+    var templateAttribute = Model.Kind == SipSessionModalKind.Edit
+        ? "data-sip-session-edit-template"
+        : "data-sip-session-create-template";
+    var scheduledDateValue = string.IsNullOrWhiteSpace(Model.ScheduledDateValue) ? null : Model.ScheduledDateValue;
+    var scheduledTimeValue = string.IsNullOrWhiteSpace(Model.ScheduledTimeValue) ? null : Model.ScheduledTimeValue;
+    var locationValue = string.IsNullOrWhiteSpace(Model.Location) ? null : Model.Location;
+    var descriptionValue = string.IsNullOrEmpty(Model.Description) ? string.Empty : Model.Description;
+}
+<div id="@Model.ContainerId"
+     class="sip-session-edit-region"
+     @Html.Raw(regionAttribute)
+     hidden>
+    <template @Html.Raw(templateAttribute) data-sip-session-modal-template>
+        <form method="post"
+              action="@action"
+              class="sip-session-form"
+              data-sip-session-edit-form>
+            @Html.AntiForgeryToken()
+            @if (Model.SipSessionId.HasValue)
+            {
+                <input type="hidden" name="SipSessionId" value="@Model.SipSessionId" />
+            }
+            @if (showSelect)
+            {
+                <label for="@sisterhoodSelectId">Sisterhood</label>
+                <select id="@sisterhoodSelectId" name="SisterhoodId" required>
+                    @foreach (var option in options)
+                    {
+                        var isSelected = selectedSisterhoodId.HasValue && option.Id == selectedSisterhoodId.Value;
+                        <option value="@option.Id" @(isSelected ? "selected" : null)>@option.Name</option>
+                    }
+                </select>
+            }
+            else if (Model.SisterhoodId.HasValue)
+            {
+                <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+            }
+            <label for="@nameId">Session name</label>
+            <input id="@nameId"
+                   name="Name"
+                   type="text"
+                   value="@Model.Name"
+                   maxlength="256"
+                   required />
+            <label for="@dateId">Scheduled date</label>
+            <input id="@dateId"
+                   name="ScheduledDate"
+                   type="date"
+                   value="@scheduledDateValue" />
+            <label for="@timeId">Scheduled time (optional)</label>
+            <input id="@timeId"
+                   name="ScheduledTime"
+                   type="time"
+                   value="@scheduledTimeValue" />
+            <label for="@locationId">Location</label>
+            <input id="@locationId"
+                   name="Location"
+                   type="text"
+                   value="@locationValue"
+                   maxlength="256" />
+            <label for="@descriptionId">Description</label>
+            <textarea id="@descriptionId"
+                      name="Description"
+                      maxlength="2048">@descriptionValue</textarea>
+            <div class="sip-session-form-actions">
+                <button type="submit" class="sisterhood-button">@submitLabel</button>
+                <button type="button"
+                        class="sisterhood-button sisterhood-button--ghost"
+                        data-sip-session-edit-cancel>@cancelLabel</button>
+            </div>
+        </form>
+        @if (Model.Delete is not null)
+        {
+            <div class="sip-session-delete-section">
+                <p class="sip-session-delete-hint">Deleting this sip session will remove it for everyone in the sisterhood.</p>
+                <form method="post"
+                      action="@Model.Delete.Action"
+                      class="sip-session-delete-form">
+                    @Html.AntiForgeryToken()
+                    @if (Model.SisterhoodId.HasValue)
+                    {
+                        <input type="hidden" name="SisterhoodId" value="@Model.SisterhoodId" />
+                    }
+                    @if (Model.SipSessionId.HasValue)
+                    {
+                        <input type="hidden" name="SipSessionId" value="@Model.SipSessionId" />
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Delete.ReturnUrl))
+                    {
+                        <input type="hidden" name="ReturnUrl" value="@Model.Delete.ReturnUrl" />
+                    }
+                    <button type="submit" class="sisterhood-button sisterhood-button--danger">@Model.Delete.ButtonLabel</button>
+                </form>
+            </div>
+        }
+    </template>
+</div>
