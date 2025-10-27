@@ -148,56 +148,6 @@
             gap: 12px;
         }
 
-        .surf-eye-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 12px 20px;
-            border-radius: 999px;
-            border: 1px solid rgba(244, 241, 234, 0.22);
-            background: linear-gradient(135deg, rgba(131, 56, 236, 0.9), rgba(69, 28, 151, 0.92));
-            color: #f4f1ea;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-            min-width: 160px;
-        }
-
-        .surf-eye-button:hover,
-        .surf-eye-button:focus-visible {
-            transform: translateY(-1px);
-            border-color: rgba(244, 241, 234, 0.45);
-            box-shadow: 0 14px 40px rgba(131, 56, 236, 0.35);
-        }
-
-        .surf-eye-button:focus-visible {
-            outline: 2px solid rgba(244, 241, 234, 0.6);
-            outline-offset: 3px;
-        }
-
-        .surf-eye-button.secondary {
-            background: rgba(244, 241, 234, 0.08);
-            border: 1px solid rgba(244, 241, 234, 0.18);
-            color: rgba(244, 241, 234, 0.9);
-        }
-
-        .surf-eye-button.secondary:hover,
-        .surf-eye-button.secondary:focus-visible {
-            background: rgba(244, 241, 234, 0.14);
-            border-color: rgba(244, 241, 234, 0.32);
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
-        }
-
-        .surf-eye-button[disabled] {
-            opacity: 0.45;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
 
         .surf-eye-status {
             min-height: 28px;
@@ -331,55 +281,6 @@
             gap: 8px;
         }
 
-        .surf-eye-add-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 16px;
-            border-radius: 999px;
-            border: 1px solid rgba(244, 241, 234, 0.28);
-            background: rgba(244, 241, 234, 0.12);
-            color: #f4f1ea;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-        }
-
-        .surf-eye-add-button.secondary {
-            background: rgba(244, 241, 234, 0.08);
-            border-color: rgba(244, 241, 234, 0.2);
-            color: rgba(244, 241, 234, 0.92);
-        }
-
-        .surf-eye-add-button:hover,
-        .surf-eye-add-button:focus-visible {
-            background: rgba(244, 241, 234, 0.2);
-            border-color: rgba(244, 241, 234, 0.45);
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
-            transform: translateY(-1px);
-        }
-
-        .surf-eye-add-button.secondary:hover,
-        .surf-eye-add-button.secondary:focus-visible {
-            background: rgba(244, 241, 234, 0.14);
-            border-color: rgba(244, 241, 234, 0.32);
-            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
-        }
-
-        .surf-eye-add-button:focus-visible {
-            outline: 2px solid rgba(244, 241, 234, 0.6);
-            outline-offset: 3px;
-        }
-
-        .surf-eye-add-button[disabled] {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
 
         .surf-eye-cellar-message {
             margin: 0;
@@ -439,8 +340,8 @@
                     </div>
                     <input type="file" id="surf-eye-photo" class="surf-eye-input" accept="image/*" capture="environment" name="Photo" />
                     <div class="surf-eye-actions">
-                        <label for="surf-eye-photo" class="surf-eye-button secondary">Open Camera</label>
-                        <button type="button" class="surf-eye-button" id="surf-eye-analyze">Analyze Photo</button>
+                        <label for="surf-eye-photo" class="sisterhood-button">Open Camera</label>
+                        <button type="button" class="sisterhood-button sisterhood-button--primary" id="surf-eye-analyze">Analyze Photo</button>
                     </div>
                     <div id="surf-eye-status" class="surf-eye-status">@(hasTasteProfile ? "Snap a photo to begin." : "Snap a photo to identify wines. Add a taste profile to see alignment scores.")</div>
                     <div id="surf-eye-results" class="surf-eye-results">
@@ -702,7 +603,7 @@
 
             const addButton = document.createElement('button');
             addButton.type = 'button';
-            addButton.className = 'surf-eye-add-button';
+            addButton.className = 'sisterhood-button sisterhood-button--primary';
             addButton.setAttribute('data-add-wine-trigger', 'surf-eye');
             addButton.textContent = 'Add to my cellar';
 
@@ -778,7 +679,7 @@
 
             const wishlistButton = document.createElement('button');
             wishlistButton.type = 'button';
-            wishlistButton.className = 'surf-eye-add-button secondary';
+            wishlistButton.className = 'sisterhood-button';
             wishlistButton.setAttribute('data-wishlist-trigger', 'surf-eye');
             wishlistButton.textContent = 'Add to wishlist';
             applyWineDataset(wishlistButton);
