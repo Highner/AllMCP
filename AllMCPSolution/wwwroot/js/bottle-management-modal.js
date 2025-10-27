@@ -309,6 +309,13 @@
         console.info('[BottleManagementModal] Loaded bottle details', details);
 
         updateLocationOptions(locations);
+        if (window.WineInventoryTables?.updateLocationSummaries) {
+            try {
+                window.WineInventoryTables.updateLocationSummaries(locations);
+            } catch (error) {
+                console.error('[BottleManagementModal] Failed to sync location summaries', error);
+            }
+        }
         updateSummary(group, details);
         renderRows(details);
         state.hasGroup = Boolean(group);
