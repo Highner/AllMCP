@@ -50,23 +50,17 @@
     var bottleHeaderContent = await Html.PartialAsync("_BottleDetailsHeaderControls");
     ViewData["WineSurferPageTitle"] = "Wine Inventory";
 
-
-    var addWineHeaderTemplate = new CrudTableHeaderTemplateModel
-    {
-        ContainerCssClass = "inventory-table-actions",
-        ActionLabel = "Add wine",
-        ActionCssClass = "wine-surfer-button wine-surfer-button--orange inventory-add-trigger",
-        ActionAttributes = new Dictionary<string, string?>
-        {
-            ["data-add-wine-trigger"] = "inventory"
-        }
-    };
-
     var yourCellarTable = new CrudTableTemplateModel
     {
-        Title = "Your Cellar",
+        TitleContent = @<text>
+            <div class="location-header location-header--table">
+                <h2 class="location-title">Your Cellar</h2>
+                <button type="button"
+                        class="wine-surfer-button wine-surfer-button--orange inventory-add-trigger"
+                        data-add-wine-trigger="inventory">Add wine</button>
+            </div>
+        </text>,
         DataTableKey = "summary",
-        HeaderTemplate = addWineHeaderTemplate,
         BackgroundCssClass = "crud-table crud-table--bare",
         BodyCssClass = "crud-table__body crud-table__body--bare",
         BodyContent = @<text>
@@ -195,39 +189,6 @@
     <main class="inventory-shell">
         <div class="inventory-layout">
             <div class="inventory-left">
-                <form method="get" class="filters">
-            <label>
-                Status
-                <select name="status" data-default-value="all">
-                    @foreach (var option in Model.StatusOptions)
-                    {
-                        var isSelected = string.Equals(option.Value, Model.Status, StringComparison.OrdinalIgnoreCase) ||
-                                         (string.IsNullOrEmpty(option.Value) && string.Equals(Model.Status, "all", StringComparison.OrdinalIgnoreCase));
-                        <option value="@option.Value" selected="@(isSelected ? "selected" : null)">@option.Label</option>
-                    }
-                </select>
-            </label>
-            <label>
-                Color
-                <select name="color" data-default-value="">
-                    @foreach (var option in Model.ColorOptions)
-                    {
-                        var currentColor = Model.Color ?? string.Empty;
-                        var isSelected = string.Equals(option.Value, currentColor, StringComparison.OrdinalIgnoreCase);
-                        <option value="@option.Value" selected="@(isSelected ? "selected" : null)">@option.Label</option>
-                    }
-                </select>
-            </label>
-            <label>
-                Search
-                <input type="text" name="search" value="@Model.Search" placeholder="Wine, appellation, vintage" data-default-value="" />
-            </label>
-            <input type="hidden" name="sortField" value="@Model.SortField" data-default-value="wine" />
-            <input type="hidden" name="sortDir" value="@Model.SortDirection" data-default-value="asc" />
-                    <button type="submit" class="wine-surfer-button wine-surfer-button--orange">Apply</button>
-                    <button type="button" class="wine-surfer-button wine-surfer-button--red filters__clear-button" data-clear-filters>Clear filters</button>
-                </form>
-
                 <section id="inventory-locations"
                          class="inventory-locations"
                          data-current-user-id="@Model.CurrentUserId">
@@ -479,6 +440,44 @@
                     </form>
                 </article>
             </template>
+                </section>
+
+                <section class="inventory-filters">
+                    <div class="location-header">
+                        <h2 class="location-title">Filters</h2>
+                    </div>
+                    <form method="get" class="filters">
+                        <label>
+                            Status
+                            <select name="status" data-default-value="all">
+                                @foreach (var option in Model.StatusOptions)
+                                {
+                                    var isSelected = string.Equals(option.Value, Model.Status, StringComparison.OrdinalIgnoreCase) ||
+                                                     (string.IsNullOrEmpty(option.Value) && string.Equals(Model.Status, "all", StringComparison.OrdinalIgnoreCase));
+                                    <option value="@option.Value" selected="@(isSelected ? "selected" : null)">@option.Label</option>
+                                }
+                            </select>
+                        </label>
+                        <label>
+                            Color
+                            <select name="color" data-default-value="">
+                                @foreach (var option in Model.ColorOptions)
+                                {
+                                    var currentColor = Model.Color ?? string.Empty;
+                                    var isSelected = string.Equals(option.Value, currentColor, StringComparison.OrdinalIgnoreCase);
+                                    <option value="@option.Value" selected="@(isSelected ? "selected" : null)">@option.Label</option>
+                                }
+                            </select>
+                        </label>
+                        <label>
+                            Search
+                            <input type="text" name="search" value="@Model.Search" placeholder="Wine, appellation, vintage" data-default-value="" />
+                        </label>
+                        <input type="hidden" name="sortField" value="@Model.SortField" data-default-value="wine" />
+                        <input type="hidden" name="sortDir" value="@Model.SortDirection" data-default-value="asc" />
+                        <button type="submit" class="wine-surfer-button wine-surfer-button--orange">Apply</button>
+                        <button type="button" class="wine-surfer-button wine-surfer-button--red filters__clear-button" data-clear-filters>Clear filters</button>
+                    </form>
                 </section>
             </div>
             <div class="inventory-right">
