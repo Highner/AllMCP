@@ -2732,6 +2732,12 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     }
 }
 
+@media (max-width: 1024px) and (orientation: landscape) {
+    .top-bar .brand {
+        display: none;
+    }
+}
+
 @media (max-width: 768px) {
     body {
         padding: 0;
