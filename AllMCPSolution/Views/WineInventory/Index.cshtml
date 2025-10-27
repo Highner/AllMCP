@@ -68,7 +68,7 @@
         DataTableKey = "summary",
         HeaderTemplate = addWineHeaderTemplate,
         BodyContent = @<text>
-            <table id="inventory-table" class="inventory-table inventory-table--grouped crud-table__table">
+            <table id="inventory-table" class="inventory-table crud-table__table">
                 <thead>
                     <tr class="header-row crud-table__header-row">
                         <th class="summary-header summary-header--wine">
@@ -140,7 +140,6 @@
                             var groupingColor = bottle.Color ?? string.Empty;
                             var groupingStatus = bottle.StatusLabel ?? string.Empty;
                             <tr class="group-row"
-                                data-inventory-row
                                 data-wine-id="@bottle.WineId"
                                 data-sub-appellation-id="@(bottle.SubAppellationId?.ToString() ?? string.Empty)"
                                 data-appellation-id="@(bottle.AppellationId?.ToString() ?? string.Empty)"
@@ -151,7 +150,7 @@
                                 data-summary-status="@groupingStatus"
                                 tabindex="0"
                                 role="button"
-                                aria-expanded="false">
+                                aria-controls="details-table">
                                 <td class="summary-wine">@bottle.WineName</td>
                                 <td class="summary-appellation">@display</td>
                                 <td class="summary-vintage">—</td>
@@ -490,8 +489,6 @@
         </div>
 
 
-
-        @await Html.PartialAsync("_WineInventoryVintageInlineTable")
 
         @await Html.PartialAsync("_InventoryAddModal", Model.InventoryAddModal)
 
