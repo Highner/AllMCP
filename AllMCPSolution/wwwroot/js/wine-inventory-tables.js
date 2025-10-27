@@ -227,8 +227,6 @@ window.WineInventoryTables.initialize = function () {
             const detailAddPrice = detailAddRow?.querySelector('.detail-add-price');
             const detailAddQuantity = detailAddRow?.querySelector('.detail-add-quantity-select');
             const detailAddButton = detailAddRow?.querySelector('.detail-add-submit');
-            const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
-            const EMPTY_GUID_LOWER = EMPTY_GUID.toLowerCase();
             const inventorySection = document.getElementById('inventory-view');
             const modalElements = bottleModal?.getElements?.();
             const detailsSection = (bottleModal?.getContainer?.() ?? document.getElementById('details-view'));
@@ -252,7 +250,6 @@ window.WineInventoryTables.initialize = function () {
             let modalLoading = false;
             let drinkModalLoading = false;
             let drinkTarget = null;
-            let activeDetailGroupId = null;
             const DETAIL_ROW_DATA_KEY = '__wineInventoryDetail';
 
             const referenceData = {
@@ -778,12 +775,10 @@ window.WineInventoryTables.initialize = function () {
 
                         // Click/keyboard to load details for this vintage group
                         const activate = async () => {
-                            const normalizedVintageId = normalizeGuid(v.wineVintageId);
-                            if (!normalizedVintageId) return;
+                            if (!v.wineVintageId) return;
                             try {
-                                activeDetailGroupId = normalizedVintageId;
                                 showDetailsView();
-                                await loadDetails({ groupId: normalizedVintageId }, false);
+                                await loadDetails({ groupId: v.wineVintageId }, false);
                             } catch (error) {
                                 showMessage(error?.message ?? String(error), 'error');
                             }
@@ -2303,15 +2298,8 @@ window.WineInventoryTables.initialize = function () {
                 const payloadUserId = rowUserId
                     || (drinkTarget.userId ? String(drinkTarget.userId) : null);
 
-                const summaryVintageId = normalizeGuid(selectedSummary.wineVintageId);
-                if (!summaryVintageId) {
-                    submitDetail.showError?.('Select a specific vintage before updating the bottle.');
-                    submitDetail.focusField?.('wineVintage');
-                    throw new Error('Select a specific vintage before updating the bottle.');
-                }
-
                 const payload = !noteOnly ? {
-                    wineVintageId: summaryVintageId,
+                    wineVintageId: selectedSummary.wineVintageId,
                     price: parsePrice(priceValue),
                     isDrunk: true,
                     drunkAt,
@@ -3758,7 +3746,6 @@ window.WineInventoryTables.initialize = function () {
                 selectedRow = null;
                 selectedGroupId = null;
                 selectedSummary = null;
-                activeDetailGroupId = null;
 
                 closeNotesPanel();
                 selectedDetailRowElement = null;
@@ -3797,8 +3784,6 @@ window.WineInventoryTables.initialize = function () {
 
                 const groupId = row.dataset.groupId;
                 const wineId = row.dataset.wineId;
-                const normalizedGroupId = normalizeGuid(groupId);
-                activeDetailGroupId = normalizedGroupId || null;
                 if (!groupId && !wineId) {
                     return;
                 }
@@ -3836,22 +3821,10 @@ window.WineInventoryTables.initialize = function () {
 
                 const groupId = typeof key === 'string' ? key : key?.groupId;
                 const wineId = typeof key === 'object' ? key?.wineId : null;
-                const normalizedGroupId = normalizeGuid(groupId);
-                const resolvedGroupId = normalizedGroupId || (typeof groupId === 'string' ? groupId : '');
-
-                if (normalizedGroupId) {
-                    activeDetailGroupId = normalizedGroupId;
-                } else if (!wineId) {
-                    activeDetailGroupId = null;
-                }
 
                 try {
                     setLoading(true);
-                    if (!wineId && !resolvedGroupId) {
-                        throw new Error('Unable to determine the selected vintage.');
-                    }
-
-                    const url = wineId ? `/wine-manager/wine/${wineId}/details` : `/wine-manager/bottles/${resolvedGroupId}`;
+                    const url = wineId ? `/wine-manager/wine/${wineId}/details` : `/wine-manager/bottles/${groupId}`;
                     const response = await sendJson(url, { method: 'GET' });
                     await renderDetails(response, updateRow);
                     showMessage('', 'info');
@@ -3867,16 +3840,6 @@ window.WineInventoryTables.initialize = function () {
 
                 const rawSummary = data?.group ?? data?.Group ?? null;
                 const summary = normalizeSummary(rawSummary);
-                const fallbackGroupId = normalizeGuid(activeDetailGroupId);
-                if (summary) {
-                    const normalizedSummaryGroupId = normalizeGuid(summary.wineVintageId);
-                    if (normalizedSummaryGroupId) {
-                        summary.wineVintageId = normalizedSummaryGroupId;
-                        activeDetailGroupId = normalizedSummaryGroupId;
-                    } else if (fallbackGroupId) {
-                        summary.wineVintageId = fallbackGroupId;
-                    }
-                }
                 const rawDetails = Array.isArray(data?.details)
                     ? data.details
                     : Array.isArray(data?.Details)
@@ -4115,12 +4078,6 @@ window.WineInventoryTables.initialize = function () {
                         return;
                     }
 
-                    const summaryVintageId = normalizeGuid(selectedSummary.wineVintageId);
-                    if (!summaryVintageId) {
-                        showMessage('Select a specific vintage before saving bottle changes.', 'error');
-                        return;
-                    }
-
                     const rowUserId = row.dataset.userId ? row.dataset.userId : '';
                     const detailContext = row[DETAIL_ROW_DATA_KEY] ?? detail;
                     const normalizedUserId = rowUserId
@@ -4128,7 +4085,7 @@ window.WineInventoryTables.initialize = function () {
                     const payloadUserId = normalizedUserId ? normalizedUserId : null;
 
                     const payload = {
-                        wineVintageId: summaryVintageId,
+                        wineVintageId: selectedSummary.wineVintageId,
                         price: parsePrice(row.querySelector('.detail-price')?.value ?? ''),
                         isDrunk: row.dataset.isDrunk === 'true',
                         drunkAt: row.dataset.drunkAt || null,
@@ -4314,14 +4271,8 @@ window.WineInventoryTables.initialize = function () {
 
                 const locationValue = detailAddLocation?.value ?? '';
 
-                const targetVintageId = normalizeGuid(selectedSummary.wineVintageId);
-                if (!targetVintageId) {
-                    showMessage('Select a specific vintage before adding bottles.', 'error');
-                    return;
-                }
-
                 const payload = {
-                    wineVintageId: targetVintageId,
+                    wineVintageId: selectedSummary.wineVintageId,
                     price: parsePrice(detailAddPrice?.value ?? ''),
                     isDrunk: false,
                     drunkAt: null,
@@ -4840,7 +4791,7 @@ window.WineInventoryTables.initialize = function () {
 
                 return {
                     bottleId: pick(raw, ['bottleId', 'BottleId']),
-                    wineVintageId: normalizeGuid(pick(raw, ['wineVintageId', 'WineVintageId'])),
+                    wineVintageId: pick(raw, ['wineVintageId', 'WineVintageId']),
                     wineName: pick(raw, ['wineName', 'WineName']) ?? '',
                     vintage: pick(raw, ['vintage', 'Vintage']),
                     bottleLocation: pick(raw, ['bottleLocation', 'BottleLocation']) ?? '',
@@ -4868,8 +4819,7 @@ window.WineInventoryTables.initialize = function () {
                     }
                 }
 
-                const normalizedGroupId = normalizeGuid(summary.wineVintageId ?? summary.WineVintageId);
-                const groupId = normalizedGroupId || summary.wineVintageId || summary.WineVintageId || selectedGroupId;
+                const groupId = summary.wineVintageId ?? summary.WineVintageId ?? selectedGroupId;
                 const groupAverage = summary.groupAverageScore ?? summary.GroupAverageScore ?? null;
                 if (groupId) {
                     const summaryRow = inventoryTable.querySelector(`.group-row[data-group-id="${groupId}"]`);
@@ -5215,32 +5165,13 @@ window.WineInventoryTables.initialize = function () {
                 return baseOptions;
             }
 
-            function normalizeGuid(value) {
-                if (value == null) {
-                    return '';
-                }
-
-                const raw = String(value).trim();
-                if (!raw) {
-                    return '';
-                }
-
-                if (raw.toLowerCase() === EMPTY_GUID_LOWER) {
-                    return '';
-                }
-
-                return raw;
-            }
-
             function normalizeSummary(raw) {
                 if (!raw) {
                     return null;
                 }
 
-                const rawWineVintageId = pick(raw, ['wineVintageId', 'WineVintageId']);
-
                 return {
-                    wineVintageId: normalizeGuid(rawWineVintageId),
+                    wineVintageId: pick(raw, ['wineVintageId', 'WineVintageId']),
                     wineId: pick(raw, ['wineId', 'WineId']),
                     wineName: pick(raw, ['wineName', 'WineName']) ?? '',
                     subAppellation: pick(raw, ['subAppellation', 'SubAppellation']),
@@ -5294,7 +5225,7 @@ window.WineInventoryTables.initialize = function () {
                             ? String(rawNoteText)
                             : '',
                     currentUserScore: normalizedNoteScore,
-                    wineVintageId: normalizeGuid(pick(raw, ['wineVintageId', 'WineVintageId']))
+                    wineVintageId: pick(raw, ['wineVintageId', 'WineVintageId'])
                 };
             }
 
