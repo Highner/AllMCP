@@ -46,7 +46,7 @@ window.WineInventoryTables.initialize = function () {
             const inventoryTable = document.getElementById('inventory-table');
             const detailsTable = document.getElementById('details-table');
             const detailsBody = detailsTable?.querySelector('#details-table-body');
-            const detailAddRow = document.getElementById('detail-add-row');
+            let detailAddRow = document.getElementById('detail-add-row');
             const emptyRow = detailsBody?.querySelector('.empty-row');
             const detailsTitle = document.getElementById('details-title');
             const detailsTitleName = document.getElementById('details-title-name');
@@ -223,15 +223,105 @@ window.WineInventoryTables.initialize = function () {
                 return parsed;
             };
 
-            const detailAddLocation = detailAddRow?.querySelector('.detail-add-location');
-            const detailAddPrice = detailAddRow?.querySelector('.detail-add-price');
-            const detailAddQuantity = detailAddRow?.querySelector('.detail-add-quantity-select');
-            const detailAddButton = detailAddRow?.querySelector('.detail-add-submit');
+            let detailAddLocation = detailAddRow?.querySelector('.detail-add-location') ?? null;
+            let detailAddPrice = detailAddRow?.querySelector('.detail-add-price') ?? null;
+            let detailAddQuantity = detailAddRow?.querySelector('.detail-add-quantity-select') ?? null;
+            let detailAddButton = detailAddRow?.querySelector('.detail-add-submit') ?? null;
             const inventorySection = document.getElementById('inventory-view');
             const modalElements = bottleModal?.getElements?.();
             const detailsSection = (bottleModal?.getContainer?.() ?? document.getElementById('details-view'));
             const detailsCloseButton = document.getElementById('details-close-button');
             const modalOverlay = modalElements?.overlay ?? null;
+            let detailAddRowObserver = null;
+            let boundDetailAddRow = null;
+            let detailsSectionPointerHandlerBound = false;
+
+            function refreshDetailAddElements() {
+                const nextRow = document.getElementById('detail-add-row');
+                if (nextRow !== detailAddRow) {
+                    detailAddRow = nextRow;
+                }
+
+                detailAddLocation = detailAddRow?.querySelector('.detail-add-location') ?? null;
+                detailAddPrice = detailAddRow?.querySelector('.detail-add-price') ?? null;
+                detailAddQuantity = detailAddRow?.querySelector('.detail-add-quantity-select') ?? null;
+                detailAddButton = detailAddRow?.querySelector('.detail-add-submit') ?? null;
+            }
+
+            const handleDetailAddRowPointerDown = (event) => {
+                if (!event) {
+                    return;
+                }
+
+                const targetElement = event.target instanceof Element ? event.target : null;
+                const targetButton = targetElement ? targetElement.closest('.detail-add-submit') : null;
+
+                if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
+                    window.console.log('[BottleManagementModal] Add Bottles pointerdown', {
+                        buttonDisabled: targetButton?.disabled ?? null,
+                        rowHidden: detailAddRow?.hidden ?? null,
+                        eventTarget: targetElement,
+                        hitButton: Boolean(targetButton)
+                    });
+                    logDetailAddButtonState('pointerdown');
+                }
+            };
+
+            const handleDetailsSectionPointerDown = (event) => {
+                if (!event || !detailAddButton) {
+                    return;
+                }
+
+                const rect = detailAddButton.getBoundingClientRect?.();
+                if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.top)) {
+                    return;
+                }
+
+                const withinHorizontal = event.clientX >= rect.left && event.clientX <= rect.left + rect.width;
+                const withinVertical = event.clientY >= rect.top && event.clientY <= rect.top + rect.height;
+
+                if (!withinHorizontal || !withinVertical) {
+                    return;
+                }
+
+                const targetElement = event.target instanceof Element ? event.target : null;
+                const targetButton = targetElement ? targetElement.closest('.detail-add-submit') : null;
+                if (targetButton) {
+                    return;
+                }
+
+                if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
+                    window.console.log('[BottleManagementModal] pointerdown within Add Bottles bounds but not on button', {
+                        eventTarget: targetElement,
+                        pointerType: event.pointerType ?? null
+                    });
+                    logDetailAddButtonState('pointerdown-outside-button');
+                }
+            };
+
+            const handleDetailAddRowMouseDown = () => {
+                logDetailAddButtonState('mousedown');
+            };
+
+            const handleDetailAddRowClick = (event) => {
+                const button = event?.target instanceof Element
+                    ? event.target.closest('.detail-add-submit')
+                    : null;
+
+                if (!button) {
+                    return;
+                }
+
+                if (button.disabled) {
+                    if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
+                        window.console.log('[BottleManagementModal] Add Bottles click ignored because button is disabled');
+                    }
+                    return;
+                }
+
+                logDetailAddButtonState('click');
+                handleAddBottle(event);
+            };
 
             // Enforce initial state to avoid any flash of the details panel
             if (inventorySection) {
@@ -2106,6 +2196,8 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function bindDetailAddRow() {
+                refreshDetailAddElements();
+
                 if (!detailAddRow || !detailAddButton) {
                     if (typeof window !== 'undefined' && window.console && typeof window.console.warn === 'function') {
                         window.console.warn('[BottleManagementModal] detail add row not found during bind', {
@@ -2113,89 +2205,49 @@ window.WineInventoryTables.initialize = function () {
                             hasButton: Boolean(detailAddButton)
                         });
                     }
+
+                    if (!detailAddRowObserver) {
+                        const observerTarget = detailsSection ?? document.body;
+                        if (observerTarget) {
+                            detailAddRowObserver = new MutationObserver((_, observer) => {
+                                refreshDetailAddElements();
+                                if (detailAddRow && detailAddButton) {
+                                    observer.disconnect();
+                                    detailAddRowObserver = null;
+                                    if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
+                                        window.console.log('[BottleManagementModal] retrying Add Bottles bind after DOM mutation');
+                                    }
+                                    bindDetailAddRow();
+                                }
+                            });
+                            detailAddRowObserver.observe(observerTarget, { childList: true, subtree: true });
+                        }
+                    }
                     return;
                 }
+
+                if (detailAddRowObserver) {
+                    detailAddRowObserver.disconnect();
+                    detailAddRowObserver = null;
+                }
+
+                if (boundDetailAddRow === detailAddRow) {
+                    return;
+                }
+
+                boundDetailAddRow = detailAddRow;
 
                 if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
                     window.console.log('[BottleManagementModal] binding Add Bottles button');
                 }
 
-                const pointerCaptureHandler = (event) => {
-                    if (!event) {
-                        return;
-                    }
-
-                    const targetElement = event.target instanceof Element ? event.target : null;
-                    const targetButton = targetElement ? targetElement.closest('.detail-add-submit') : null;
-
-                    if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
-                        window.console.log('[BottleManagementModal] Add Bottles pointerdown', {
-                            buttonDisabled: targetButton?.disabled ?? null,
-                            rowHidden: detailAddRow?.hidden ?? null,
-                            eventTarget: targetElement,
-                            hitButton: Boolean(targetButton)
-                        });
-                        logDetailAddButtonState('pointerdown');
-                    }
-                };
-
-                detailAddRow.addEventListener('pointerdown', pointerCaptureHandler, { capture: true });
-                if (detailsSection) {
-                    detailsSection.addEventListener('pointerdown', (event) => {
-                        if (!event || !detailAddButton) {
-                            return;
-                        }
-
-                        const rect = detailAddButton.getBoundingClientRect?.();
-                        if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.top)) {
-                            return;
-                        }
-
-                        const withinHorizontal = event.clientX >= rect.left && event.clientX <= rect.left + rect.width;
-                        const withinVertical = event.clientY >= rect.top && event.clientY <= rect.top + rect.height;
-
-                        if (!withinHorizontal || !withinVertical) {
-                            return;
-                        }
-
-                        const targetElement = event.target instanceof Element ? event.target : null;
-                        const targetButton = targetElement ? targetElement.closest('.detail-add-submit') : null;
-                        if (targetButton) {
-                            return;
-                        }
-
-                        if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
-                            window.console.log('[BottleManagementModal] pointerdown within Add Bottles bounds but not on button', {
-                                eventTarget: targetElement,
-                                pointerType: event.pointerType ?? null
-                            });
-                            logDetailAddButtonState('pointerdown-outside-button');
-                        }
-                    }, { capture: true });
+                detailAddRow.addEventListener('pointerdown', handleDetailAddRowPointerDown, { capture: true });
+                if (detailsSection && !detailsSectionPointerHandlerBound) {
+                    detailsSection.addEventListener('pointerdown', handleDetailsSectionPointerDown, { capture: true });
+                    detailsSectionPointerHandlerBound = true;
                 }
-                detailAddRow.addEventListener('mousedown', () => {
-                    logDetailAddButtonState('mousedown');
-                }, { capture: true });
-
-                detailAddRow.addEventListener('click', (event) => {
-                    const button = event?.target instanceof Element
-                        ? event.target.closest('.detail-add-submit')
-                        : null;
-
-                    if (!button) {
-                        return;
-                    }
-
-                    if (button.disabled) {
-                        if (typeof window !== 'undefined' && window.console && typeof window.console.log === 'function') {
-                            window.console.log('[BottleManagementModal] Add Bottles click ignored because button is disabled');
-                        }
-                        return;
-                    }
-
-                    logDetailAddButtonState('click');
-                    handleAddBottle(event);
-                });
+                detailAddRow.addEventListener('mousedown', handleDetailAddRowMouseDown, { capture: true });
+                detailAddRow.addEventListener('click', handleDetailAddRowClick);
 
                 logDetailAddButtonState('bindDetailAddRow');
             }
@@ -3929,6 +3981,7 @@ window.WineInventoryTables.initialize = function () {
 
             async function renderDetails(data, shouldUpdateRow, fallbackWineVintageId) {
                 await referenceDataPromise;
+                refreshDetailAddElements();
 
                 const rawSummary = data?.group ?? data?.Group ?? null;
                 let summary = normalizeSummary(rawSummary);
@@ -4457,6 +4510,7 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function updateDetailAddButtonState() {
+                refreshDetailAddElements();
                 if (!detailAddButton) {
                     return;
                 }
@@ -4481,6 +4535,7 @@ window.WineInventoryTables.initialize = function () {
             }
 
             function logDetailAddButtonState(context = '') {
+                refreshDetailAddElements();
                 if (typeof window === 'undefined' || !window.console || typeof window.console.log !== 'function') {
                     return;
                 }
