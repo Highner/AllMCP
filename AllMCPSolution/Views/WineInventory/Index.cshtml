@@ -55,7 +55,7 @@
     {
         ContainerCssClass = "inventory-table-actions",
         ActionLabel = "Add wine",
-        ActionCssClass = "sisterhood-button inventory-add-trigger",
+        ActionCssClass = "wine-surfer-button wine-surfer-button--orange inventory-add-trigger",
         ActionAttributes = new Dictionary<string, string?>
         {
             ["data-add-wine-trigger"] = string.Empty
@@ -190,6 +190,7 @@
     <meta name="theme-color" content="#050505" />
     <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shared-ui.css" />
     <script defer src="/js/pwa.js"></script>
 </head>
 <body class="wine-app wine-app--with-bottom-nav">
@@ -236,7 +237,7 @@
                     <h2 class="location-title">Storage Locations</h2>
                     <p class="location-description">Keep track of where every bottle lives across your cellar.</p>
                 </div>
-                <button type="button" class="sisterhood-button" data-location-add>Add location</button>
+                <button type="button" class="wine-surfer-button wine-surfer-button--orange" data-location-add>Add location</button>
             </div>
             <div class="location-message" data-location-message hidden aria-live="polite"></div>
             <div class="location-grid" data-location-list>
@@ -263,8 +264,8 @@
                             <span class="location-edit-hint">How many bottles fit in this location.</span>
                         </label>
                         <div class="location-edit-actions">
-                            <button type="button" class="sisterhood-button sisterhood-button--ghost" data-location-cancel>Cancel</button>
-                            <button type="submit" class="sisterhood-button" data-location-submit>Create</button>
+                            <button type="button" class="wine-surfer-button" data-location-cancel>Cancel</button>
+                            <button type="submit" class="wine-surfer-button wine-surfer-button--orange" data-location-submit>Create</button>
                         </div>
                         <p class="location-edit-error" data-location-error aria-live="polite" aria-hidden="true"></p>
                     </form>
@@ -370,8 +371,8 @@
                                     </p>
                                 </div>
                                 <div class="wine-card__actions location-card-actions">
-                                    <button type="button" class="sisterhood-button" data-location-edit>Edit</button>
-                                    <button type="button" class="sisterhood-button sisterhood-button--ghost-danger" data-location-delete>Delete</button>
+                                    <button type="button" class="wine-surfer-button" data-location-edit>Edit</button>
+                                    <button type="button" class="wine-surfer-button wine-surfer-button--red" data-location-delete>Delete</button>
                                 </div>
                             </div>
                             <div class="location-card-status">
@@ -410,8 +411,8 @@
                                 <span class="location-edit-hint">Use whole numbers only.</span>
                             </label>
                             <div class="location-edit-actions">
-                                <button type="button" class="sisterhood-button sisterhood-button--ghost" data-location-cancel>Cancel</button>
-                                <button type="submit" class="sisterhood-button sisterhood-button--primary" data-location-submit>Save</button>
+                                <button type="button" class="wine-surfer-button" data-location-cancel>Cancel</button>
+                                <button type="submit" class="wine-surfer-button wine-surfer-button--orange" data-location-submit>Save</button>
                             </div>
                             <p class="location-edit-error" data-location-error aria-live="polite" aria-hidden="true"></p>
                         </form>
@@ -441,8 +442,8 @@
                                 </p>
                             </div>
                             <div class="wine-card__actions location-card-actions">
-                                <button type="button" class="sisterhood-button" data-location-edit>Edit</button>
-                                <button type="button" class="sisterhood-button sisterhood-button--ghost-danger" data-location-delete>Delete</button>
+                                <button type="button" class="wine-surfer-button" data-location-edit>Edit</button>
+                                <button type="button" class="wine-surfer-button wine-surfer-button--red" data-location-delete>Delete</button>
                             </div>
                         </div>
                         <div class="location-card-status">

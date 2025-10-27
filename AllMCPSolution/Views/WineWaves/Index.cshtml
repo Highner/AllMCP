@@ -42,6 +42,7 @@
     <meta name="theme-color" content="#050505" />
     <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shared-ui.css" />
     <script defer src="/js/pwa.js"></script>
     <style>
         :root {
@@ -118,38 +119,6 @@
             margin: 0;
         }
 
-        .make-waves-button {
-            appearance: none;
-            border: none;
-            border-radius: 999px;
-            padding: 12px 28px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1.4px;
-            background: linear-gradient(135deg, rgba(244, 80, 67, 0.82), rgba(224, 142, 55, 0.9));
-            color: rgba(17, 17, 20, 0.94);
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-            box-shadow: 0 12px 24px rgba(244, 96, 64, 0.25);
-        }
-
-        .make-waves-button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 16px 32px rgba(244, 96, 64, 0.3);
-        }
-
-        .make-waves-button:focus-visible {
-            outline: 2px solid rgba(244, 241, 234, 0.9);
-            outline-offset: 3px;
-        }
-
-        .make-waves-button:disabled,
-        .make-waves-button[aria-disabled="true"] {
-            cursor: not-allowed;
-            opacity: 0.5;
-            box-shadow: none;
-        }
 
         .waves-actions-help {
             margin: 0;
@@ -158,38 +127,6 @@
             text-align: center;
         }
 
-        .delete-waves-button {
-            appearance: none;
-            border: none;
-            border-radius: 999px;
-            padding: 12px 28px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1.4px;
-            background: rgba(223, 71, 71, 0.12);
-            color: rgba(244, 241, 234, 0.92);
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-            box-shadow: 0 12px 24px rgba(223, 71, 71, 0.18);
-        }
-
-        .delete-waves-button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 16px 32px rgba(223, 71, 71, 0.24);
-        }
-
-        .delete-waves-button:focus-visible {
-            outline: 2px solid rgba(244, 241, 234, 0.9);
-            outline-offset: 3px;
-        }
-
-        .delete-waves-button:disabled,
-        .delete-waves-button[aria-disabled="true"] {
-            cursor: not-allowed;
-            opacity: 0.5;
-            box-shadow: none;
-        }
 
         .waves-chart-wrapper {
             position: relative;
@@ -467,20 +404,13 @@
 <body class="wine-app wine-app--with-bottom-nav">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main>
-        <section class="waves-header">
-            <h1 class="waves-title">Wine Waves</h1>
-            <p class="waves-description">
-                Track how each vintage evolves across the years. Scores update as you capture more tasting history, helping you
-                decide when to uncork the perfect bottle.
-            </p>
-        </section>
         <section class="waves-actions">
             <div class="waves-actions-buttons">
                 @await Html.PartialAsync("_MakeWavesButton", hasInventory)
                 <form method="post" data-delete-waves-form>
                     @Html.AntiForgeryToken()
                     <button type="submit"
-                            class="delete-waves-button"
+                            class="wine-surfer-button wine-surfer-button--red"
                             data-delete-waves-trigger
                             disabled="@deleteWavesDisabledAttribute"
                             aria-disabled="@deleteWavesAriaDisabled">

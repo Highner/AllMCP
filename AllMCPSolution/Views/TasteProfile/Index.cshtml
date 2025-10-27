@@ -57,6 +57,7 @@
     <meta name="theme-color" content="#050505" />
     <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shared-ui.css" />
     <script defer src="/js/pwa.js"></script>
     <style>
         :root {
@@ -148,10 +149,17 @@
             gap: 12px;
         }
 
-        .taste-profile-label {
-            font-size: 14px;
+        .taste-profile-card .taste-profile-label {
+            font-size: 16px;
             letter-spacing: 2px;
             text-transform: uppercase;
+            padding-bottom: 6px;
+            margin: 0;
+        }
+
+        /* Ensure the inline summary label has same spacing to its display as form fields (approx 18px) */
+        .taste-profile-summary-inline .taste-profile-label {
+            padding-bottom: 18px;
         }
 
         .taste-profile-display {
@@ -281,11 +289,13 @@
             gap: 4px;
         }
 
-        .taste-profile-suggestions-title {
+        h2.taste-profile-suggestions-title {
             margin: 0;
-            font-size: 18px;
-            letter-spacing: 4px;
+            font-size: 16px;
+            letter-spacing: 2px;
             text-transform: uppercase;
+            padding-bottom: 6px;
+            font-weight: 400; /* match label styling (non-bold) */
         }
 
         .taste-profile-suggestions-caption {
@@ -392,6 +402,11 @@
             color: hsla(var(--muted-foreground) / 0.9);
         }
 
+        /* Hidden by default; shown on desktop where it sits above suggestions */
+        .taste-profile-summary-inline {
+            display: none;
+        }
+
         @@media (max-width: 640px) {
             .taste-profile-card {
                 padding: 28px;
@@ -439,17 +454,74 @@
                 justify-content: center;
             }
         }
+        
+        @@media (min-width: 641px) {
+            .taste-profile-card {
+                padding-top: 28px;
+            }
+        }
+        
+        @@media (min-width: 641px) and (max-width: 899px) {
+            .taste-profile-card {
+                gap: 16px;
+            }
+        }
+        
+        @@media (min-width: 900px) {
+            .taste-profile-main {
+                width: min(1200px, 100%);
+            }
+
+            /* Desktop: use CSS Grid to guarantee two columns regardless of DOM order */
+            .taste-profile-card {
+                display: grid;
+                grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+                grid-auto-flow: dense;
+                align-items: start;
+                column-gap: 32px;
+                row-gap: 16px;
+            }
+
+            /* Banners span full width above content */
+            .taste-profile-banner,
+            #tasteProfileGeneratorMessage {
+                grid-column: 1 / -1;
+                grid-row: 1;
+            }
+
+            /* Main form on the left column */
+            .taste-profile-form,
+            form.taste-profile-form {
+                grid-column: 1;
+                grid-row: 2;
+                min-width: 0; /* allow content to shrink within grid cell */
+            }
+
+            /* Hide the summary field inside the form on desktop to avoid duplication */
+            .taste-profile-form .taste-profile-summary-field {
+                display: none;
+            }
+
+            /* Suggested appellations on the right column */
+            .taste-profile-suggestions {
+                grid-column: 2;
+                grid-row: 2;
+                min-width: 0;
+            }
+
+            /* Show the inline summary above the suggestions on desktop */
+            .taste-profile-suggestions .taste-profile-summary-inline {
+                display: block;
+                margin-bottom: 12px;
+            }
+        }
     </style>
 </head>
 <body class="wine-app wine-app--with-bottom-nav">
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="taste-profile-main">
-            <section class="taste-profile-card" aria-labelledby="tasteProfileHeading">
-                <header class="taste-profile-header">
-                    <h1 id="tasteProfileHeading" class="taste-profile-title">Taste Profile</h1>
-                    <p class="taste-profile-description">Capture the styles, regions, and bottles you love so Wine Surfer can tailor future picks.</p>
-                </header>
+            <section class="taste-profile-card">
                 @if (!string.IsNullOrWhiteSpace(statusMessage))
                 {
                     <div class="taste-profile-banner taste-profile-banner--success" role="status">@statusMessage</div>
@@ -460,6 +532,10 @@
                 }
                 <div id="tasteProfileGeneratorMessage" class="taste-profile-banner" hidden aria-live="polite"></div>
                 <section class="taste-profile-suggestions" data-suggested-appellations>
+                    <div class="taste-profile-summary-inline">
+                        <p class="taste-profile-label">Profile summary</p>
+                        <div class="taste-profile-display taste-profile-display--summary" data-summary-inline>@tasteProfileSummary</div>
+                    </div>
                     <div class="taste-profile-suggestions-header">
                         <h2 class="taste-profile-suggestions-title">Suggested appellations</h2>
                         <p class="taste-profile-suggestions-caption">Based on your taste profile</p>
@@ -568,7 +644,7 @@
                 </section>
                 <form method="post" action="@Url.Action("UpdateTasteProfile", "TasteProfile")" class="taste-profile-form" novalidate>
                     @Html.AntiForgeryToken()
-                    <div class="taste-profile-field">
+                    <div class="taste-profile-field taste-profile-summary-field">
                         <p class="taste-profile-label">Profile summary</p>
                         <div class="taste-profile-display taste-profile-display--summary" data-summary-display>@tasteProfileSummary</div>
                         <input
@@ -608,14 +684,14 @@
                             <div class="taste-profile-history-controls" data-history-controls @(hasHistoryEntries ? null : "hidden")>
                                 <button
                                     type="button"
-                                    class="sisterhood-button taste-profile-history-button"
+                                    class="wine-surfer-button taste-profile-history-button"
                                     data-history-prev
                                     aria-label="Show previous saved profile">
                                     &lt;
                                 </button>
                                 <button
                                     type="button"
-                                    class="sisterhood-button taste-profile-history-button"
+                                    class="wine-surfer-button taste-profile-history-button"
                                     data-history-next
                                     aria-label="Show next saved profile">
                                     &gt;
@@ -623,12 +699,12 @@
                             </div>
                             <button
                                 type="button"
-                                class="sisterhood-button taste-profile-generate-button"
+                                class="wine-surfer-button wine-surfer-button--orange taste-profile-generate-button"
                                 data-generate-taste-profile
                                 data-generate-url="@Url.Action("GenerateTasteProfile", "TasteProfile")">
                                 Generate profile
                             </button>
-                            <button type="submit" class="sisterhood-button">Save profile</button>
+                            <button type="submit" class="wine-surfer-button wine-surfer-button--green">Save profile</button>
                         </div>
                     </div>
                     <input type="hidden" name="TasteProfileId" value="@activeHistoryId" data-history-current-id />
@@ -1426,3 +1502,4 @@
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>
+

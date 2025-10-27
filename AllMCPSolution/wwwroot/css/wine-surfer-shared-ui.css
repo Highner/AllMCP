@@ -59,7 +59,8 @@ body.wine-app .status-banner.error {
     border: 1px solid rgba(133, 51, 65, 0.35);
 }
 
-body.wine-app .sisterhood-button {
+body.wine-app .sisterhood-button,
+body.wine-app .wine-surfer-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -77,17 +78,21 @@ body.wine-app .sisterhood-button {
 }
 
 body.wine-app .sisterhood-button:hover,
-body.wine-app .sisterhood-button:focus-visible {
+body.wine-app .sisterhood-button:focus-visible,
+body.wine-app .wine-surfer-button:hover,
+body.wine-app .wine-surfer-button:focus-visible {
     background: rgba(244, 241, 234, 0.12);
     color: #f4f1ea;
 }
 
-body.wine-app .sisterhood-button:focus-visible {
+body.wine-app .sisterhood-button:focus-visible,
+body.wine-app .wine-surfer-button:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.25);
 }
 
-body.wine-app .sisterhood-button:disabled {
+body.wine-app .sisterhood-button:disabled,
+body.wine-app .wine-surfer-button:disabled {
     opacity: 0.4;
     cursor: not-allowed;
 }
@@ -191,8 +196,47 @@ body.wine-app .empty-state p {
         align-items: stretch;
     }
 
-    body.wine-app .action-bar .sisterhood-button {
+    body.wine-app .action-bar .sisterhood-button,
+    body.wine-app .action-bar .wine-surfer-button {
         width: 100%;
         justify-content: center;
     }
+}
+
+
+/* Wine Surfer global buttons (green/orange/red variants) */
+body.wine-app .wine-surfer-button--green {
+    border-color: rgba(51, 133, 107, 0.45);
+    color: #d8fff1;
+}
+
+body.wine-app .wine-surfer-button--green:hover,
+body.wine-app .wine-surfer-button--green:focus-visible {
+    background: rgba(51, 133, 107, 0.22);
+    color: #edfff9;
+    transform: translateY(-1px);
+}
+
+body.wine-app .wine-surfer-button--orange {
+    border-color: rgba(246, 198, 114, 0.45);
+    color: #fff1d6;
+}
+
+body.wine-app .wine-surfer-button--orange:hover,
+body.wine-app .wine-surfer-button--orange:focus-visible {
+    background: rgba(246, 198, 114, 0.18);
+    color: #fff6e6;
+    transform: translateY(-1px);
+}
+
+body.wine-app .wine-surfer-button--red {
+    border-color: rgba(181, 65, 65, 0.45);
+    color: #f6dcdc;
+}
+
+body.wine-app .wine-surfer-button--red:hover,
+body.wine-app .wine-surfer-button--red:focus-visible {
+    background: rgba(181, 65, 65, 0.25);
+    color: #ffe3e3;
+    transform: translateY(-1px);
 }

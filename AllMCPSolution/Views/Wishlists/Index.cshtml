@@ -13,7 +13,7 @@
     var wishlistHeaderTemplate = new CrudTableHeaderTemplateModel
     {
         ActionLabel = "Add wine",
-        ActionCssClass = "sisterhood-button wishlist-add-trigger",
+        ActionCssClass = "wine-surfer-button wishlist-add-trigger",
         ActionAttributes = new Dictionary<string, string?>
         {
             ["data-wishlist-add-trigger"] = string.Empty
@@ -76,6 +76,7 @@
     <meta name="theme-color" content="#050505" />
     <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shared-ui.css" />
     <script defer src="/js/pwa.js"></script>
     <style>
         :root { color-scheme: dark; }
@@ -105,11 +106,11 @@
                     <option value="">No wishlists yet</option>
                 }
             </select>
-            <button type="button" class="crud-table__action-button secondary" id="createWishlistBtn">Create wishlist</button>
+            <button type="button" class="wine-surfer-button wine-surfer-button--orange" id="createWishlistBtn">Create wishlist</button>
             @if (Model.SelectedWishlistId.HasValue)
             {
-                <button type="button" class="crud-table__action-button" id="renameWishlistBtn">Edit name</button>
-                <button type="button" class="crud-table__action-button danger" id="deleteWishlistBtn">Delete</button>
+                <button type="button" class="wine-surfer-button" id="renameWishlistBtn">Edit name</button>
+                <button type="button" class="wine-surfer-button wine-surfer-button--red" id="deleteWishlistBtn">Delete</button>
             }
         </div>
 
