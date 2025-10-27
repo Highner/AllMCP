@@ -141,6 +141,8 @@
             : (Array.isArray(payload?.details) ? payload.details : []);
         const group = payload?.Group ?? payload?.group ?? null;
 
+        console.info('[BottleManagementModal] Loaded bottle details', details);
+
         updateSummary(group, details);
         renderRows(details);
     };
