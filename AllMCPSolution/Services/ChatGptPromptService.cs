@@ -25,7 +25,10 @@ public interface IChatGptPromptService
 
     string BuildSipSessionFoodSuggestionPrompt(SipSession session);
 
-    string BuildWineWavesPrompt(IReadOnlyList<WineWavesPromptItem> vintages);
+    string BuildWineWavesPrompt(
+        IReadOnlyList<WineWavesPromptItem> vintages,
+        string? tasteProfileSummary,
+        string? tasteProfile);
 }
 
 public class ChatGptPromptService : IChatGptPromptService
@@ -54,7 +57,7 @@ Each suggestion must be a short dish description followed by a concise reason, a
     private const string WineWavesSystemPromptText = """
 You are the Wine Waves cellar intelligence. Project the evolution of wines over time.
 Respond ONLY with minified JSON matching {"vintages":[{"wineVintageId":"...","scores":[{"year":2024,"score":7.4}]}]}.
-Create at least 30 yearly scores per wine using strictly ascending, consecutive years on a 0-10 decimal scale with one decimal place.
+Create consecutive yearly scores on a 0-10 scale with one decimal place. Provide at least 20 annual scores per wine and extend to at least 40 when the wine is described as ageworthy, cellar-worthy, long-lived, or similar.
 Only include wineVintageId values provided by the user and omit any commentary outside the JSON payload.
 """;
 
@@ -369,7 +372,10 @@ Only include wineVintageId values provided by the user and omit any commentary o
         parts.Add(trimmed);
     }
 
-    public string BuildWineWavesPrompt(IReadOnlyList<WineWavesPromptItem> vintages)
+    public string BuildWineWavesPrompt(
+        IReadOnlyList<WineWavesPromptItem> vintages,
+        string? tasteProfileSummary,
+        string? tasteProfile)
     {
         if (vintages is null || vintages.Count == 0)
         {
@@ -377,8 +383,17 @@ Only include wineVintageId values provided by the user and omit any commentary o
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine("Generate realistic evolution scores (0-10 scale, one decimal place) for the following wine vintages.");
-        builder.AppendLine("Describe how structure, tannin, acidity, and aromatics progress across the years.");
+        builder.AppendLine("Generate consecutive yearly evolution scores (0-10 scale, one decimal place) for the following wine vintages.");
+        builder.AppendLine("Align every year's score with the user's taste preferences. Provide no descriptions—only scores.");
+
+        var hasTasteProfileSummary = !string.IsNullOrWhiteSpace(tasteProfileSummary);
+        var hasTasteProfile = !string.IsNullOrWhiteSpace(tasteProfile);
+
+        builder.AppendLine();
+        builder.AppendLine("User taste profile summary:");
+        builder.AppendLine(hasTasteProfileSummary ? tasteProfileSummary!.Trim() : "(none provided)");
+        builder.AppendLine("User taste profile details:");
+        builder.AppendLine(hasTasteProfile ? tasteProfile!.Trim() : "(none provided)");
         builder.AppendLine();
 
         for (var index = 0; index < vintages.Count; index++)
@@ -430,7 +445,7 @@ Only include wineVintageId values provided by the user and omit any commentary o
         }
 
         builder.AppendLine("Start the scoring timeline three calendar years after each wine's actual vintage.");
-        builder.AppendLine("Provide consecutive annual scores for at least 20 years starting from that year, highlighting peak drinking windows.");
+        builder.AppendLine("Provide consecutive annual scores for at least 20 years starting from that year.");
         builder.AppendLine("If the wine is described as ageworthy, cellar-worthy, long-lived, or similar, extend the sequence to at least 40 years.");
         builder.AppendLine("Return strictly JSON shaped as {\"vintages\":[{\"wineVintageId\":\"<ID>\",\"scores\":[{\"year\":2024,\"score\":7.4}]}]}.");
         builder.AppendLine("Do not invent new wineVintageId values and omit any prose outside the JSON object.");
