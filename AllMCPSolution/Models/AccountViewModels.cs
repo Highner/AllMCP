@@ -38,7 +38,7 @@ public class RegisterViewModel
     public string Email { get; set; } = string.Empty;
 
     [Required]
-    [StringLength(100, MinimumLength = 6, ErrorMessage = "The {0} must be at least {2} characters long.")]
+    [StringLength(100, ErrorMessage = "The {0} must be at most {1} characters long.")]
     [DataType(DataType.Password)]
     public string Password { get; set; } = string.Empty;
 
