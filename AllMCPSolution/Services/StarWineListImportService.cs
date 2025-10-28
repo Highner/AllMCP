@@ -11,7 +11,7 @@ namespace AllMCPSolution.Services;
 
 public interface IStarWineListImportService
 {
-    Task<IReadOnlyList<StarWineListProducer>> ExtractProducersAsync(
+    Task<StarWineListImportResult> ParseAsync(
         Stream htmlStream,
         CancellationToken cancellationToken = default);
 }
@@ -30,7 +30,15 @@ public sealed class StarWineListImportService : IStarWineListImportService
         "<span[^>]*>(.*?)</span>",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
-    public async Task<IReadOnlyList<StarWineListProducer>> ExtractProducersAsync(
+    private static readonly Regex RegionRegex = new(
+        "<h1[^>]*class=\\\"[^\\\"]*producers-page__title[^\\\"]*\\\"[^>]*>\\s*Wine producers\\s*-\\s*(?<region>[^<]+)",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+
+    private static readonly Regex CountryBreadcrumbRegex = new(
+        "<a[^>]*href=\\\"[^\\\"]*/wine-producers/(?<slug>[^\\\"#?]+)\\\"[^>]*class=\\\"[^\\\"]*crumbs-common__breadcrumbs-item[^\\\"]*\\\"[^>]*>(?<name>.*?)</a>",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+
+    public async Task<StarWineListImportResult> ParseAsync(
         Stream htmlStream,
         CancellationToken cancellationToken = default)
     {
@@ -51,7 +59,7 @@ public sealed class StarWineListImportService : IStarWineListImportService
 
         if (string.IsNullOrWhiteSpace(content))
         {
-            return Array.Empty<StarWineListProducer>();
+            return new StarWineListImportResult(Array.Empty<StarWineListProducer>(), null, null);
         }
 
         var results = new List<StarWineListProducer>();
@@ -81,7 +89,10 @@ public sealed class StarWineListImportService : IStarWineListImportService
             results.Add(new StarWineListProducer(name, appellation));
         }
 
-        return results;
+        var region = ExtractRegion(content);
+        var country = ExtractCountry(content);
+
+        return new StarWineListImportResult(results, country, region);
     }
 
     private static string StripTags(string value)
@@ -93,6 +104,49 @@ public sealed class StarWineListImportService : IStarWineListImportService
 
         return Regex.Replace(value, "<.*?>", string.Empty, RegexOptions.Singleline);
     }
+
+    private static string? ExtractRegion(string content)
+    {
+        var match = RegionRegex.Match(content);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var value = match.Groups["region"].Value;
+        var decoded = WebUtility.HtmlDecode(value).Trim();
+        return string.IsNullOrWhiteSpace(decoded) ? null : decoded;
+    }
+
+    private static string? ExtractCountry(string content)
+    {
+        foreach (Match match in CountryBreadcrumbRegex.Matches(content))
+        {
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            var slug = match.Groups["slug"].Value;
+            if (string.IsNullOrWhiteSpace(slug) || slug.Contains('/'))
+            {
+                continue;
+            }
+
+            var rawName = StripTags(match.Groups["name"].Value);
+            var decoded = WebUtility.HtmlDecode(rawName).Trim();
+            if (!string.IsNullOrWhiteSpace(decoded))
+            {
+                return decoded;
+            }
+        }
+
+        return null;
+    }
 }
 
 public sealed record StarWineListProducer(string Name, string Appellation);
+public sealed record StarWineListImportResult(
+    IReadOnlyList<StarWineListProducer> Producers,
+    string? Country,
+    string? Region);

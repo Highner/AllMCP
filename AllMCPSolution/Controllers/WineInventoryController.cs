@@ -320,8 +320,6 @@ public class WineInventoryController : Controller
         IFormFile? wineFile = null,
         IFormFile? bottleFile = null,
         IFormFile? starListFile = null,
-        string? starListCountry = null,
-        string? starListRegion = null,
         CancellationToken cancellationToken = default)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
@@ -343,8 +341,6 @@ public class WineInventoryController : Controller
         {
             await HandleStarWineListImportAsync(
                 starListFile,
-                starListCountry,
-                starListRegion,
                 viewModel,
                 cancellationToken);
         }
@@ -475,28 +471,14 @@ public class WineInventoryController : Controller
 
     private async Task HandleStarWineListImportAsync(
         IFormFile? file,
-        string? country,
-        string? region,
         WineImportPageViewModel viewModel,
         CancellationToken cancellationToken)
     {
         var errors = new List<string>();
-        var trimmedCountry = string.IsNullOrWhiteSpace(country) ? null : country.Trim();
-        var trimmedRegion = string.IsNullOrWhiteSpace(region) ? null : region.Trim();
 
-        viewModel.BottleUpload.SelectedCountry = trimmedCountry;
-        viewModel.BottleUpload.SelectedRegion = trimmedRegion;
+        viewModel.BottleUpload.SelectedCountry = null;
+        viewModel.BottleUpload.SelectedRegion = null;
         viewModel.BottleUpload.Result = null;
-
-        if (trimmedCountry is null)
-        {
-            errors.Add("Please select a country.");
-        }
-
-        if (trimmedRegion is null)
-        {
-            errors.Add("Please select a region.");
-        }
 
         if (file is null || file.Length == 0)
         {
@@ -523,10 +505,38 @@ public class WineInventoryController : Controller
         try
         {
             await using var stream = file!.OpenReadStream();
-            var producers = await _starWineListImportService
-                .ExtractProducersAsync(stream, cancellationToken);
+            var parseResult = await _starWineListImportService
+                .ParseAsync(stream, cancellationToken);
 
-            if (producers.Count == 0)
+            var trimmedCountry = string.IsNullOrWhiteSpace(parseResult.Country)
+                ? null
+                : parseResult.Country.Trim();
+            var trimmedRegion = string.IsNullOrWhiteSpace(parseResult.Region)
+                ? null
+                : parseResult.Region.Trim();
+
+            viewModel.BottleUpload.SelectedCountry = trimmedCountry;
+            viewModel.BottleUpload.SelectedRegion = trimmedRegion;
+
+            if (trimmedCountry is null)
+            {
+                errors.Add("We could not determine the country from the uploaded Star Wine List file.");
+            }
+
+            if (trimmedRegion is null)
+            {
+                errors.Add("We could not determine the region from the uploaded Star Wine List file.");
+            }
+
+            if (errors.Count > 0)
+            {
+                viewModel.BottleUpload.Errors = errors;
+                viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+                viewModel.BottleUpload.UploadedFileName = file.FileName;
+                return;
+            }
+
+            if (parseResult.Producers.Count == 0)
             {
                 viewModel.BottleUpload.Errors = new[]
                     { "No producers were found in the uploaded Star Wine List file." };
@@ -535,7 +545,17 @@ public class WineInventoryController : Controller
                 return;
             }
 
-            var rows = producers
+            var existingCountry = await _countryRepository
+                .FindByNameAsync(trimmedCountry!, cancellationToken);
+            var countryEntity = existingCountry ?? await _countryRepository
+                .GetOrCreateAsync(trimmedCountry!, cancellationToken);
+
+            var existingRegion = await _regionRepository
+                .FindByNameAndCountryAsync(trimmedRegion!, countryEntity.Id, cancellationToken);
+            var regionEntity = existingRegion ?? await _regionRepository
+                .GetOrCreateAsync(trimmedRegion!, countryEntity, cancellationToken);
+
+            var rows = parseResult.Producers
                 .Select((producer, index) => new WineImportPreviewRowViewModel
                 {
                     RowId = $"star-{index + 1}",
@@ -548,7 +568,8 @@ public class WineInventoryController : Controller
                     Color = string.Empty,
                     Amount = 1,
                     WineExists = false,
-                    RegionExists = false,
+                    CountryExists = countryEntity is not null,
+                    RegionExists = regionEntity is not null,
                     AppellationExists = false
                 })
                 .ToList();
