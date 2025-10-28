@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
+using AllMCPSolution.Utilities;
 using ExcelDataReader;
 
 namespace AllMCPSolution.Services;
@@ -317,12 +318,56 @@ public sealed class WineImportService : IWineImportService
                 return cached;
             }
 
-            var wine = await _wineRepository.FindByNameAsync(
-                row.Name ?? string.Empty,
-                row.SubAppellation,
-                row.Appellation,
+            if (string.IsNullOrWhiteSpace(row.Name))
+            {
+                wineExistenceCache[key] = false;
+                return false;
+            }
+
+            const double maxNameDistance = 0.2d;
+            const double maxHierarchyDistance = 0.15d;
+
+            bool MatchesImportRow(WineImportRow source, Wine candidate)
+            {
+                var nameDistance = FuzzyMatchUtilities.CalculateNormalizedDistance(source.Name, candidate.Name);
+                if (nameDistance > maxNameDistance)
+                {
+                    return false;
+                }
+
+                if (!string.IsNullOrWhiteSpace(source.SubAppellation))
+                {
+                    var candidateSub = candidate.SubAppellation?.Name;
+                    if (string.IsNullOrWhiteSpace(candidateSub))
+                    {
+                        return false;
+                    }
+
+                    var distance = FuzzyMatchUtilities.CalculateNormalizedDistance(source.SubAppellation, candidateSub);
+                    return distance <= maxHierarchyDistance;
+                }
+
+                if (!string.IsNullOrWhiteSpace(source.Appellation))
+                {
+                    var candidateAppellation = candidate.SubAppellation?.Appellation?.Name;
+                    if (string.IsNullOrWhiteSpace(candidateAppellation))
+                    {
+                        return false;
+                    }
+
+                    var distance = FuzzyMatchUtilities.CalculateNormalizedDistance(source.Appellation, candidateAppellation);
+                    return distance <= maxHierarchyDistance;
+                }
+
+                return true;
+            }
+
+            var matches = await _wineRepository.FindClosestMatchesAsync(
+                row.Name!,
+                maxResults: 5,
                 cancellationToken);
-            var exists = wine is not null;
+
+            var exists = matches.Any(match => MatchesImportRow(row, match));
             wineExistenceCache[key] = exists;
             return exists;
         }
