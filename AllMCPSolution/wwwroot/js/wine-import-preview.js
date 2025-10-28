@@ -260,26 +260,6 @@
             return number;
         };
 
-        const parseOptionalDecimal = (value) => {
-            const text = typeof value === 'string' ? value.trim() : '';
-            if (!text) {
-                return null;
-            }
-
-            const number = Number.parseFloat(text);
-            return Number.isNaN(number) ? null : number;
-        };
-
-        const parseOptionalDateString = (value) => {
-            const text = typeof value === 'string' ? value.trim() : '';
-            return text.length > 0 ? text : null;
-        };
-
-        const parseOptionalText = (value) => {
-            const text = typeof value === 'string' ? value.trim() : '';
-            return text.length > 0 ? text : null;
-        };
-
         const handleBulkImport = async () => {
             if (!bulkButton || bulkButton.disabled || bulkButton.dataset.state === 'busy') {
                 return;
@@ -465,11 +445,7 @@
                 color: row.dataset.importPreviewColor || '',
                 grapeVariety: row.dataset.importPreviewGrapeVariety || '',
                 vintage: parseOptionalInt(row.dataset.importPreviewVintage),
-                quantity: parseQuantity(row.dataset.importPreviewAmount),
-                isConsumed: row.dataset.importPreviewConsumed === 'true',
-                consumptionDate: parseOptionalDateString(row.dataset.importPreviewConsumptionDate),
-                consumptionScore: parseOptionalDecimal(row.dataset.importPreviewConsumptionScore),
-                consumptionNote: parseOptionalText(row.dataset.importPreviewConsumptionNote)
+                quantity: parseQuantity(row.dataset.importPreviewAmount)
             }));
 
             setInventoryButtonBusy(true);
