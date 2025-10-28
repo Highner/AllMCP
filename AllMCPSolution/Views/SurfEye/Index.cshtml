@@ -199,6 +199,36 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .surf-eye-wine--known {
+            border-color: rgba(156, 242, 198, 0.45);
+            box-shadow: 0 12px 32px rgba(18, 45, 30, 0.35);
+        }
+
+        .surf-eye-wine__badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(156, 242, 198, 0.45);
+            background: rgba(156, 242, 198, 0.12);
+            font-size: 0.7rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: #9cf2c6;
+        }
+
+        .surf-eye-wine__badge::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #9cf2c6;
+            box-shadow: 0 0 0 2px rgba(156, 242, 198, 0.35);
         }
 
         .surf-eye-wine__header {
@@ -485,6 +515,13 @@
             const item = document.createElement('li');
             item.className = 'surf-eye-wine';
 
+            const rawWineId = typeof wine.wineId === 'string' ? wine.wineId.trim() : '';
+            const knownWineId = rawWineId.length > 0 ? rawWineId : '';
+            if (knownWineId) {
+                item.classList.add('surf-eye-wine--known');
+                item.dataset.wineId = knownWineId;
+            }
+
             const header = document.createElement('div');
             header.className = 'surf-eye-wine__header';
 
@@ -567,6 +604,14 @@
             const footMeta = document.createElement('div');
             footMeta.className = 'surf-eye-wine__foot-meta';
 
+            if (knownWineId) {
+                const badge = document.createElement('span');
+                badge.className = 'surf-eye-wine__badge';
+                badge.textContent = 'In Wine Surfer database';
+                badge.setAttribute('aria-label', 'Surf Eye matched this wine to the Wine Surfer cellar');
+                footMeta.appendChild(badge);
+            }
+
             if (hasTasteProfile) {
                 const confidence = document.createElement('span');
                 confidence.textContent = formatConfidence(Number(wine.confidence));
@@ -634,7 +679,7 @@
                 assignData(element, 'wineVariety', wine.variety);
                 assignData(element, 'wineVintage', wine.vintage);
                 assignData(element, 'wineColor', wine.color);
-                assignData(element, 'wineId', wine.wineId);
+                assignData(element, 'wineId', knownWineId || wine.wineId);
             };
 
             const buildContextFromDataset = (dataset) => ({
