@@ -157,6 +157,33 @@
                 </form>
             </div>
 
+            <div class="cellartracker-upload">
+                <h3>Import from CellarTracker</h3>
+                <p class="field-description">
+                    Upload a CellarTracker wine list page. We will detect the region and color automatically and stage wines for review.
+                </p>
+                <form action="/wine-manager/import" method="post" enctype="multipart/form-data" class="wine-import-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="importType" value="cellartracker" />
+                    <div class="form-field">
+                        <label for="cellarTrackerFile">CellarTracker HTML File</label>
+                        <input type="file" id="cellarTrackerFile" name="cellarTrackerFile" accept=".html,.htm" />
+                        <p class="field-description">
+                            Upload a CellarTracker page with wines. We will extract each wine, its appellation, and grape variety into the preview list below.
+                        </p>
+                    </div>
+                    <div class="form-field form-field--static">
+                        <label>Detected Region</label>
+                        <p class="field-description" aria-live="polite">@(!string.IsNullOrWhiteSpace(bottlePanel.SelectedRegion) ? bottlePanel.SelectedRegion : "—")</p>
+                    </div>
+                    <div class="form-field form-field--static">
+                        <label>Detected Color</label>
+                        <p class="field-description" aria-live="polite">@(!string.IsNullOrWhiteSpace(bottlePanel.SelectedColor) ? bottlePanel.SelectedColor : "—")</p>
+                    </div>
+                    <button type="submit" class="submit-button">Upload CellarTracker</button>
+                </form>
+            </div>
+
             @if (bottleHasErrors)
             {
                 <div class="import-errors wine-surface wine-surface-border">
