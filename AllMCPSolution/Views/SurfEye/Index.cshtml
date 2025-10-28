@@ -286,6 +286,51 @@
             color: rgba(244, 241, 234, 0.82);
         }
 
+        .surf-eye-wine__search {
+            margin-top: 4px;
+            padding: 16px;
+            border-radius: 16px;
+            background: rgba(12, 12, 15, 0.65);
+            border: 1px solid rgba(244, 241, 234, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .surf-eye-wine__search-title {
+            margin: 0;
+            font-size: 0.75rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.6);
+        }
+
+        .surf-eye-wine__search-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .surf-eye-wine__search-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .surf-eye-wine__search-name {
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .surf-eye-wine__search-meta {
+            font-size: 0.85rem;
+            color: rgba(244, 241, 234, 0.6);
+            letter-spacing: 0.5px;
+        }
+
         .surf-eye-wine__foot {
             display: flex;
             justify-content: space-between;
@@ -596,6 +641,58 @@
                 const notes = document.createElement('p');
                 notes.textContent = wine.notes;
                 body.appendChild(notes);
+            }
+
+            if (Array.isArray(wine.searchResults) && wine.searchResults.length > 0) {
+                const searchWrapper = document.createElement('div');
+                searchWrapper.className = 'surf-eye-wine__search';
+
+                const searchTitle = document.createElement('p');
+                searchTitle.className = 'surf-eye-wine__search-title';
+                searchTitle.textContent = 'Top search matches';
+                searchWrapper.appendChild(searchTitle);
+
+                const searchList = document.createElement('ul');
+                searchList.className = 'surf-eye-wine__search-list';
+
+                wine.searchResults.slice(0, 3).forEach((result) => {
+                    if (!result) {
+                        return;
+                    }
+
+                    const item = document.createElement('li');
+                    item.className = 'surf-eye-wine__search-item';
+
+                    const name = document.createElement('span');
+                    name.className = 'surf-eye-wine__search-name';
+                    name.textContent = result.name ?? 'Unknown wine';
+                    item.appendChild(name);
+
+                    const detailParts = [];
+                    if (result.location) {
+                        detailParts.push(result.location);
+                    }
+                    if (result.variety) {
+                        detailParts.push(result.variety);
+                    }
+                    if (result.color) {
+                        detailParts.push(`Color: ${result.color}`);
+                    }
+
+                    if (detailParts.length > 0) {
+                        const detail = document.createElement('span');
+                        detail.className = 'surf-eye-wine__search-meta';
+                        detail.textContent = detailParts.join(' • ');
+                        item.appendChild(detail);
+                    }
+
+                    searchList.appendChild(item);
+                });
+
+                if (searchList.childElementCount > 0) {
+                    searchWrapper.appendChild(searchList);
+                    body.appendChild(searchWrapper);
+                }
             }
 
             const foot = document.createElement('div');

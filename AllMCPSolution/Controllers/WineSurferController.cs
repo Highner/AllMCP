@@ -3543,7 +3543,15 @@ public record SurfEyeWineMatch(
     string? Notes)
 {
     public Guid? WineId { get; init; }
+    public IReadOnlyList<SurfEyeWineSearchResult> SearchResults { get; init; } = Array.Empty<SurfEyeWineSearchResult>();
 }
+
+public record SurfEyeWineSearchResult(
+    Guid WineId,
+    string Name,
+    string? Location,
+    string? Variety,
+    string Color);
 
 public record SurfEyeAnalysisError(string Error);
 

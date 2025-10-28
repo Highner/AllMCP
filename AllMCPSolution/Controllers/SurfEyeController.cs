@@ -382,8 +382,13 @@ public class SurfEyeController: WineSurferControllerBase
                 continue;
             }
 
+            var searchResults = new List<SurfEyeWineSearchResult>();
+
             try
             {
+                var fuzzyCandidates = await FindFuzzyCandidatesAsync(match, cancellationToken);
+                searchResults = BuildSurfEyeSearchResults(match, fuzzyCandidates, out var bestCandidate);
+
                 var existing = await _wineRepository.FindByNameAsync(
                     match.Name!,
                     match.SubAppellation,
@@ -399,19 +404,25 @@ public class SurfEyeController: WineSurferControllerBase
                         cancellationToken);
                 }
 
-                if (existing is null)
+                if (existing is null && bestCandidate is not null)
                 {
-                    var fuzzyCandidates = await FindFuzzyCandidatesAsync(match, cancellationToken);
-                    if (fuzzyCandidates.Count > 0)
-                    {
-                        existing = PickBestFuzzyMatch(match, fuzzyCandidates);
-                    }
+                    existing = bestCandidate;
                 }
 
                 if (existing is null)
                 {
-                    persisted.Add(match);
+                    persisted.Add(match with { SearchResults = searchResults });
                     continue;
+                }
+
+                if (!searchResults.Any(result => result.WineId == existing.Id))
+                {
+                    searchResults.Insert(0, CreateSearchResult(existing));
+                }
+
+                if (searchResults.Count > 3)
+                {
+                    searchResults = searchResults.Take(3).ToList();
                 }
 
                 var subAppellation = existing.SubAppellation;
@@ -429,14 +440,15 @@ public class SurfEyeController: WineSurferControllerBase
                     Color = existing.Color.ToString(),
                     Variety = string.IsNullOrWhiteSpace(match.Variety) && !string.IsNullOrWhiteSpace(existing.GrapeVariety)
                         ? existing.GrapeVariety
-                        : match.Variety
+                        : match.Variety,
+                    SearchResults = searchResults
                 };
 
                 persisted.Add(updated);
             }
             catch
             {
-                persisted.Add(match);
+                persisted.Add(match with { SearchResults = searchResults });
             }
         }
 
@@ -503,21 +515,106 @@ public class SurfEyeController: WineSurferControllerBase
             : candidates.Values.ToList();
     }
 
-    private static Wine? PickBestFuzzyMatch(SurfEyeWineMatch match, IReadOnlyList<Wine> candidates)
+    private static List<SurfEyeWineSearchResult> BuildSurfEyeSearchResults(
+        SurfEyeWineMatch match,
+        IReadOnlyList<Wine> candidates,
+        out Wine? bestCandidate)
     {
-        if (candidates is null || candidates.Count == 0 || string.IsNullOrWhiteSpace(match?.Name))
+        bestCandidate = null;
+
+        if (match is null || string.IsNullOrWhiteSpace(match.Name) || candidates is null || candidates.Count == 0)
         {
-            return null;
+            return new List<SurfEyeWineSearchResult>();
         }
 
-        var maxResults = Math.Min(candidates.Count, 5);
+        var maxResults = Math.Min(3, candidates.Count);
         var ordered = FuzzyMatchUtilities.FindClosestMatches(
             candidates,
             match.Name!,
             BuildWineComparisonLabel,
             maxResults);
 
-        return ordered.FirstOrDefault();
+        if (ordered.Count == 0)
+        {
+            return new List<SurfEyeWineSearchResult>();
+        }
+
+        bestCandidate = ordered[0];
+
+        var results = new List<SurfEyeWineSearchResult>(ordered.Count);
+        var seen = new HashSet<Guid>();
+
+        foreach (var wine in ordered)
+        {
+            if (wine is null)
+            {
+                continue;
+            }
+
+            if (!seen.Add(wine.Id))
+            {
+                continue;
+            }
+
+            results.Add(CreateSearchResult(wine));
+        }
+
+        return results;
+    }
+
+    private static SurfEyeWineSearchResult CreateSearchResult(Wine wine)
+    {
+        var variety = string.IsNullOrWhiteSpace(wine.GrapeVariety)
+            ? null
+            : wine.GrapeVariety.Trim();
+
+        return new SurfEyeWineSearchResult(
+            wine.Id,
+            wine.Name,
+            BuildSearchResultLocation(wine),
+            variety,
+            wine.Color.ToString());
+    }
+
+    private static string? BuildSearchResultLocation(Wine wine)
+    {
+        if (wine is null)
+        {
+            return null;
+        }
+
+        var parts = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void AddPart(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            var trimmed = value.Trim();
+            if (seen.Add(trimmed))
+            {
+                parts.Add(trimmed);
+            }
+        }
+
+        var subAppellation = wine.SubAppellation;
+        AddPart(subAppellation?.Name);
+
+        var appellation = subAppellation?.Appellation;
+        AddPart(appellation?.Name);
+
+        var region = appellation?.Region;
+        AddPart(region?.Name);
+
+        var country = region?.Country;
+        AddPart(country?.Name);
+
+        return parts.Count == 0
+            ? null
+            : string.Join(" • ", parts);
     }
 
     private static IReadOnlyList<string> ExtractSignificantTokens(string value)
