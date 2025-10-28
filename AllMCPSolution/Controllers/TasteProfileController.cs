@@ -1,6 +1,7 @@
 using System;
 using System.ClientModel;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Linq;
 using System.Security.Claims;
 using System.Text;
@@ -898,7 +899,8 @@ public class TasteProfileController: WineSurferControllerBase
                     wine.Color,
                     wine.Variety,
                     wine.Vintage,
-                    wine.SubAppellationName))
+                    wine.SubAppellationName,
+                    wine.EstimatedPricePerBottleEur))
                 .ToList() ?? new List<GenerateTasteProfileWine>();
 
             suggestions.Add(new GenerateTasteProfileSuggestion(
@@ -1093,13 +1095,21 @@ public class TasteProfileController: WineSurferControllerBase
                             var wineVariety = GetTrimmedJsonString(wineElement, "variety");
                             var wineSubAppellation = GetTrimmedJsonString(wineElement, "subAppellation");
                             var wineVintage = GetTrimmedJsonString(wineElement, "vintage");
+                            var winePrice = GetPositiveJsonDecimal(
+                                wineElement,
+                                "estimatedPricePerBottleEur",
+                                "pricePerBottleEur",
+                                "pricePerBottle",
+                                "estimatedPriceEur",
+                                "estimatedPrice");
 
                             parsedWines.Add(new GeneratedSuggestedWine(
                                 wineName!,
                                 wineColor!,
                                 wineVariety,
                                 wineSubAppellation,
-                                wineVintage));
+                                wineVintage,
+                                winePrice));
 
                             if (parsedWines.Count == 3)
                             {
@@ -1359,13 +1369,16 @@ public class TasteProfileController: WineSurferControllerBase
 
             replacements.Add(new SuggestedWineReplacement(ensured.Wine.Id, normalizedVintage));
 
+            var estimatedPrice = generatedWine.EstimatedPricePerBottleEur;
+
             resolved.Add(new WineSurferSuggestedWine(
                 ensured.Wine.Id,
                 displayName!,
                 ensured.Wine.Color.ToString(),
                 normalizedVariety,
                 normalizedVintage,
-                subAppellationName));
+                subAppellationName,
+                estimatedPrice));
         }
 
         return (
@@ -1789,6 +1802,50 @@ public class TasteProfileController: WineSurferControllerBase
 
     
 
+    private static decimal? GetPositiveJsonDecimal(JsonElement element, params string[] propertyNames)
+    {
+        if (propertyNames is null || propertyNames.Length == 0)
+        {
+            return null;
+        }
+
+        foreach (var propertyName in propertyNames)
+        {
+            if (string.IsNullOrWhiteSpace(propertyName)
+                || !element.TryGetProperty(propertyName, out var property))
+            {
+                continue;
+            }
+
+            decimal value;
+            switch (property.ValueKind)
+            {
+                case JsonValueKind.Number when property.TryGetDecimal(out value):
+                    break;
+                case JsonValueKind.String:
+                    var text = property.GetString();
+                    if (string.IsNullOrWhiteSpace(text)
+                        || !decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out value))
+                    {
+                        continue;
+                    }
+
+                    break;
+                default:
+                    continue;
+            }
+
+            if (value <= 0)
+            {
+                continue;
+            }
+
+            return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+        }
+
+        return null;
+    }
+
     private static string? GetTrimmedJsonString(JsonElement element, string propertyName)
     {
         if (!element.TryGetProperty(propertyName, out var property))
@@ -1825,7 +1882,8 @@ public class TasteProfileController: WineSurferControllerBase
         string Color,
         string? Variety,
         string? SubAppellation,
-        string? Vintage);
+        string? Vintage,
+        decimal? EstimatedPricePerBottleEur);
     
     private sealed class TasteProfileStreamUpdate
     {
