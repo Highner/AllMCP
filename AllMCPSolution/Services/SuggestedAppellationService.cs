@@ -73,8 +73,7 @@ public class SuggestedAppellationService : ISuggestedAppellationService
                         stored.Wine.Color.ToString(),
                         variety,
                         vintage,
-                        string.IsNullOrWhiteSpace(storedSubName) ? null : storedSubName,
-                        null));
+                        string.IsNullOrWhiteSpace(storedSubName) ? null : storedSubName));
 
                     if (wines.Count == 3)
                     {

@@ -30,21 +30,6 @@
     var suggestionBudgetValue = suggestionBudget.HasValue
         ? suggestionBudget.Value.ToString("0.##", CultureInfo.InvariantCulture)
         : string.Empty;
-    string? FormatEstimatedPrice(decimal? value)
-    {
-        if (!value.HasValue)
-        {
-            return null;
-        }
-
-        var normalized = value.Value;
-        if (normalized <= 0)
-        {
-            return null;
-        }
-
-        return $"€{normalized.ToString("0.##", CultureInfo.InvariantCulture)}";
-    }
     var historyPayload = historyEntries
         .Select(entry => new
         {
@@ -433,12 +418,6 @@
             letter-spacing: 0.8px;
         }
 
-        .taste-profile-wine-price {
-            font-size: 12px;
-            color: hsla(var(--muted-foreground) / 0.95);
-            letter-spacing: 0.8px;
-        }
-
         .taste-profile-suggestions-empty {
             margin: 0;
             font-size: 13px;
@@ -654,7 +633,6 @@
                                                 continue;
                                             }
 
-                                            var priceText = FormatEstimatedPrice(wine.EstimatedPricePerBottleEur);
                                             var wineDetailsSegments = new List<string>();
 
                                             if (!string.IsNullOrWhiteSpace(wine.Vintage))
@@ -686,10 +664,6 @@
                                                 @if (!string.IsNullOrWhiteSpace(wineDetails))
                                                 {
                                                     <span class="taste-profile-wine-details">@wineDetails</span>
-                                                }
-                                                @if (!string.IsNullOrWhiteSpace(priceText))
-                                                {
-                                                    <span class="taste-profile-wine-price">@priceText</span>
                                                 }
                                             </li>
                                         }
@@ -896,43 +870,6 @@
             const suggestionsList = document.querySelector('[data-suggested-appellations-list]');
             const suggestionsEmpty = document.querySelector('[data-suggested-appellations-empty]');
             const toText = (value) => (typeof value === 'string' ? value.trim() : '');
-            const parsePriceValue = (value) => {
-                if (typeof value === 'number' && Number.isFinite(value)) {
-                    return value > 0 ? value : null;
-                }
-
-                if (typeof value === 'string') {
-                    const normalized = value.replace(/[^0-9.,-]/g, '').replace(',', '.');
-                    if (normalized) {
-                        const parsed = Number.parseFloat(normalized);
-                        if (Number.isFinite(parsed) && parsed > 0) {
-                            return parsed;
-                        }
-                    }
-                }
-
-                return null;
-            };
-
-            const formatPrice = (() => {
-                let formatter;
-                return (value) => {
-                    if (!Number.isFinite(value) || value <= 0) {
-                        return '';
-                    }
-
-                    if (!formatter) {
-                        formatter = new Intl.NumberFormat('en-IE', {
-                            style: 'currency',
-                            currency: 'EUR',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 2
-                        });
-                    }
-
-                    return formatter.format(value);
-                };
-            })();
 
             const updateSuggestions = (entries) => {
                 if (!suggestionsList || !suggestionsEmpty) {
@@ -1049,19 +986,6 @@
                                     wineDetailsNode.className = 'taste-profile-wine-details';
                                     wineDetailsNode.textContent = detailSegments.join(' • ');
                                     wineItem.appendChild(wineDetailsNode);
-                                }
-
-                                const rawPrice =
-                                    wine.estimatedPricePerBottleEur ??
-                                    wine.pricePerBottleEur ??
-                                    wine.price ??
-                                    null;
-                                const priceValue = parsePriceValue(rawPrice);
-                                if (priceValue !== null) {
-                                    const priceNode = document.createElement('span');
-                                    priceNode.className = 'taste-profile-wine-price';
-                                    priceNode.textContent = formatPrice(priceValue);
-                                    wineItem.appendChild(priceNode);
                                 }
 
                                 winesList.appendChild(wineItem);
