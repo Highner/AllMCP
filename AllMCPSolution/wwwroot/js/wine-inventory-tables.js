@@ -265,7 +265,7 @@
             const updateOffset = () => {
                 const topBarRect = topBar.getBoundingClientRect();
                 const measuredHeight = Number.isFinite(topBarRect.height) ? topBarRect.height : topBar.offsetHeight;
-                const computedHeight = Math.max(0, Math.ceil(measuredHeight));
+                const computedHeight = Math.max(0, Math.round(measuredHeight));
                 root.style.setProperty('--inventory-table-header-offset', `${computedHeight}px`);
             };
 
