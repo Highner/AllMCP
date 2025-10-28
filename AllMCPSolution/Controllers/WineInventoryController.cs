@@ -472,7 +472,12 @@ public partial class WineInventoryController : Controller
                     WineExists = row.WineExists,
                     CountryExists = row.CountryExists,
                     RegionExists = row.RegionExists,
-                    AppellationExists = row.AppellationExists
+                    AppellationExists = row.AppellationExists,
+                    HasBottleDetails = row.Amount > 0,
+                    IsConsumed = row.IsConsumed,
+                    ConsumptionDate = row.ConsumptionDate,
+                    ConsumptionScore = row.ConsumptionScore,
+                    ConsumptionNote = row.ConsumptionNote ?? string.Empty
                 })
                 .ToList();
         }
@@ -561,6 +566,13 @@ public partial class WineInventoryController : Controller
                 response.Failed++;
                 continue;
             }
+
+            var isConsumed = row.IsConsumed;
+            var consumptionDate = row.ConsumptionDate;
+            var consumptionScore = row.ConsumptionScore;
+            var consumptionNote = string.IsNullOrWhiteSpace(row.ConsumptionNote)
+                ? null
+                : row.ConsumptionNote!.Trim();
 
             try
             {
@@ -824,14 +836,29 @@ public partial class WineInventoryController : Controller
                     {
                         Id = Guid.NewGuid(),
                         WineVintageId = wineVintage.Id,
-                        IsDrunk = false,
-                        DrunkAt = null,
+                        IsDrunk = isConsumed,
+                        DrunkAt = isConsumed ? consumptionDate : null,
                         Price = null,
                         BottleLocationId = null,
                         UserId = currentUserId
                     };
 
                     await _bottleRepository.AddAsync(bottle, cancellationToken);
+
+                    if (isConsumed && (consumptionScore.HasValue || !string.IsNullOrWhiteSpace(consumptionNote)))
+                    {
+                        var noteText = string.IsNullOrWhiteSpace(consumptionNote) ? string.Empty : consumptionNote!;
+                        var tastingNote = new TastingNote
+                        {
+                            Id = Guid.NewGuid(),
+                            BottleId = bottle.Id,
+                            UserId = currentUserId,
+                            Score = consumptionScore,
+                            Note = noteText
+                        };
+
+                        await _tastingNoteRepository.AddAsync(tastingNote, cancellationToken);
+                    }
                 }
 
                 resultEntry.BottlesAdded = quantity;
@@ -1256,7 +1283,11 @@ public partial class WineInventoryController : Controller
                     RegionExists = existingRegion is not null,
                     AppellationExists = existingAppellation is not null,
                     Vintage = wine.Vintage,
-                    HasBottleDetails = wine.HasBottleDetails
+                    HasBottleDetails = wine.HasBottleDetails,
+                    IsConsumed = wine.IsConsumed,
+                    ConsumptionDate = wine.ConsumptionDate,
+                    ConsumptionScore = wine.ConsumptionScore,
+                    ConsumptionNote = wine.ConsumptionNote ?? string.Empty
                 };
 
                 rows.Add(row);
@@ -3009,6 +3040,10 @@ public class WineInventoryViewModel
         public string? GrapeVariety { get; set; }
         public int? Vintage { get; set; }
         public int Quantity { get; set; }
+        public bool IsConsumed { get; set; }
+        public DateTime? ConsumptionDate { get; set; }
+        public decimal? ConsumptionScore { get; set; }
+        public string? ConsumptionNote { get; set; }
     }
 
     public class ImportCellarTrackerInventoryResponse
@@ -3166,6 +3201,10 @@ public class WineInventoryViewModel
         public bool AppellationExists { get; set; }
         public int? Vintage { get; set; }
         public bool HasBottleDetails { get; set; }
+        public bool IsConsumed { get; set; }
+        public DateTime? ConsumptionDate { get; set; }
+        public decimal? ConsumptionScore { get; set; }
+        public string ConsumptionNote { get; set; } = string.Empty;
         public bool CanCreateInventory => HasBottleDetails && Amount > 0;
     }
 
