@@ -636,6 +636,10 @@
                 ? ` data-note-id="${escapeHtml(record.noteId)}"`
                 : '';
 
+            const editNoteButton =
+                `<button type="button" class="wine-surfer-button wine-surfer-button--orange bottle-management-edit-note-button" data-bottle-management-edit-note data-bottle-id="${safeBottleId}"${wineVintageAttr}${noteAttr} aria-label="Edit tasting note for this bottle">Edit Note</button>`;
+            buttons.push(editNoteButton);
+
             const undrinkButton =
                 `<button type="button" class="wine-surfer-button wine-surfer-button--green bottle-management-undrink-button" data-bottle-management-undrink data-bottle-id="${safeBottleId}"${wineVintageAttr}${noteAttr} aria-label="Mark bottle as not drunk">Undrink</button>`;
             buttons.push(undrinkButton);
@@ -672,6 +676,9 @@
         }
 
         const label = buildBottleLabel(record.wineName, record.vintage);
+        const successMessage = record.isDrunk
+            ? 'Tasting note updated.'
+            : 'Bottle marked as drunk.';
         const detail = {
             context: 'inventory',
             bottleId: record.bottleId,
@@ -682,7 +689,7 @@
             date: record.drunkAt ?? '',
             mode: record.noteId ? 'edit' : 'create',
             requireDate: true,
-            successMessage: 'Bottle marked as drunk.',
+            successMessage,
             extras: {
                 wineVintageId: record.wineVintageId,
                 bottleLocationId: record.bottleLocationId,
@@ -700,6 +707,24 @@
         const record = getBottleRecord(bottleId);
         if (!record) {
             showError('We could not find that bottle in your inventory.');
+            return;
+        }
+
+        openDrinkModalForBottle(record);
+    };
+
+    const handleEditNoteClick = (button) => {
+        const bottleId = button?.getAttribute('data-bottle-id')
+            || button?.dataset?.bottleId
+            || '';
+        const record = getBottleRecord(bottleId);
+        if (!record) {
+            showError('We could not find that bottle in your inventory.');
+            return;
+        }
+
+        if (!record.isDrunk) {
+            showError('You can only edit notes for bottles you have marked as drunk.');
             return;
         }
 
@@ -898,6 +923,13 @@
             if (removeButton) {
                 event.preventDefault();
                 void handleRemoveClick(removeButton);
+                return;
+            }
+
+            const editNoteButton = element.closest('[data-bottle-management-edit-note]');
+            if (editNoteButton) {
+                event.preventDefault();
+                handleEditNoteClick(editNoteButton);
                 return;
             }
 
