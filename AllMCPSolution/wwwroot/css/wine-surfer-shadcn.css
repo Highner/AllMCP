@@ -1893,16 +1893,8 @@ table,
     position: sticky;
     top: var(--inventory-table-header-offset, 88px);
     z-index: 5;
-    background: transparent;
-    box-shadow: 0 1px 0 hsla(var(--border) / 0.35);
-}
-
-.inventory-table thead th::before {
-    content: "";
-    position: absolute;
-    inset: 0;
     background: hsla(var(--accent) / 0.3);
-    z-index: -1;
+    box-shadow: 0 1px 0 hsla(var(--border) / 0.35);
 }
 
 table thead,
