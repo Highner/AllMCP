@@ -3,6 +3,7 @@
 @using AllMCPSolution.Services
 @using AllMCPSolution.Models
 @using System.Linq
+@using System.Globalization
 @{
     Layout = null;
     var pageModel = Model ?? new WineImportPageViewModel();
@@ -22,6 +23,8 @@
     var bottlePreviewRows = bottlePanel.PreviewRows;
     var readyBottleCount = bottlePreviewRows.Count(row => !row.WineExists);
     var hasReadyBottles = readyBottleCount > 0;
+    var inventoryReadyCount = bottlePreviewRows.Count(row => row.CanCreateInventory);
+    var hasInventoryReady = inventoryReadyCount > 0;
     var hasBottlePreview = bottlePanel.HasPreview;
 }
 <!DOCTYPE html>
@@ -217,8 +220,22 @@
                                 }>
                                 Import all that do not exist yet
                             </button>
+                            <button type="button"
+                                    class="submit-button import-preview__bulk-button"
+                                    data-import-preview-add-inventory
+                                    data-ready-count="@inventoryReadyCount"
+                                    aria-disabled="@(hasInventoryReady ? "false" : "true")"
+                                @if (!hasInventoryReady)
+                                {
+                                    <text> disabled</text>
+                                }>
+                                Add to inventory
+                            </button>
                             <p class="import-preview__bulk-status"
                                data-import-preview-bulk-status
+                               aria-live="polite"></p>
+                            <p class="import-preview__bulk-status"
+                               data-import-preview-inventory-status
                                aria-live="polite"></p>
                         </div>
                     </div>
@@ -234,6 +251,7 @@
                                     <th scope="col">Country</th>
                                     <th scope="col">Color</th>
                                     <th scope="col">Amount</th>
+                                    <th scope="col">Bottle Info</th>
                                     <th scope="col">Status</th>
                                     <th scope="col" class="import-preview__actions-header">Add</th>
                                 </tr>
@@ -258,6 +276,9 @@
                                     var countryCellClass = row.CountryExists
                                         ? "import-preview__cell import-preview__cell--country import-preview__cell--match"
                                         : "import-preview__cell import-preview__cell--country";
+                                    var bottleInfoCellClass = row.HasBottleDetails
+                                        ? "import-preview__cell import-preview__cell--bottle-info import-preview__cell--match"
+                                        : "import-preview__cell import-preview__cell--bottle-info";
                                     var buttonAriaLabel = string.IsNullOrWhiteSpace(row.Name)
                                         ? "Create wine in catalog"
                                         : $"Create {row.Name} in catalog";
@@ -267,6 +288,11 @@
                                         ? "Wine already exists in catalog"
                                         : "Wine ready to add to catalog";
                                     var initialState = row.WineExists ? "existing" : "ready";
+                                    var canInventoryValue = row.CanCreateInventory ? "true" : "false";
+                                    var vintageDataValue = row.Vintage.HasValue
+                                        ? row.Vintage.Value.ToString(CultureInfo.InvariantCulture)
+                                        : string.Empty;
+                                    var amountDataValue = row.Amount.ToString(CultureInfo.InvariantCulture);
                                     <tr class="import-preview__row"
                                         data-import-preview-row="@row.RowId"
                                         data-import-preview-row-number="@row.RowNumber"
@@ -277,7 +303,10 @@
                                         data-import-preview-appellation="@row.Appellation"
                                         data-import-preview-sub-appellation="@row.SubAppellation"
                                         data-import-preview-grape-variety="@row.GrapeVariety"
-                                        data-import-preview-color="@row.Color">
+                                        data-import-preview-color="@row.Color"
+                                        data-import-preview-vintage="@vintageDataValue"
+                                        data-import-preview-amount="@amountDataValue"
+                                        data-import-preview-can-inventory="@canInventoryValue">
                                         <td class="import-preview__cell import-preview__cell--row">@row.RowNumber</td>
                                         <td class="@wineCellClass">
                                             <span class="import-preview__wine-name">@displayName</span>
@@ -347,6 +376,35 @@
                                         </td>
                                         <td class="import-preview__cell import-preview__cell--color">@(!string.IsNullOrWhiteSpace(row.Color) ? row.Color : "—")</td>
                                         <td class="import-preview__cell import-preview__cell--amount">@row.Amount</td>
+                                        <td class="@bottleInfoCellClass">
+                                            @{
+                                                var vintageValue = row.Vintage;
+                                                var hasVintage = vintageValue.HasValue;
+                                                var hasQuantity = row.Amount > 0;
+                                                var vintageLabel = hasVintage
+                                                    ? (vintageValue.Value > 0
+                                                        ? vintageValue.Value.ToString(CultureInfo.InvariantCulture)
+                                                        : "NV")
+                                                    : string.Empty;
+                                            }
+                                            @if (hasVintage || hasQuantity)
+                                            {
+                                                if (hasVintage)
+                                                {
+                                                    <span>@vintageLabel</span>
+                                                }
+
+                                                if (hasQuantity)
+                                                {
+                                                    var bottleWord = row.Amount == 1 ? "bottle" : "bottles";
+                                                    <span class="import-preview__meta">@($"{row.Amount} {bottleWord}")</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="import-preview__meta">—</span>
+                                            }
+                                        </td>
                                         <td class="import-preview__cell import-preview__cell--status">
                                             <span class="import-preview__status"
                                                   data-import-preview-status
@@ -366,7 +424,7 @@
                                                     data-wine-sub-appellation="@row.SubAppellation"
                                                     data-wine-variety="@row.GrapeVariety"
                                                     data-wine-color="@row.Color"
-                                                    data-wine-vintage=""
+                                                    data-wine-vintage="@vintageDataValue"
                                                     data-import-preview-add
                                                     aria-label="@buttonAriaLabel">Create</button>
                                         </td>
