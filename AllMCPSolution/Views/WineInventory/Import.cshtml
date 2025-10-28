@@ -2,6 +2,7 @@
 @using AllMCPSolution.Controllers
 @using AllMCPSolution.Services
 @using AllMCPSolution.Models
+@using System.Linq
 @{
     Layout = null;
     var pageModel = Model ?? new WineImportPageViewModel();
@@ -19,6 +20,8 @@
     var bottleHasResult = bottlePanel.HasResult;
     var bottleResult = bottlePanel.Result;
     var bottlePreviewRows = bottlePanel.PreviewRows;
+    var readyBottleCount = bottlePreviewRows.Count(row => !row.WineExists);
+    var hasReadyBottles = readyBottleCount > 0;
     var hasBottlePreview = bottlePanel.HasPreview;
 }
 <!DOCTYPE html>
@@ -175,6 +178,22 @@
                         <h3>Bottle Import Preview@if (!string.IsNullOrWhiteSpace(bottlePanel.UploadedFileName)) {<text> for @bottlePanel.UploadedFileName</text>}</h3>
                         <p class="import-preview__description">Review each row and add bottles individually to your inventory.</p>
                         <p class="import-preview__count" aria-live="polite">@previewCount bottle@(previewCount == 1 ? string.Empty : "s") ready to review.</p>
+                        <div class="import-preview__bulk-actions">
+                            <button type="button"
+                                    class="submit-button import-preview__bulk-button"
+                                    data-import-preview-import-all
+                                    data-ready-count="@readyBottleCount"
+                                    aria-disabled="@(hasReadyBottles ? "false" : "true")"
+                                @if (!hasReadyBottles)
+                                {
+                                    <text> disabled</text>
+                                }>
+                                Import all that do not exist yet
+                            </button>
+                            <p class="import-preview__bulk-status"
+                               data-import-preview-bulk-status
+                               aria-live="polite"></p>
+                        </div>
                     </div>
                     <div class="import-preview__table-wrapper">
                         <table class="import-preview__table" data-import-preview-table>
@@ -218,7 +237,17 @@
                                     var statusAriaLabel = row.WineExists
                                         ? "Wine already exists in catalog"
                                         : "Wine ready to add to catalog";
-                                    <tr class="import-preview__row" data-import-preview-row="@row.RowId">
+                                    var initialState = row.WineExists ? "existing" : "ready";
+                                    <tr class="import-preview__row"
+                                        data-import-preview-row="@row.RowId"
+                                        data-import-preview-row-number="@row.RowNumber"
+                                        data-import-preview-state="@initialState"
+                                        data-import-preview-name="@row.Name"
+                                        data-import-preview-country="@row.Country"
+                                        data-import-preview-region="@row.Region"
+                                        data-import-preview-appellation="@row.Appellation"
+                                        data-import-preview-sub-appellation="@row.SubAppellation"
+                                        data-import-preview-color="@row.Color">
                                         <td class="import-preview__cell import-preview__cell--row">@row.RowNumber</td>
                                         <td class="@wineCellClass">
                                             <span class="import-preview__wine-name">@displayName</span>

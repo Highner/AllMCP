@@ -1192,8 +1192,17 @@ a.wine-card:focus {
     color: #ffe7a3;
 }
 
+.import-preview__status[data-state="error"] {
+    background: rgba(244, 67, 54, 0.28);
+    color: #ffc4c0;
+}
+
 .import-preview__row--added {
     opacity: 0.72;
+}
+
+.import-preview__row--error {
+    background: rgba(244, 67, 54, 0.12);
 }
 
 .import-preview__action-button {
@@ -1210,6 +1219,37 @@ a.wine-card:focus {
 
 .import-preview__cell--actions {
     text-align: right;
+}
+
+.import-preview__bulk-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.import-preview__bulk-button {
+    min-width: 0;
+}
+
+.import-preview__bulk-status {
+    margin: 0;
+    font-size: 13px;
+    letter-spacing: 1.1px;
+    color: rgba(244, 241, 234, 0.72);
+}
+
+.import-preview__bulk-status[data-state="success"] {
+    color: #d8f8e4;
+}
+
+.import-preview__bulk-status[data-state="error"] {
+    color: #ffb8b3;
+}
+
+.import-preview__bulk-status[data-state="info"] {
+    color: rgba(244, 241, 234, 0.72);
 }
 
 @media (max-width: 900px) {

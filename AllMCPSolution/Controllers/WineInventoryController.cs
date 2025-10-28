@@ -469,6 +469,131 @@ public class WineInventoryController : Controller
         }
     }
 
+    [HttpPost("import/wines/bulk")]
+    public async Task<IActionResult> ImportReadyWines(
+        [FromBody] ImportReadyWinesRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out _))
+        {
+            return Challenge();
+        }
+
+        if (request?.Rows is null || request.Rows.Count == 0)
+        {
+            return BadRequest(new { message = "No wines were provided for import." });
+        }
+
+        var response = new ImportReadyWinesResponse
+        {
+            TotalRequested = request.Rows.Count
+        };
+
+        foreach (var row in request.Rows)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var resultEntry = new ImportReadyWineRowResult
+            {
+                RowId = row?.RowId ?? string.Empty,
+                RowNumber = row?.RowNumber ?? 0
+            };
+
+            if (row is null)
+            {
+                resultEntry.Error = "Row data is missing.";
+                response.Rows.Add(resultEntry);
+                response.Errors.Add("Encountered an empty row while importing wines.");
+                response.Failed++;
+                continue;
+            }
+
+            var missingFields = new List<string>();
+
+            var name = row.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                missingFields.Add("Name");
+            }
+
+            var color = row.Color?.Trim();
+            if (string.IsNullOrWhiteSpace(color))
+            {
+                missingFields.Add("Color");
+            }
+
+            var region = row.Region?.Trim();
+            if (string.IsNullOrWhiteSpace(region))
+            {
+                missingFields.Add("Region");
+            }
+
+            var appellation = row.Appellation?.Trim();
+            if (string.IsNullOrWhiteSpace(appellation))
+            {
+                missingFields.Add("Appellation");
+            }
+
+            if (missingFields.Count > 0)
+            {
+                resultEntry.Error = $"Missing required fields: {string.Join(", ", missingFields)}.";
+                response.Rows.Add(resultEntry);
+                response.Failed++;
+                continue;
+            }
+
+            try
+            {
+                var catalogRequest = new WineCatalogRequest(
+                    name!,
+                    color!,
+                    row.Country,
+                    region!,
+                    appellation!,
+                    row.SubAppellation,
+                    null);
+
+                var catalogResult = await _wineCatalogService.EnsureWineAsync(catalogRequest, cancellationToken);
+
+                if (!catalogResult.IsSuccess || catalogResult.Wine is null)
+                {
+                    var formattedError = FormatCatalogErrors(catalogResult.Errors)
+                                        ?? "Unable to add wine to the catalog.";
+                    resultEntry.Error = formattedError;
+                    response.Rows.Add(resultEntry);
+                    response.Failed++;
+                    continue;
+                }
+
+                if (catalogResult.Created)
+                {
+                    resultEntry.Created = true;
+                    response.Created++;
+                }
+                else
+                {
+                    resultEntry.AlreadyExists = true;
+                    response.AlreadyExists++;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                resultEntry.Error = $"Unable to import wine: {ex.Message}";
+                response.Rows.Add(resultEntry);
+                response.Failed++;
+                continue;
+            }
+
+            response.Rows.Add(resultEntry);
+        }
+
+        return Json(response);
+    }
+
     private async Task HandleStarWineListImportAsync(
         IFormFile? file,
         WineImportPageViewModel viewModel,
@@ -2263,6 +2388,42 @@ public class WineInventoryViewModel
         public Guid? BottleLocationId { get; set; }
     }
 
+    public class ImportReadyWinesRequest
+    {
+        public IReadOnlyList<ImportReadyWineRowRequest> Rows { get; set; } = Array.Empty<ImportReadyWineRowRequest>();
+    }
+
+    public class ImportReadyWineRowRequest
+    {
+        public string RowId { get; set; } = string.Empty;
+        public int RowNumber { get; set; }
+        public string? Name { get; set; }
+        public string? Country { get; set; }
+        public string? Region { get; set; }
+        public string? Appellation { get; set; }
+        public string? SubAppellation { get; set; }
+        public string? Color { get; set; }
+    }
+
+    public class ImportReadyWinesResponse
+    {
+        public int TotalRequested { get; set; }
+        public int Created { get; set; }
+        public int AlreadyExists { get; set; }
+        public int Failed { get; set; }
+        public List<ImportReadyWineRowResult> Rows { get; } = [];
+        public List<string> Errors { get; } = [];
+    }
+
+    public class ImportReadyWineRowResult
+    {
+        public string RowId { get; set; } = string.Empty;
+        public int RowNumber { get; set; }
+        public bool Created { get; set; }
+        public bool AlreadyExists { get; set; }
+        public string? Error { get; set; }
+    }
+
     public class WineCountrySuggestion
     {
         public Guid Id { get; set; }
@@ -2316,6 +2477,38 @@ public class WineInventoryViewModel
         public string? Country { get; set; }
         public string Color { get; set; } = string.Empty;
         public IReadOnlyList<int> Vintages { get; set; } = Array.Empty<int>();
+    }
+
+    private static string? FormatCatalogErrors(IReadOnlyDictionary<string, string[]>? errors)
+    {
+        if (errors is null || errors.Count == 0)
+        {
+            return null;
+        }
+
+        var messages = new List<string>();
+        foreach (var entry in errors)
+        {
+            if (entry.Value is null)
+            {
+                continue;
+            }
+
+            foreach (var message in entry.Value)
+            {
+                if (!string.IsNullOrWhiteSpace(message))
+                {
+                    messages.Add(message.Trim());
+                }
+            }
+        }
+
+        if (messages.Count == 0)
+        {
+            return null;
+        }
+
+        return string.Join(' ', messages);
     }
 
     public class WineImportPageViewModel
