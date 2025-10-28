@@ -159,7 +159,7 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
     public string BuildSurfEyePrompt(string? tasteProfileSummary, string tasteProfile)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("Analyze the attached photo of wine bottles.");
+        //builder.AppendLine("Analyze the attached photo of wine bottles.");
 
         if (!string.IsNullOrWhiteSpace(tasteProfileSummary))
         {
@@ -179,9 +179,9 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
     public string BuildSurfEyePromptWithoutTasteProfile()
     {
         var builder = new StringBuilder();
-        builder.AppendLine("Analyze the attached photo of wine bottles.");
+        //builder.AppendLine("Analyze the attached photo of wine bottles.");
         builder.AppendLine("The user does not have a taste profile yet.");
-        builder.AppendLine("Identify each distinct wine label in the photo and return at most five wines.");
+        builder.AppendLine("Identify each distinct wine label in the information and return at most five wines.");
         builder.AppendLine("Sort wines from the most confidently identified to the least confidently identified.");
         builder.AppendLine("Provide concise notes to help the user verify each label.");
         builder.AppendLine("Set alignmentScore to 0 and leave alignmentSummary empty for every wine.");
@@ -194,8 +194,8 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
     public string BuildSurfEyeIdentificationPrompt()
     {
         var builder = new StringBuilder();
-        builder.AppendLine("Analyze the attached photo of wine bottles.");
-        builder.AppendLine("Identify each distinct wine label in the photo and return at most five wines.");
+        //builder.AppendLine("Analyze the attached photo of wine bottles.");
+        builder.AppendLine("Identify each distinct wine label in the information and return at most five wines.");
         builder.AppendLine("Focus solely on identification—do not reference or rely on the user's taste profile.");
         builder.AppendLine("Provide concise notes to help the user verify each label.");
         builder.AppendLine("Set alignmentScore to 0 and leave alignmentSummary empty for every wine.");

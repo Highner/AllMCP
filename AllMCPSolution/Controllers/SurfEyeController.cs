@@ -228,7 +228,7 @@ public class SurfEyeController: WineSurferControllerBase
         var parts = new List<ChatMessageContentPart>
         {
             ChatMessageContentPart.CreateTextPart(prompt),
-            ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(imageBytes), normalizedContentType, ChatImageDetailLevel.High)
+            //ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(imageBytes), normalizedContentType, ChatImageDetailLevel.High)
         };
         if (!string.IsNullOrWhiteSpace(ocrText))
         {
@@ -253,7 +253,7 @@ public class SurfEyeController: WineSurferControllerBase
         {
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new SurfEyeAnalysisError("Surf Eye is not configured."));
         }
-        catch (ClientResultException)
+        catch (ClientResultException ex)
         {
             return StatusCode(StatusCodes.Status502BadGateway, new SurfEyeAnalysisError("We couldn't reach the Surf Eye analyst. Please try again."));
         }
