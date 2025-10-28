@@ -659,7 +659,7 @@ public partial class WineInventoryController : Controller
             return Challenge();
         }
 
-        if (!currentUserId.HasValue || currentUserId.Value == Guid.Empty)
+        if (currentUserId == Guid.Empty)
         {
             return Challenge();
         }
@@ -828,7 +828,7 @@ public partial class WineInventoryController : Controller
                         DrunkAt = null,
                         Price = null,
                         BottleLocationId = null,
-                        UserId = currentUserId.Value
+                        UserId = currentUserId
                     };
 
                     await _bottleRepository.AddAsync(bottle, cancellationToken);

@@ -324,8 +324,8 @@ public sealed class WineImportService : IWineImportService
                 return false;
             }
 
-            const double maxNameDistance = 0.2d;
-            const double maxHierarchyDistance = 0.15d;
+            const double maxNameDistance = 0.01d;
+            const double maxHierarchyDistance = 0.01d;
 
             bool MatchesImportRow(WineImportRow source, Wine candidate)
             {
