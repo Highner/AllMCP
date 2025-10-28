@@ -1534,30 +1534,6 @@
             {
                 <p class="auth-callout" role="status">Sign in from the menu to view your tasting history and personalize region scores.</p>
             }
-            <section class="taste-profile-summary" aria-label="Taste profile summary">
-                <div class="taste-profile-summary-header section-header">
-                    <h2 class="section-title">Taste profile</h2>
-                    @if (isAuthenticated)
-                    {
-                        <a class="sisterhood-button taste-profile-summary-action" href="@tasteProfileUrl">View taste profile</a>
-                    }
-                </div>
-                <div class="taste-profile-summary-card wine-card wine-surface wine-surface-border wine-surfer-card">
-                    <p class="taste-profile-summary-caption">Your palate at a glance</p>
-                    @if (!isAuthenticated)
-                    {
-                        <p class="taste-profile-summary-empty" role="status">Sign in to build your taste profile summary and unlock personalised surfing.</p>
-                    }
-                    else if (hasTasteProfileSummary)
-                    {
-                        <p class="taste-profile-summary-text">@tasteProfileSummary</p>
-                    }
-                    else
-                    {
-                        <p class="taste-profile-summary-empty" role="status">Add a taste profile summary on the <a href="@tasteProfileUrl">Taste Profile page</a> to guide your next recommendations.</p>
-                    }
-                </div>
-            </section>
             <div class="dashboard-columns">
                 <div class="dashboard-column dashboard-column--left">
                     <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
@@ -1663,6 +1639,30 @@
                     </section>
                 </div>
                 <div class="dashboard-column dashboard-column--right">
+                    <section class="taste-profile-summary" aria-label="Taste profile summary">
+                        <div class="taste-profile-summary-header section-header">
+                            <h2 class="section-title">Taste profile</h2>
+                            @if (isAuthenticated)
+                            {
+                                <a class="sisterhood-button taste-profile-summary-action" href="@tasteProfileUrl">View taste profile</a>
+                            }
+                        </div>
+                        <div class="taste-profile-summary-card wine-card wine-surface wine-surface-border wine-surfer-card">
+                            <p class="taste-profile-summary-caption">Your palate at a glance</p>
+                            @if (!isAuthenticated)
+                            {
+                                <p class="taste-profile-summary-empty" role="status">Sign in to build your taste profile summary and unlock personalised surfing.</p>
+                            }
+                            else if (hasTasteProfileSummary)
+                            {
+                                <p class="taste-profile-summary-text">@tasteProfileSummary</p>
+                            }
+                            else
+                            {
+                                <p class="taste-profile-summary-empty" role="status">Add a taste profile summary on the <a href="@tasteProfileUrl">Taste Profile page</a> to guide your next recommendations.</p>
+                            }
+                        </div>
+                    </section>
                     <section class="suggested-wines" aria-label="Suggested wines">
                         <div class="suggested-wines-header section-header">
                             <h2 class="section-title">Suggested sips</h2>
