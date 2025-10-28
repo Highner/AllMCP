@@ -1187,6 +1187,11 @@ a.wine-card:focus {
     color: #d8f8e4;
 }
 
+.import-preview__status[data-state="existing"] {
+    background: rgba(255, 193, 7, 0.24);
+    color: #ffe7a3;
+}
+
 .import-preview__row--added {
     opacity: 0.72;
 }
