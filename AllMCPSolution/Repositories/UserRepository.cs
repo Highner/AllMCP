@@ -27,6 +27,10 @@ public interface IUserRepository
         string? tasteProfileSummary,
         decimal? suggestionBudget,
         CancellationToken ct = default);
+    Task<ApplicationUser?> UpdateSuggestionBudgetAsync(
+        Guid id,
+        decimal? suggestionBudget,
+        CancellationToken ct = default);
     Task<TasteProfile?> AddGeneratedTasteProfileAsync(Guid id, string tasteProfile, string? tasteProfileSummary, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 }
@@ -346,6 +350,35 @@ public class UserRepository : IUserRepository
         var (normalizedProfile, normalizedSummary) = NormalizeTasteProfileValues(tasteProfile, tasteProfileSummary);
 
         ApplyManualTasteProfileUpdate(user, normalizedProfile, normalizedSummary, tasteProfileId);
+
+        user.SuggestionBudget = NormalizeSuggestionBudget(suggestionBudget);
+
+        NormalizeUser(user);
+
+        var result = await _userManager.UpdateAsync(user);
+        EnsureSucceeded(result, $"Failed to update user '{user.Id}'.");
+
+        return await _userManager.Users
+            .AsNoTracking()
+            .Include(u => u.TasteProfiles)
+            .FirstOrDefaultAsync(u => u.Id == id, ct);
+    }
+
+    public async Task<ApplicationUser?> UpdateSuggestionBudgetAsync(
+        Guid id,
+        decimal? suggestionBudget,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var user = await _userManager.Users
+            .Include(u => u.TasteProfiles)
+            .FirstOrDefaultAsync(u => u.Id == id, ct);
+
+        if (user is null)
+        {
+            return null;
+        }
 
         user.SuggestionBudget = NormalizeSuggestionBudget(suggestionBudget);
 
