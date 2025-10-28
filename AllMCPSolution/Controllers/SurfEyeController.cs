@@ -9,6 +9,7 @@ using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 
 namespace AllMCPSolution.Controllers;
@@ -23,6 +24,7 @@ public class SurfEyeController: WineSurferControllerBase
     private readonly IChatGptPromptService _chatGptPromptService;
     private readonly IChatGptService _chatGptService;
     private readonly IOcrService _ocrService;
+    private readonly string _surfEyeIdentifyModel;
 
     private const int SurfEyeMaxUploadBytes = 8 * 1024 * 1024;
     private static readonly string[] SurfEyeSupportedContentTypes = new[] { "image/jpeg", "image/png", "image/webp" };
@@ -40,6 +42,7 @@ public class SurfEyeController: WineSurferControllerBase
         IChatGptPromptService chatGptPromptService,
         IChatGptService chatGptService,
         IOcrService ocrService,
+        IOptions<ChatGptOptions> chatGptOptions,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _bottleLocationRepository = bottleLocationRepository;
@@ -48,6 +51,19 @@ public class SurfEyeController: WineSurferControllerBase
         _topBarService = topBarService;
         _chatGptService = chatGptService;
         _ocrService = ocrService;
+        if (chatGptOptions is null)
+        {
+            throw new ArgumentNullException(nameof(chatGptOptions));
+        }
+
+        var options = chatGptOptions.Value;
+        var fallbackModel = !string.IsNullOrWhiteSpace(options?.DefaultModel)
+            ? options!.DefaultModel!
+            : ChatGptOptions.FallbackModel;
+
+        _surfEyeIdentifyModel = string.IsNullOrWhiteSpace(options?.SmallModel)
+            ? fallbackModel
+            : options!.SmallModel!;
     }
     
     [Authorize]
@@ -89,7 +105,22 @@ public class SurfEyeController: WineSurferControllerBase
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(SurfEyeMaxUploadBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = SurfEyeMaxUploadBytes)]
-    public async Task<IActionResult> AnalyzeSurfEye([FromForm] SurfEyeAnalysisRequest request, CancellationToken cancellationToken)
+    public Task<IActionResult> AnalyzeSurfEye([FromForm] SurfEyeAnalysisRequest request, CancellationToken cancellationToken) =>
+        AnalyzeSurfEyeInternalAsync(request, allowTasteProfile: true, modelOverride: null, cancellationToken);
+
+    [Authorize]
+    [HttpPost("surf-eye/identify")]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(SurfEyeMaxUploadBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = SurfEyeMaxUploadBytes)]
+    public Task<IActionResult> IdentifySurfEye([FromForm] SurfEyeAnalysisRequest request, CancellationToken cancellationToken) =>
+        AnalyzeSurfEyeInternalAsync(request, allowTasteProfile: false, modelOverride: _surfEyeIdentifyModel, cancellationToken);
+
+    private async Task<IActionResult> AnalyzeSurfEyeInternalAsync(
+        SurfEyeAnalysisRequest request,
+        bool allowTasteProfile,
+        string? modelOverride,
+        CancellationToken cancellationToken)
     {
         if (request?.Photo is null || request.Photo.Length == 0)
         {
@@ -120,11 +151,19 @@ public class SurfEyeController: WineSurferControllerBase
         }
 
         var (activeSummary, activeProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(user);
-        var hasTasteProfile = !string.IsNullOrWhiteSpace(activeProfile);
-        var normalizedTasteProfile = hasTasteProfile ? activeProfile!.Trim() : null;
-        var tasteProfileSummary = hasTasteProfile && !string.IsNullOrWhiteSpace(activeSummary)
-            ? activeSummary!.Trim()
-            : null;
+        var userHasTasteProfile = !string.IsNullOrWhiteSpace(activeProfile);
+
+        string? normalizedTasteProfile = null;
+        string? tasteProfileSummary = null;
+        if (allowTasteProfile && userHasTasteProfile)
+        {
+            normalizedTasteProfile = activeProfile!.Trim();
+            tasteProfileSummary = !string.IsNullOrWhiteSpace(activeSummary)
+                ? activeSummary!.Trim()
+                : null;
+        }
+
+        var hasTasteProfile = normalizedTasteProfile is not null;
 
         byte[] imageBytes;
         await using (var stream = new MemoryStream())
@@ -142,11 +181,20 @@ public class SurfEyeController: WineSurferControllerBase
             ? "image/jpeg"
             : contentType!;
 
-        var prompt = hasTasteProfile
-            ? _chatGptPromptService.BuildSurfEyePrompt(tasteProfileSummary, normalizedTasteProfile!)
-            : _chatGptPromptService.BuildSurfEyePromptWithoutTasteProfile();
+        string prompt;
+        if (hasTasteProfile)
+        {
+            prompt = _chatGptPromptService.BuildSurfEyePrompt(tasteProfileSummary, normalizedTasteProfile!);
+        }
+        else if (allowTasteProfile)
+        {
+            prompt = _chatGptPromptService.BuildSurfEyePromptWithoutTasteProfile();
+        }
+        else
+        {
+            prompt = _chatGptPromptService.BuildSurfEyeIdentificationPrompt();
+        }
 
-        // Run OCR on the uploaded image using Azure Vision OCR service
         string? ocrText = null;
         double ocrElapsedMilliseconds = 0d;
         var ocrStopwatch = Stopwatch.StartNew();
@@ -163,9 +211,8 @@ public class SurfEyeController: WineSurferControllerBase
                 }
             }
         }
-        catch(Exception ex)
+        catch (Exception)
         {
-            // If OCR fails, proceed without it.
             ocrText = null;
         }
         finally
@@ -174,7 +221,6 @@ public class SurfEyeController: WineSurferControllerBase
             ocrElapsedMilliseconds = ocrStopwatch.Elapsed.TotalMilliseconds;
         }
 
-        // Compose the chat messages: system prompt, then user prompt with image and extracted text if available
         var parts = new List<ChatMessageContentPart>
         {
             ChatMessageContentPart.CreateTextPart(prompt),
@@ -196,17 +242,18 @@ public class SurfEyeController: WineSurferControllerBase
                     new SystemChatMessage(_chatGptPromptService.SurfEyeSystemPrompt),
                     new UserChatMessage(parts)
                 },
+                model: string.IsNullOrWhiteSpace(modelOverride) ? null : modelOverride,
                 ct: cancellationToken);
         }
         catch (ChatGptServiceNotConfiguredException)
         {
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new SurfEyeAnalysisError("Surf Eye is not configured."));
         }
-        catch (ClientResultException ex)
+        catch (ClientResultException)
         {
             return StatusCode(StatusCodes.Status502BadGateway, new SurfEyeAnalysisError("We couldn't reach the Surf Eye analyst. Please try again."));
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, new SurfEyeAnalysisError("We couldn't analyze that photo right now. Please try again."));
         }
