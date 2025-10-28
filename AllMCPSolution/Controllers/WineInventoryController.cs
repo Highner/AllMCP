@@ -875,6 +875,8 @@ public partial class WineInventoryController : Controller
 
             Region? existingRegion = null;
             Country? existingCountry = null;
+            Region? regionEntity = null;
+            Country? countryEntity = null;
 
             if (trimmedRegion is not null)
             {
@@ -909,6 +911,44 @@ public partial class WineInventoryController : Controller
                 viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
                 viewModel.BottleUpload.UploadedFileName = file.FileName;
                 return;
+            }
+
+            if (trimmedCountry is not null)
+            {
+                countryEntity = existingCountry
+                    ?? await _countryRepository.FindByNameAsync(trimmedCountry, cancellationToken)
+                    ?? await _countryRepository.GetOrCreateAsync(trimmedCountry, cancellationToken);
+            }
+            else if (existingCountry is not null)
+            {
+                countryEntity = existingCountry;
+            }
+
+            if (trimmedRegion is not null)
+            {
+                if (existingRegion is not null)
+                {
+                    regionEntity = existingRegion;
+                }
+                else if (countryEntity is not null)
+                {
+                    regionEntity = await _regionRepository
+                        .FindByNameAndCountryAsync(trimmedRegion, countryEntity.Id, cancellationToken)
+                        ?? await _regionRepository.GetOrCreateAsync(trimmedRegion, countryEntity, cancellationToken);
+                }
+                else
+                {
+                    regionEntity = await _regionRepository.FindByNameAsync(trimmedRegion, cancellationToken);
+                }
+            }
+
+            countryEntity ??= existingCountry;
+            regionEntity ??= existingRegion;
+
+            if (viewModel.BottleUpload.SelectedCountry is null
+                && !string.IsNullOrWhiteSpace(countryEntity?.Name))
+            {
+                viewModel.BottleUpload.SelectedCountry = countryEntity!.Name;
             }
 
             if (parseResult.Wines.Count == 0)
@@ -1031,10 +1071,10 @@ public partial class WineInventoryController : Controller
                 }
 
                 Appellation? existingAppellation = null;
-                if (existingRegion is not null && !string.IsNullOrWhiteSpace(wine.Appellation))
+                if (regionEntity is not null && !string.IsNullOrWhiteSpace(wine.Appellation))
                 {
                     existingAppellation = await _appellationRepository
-                        .FindByNameAndRegionAsync(wine.Appellation.Trim(), existingRegion.Id, cancellationToken);
+                        .FindByNameAndRegionAsync(wine.Appellation.Trim(), regionEntity.Id, cancellationToken);
                 }
 
                 var matches = await _wineRepository.FindClosestMatchesAsync(wine.Name, 5, cancellationToken);
