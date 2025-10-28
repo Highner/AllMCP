@@ -183,7 +183,8 @@
                                     <th scope="col">Row</th>
                                     <th scope="col">Wine</th>
                                     <th scope="col">Appellation</th>
-                                    <th scope="col">Region &amp; Country</th>
+                                    <th scope="col">Region</th>
+                                    <th scope="col">Country</th>
                                     <th scope="col">Color</th>
                                     <th scope="col">Amount</th>
                                     <th scope="col">Status</th>
@@ -197,9 +198,18 @@
                                     var hasAppellation = !string.IsNullOrWhiteSpace(row.Appellation) || !string.IsNullOrWhiteSpace(row.SubAppellation);
                                     var hasRegion = !string.IsNullOrWhiteSpace(row.Region);
                                     var hasCountry = !string.IsNullOrWhiteSpace(row.Country);
-                                    var wineCellClass = "import-preview__cell import-preview__cell--wine" + (row.WineExists ? " import-preview__cell--match" : string.Empty);
-                                    var appellationCellClass = "import-preview__cell import-preview__cell--appellation" + (row.AppellationExists ? " import-preview__cell--match" : string.Empty);
-                                    var regionCellClass = "import-preview__cell import-preview__cell--region" + (row.RegionExists ? " import-preview__cell--match" : string.Empty);
+                                    var wineCellClass = row.WineExists
+                                        ? "import-preview__cell import-preview__cell--wine import-preview__cell--match"
+                                        : "import-preview__cell import-preview__cell--wine";
+                                    var appellationCellClass = row.AppellationExists
+                                        ? "import-preview__cell import-preview__cell--appellation import-preview__cell--match"
+                                        : "import-preview__cell import-preview__cell--appellation";
+                                    var regionCellClass = row.RegionExists
+                                        ? "import-preview__cell import-preview__cell--region import-preview__cell--match"
+                                        : "import-preview__cell import-preview__cell--region";
+                                    var countryCellClass = row.CountryExists
+                                        ? "import-preview__cell import-preview__cell--country import-preview__cell--match"
+                                        : "import-preview__cell import-preview__cell--country";
                                     var buttonAriaLabel = string.IsNullOrWhiteSpace(row.Name)
                                         ? "Create wine in catalog"
                                         : $"Create {row.Name} in catalog";
@@ -234,16 +244,9 @@
                                             }
                                         </td>
                                         <td class="@regionCellClass">
-                                            @if (hasRegion || hasCountry)
+                                            @if (hasRegion)
                                             {
-                                                @if (hasRegion)
-                                                {
-                                                    <span>@row.Region</span>
-                                                }
-                                                @if (hasCountry)
-                                                {
-                                                    <span class="import-preview__meta">@row.Country</span>
-                                                }
+                                                <span>@row.Region</span>
                                             }
                                             else
                                             {
@@ -252,6 +255,20 @@
                                             @if (row.RegionExists)
                                             {
                                                 <span class="sr-only">Region already exists in catalog.</span>
+                                            }
+                                        </td>
+                                        <td class="@countryCellClass">
+                                            @if (hasCountry)
+                                            {
+                                                <span>@row.Country</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="import-preview__meta">—</span>
+                                            }
+                                            @if (row.CountryExists)
+                                            {
+                                                <span class="sr-only">Country already exists in catalog.</span>
                                             }
                                         </td>
                                         <td class="import-preview__cell import-preview__cell--color">@(!string.IsNullOrWhiteSpace(row.Color) ? row.Color : "—")</td>
