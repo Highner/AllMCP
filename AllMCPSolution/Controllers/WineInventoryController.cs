@@ -976,12 +976,6 @@ public partial class WineInventoryController : Controller
                         existingRow.Appellation = wine.Appellation;
                     }
 
-                    if (string.IsNullOrWhiteSpace(existingRow.SubAppellation)
-                        && !string.IsNullOrWhiteSpace(wine.Variety))
-                    {
-                        existingRow.SubAppellation = wine.Variety ?? string.Empty;
-                    }
-
                     if (string.IsNullOrWhiteSpace(existingRow.GrapeVariety)
                         && !string.IsNullOrWhiteSpace(wine.Variety))
                     {
@@ -1015,7 +1009,7 @@ public partial class WineInventoryController : Controller
                     Country = countryText,
                     Region = regionText,
                     Appellation = wine.Appellation,
-                    SubAppellation = wine.Variety,
+                    SubAppellation = string.Empty,
                     GrapeVariety = wine.Variety ?? string.Empty,
                     Color = colorText,
                     Amount = 1,
