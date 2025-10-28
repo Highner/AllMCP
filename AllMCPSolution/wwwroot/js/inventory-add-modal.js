@@ -272,17 +272,22 @@
             }
 
             event.preventDefault();
-            const context = buildContextFromTrigger(trigger);
+        const context = buildContextFromTrigger(trigger);
 
-            openModalWithStatus(context).catch(() => { /* handled via showStatus */ });
-        };
+        if (context?.source === 'import-preview') {
+            openCreateWineFromImport(trigger, context);
+            return;
+        }
 
-        document.addEventListener('click', handleTriggerClick);
+        openModalWithStatus(context).catch(() => { /* handled via showStatus */ });
+    };
 
-        function buildContextFromTrigger(trigger) {
-            if (!trigger || !trigger.dataset) {
-                return null;
-            }
+    document.addEventListener('click', handleTriggerClick);
+
+    function buildContextFromTrigger(trigger) {
+        if (!trigger || !trigger.dataset) {
+            return null;
+        }
 
             const dataset = trigger.dataset;
             return normalizeContext({
@@ -299,6 +304,38 @@
                 variety: dataset.wineVariety,
                 vintage: dataset.wineVintage
             });
+        }
+
+        function openCreateWineFromImport(trigger, context) {
+            const module = window.WineCreatePopover;
+            if (!module || typeof module.open !== 'function') {
+                showStatus('Unable to open the create wine dialog right now.', 'error');
+                return;
+            }
+
+            const options = {
+                initialName: context?.name ?? '',
+                initialColor: context?.color ?? '',
+                initialCountry: context?.country ?? '',
+                initialRegion: context?.region ?? '',
+                initialAppellation: context?.appellation ?? '',
+                initialSubAppellation: context?.subAppellation ?? '',
+                parentDialog: null,
+                triggerElement: trigger instanceof HTMLElement ? trigger : null,
+                onSuccess: (response) => {
+                    const detail = {
+                        rowId: context?.rowId ?? '',
+                        context,
+                        wine: response ?? null
+                    };
+                    document.dispatchEvent(new CustomEvent('wineImportPreview:wineCreated', { detail }));
+                }
+            };
+
+            const opened = module.open(options);
+            if (!opened) {
+                showStatus('Unable to open the create wine dialog right now.', 'error');
+            }
         }
 
         const bindClose = (element) => {
@@ -2643,7 +2680,11 @@
         state.open = true;
         state.onSuccess = typeof options.onSuccess === 'function' ? options.onSuccess : null;
         state.onCancel = typeof options.onCancel === 'function' ? options.onCancel : null;
-        state.parentDialog = options.parentDialog instanceof HTMLElement ? options.parentDialog : document.getElementById('inventory-add-popover');
+        if (Object.prototype.hasOwnProperty.call(options, 'parentDialog')) {
+            state.parentDialog = options.parentDialog instanceof HTMLElement ? options.parentDialog : null;
+        } else {
+            state.parentDialog = document.getElementById('inventory-add-popover');
+        }
         state.triggerElement = options.triggerElement instanceof HTMLElement
             ? options.triggerElement
             : (document.activeElement instanceof HTMLElement ? document.activeElement : null);
@@ -2672,6 +2713,50 @@
                     // ignore selection errors
                 }
             }, 0);
+        }
+
+        const initialColor = typeof options.initialColor === 'string'
+            ? options.initialColor.trim()
+            : '';
+        if (state.colorSelect && initialColor) {
+            const normalizedColor = initialColor.toLowerCase();
+            const matchedOption = Array.from(state.colorSelect.options || []).find(option =>
+                option.value && option.value.toLowerCase() === normalizedColor);
+            if (matchedOption) {
+                state.colorSelect.value = matchedOption.value;
+            }
+        }
+
+        const initialCountry = typeof options.initialCountry === 'string'
+            ? options.initialCountry.trim()
+            : '';
+        if (initialCountry) {
+            state.countryField?.setValue?.(initialCountry);
+            selections.country = { id: null, name: initialCountry };
+        }
+
+        const initialRegion = typeof options.initialRegion === 'string'
+            ? options.initialRegion.trim()
+            : '';
+        if (initialRegion) {
+            state.regionField?.setValue?.(initialRegion);
+            selections.region = { id: null, name: initialRegion };
+        }
+
+        const initialAppellation = typeof options.initialAppellation === 'string'
+            ? options.initialAppellation.trim()
+            : '';
+        if (initialAppellation) {
+            state.appellationField?.setValue?.(initialAppellation);
+            selections.appellation = { id: null, name: initialAppellation };
+        }
+
+        const initialSubAppellation = typeof options.initialSubAppellation === 'string'
+            ? options.initialSubAppellation.trim()
+            : '';
+        if (initialSubAppellation) {
+            state.subAppellationField?.setValue?.(initialSubAppellation);
+            selections.subAppellation = { id: null, name: initialSubAppellation, isBlank: false };
         }
 
         return true;

@@ -223,6 +223,109 @@ public sealed class WineImportService : IWineImportService
 
         var preview = new WineImportPreviewResult();
         var rowNumber = 1;
+        var wineExistenceCache = new Dictionary<string, bool>();
+        var countryCache = new Dictionary<string, Country?>(StringComparer.OrdinalIgnoreCase);
+        var regionCache = new Dictionary<string, Region?>(StringComparer.OrdinalIgnoreCase);
+        var appellationCache = new Dictionary<string, bool>();
+
+        static string NormalizeKey(string? value) => string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : value.Trim().ToLowerInvariant();
+
+        static string CreateKey(params string?[] parts)
+        {
+            const char separator = '\u001F';
+            return string.Join(separator, parts.Select(NormalizeKey));
+        }
+
+        async Task<Country?> GetCountryAsync(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return null;
+            }
+
+            var key = NormalizeKey(name);
+            if (countryCache.TryGetValue(key, out var cached))
+            {
+                return cached;
+            }
+
+            var country = await _countryRepository.FindByNameAsync(name, cancellationToken);
+            countryCache[key] = country;
+            return country;
+        }
+
+        async Task<(bool Exists, Region? Region)> GetRegionAsync(string? countryName, string regionName)
+        {
+            var key = CreateKey(countryName, regionName);
+            if (regionCache.TryGetValue(key, out var cachedRegion))
+            {
+                return (cachedRegion is not null, cachedRegion);
+            }
+
+            Region? region = null;
+
+            if (!string.IsNullOrWhiteSpace(regionName))
+            {
+                if (!string.IsNullOrWhiteSpace(countryName))
+                {
+                    var country = await GetCountryAsync(countryName);
+                    if (country is not null)
+                    {
+                        region = await _regionRepository.FindByNameAndCountryAsync(
+                            regionName,
+                            country.Id,
+                            cancellationToken);
+                    }
+                }
+
+                region ??= await _regionRepository.FindByNameAsync(regionName, cancellationToken);
+            }
+
+            regionCache[key] = region;
+            return (region is not null, region);
+        }
+
+        async Task<bool> GetAppellationExistsAsync(Region? region, string appellationName)
+        {
+            if (region is null || string.IsNullOrWhiteSpace(appellationName))
+            {
+                return false;
+            }
+
+            var key = CreateKey(region.Id.ToString(), appellationName);
+            if (appellationCache.TryGetValue(key, out var cached))
+            {
+                return cached;
+            }
+
+            var appellation = await _appellationRepository.FindByNameAndRegionAsync(
+                appellationName,
+                region.Id,
+                cancellationToken);
+            var exists = appellation is not null;
+            appellationCache[key] = exists;
+            return exists;
+        }
+
+        async Task<bool> GetWineExistsAsync(WineImportRow row)
+        {
+            var key = CreateKey(row.Name, row.SubAppellation, row.Appellation);
+            if (wineExistenceCache.TryGetValue(key, out var cached))
+            {
+                return cached;
+            }
+
+            var wine = await _wineRepository.FindByNameAsync(
+                row.Name ?? string.Empty,
+                row.SubAppellation,
+                row.Appellation,
+                cancellationToken);
+            var exists = wine is not null;
+            wineExistenceCache[key] = exists;
+            return exists;
+        }
 
         while (reader.Read())
         {
@@ -256,6 +359,10 @@ public sealed class WineImportService : IWineImportService
                 continue;
             }
 
+            var wineExists = await GetWineExistsAsync(row);
+            var (regionExists, region) = await GetRegionAsync(row.Country, row.Region ?? string.Empty);
+            var appellationExists = await GetAppellationExistsAsync(region, row.Appellation ?? string.Empty);
+
             preview.Rows.Add(new WineImportPreviewRow
             {
                 RowNumber = rowNumber,
@@ -265,7 +372,10 @@ public sealed class WineImportService : IWineImportService
                 Appellation = row.Appellation ?? string.Empty,
                 SubAppellation = row.SubAppellation ?? string.Empty,
                 Color = color.ToString(),
-                Amount = amount
+                Amount = amount,
+                WineExists = wineExists,
+                RegionExists = regionExists,
+                AppellationExists = appellationExists
             });
         }
 
@@ -717,4 +827,7 @@ public sealed class WineImportPreviewRow
     public string SubAppellation { get; set; } = string.Empty;
     public string Color { get; set; } = string.Empty;
     public int Amount { get; set; }
+    public bool WineExists { get; set; }
+    public bool RegionExists { get; set; }
+    public bool AppellationExists { get; set; }
 }

@@ -454,7 +454,10 @@ public class WineInventoryController : Controller
                     Appellation = row.Appellation,
                     SubAppellation = row.SubAppellation,
                     Color = row.Color,
-                    Amount = row.Amount
+                    Amount = row.Amount,
+                    WineExists = row.WineExists,
+                    RegionExists = row.RegionExists,
+                    AppellationExists = row.AppellationExists
                 })
                 .ToList();
         }
@@ -542,7 +545,10 @@ public class WineInventoryController : Controller
                     Appellation = producer.Appellation,
                     SubAppellation = string.Empty,
                     Color = string.Empty,
-                    Amount = 1
+                    Amount = 1,
+                    WineExists = false,
+                    RegionExists = false,
+                    AppellationExists = false
                 })
                 .ToList();
 
@@ -2321,6 +2327,9 @@ public class WineInventoryViewModel
         public string SubAppellation { get; set; } = string.Empty;
         public string Color { get; set; } = string.Empty;
         public int Amount { get; set; }
+        public bool WineExists { get; set; }
+        public bool RegionExists { get; set; }
+        public bool AppellationExists { get; set; }
     }
 
     public class BottleNotesResponse

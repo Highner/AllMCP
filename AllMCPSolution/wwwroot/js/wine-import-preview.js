@@ -7,7 +7,7 @@
         }
     }
 
-    function markRowAsAdded(row) {
+    function markRowAsAdded(row, options = {}) {
         if (!row || row.dataset.importPreviewState === 'added') {
             return;
         }
@@ -17,14 +17,23 @@
 
         const status = row.querySelector('[data-import-preview-status]');
         if (status) {
-            status.textContent = 'Added';
+            const statusText = typeof options.statusText === 'string' && options.statusText.trim().length > 0
+                ? options.statusText
+                : 'Added';
+            const ariaLabel = typeof options.ariaLabel === 'string' && options.ariaLabel.trim().length > 0
+                ? options.ariaLabel
+                : 'Row added to inventory';
+            status.textContent = statusText;
             status.dataset.state = 'added';
-            status.setAttribute('aria-label', 'Row added to inventory');
+            status.setAttribute('aria-label', ariaLabel);
         }
 
         const button = row.querySelector('[data-import-preview-add]');
         if (button) {
-            button.textContent = 'Added';
+            const buttonText = typeof options.buttonText === 'string' && options.buttonText.trim().length > 0
+                ? options.buttonText
+                : 'Added';
+            button.textContent = buttonText;
             button.classList.add('import-preview__action-button--added');
             button.disabled = true;
             button.setAttribute('aria-disabled', 'true');
@@ -55,6 +64,30 @@
             }
 
             markRowAsAdded(row);
+        });
+
+        document.addEventListener('wineImportPreview:wineCreated', event => {
+            const detail = event?.detail;
+            if (!detail) {
+                return;
+            }
+
+            const rowId = detail?.rowId || detail?.context?.rowId;
+            if (!rowId) {
+                return;
+            }
+
+            const selector = `[data-import-preview-row="${rowId}"]`;
+            const row = table.querySelector(selector);
+            if (!row) {
+                return;
+            }
+
+            markRowAsAdded(row, {
+                statusText: 'Created',
+                buttonText: 'Created',
+                ariaLabel: 'Wine created from import preview row'
+            });
         });
     });
 })();
