@@ -317,12 +317,52 @@ public sealed class WineImportService : IWineImportService
                 return cached;
             }
 
-            var wine = await _wineRepository.FindByNameAsync(
-                row.Name ?? string.Empty,
-                row.SubAppellation,
-                row.Appellation,
+            if (string.IsNullOrWhiteSpace(row.Name))
+            {
+                wineExistenceCache[key] = false;
+                return false;
+            }
+
+            static bool EqualsNormalized(string? left, string? right)
+            {
+                if (string.IsNullOrWhiteSpace(left) && string.IsNullOrWhiteSpace(right))
+                {
+                    return true;
+                }
+
+                return string.Equals(left?.Trim(), right?.Trim(), StringComparison.OrdinalIgnoreCase);
+            }
+
+            static bool MatchesImportRow(WineImportRow source, Wine candidate)
+            {
+                if (!EqualsNormalized(candidate.Name, source.Name))
+                {
+                    return false;
+                }
+
+                if (!string.IsNullOrWhiteSpace(source.SubAppellation))
+                {
+                    return candidate.SubAppellation is not null
+                        && EqualsNormalized(candidate.SubAppellation.Name, source.SubAppellation);
+                }
+
+                if (!string.IsNullOrWhiteSpace(source.Appellation))
+                {
+                    return candidate.SubAppellation?.Appellation is not null
+                        && EqualsNormalized(
+                            candidate.SubAppellation.Appellation.Name,
+                            source.Appellation);
+                }
+
+                return true;
+            }
+
+            var matches = await _wineRepository.FindClosestMatchesAsync(
+                row.Name!,
+                maxResults: 5,
                 cancellationToken);
-            var exists = wine is not null;
+
+            var exists = matches.Any(match => MatchesImportRow(row, match));
             wineExistenceCache[key] = exists;
             return exists;
         }
