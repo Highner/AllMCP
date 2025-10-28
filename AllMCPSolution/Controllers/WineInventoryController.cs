@@ -584,7 +584,10 @@ public partial class WineInventoryController : Controller
                                 resultEntry.CountryCreated = true;
                             }
 
-                            ensuredCountries[country] = ensuredCountry;
+                            if (ensuredCountry is not null)
+                            {
+                                ensuredCountries[country] = ensuredCountry;
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -635,6 +638,212 @@ public partial class WineInventoryController : Controller
             catch (Exception ex)
             {
                 resultEntry.Error = $"Unable to import wine: {ex.Message}";
+                response.Rows.Add(resultEntry);
+                response.Failed++;
+                continue;
+            }
+
+            response.Rows.Add(resultEntry);
+        }
+
+        return Json(response);
+    }
+
+    [HttpPost("import/cellartracker/inventory")]
+    public async Task<IActionResult> ImportCellarTrackerInventory(
+        [FromBody] ImportCellarTrackerInventoryRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        if (!currentUserId.HasValue || currentUserId.Value == Guid.Empty)
+        {
+            return Challenge();
+        }
+
+        if (request?.Rows is null || request.Rows.Count == 0)
+        {
+            return BadRequest(new { message = "No rows were provided for inventory import." });
+        }
+
+        var response = new ImportCellarTrackerInventoryResponse
+        {
+            TotalRequested = request.Rows.Count
+        };
+
+        var ensuredCountries = new Dictionary<string, Country>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in request.Rows)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var resultEntry = new ImportCellarTrackerInventoryRowResult
+            {
+                RowId = row?.RowId ?? string.Empty,
+                RowNumber = row?.RowNumber ?? 0
+            };
+
+            if (row is null)
+            {
+                resultEntry.Error = "Row data is missing.";
+                response.Rows.Add(resultEntry);
+                response.Errors.Add("Encountered an empty row while importing inventory.");
+                response.Failed++;
+                continue;
+            }
+
+            var missingFields = new List<string>();
+
+            var name = row.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                missingFields.Add("Name");
+            }
+
+            var color = row.Color?.Trim();
+            if (string.IsNullOrWhiteSpace(color))
+            {
+                missingFields.Add("Color");
+            }
+
+            var region = row.Region?.Trim();
+            if (string.IsNullOrWhiteSpace(region))
+            {
+                missingFields.Add("Region");
+            }
+
+            var appellation = row.Appellation?.Trim();
+            if (string.IsNullOrWhiteSpace(appellation))
+            {
+                missingFields.Add("Appellation");
+            }
+
+            var vintage = row.Vintage;
+            if (!vintage.HasValue)
+            {
+                missingFields.Add("Vintage");
+            }
+
+            var quantity = row.Quantity;
+            if (quantity <= 0)
+            {
+                missingFields.Add("Quantity");
+            }
+
+            if (missingFields.Count > 0)
+            {
+                resultEntry.Error = $"Missing required fields: {string.Join(", ", missingFields)}.";
+                response.Rows.Add(resultEntry);
+                response.Failed++;
+                continue;
+            }
+
+            try
+            {
+                Country? ensuredCountry = null;
+                var country = row.Country?.Trim();
+                if (!string.IsNullOrWhiteSpace(country))
+                {
+                    if (!ensuredCountries.TryGetValue(country, out ensuredCountry))
+                    {
+                        try
+                        {
+                            var existingCountry = await _countryRepository.FindByNameAsync(country, cancellationToken);
+                            if (existingCountry is not null)
+                            {
+                                ensuredCountry = existingCountry;
+                            }
+                            else
+                            {
+                                ensuredCountry = await _countryRepository.GetOrCreateAsync(country, cancellationToken);
+                                response.CreatedCountries++;
+                                resultEntry.CountryCreated = true;
+                            }
+
+                            if (ensuredCountry is not null)
+                            {
+                                ensuredCountries[country] = ensuredCountry;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            resultEntry.Error = $"Unable to ensure country '{country}': {ex.Message}";
+                            response.Rows.Add(resultEntry);
+                            response.Failed++;
+                            continue;
+                        }
+                    }
+                }
+
+                var catalogRequest = new WineCatalogRequest(
+                    name!,
+                    color!,
+                    ensuredCountry?.Name ?? row.Country,
+                    region!,
+                    appellation!,
+                    row.SubAppellation,
+                    row.GrapeVariety);
+
+                var catalogResult = await _wineCatalogService.EnsureWineAsync(catalogRequest, cancellationToken);
+
+                if (!catalogResult.IsSuccess || catalogResult.Wine is null)
+                {
+                    var formattedError = FormatCatalogErrors(catalogResult.Errors)
+                                        ?? "Unable to add wine to the catalog.";
+                    resultEntry.Error = formattedError;
+                    response.Rows.Add(resultEntry);
+                    response.Failed++;
+                    continue;
+                }
+
+                var wine = catalogResult.Wine;
+                if (catalogResult.Created)
+                {
+                    resultEntry.WineCreated = true;
+                    response.WinesCreated++;
+                }
+                else
+                {
+                    resultEntry.WineAlreadyExisted = true;
+                    response.WinesAlreadyExisting++;
+                }
+
+                var vintageValue = vintage!.Value;
+                var wineVintage = await _wineVintageRepository.GetOrCreateAsync(wine.Id, vintageValue, cancellationToken);
+                resultEntry.WineId = wine.Id;
+                resultEntry.WineVintageId = wineVintage.Id;
+
+                for (var i = 0; i < quantity; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var bottle = new Bottle
+                    {
+                        Id = Guid.NewGuid(),
+                        WineVintageId = wineVintage.Id,
+                        IsDrunk = false,
+                        DrunkAt = null,
+                        Price = null,
+                        BottleLocationId = null,
+                        UserId = currentUserId.Value
+                    };
+
+                    await _bottleRepository.AddAsync(bottle, cancellationToken);
+                }
+
+                resultEntry.BottlesAdded = quantity;
+                response.BottlesAdded += quantity;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                resultEntry.Error = $"Unable to add bottles: {ex.Message}";
                 response.Rows.Add(resultEntry);
                 response.Failed++;
                 continue;
@@ -1003,70 +1212,14 @@ public partial class WineInventoryController : Controller
                 return true;
             }
 
-            static string CreateDuplicateKey(string value)
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                {
-                    return string.Empty;
-                }
-
-                var trimmed = value.Trim();
-                var buffer = trimmed.ToCharArray();
-                var writeIndex = 0;
-                var lastWasWhitespace = false;
-
-                for (var index = 0; index < buffer.Length; index++)
-                {
-                    var current = buffer[index];
-                    if (char.IsWhiteSpace(current))
-                    {
-                        if (lastWasWhitespace)
-                        {
-                            continue;
-                        }
-
-                        buffer[writeIndex++] = ' ';
-                        lastWasWhitespace = true;
-                    }
-                    else
-                    {
-                        buffer[writeIndex++] = char.ToUpperInvariant(current);
-                        lastWasWhitespace = false;
-                    }
-                }
-
-                return new string(buffer, 0, writeIndex);
-            }
-
             var rows = new List<WineImportPreviewRowViewModel>();
-            var rowsByName = new Dictionary<string, WineImportPreviewRowViewModel>(StringComparer.OrdinalIgnoreCase);
 
             for (var i = 0; i < parseResult.Wines.Count; i++)
             {
                 var wine = parseResult.Wines[i];
-
-                var duplicateKey = CreateDuplicateKey(wine.Name ?? string.Empty);
-                if (string.IsNullOrEmpty(duplicateKey))
+                var trimmedName = wine.Name?.Trim();
+                if (string.IsNullOrWhiteSpace(trimmedName))
                 {
-                    continue;
-                }
-
-                if (rowsByName.TryGetValue(duplicateKey, out var existingRow))
-                {
-                    existingRow.Amount++;
-
-                    if (string.IsNullOrWhiteSpace(existingRow.Appellation)
-                        && !string.IsNullOrWhiteSpace(wine.Appellation))
-                    {
-                        existingRow.Appellation = wine.Appellation;
-                    }
-
-                    if (string.IsNullOrWhiteSpace(existingRow.GrapeVariety)
-                        && !string.IsNullOrWhiteSpace(wine.Variety))
-                    {
-                        existingRow.GrapeVariety = wine.Variety ?? string.Empty;
-                    }
-
                     continue;
                 }
 
@@ -1077,7 +1230,7 @@ public partial class WineInventoryController : Controller
                         .FindByNameAndRegionAsync(wine.Appellation.Trim(), regionEntity.Id, cancellationToken);
                 }
 
-                var matches = await _wineRepository.FindClosestMatchesAsync(wine.Name, 5, cancellationToken);
+                var matches = await _wineRepository.FindClosestMatchesAsync(trimmedName, 5, cancellationToken);
                 var wineExists = matches.Any(candidate => MatchesImportRow(wine, candidate));
 
                 var regionText = trimmedRegion ?? string.Empty;
@@ -1090,22 +1243,23 @@ public partial class WineInventoryController : Controller
                 {
                     RowId = $"cellar-{rowNumber}",
                     RowNumber = rowNumber,
-                    Name = wine.Name,
+                    Name = trimmedName,
                     Country = countryText,
                     Region = regionText,
                     Appellation = wine.Appellation,
                     SubAppellation = string.Empty,
                     GrapeVariety = wine.Variety ?? string.Empty,
                     Color = colorText,
-                    Amount = 1,
+                    Amount = wine.Quantity > 0 ? wine.Quantity : 1,
                     WineExists = wineExists,
                     CountryExists = existingCountry is not null,
                     RegionExists = existingRegion is not null,
-                    AppellationExists = existingAppellation is not null
+                    AppellationExists = existingAppellation is not null,
+                    Vintage = wine.Vintage,
+                    HasBottleDetails = wine.HasBottleDetails
                 };
 
                 rows.Add(row);
-                rowsByName[duplicateKey] = row;
             }
 
             viewModel.BottleUpload.Errors = Array.Empty<string>();
@@ -2836,6 +2990,52 @@ public class WineInventoryViewModel
         public string? Error { get; set; }
     }
 
+    public class ImportCellarTrackerInventoryRequest
+    {
+        public IReadOnlyList<ImportCellarTrackerInventoryRowRequest> Rows { get; set; } =
+            Array.Empty<ImportCellarTrackerInventoryRowRequest>();
+    }
+
+    public class ImportCellarTrackerInventoryRowRequest
+    {
+        public string RowId { get; set; } = string.Empty;
+        public int RowNumber { get; set; }
+        public string? Name { get; set; }
+        public string? Country { get; set; }
+        public string? Region { get; set; }
+        public string? Appellation { get; set; }
+        public string? SubAppellation { get; set; }
+        public string? Color { get; set; }
+        public string? GrapeVariety { get; set; }
+        public int? Vintage { get; set; }
+        public int Quantity { get; set; }
+    }
+
+    public class ImportCellarTrackerInventoryResponse
+    {
+        public int TotalRequested { get; set; }
+        public int WinesCreated { get; set; }
+        public int WinesAlreadyExisting { get; set; }
+        public int BottlesAdded { get; set; }
+        public int Failed { get; set; }
+        public int CreatedCountries { get; set; }
+        public List<ImportCellarTrackerInventoryRowResult> Rows { get; } = [];
+        public List<string> Errors { get; } = [];
+    }
+
+    public class ImportCellarTrackerInventoryRowResult
+    {
+        public string RowId { get; set; } = string.Empty;
+        public int RowNumber { get; set; }
+        public bool WineCreated { get; set; }
+        public bool WineAlreadyExisted { get; set; }
+        public bool CountryCreated { get; set; }
+        public int BottlesAdded { get; set; }
+        public Guid? WineId { get; set; }
+        public Guid? WineVintageId { get; set; }
+        public string? Error { get; set; }
+    }
+
     public class WineCountrySuggestion
     {
         public Guid Id { get; set; }
@@ -2964,6 +3164,9 @@ public class WineInventoryViewModel
         public bool CountryExists { get; set; }
         public bool RegionExists { get; set; }
         public bool AppellationExists { get; set; }
+        public int? Vintage { get; set; }
+        public bool HasBottleDetails { get; set; }
+        public bool CanCreateInventory => HasBottleDetails && Vintage.HasValue && Amount > 0;
     }
 
     public class BottleNotesResponse
