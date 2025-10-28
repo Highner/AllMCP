@@ -1,6 +1,7 @@
 using System.ClientModel;
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
 using AllMCPSolution.Utilities;
@@ -355,6 +356,8 @@ public class SurfEyeController: WineSurferControllerBase
         }
     }
 
+    private static readonly Regex SurfEyeTokenSplitRegex = new("[\\s\\p{P}]+", RegexOptions.Compiled);
+
     private async Task<IReadOnlyList<SurfEyeWineMatch>> ResolveSurfEyeMatchesAsync(
         IReadOnlyList<SurfEyeWineMatch> matches,
         CancellationToken cancellationToken)
@@ -373,10 +376,7 @@ public class SurfEyeController: WineSurferControllerBase
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(match.Name)
-                || string.IsNullOrWhiteSpace(match.Region)
-                || string.IsNullOrWhiteSpace(match.Appellation)
-                || string.IsNullOrWhiteSpace(match.Color))
+            if (string.IsNullOrWhiteSpace(match.Name))
             {
                 persisted.Add(match);
                 continue;
@@ -397,6 +397,15 @@ public class SurfEyeController: WineSurferControllerBase
                         null,
                         match.Appellation,
                         cancellationToken);
+                }
+
+                if (existing is null)
+                {
+                    var fuzzyCandidates = await FindFuzzyCandidatesAsync(match, cancellationToken);
+                    if (fuzzyCandidates.Count > 0)
+                    {
+                        existing = PickBestFuzzyMatch(match, fuzzyCandidates);
+                    }
                 }
 
                 if (existing is null)
@@ -432,6 +441,214 @@ public class SurfEyeController: WineSurferControllerBase
         }
 
         return persisted;
+    }
+
+    private async Task<IReadOnlyList<Wine>> FindFuzzyCandidatesAsync(
+        SurfEyeWineMatch match,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(match?.Name))
+        {
+            return Array.Empty<Wine>();
+        }
+
+        var queries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var normalizedName = match.Name!.Trim();
+        if (normalizedName.Length > 0)
+        {
+            queries.Add(normalizedName);
+        }
+
+        foreach (var token in ExtractSignificantTokens(match.Name!))
+        {
+            queries.Add(token);
+        }
+
+        if (queries.Count == 0)
+        {
+            return Array.Empty<Wine>();
+        }
+
+        var candidates = new Dictionary<Guid, Wine>();
+
+        foreach (var query in queries)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                continue;
+            }
+
+            var matches = await _wineRepository.FindClosestMatchesAsync(query, 5, cancellationToken);
+            foreach (var wine in matches)
+            {
+                if (wine is null)
+                {
+                    continue;
+                }
+
+                if (!IsMetadataCompatible(wine, match))
+                {
+                    continue;
+                }
+
+                if (!candidates.ContainsKey(wine.Id))
+                {
+                    candidates[wine.Id] = wine;
+                }
+            }
+        }
+
+        return candidates.Count == 0
+            ? Array.Empty<Wine>()
+            : candidates.Values.ToList();
+    }
+
+    private static Wine? PickBestFuzzyMatch(SurfEyeWineMatch match, IReadOnlyList<Wine> candidates)
+    {
+        if (candidates is null || candidates.Count == 0 || string.IsNullOrWhiteSpace(match?.Name))
+        {
+            return null;
+        }
+
+        var maxResults = Math.Min(candidates.Count, 5);
+        var ordered = FuzzyMatchUtilities.FindClosestMatches(
+            candidates,
+            match.Name!,
+            BuildWineComparisonLabel,
+            maxResults);
+
+        return ordered.FirstOrDefault();
+    }
+
+    private static IReadOnlyList<string> ExtractSignificantTokens(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Array.Empty<string>();
+        }
+
+        return SurfEyeTokenSplitRegex
+            .Split(value)
+            .Select(token => token.Trim())
+            .Where(token => token.Length >= 3)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static bool IsMetadataCompatible(Wine wine, SurfEyeWineMatch match)
+    {
+        if (wine is null)
+        {
+            return false;
+        }
+
+        if (!MatchesColor(wine.Color, match.Color))
+        {
+            return false;
+        }
+
+        var subAppellation = wine.SubAppellation;
+        var appellation = subAppellation?.Appellation;
+        var region = appellation?.Region;
+        var country = region?.Country;
+
+        if (!MatchesMetadata(match.SubAppellation, subAppellation?.Name))
+        {
+            return false;
+        }
+
+        if (!MatchesMetadata(match.Appellation, appellation?.Name))
+        {
+            return false;
+        }
+
+        if (!MatchesMetadata(match.Region, region?.Name))
+        {
+            return false;
+        }
+
+        if (!MatchesMetadata(match.Country, country?.Name))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool MatchesMetadata(string? expected, string? actual)
+    {
+        if (string.IsNullOrWhiteSpace(expected))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(actual))
+        {
+            return false;
+        }
+
+        var compare = CultureInfo.InvariantCulture.CompareInfo;
+        var options = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace;
+        var expectedValue = expected.Trim();
+        var actualValue = actual.Trim();
+
+        if (compare.Compare(expectedValue, actualValue, options) == 0)
+        {
+            return true;
+        }
+
+        return compare.IndexOf(actualValue, expectedValue, options) >= 0
+            || compare.IndexOf(expectedValue, actualValue, options) >= 0;
+    }
+
+    private static bool MatchesColor(WineColor actual, string? expected)
+    {
+        if (string.IsNullOrWhiteSpace(expected))
+        {
+            return true;
+        }
+
+        var compare = CultureInfo.InvariantCulture.CompareInfo;
+        var options = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace;
+        var expectedValue = expected.Trim();
+        var actualValue = actual.ToString();
+
+        if (compare.Compare(expectedValue, actualValue, options) == 0)
+        {
+            return true;
+        }
+
+        if (compare.IndexOf(expectedValue, actualValue, options) >= 0)
+        {
+            return true;
+        }
+
+        if (compare.IndexOf(actualValue, expectedValue, options) >= 0)
+        {
+            return true;
+        }
+
+        if (actual == WineColor.Rose && compare.IndexOf(expectedValue, "rose", options) >= 0)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static string BuildWineComparisonLabel(Wine wine)
+    {
+        if (wine.SubAppellation is null)
+        {
+            return wine.Name;
+        }
+
+        if (string.IsNullOrWhiteSpace(wine.SubAppellation.Appellation?.Name))
+        {
+            return $"{wine.Name} ({wine.SubAppellation.Name})";
+        }
+
+        return $"{wine.Name} ({wine.SubAppellation.Name}, {wine.SubAppellation.Appellation!.Name})";
     }
 
     private static string? TryGetTrimmedString(JsonElement element, string propertyName)
