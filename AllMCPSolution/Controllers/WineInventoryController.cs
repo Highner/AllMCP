@@ -916,10 +916,72 @@ public partial class WineInventoryController : Controller
                 return true;
             }
 
+            static string CreateDuplicateKey(string value)
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    return string.Empty;
+                }
+
+                var trimmed = value.Trim();
+                var buffer = trimmed.ToCharArray();
+                var writeIndex = 0;
+                var lastWasWhitespace = false;
+
+                for (var index = 0; index < buffer.Length; index++)
+                {
+                    var current = buffer[index];
+                    if (char.IsWhiteSpace(current))
+                    {
+                        if (lastWasWhitespace)
+                        {
+                            continue;
+                        }
+
+                        buffer[writeIndex++] = ' ';
+                        lastWasWhitespace = true;
+                    }
+                    else
+                    {
+                        buffer[writeIndex++] = char.ToUpperInvariant(current);
+                        lastWasWhitespace = false;
+                    }
+                }
+
+                return new string(buffer, 0, writeIndex);
+            }
+
             var rows = new List<WineImportPreviewRowViewModel>();
+            var rowsByName = new Dictionary<string, WineImportPreviewRowViewModel>(StringComparer.OrdinalIgnoreCase);
+
             for (var i = 0; i < parseResult.Wines.Count; i++)
             {
                 var wine = parseResult.Wines[i];
+
+                var duplicateKey = CreateDuplicateKey(wine.Name ?? string.Empty);
+                if (string.IsNullOrEmpty(duplicateKey))
+                {
+                    continue;
+                }
+
+                if (rowsByName.TryGetValue(duplicateKey, out var existingRow))
+                {
+                    existingRow.Amount++;
+
+                    if (string.IsNullOrWhiteSpace(existingRow.Appellation)
+                        && !string.IsNullOrWhiteSpace(wine.Appellation))
+                    {
+                        existingRow.Appellation = wine.Appellation;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(existingRow.SubAppellation)
+                        && !string.IsNullOrWhiteSpace(wine.Variety))
+                    {
+                        existingRow.SubAppellation = wine.Variety;
+                    }
+
+                    continue;
+                }
 
                 Appellation? existingAppellation = null;
                 if (existingRegion is not null && !string.IsNullOrWhiteSpace(wine.Appellation))
@@ -935,10 +997,12 @@ public partial class WineInventoryController : Controller
                 var colorText = trimmedColor ?? string.Empty;
                 var countryText = viewModel.BottleUpload.SelectedCountry ?? string.Empty;
 
-                rows.Add(new WineImportPreviewRowViewModel
+                var rowNumber = rows.Count + 1;
+
+                var row = new WineImportPreviewRowViewModel
                 {
-                    RowId = $"cellar-{i + 1}",
-                    RowNumber = i + 1,
+                    RowId = $"cellar-{rowNumber}",
+                    RowNumber = rowNumber,
                     Name = wine.Name,
                     Country = countryText,
                     Region = regionText,
@@ -950,7 +1014,10 @@ public partial class WineInventoryController : Controller
                     CountryExists = existingCountry is not null,
                     RegionExists = existingRegion is not null,
                     AppellationExists = existingAppellation is not null
-                });
+                };
+
+                rows.Add(row);
+                rowsByName[duplicateKey] = row;
             }
 
             viewModel.BottleUpload.Errors = Array.Empty<string>();
