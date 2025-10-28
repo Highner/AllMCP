@@ -17,7 +17,9 @@ public interface IChatGptPromptService
 
     string WineWavesSystemPrompt { get; }
 
-    string BuildTasteProfilePrompt(IReadOnlyList<(Bottle Bottle, TastingNote Note)> scoredBottles);
+    string BuildTasteProfilePrompt(
+        IReadOnlyList<(Bottle Bottle, TastingNote Note)> scoredBottles,
+        decimal? suggestionBudget);
 
     string BuildSurfEyePrompt(string? tasteProfileSummary, string tasteProfile);
 
@@ -80,7 +82,9 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
 
     public string WineWavesSystemPrompt => WineWavesSystemPromptText;
 
-    public string BuildTasteProfilePrompt(IReadOnlyList<(Bottle Bottle, TastingNote Note)> scoredBottles)
+    public string BuildTasteProfilePrompt(
+        IReadOnlyList<(Bottle Bottle, TastingNote Note)> scoredBottles,
+        decimal? suggestionBudget)
     {
         if (scoredBottles is null || scoredBottles.Count == 0)
         {
@@ -137,6 +141,11 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
         builder.AppendLine("Use only the provided information and avoid recommending specific new bottles.");
         builder.AppendLine("Also include exactly two suggested appellations or sub-appellations that match the palate, providing country, region, appellation, an optional subAppellation (use null when unknown), and a single-sentence reason under 200 characters explaining the fit. Suggest only appellations that are not already in use.");
         builder.AppendLine("For each suggested appellation list two or three representative wines from that location, giving the label name (without the vintage, grape varieties, regions, or appellation names), color (Red, White, or Rose), an optional variety, an optional subAppellation (e.g. the Burgundy village), and a vintage string that is either a four-digit year or \"NV\".");
+        if (suggestionBudget.HasValue && suggestionBudget.Value > 0)
+        {
+            var budgetText = suggestionBudget.Value.ToString("0.##", CultureInfo.InvariantCulture);
+            builder.AppendLine($"Ensure all suggested wines are priced at or below the user's suggestion budget of {budgetText} per bottle.");
+        }
         builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\",\"wines\":[{\"name\":\"...\",\"color\":\"Red\",\"variety\":\"...\",\"subAppellation\":null,\"vintage\":\"2019\"}]}]}. No markdown or commentary.");
 
         return builder.ToString();
