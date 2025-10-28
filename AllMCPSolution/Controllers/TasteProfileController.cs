@@ -417,7 +417,11 @@ public class TasteProfileController: WineSurferControllerBase
             return BadRequest(new GenerateTasteProfileError(TasteProfileInsufficientDataErrorMessage));
         }
 
-        var prompt = _chatGptPromptService.BuildTasteProfilePrompt(scoredBottles);
+        var domainUser = await _userRepository.GetByIdAsync(userId.Value, cancellationToken);
+
+        var prompt = _chatGptPromptService.BuildTasteProfilePrompt(
+            scoredBottles,
+            domainUser?.SuggestionBudget);
         if (prefersStreaming)
         {
             return await StreamTasteProfileGenerationAsync(userId.Value, prompt, cancellationToken);
