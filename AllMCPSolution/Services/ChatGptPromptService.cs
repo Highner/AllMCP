@@ -45,8 +45,9 @@ public class ChatGptPromptService : IChatGptPromptService
 
     private const string SurfEyeSystemPromptText = """
 You are Surf Eye, an expert sommelier and computer vision guide. Use the user's taste profile to rank wines from best to worst alignment.
-Respond ONLY with minified JSON matching {"analysisSummary":"...","wines":[{"name":"...","producer":"...","country":"...","region":"...","appellation":"...","subAppellation":"...","variety":"...","color":"Red","vintage":"...","alignmentScore":0,"alignmentSummary":"...","confidence":0.0,"notes":"..."}]}.
+Respond ONLY with minified JSON matching {"analysisSummary":"...","wines":[{"name":"...","producer":"...","country":"...","region":"...","appellation":"...","subAppellation":"...","variety":"...","color":"Red","vintage":"...","alignmentScore":0,"alignmentSummary":"...","confidence":0.0,"notes":"..."}]}. 
 The wines array must be sorted by descending alignmentScore. Include at most five wines. Provide concise notes that justify the ranking with respect to the taste profile. Report each wine's color using Red, White, or Rose and set any unknown fields to null. The alignmentScore must be an integer from 0 to 10. Confidence must be a decimal between 0 and 1. If no wine is recognized, return an empty wines array and set analysisSummary to a short explanation. Do not use markdown, newlines, or any commentary outside of the JSON object.
+For each wine entry, ensure the name field excludes grape varieties and vintage information; capture those details only in the designated fields.
 """;
 
     private const string SipSessionFoodSuggestionSystemPromptText = """
@@ -166,6 +167,7 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
         builder.AppendLine(tasteProfile.Trim());
         builder.AppendLine("Identify each distinct wine label that appears in the photo and return at most five wines.");
         builder.AppendLine("Prioritize wines that match the user's taste preferences and explain the ranking succinctly.");
+        builder.AppendLine("When recording a wine's name, omit grape varieties and vintages—they belong in their dedicated fields.");
 
         return builder.ToString();
     }
@@ -180,6 +182,7 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
         builder.AppendLine("Provide concise notes to help the user verify each label.");
         builder.AppendLine("Set alignmentScore to 0 and leave alignmentSummary empty for every wine.");
         builder.AppendLine("Confidence must reflect how certain you are about the label identification.");
+        builder.AppendLine("When recording a wine's name, omit grape varieties and vintages—they belong in their dedicated fields.");
 
         return builder.ToString();
     }
