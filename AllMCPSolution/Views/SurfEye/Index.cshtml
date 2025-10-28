@@ -612,10 +612,12 @@
         });
     };
 
-    const renderWines = (wines) => {
+    const renderWines = (wines, options = {}) => {
         if (!winesList) {
             return;
         }
+
+        const showAlignment = hasTasteProfile && options.showAlignment !== false;
 
         winesList.innerHTML = '';
         if (emptyState) {
@@ -675,7 +677,7 @@
 
             header.appendChild(titleBlock);
 
-            if (hasTasteProfile) {
+            if (showAlignment) {
                 const scoreBlock = document.createElement('div');
                 scoreBlock.className = 'surf-eye-wine__score';
 
@@ -696,7 +698,7 @@
             const body = document.createElement('div');
             body.className = 'surf-eye-wine__body';
 
-            if (hasTasteProfile && wine.alignmentSummary) {
+            if (showAlignment && wine.alignmentSummary) {
                 const alignment = document.createElement('p');
                 alignment.textContent = wine.alignmentSummary;
                 body.appendChild(alignment);
@@ -1367,6 +1369,7 @@
         const activeButton = options?.button instanceof HTMLButtonElement
             ? options.button
             : null;
+        const showAlignment = options?.showAlignment !== false;
         const [file] = photoInput.files ?? [];
         if (!file) {
             setStatus('Snap a photo before analyzing.', 'error');
@@ -1407,7 +1410,7 @@
             if (payload) {
                 summaryEl.textContent = payload.summary ?? '';
                 if (Array.isArray(payload.wines) && payload.wines.length > 0) {
-                    renderWines(payload.wines);
+                    renderWines(payload.wines, { showAlignment });
                     if (emptyState) {
                         emptyState.style.display = 'none';
                     }
@@ -1441,7 +1444,7 @@
 
     identifyButton?.addEventListener('click', (event) => {
         event.preventDefault();
-        submitAnalysis({ url: identifyUrl, button: identifyButton });
+        submitAnalysis({ url: identifyUrl, button: identifyButton, showAlignment: false });
     });
 
     form.addEventListener('submit', (event) => {
