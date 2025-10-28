@@ -197,15 +197,22 @@
                                     var hasAppellation = !string.IsNullOrWhiteSpace(row.Appellation) || !string.IsNullOrWhiteSpace(row.SubAppellation);
                                     var hasRegion = !string.IsNullOrWhiteSpace(row.Region);
                                     var hasCountry = !string.IsNullOrWhiteSpace(row.Country);
+                                    var wineCellClass = "import-preview__cell import-preview__cell--wine" + (row.WineExists ? " import-preview__cell--match" : string.Empty);
+                                    var appellationCellClass = "import-preview__cell import-preview__cell--appellation" + (row.AppellationExists ? " import-preview__cell--match" : string.Empty);
+                                    var regionCellClass = "import-preview__cell import-preview__cell--region" + (row.RegionExists ? " import-preview__cell--match" : string.Empty);
                                     var buttonAriaLabel = string.IsNullOrWhiteSpace(row.Name)
-                                        ? "Add wine to inventory"
-                                        : $"Add {row.Name} to inventory";
+                                        ? "Create wine in catalog"
+                                        : $"Create {row.Name} in catalog";
                                     <tr class="import-preview__row" data-import-preview-row="@row.RowId">
                                         <td class="import-preview__cell import-preview__cell--row">@row.RowNumber</td>
-                                        <td class="import-preview__cell import-preview__cell--wine">
+                                        <td class="@wineCellClass">
                                             <span class="import-preview__wine-name">@displayName</span>
+                                            @if (row.WineExists)
+                                            {
+                                                <span class="sr-only">Wine already exists in catalog.</span>
+                                            }
                                         </td>
-                                        <td class="import-preview__cell import-preview__cell--appellation">
+                                        <td class="@appellationCellClass">
                                             @if (hasAppellation)
                                             {
                                                 @if (!string.IsNullOrWhiteSpace(row.SubAppellation))
@@ -221,8 +228,12 @@
                                             {
                                                 <span class="import-preview__meta">—</span>
                                             }
+                                            @if (row.AppellationExists)
+                                            {
+                                                <span class="sr-only">Appellation already exists in catalog.</span>
+                                            }
                                         </td>
-                                        <td class="import-preview__cell import-preview__cell--region">
+                                        <td class="@regionCellClass">
                                             @if (hasRegion || hasCountry)
                                             {
                                                 @if (hasRegion)
@@ -237,6 +248,10 @@
                                             else
                                             {
                                                 <span class="import-preview__meta">—</span>
+                                            }
+                                            @if (row.RegionExists)
+                                            {
+                                                <span class="sr-only">Region already exists in catalog.</span>
                                             }
                                         </td>
                                         <td class="import-preview__cell import-preview__cell--color">@(!string.IsNullOrWhiteSpace(row.Color) ? row.Color : "—")</td>
@@ -257,7 +272,7 @@
                                                     data-wine-color="@row.Color"
                                                     data-wine-vintage=""
                                                     data-import-preview-add
-                                                    aria-label="@buttonAriaLabel">Add</button>
+                                                    aria-label="@buttonAriaLabel">Create</button>
                                         </td>
                                     </tr>
                                 }

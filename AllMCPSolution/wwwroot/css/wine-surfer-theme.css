@@ -1157,6 +1157,11 @@ a.wine-card:focus {
     color: rgba(244, 241, 234, 0.58);
 }
 
+.import-preview__cell--match {
+    background: rgba(46, 173, 108, 0.16);
+    position: relative;
+}
+
 .import-preview__cell--color,
 .import-preview__cell--amount,
 .import-preview__cell--status,
