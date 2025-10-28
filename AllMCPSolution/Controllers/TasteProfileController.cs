@@ -33,6 +33,11 @@ public class TasteProfileController: WineSurferControllerBase
 
         public decimal? SuggestionBudget { get; set; }
     }
+
+    public sealed class GenerateTasteProfileRequest
+    {
+        public decimal? SuggestionBudget { get; set; }
+    }
     
     private readonly ISuggestedAppellationService _suggestedAppellationService;
     private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
@@ -388,7 +393,9 @@ public class TasteProfileController: WineSurferControllerBase
     [Authorize]
     [HttpPost("taste-profile/generate")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> GenerateTasteProfile(CancellationToken cancellationToken)
+    public async Task<IActionResult> GenerateTasteProfile(
+        [FromBody] GenerateTasteProfileRequest? request,
+        CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
         if (!userId.HasValue)
@@ -397,6 +404,51 @@ public class TasteProfileController: WineSurferControllerBase
         }
 
         var prefersStreaming = RequestPrefersTasteProfileStreaming();
+
+        ApplicationUser? domainUser = null;
+
+        if (request is not null)
+        {
+            decimal? normalizedBudget = null;
+
+            if (request.SuggestionBudget.HasValue)
+            {
+                if (request.SuggestionBudget.Value < 0)
+                {
+                    return BadRequest(new GenerateTasteProfileError(SuggestionBudgetInvalidErrorMessage));
+                }
+
+                normalizedBudget = decimal.Round(
+                    Math.Max(request.SuggestionBudget.Value, 0m),
+                    2,
+                    MidpointRounding.AwayFromZero);
+            }
+
+            try
+            {
+                domainUser = await _userRepository.UpdateSuggestionBudgetAsync(
+                    userId.Value,
+                    normalizedBudget,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new GenerateTasteProfileError(TasteProfileGenerationGenericErrorMessage));
+            }
+
+            if (domainUser is null)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new GenerateTasteProfileError(TasteProfileGenerationGenericErrorMessage));
+            }
+        }
 
         var bottles = await _bottleRepository.GetForUserAsync(userId.Value, cancellationToken);
         var scoredBottles = bottles
@@ -417,7 +469,7 @@ public class TasteProfileController: WineSurferControllerBase
             return BadRequest(new GenerateTasteProfileError(TasteProfileInsufficientDataErrorMessage));
         }
 
-        var domainUser = await _userRepository.GetByIdAsync(userId.Value, cancellationToken);
+        domainUser ??= await _userRepository.GetByIdAsync(userId.Value, cancellationToken);
 
         var prompt = _chatGptPromptService.BuildTasteProfilePrompt(
             scoredBottles,

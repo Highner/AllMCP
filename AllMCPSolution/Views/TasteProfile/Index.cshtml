@@ -800,6 +800,7 @@
                 return;
             }
 
+            const suggestionBudgetInput = document.getElementById('suggestionBudgetInput');
             const profileField = document.getElementById('tasteProfileInput');
             const summaryField = document.getElementById('tasteProfileSummaryInput');
             if (!profileField || !summaryField) {
@@ -1486,17 +1487,24 @@
                 try {
                     const headers = {
                         'Content-Type': 'application/json',
-                        Accept: 'application/x-ndjson'
+                        Accept: 'application/x-ndjson, application/json'
                     };
                     const tokenValue = tokenInput ? tokenInput.value : null;
                     if (tokenValue) {
                         headers['RequestVerificationToken'] = tokenValue;
                     }
 
+                    const suggestionBudgetValue = suggestionBudgetInput ? suggestionBudgetInput.value : '';
+                    const suggestionBudget = suggestionBudgetValue && suggestionBudgetValue.trim() !== ''
+                        ? Number.parseFloat(suggestionBudgetValue)
+                        : null;
+
                     const response = await fetch(generatorUrl, {
                         method: 'POST',
                         headers,
-                        body: JSON.stringify({}),
+                        body: JSON.stringify({
+                            suggestionBudget: Number.isFinite(suggestionBudget) ? suggestionBudget : null
+                        }),
                         credentials: 'same-origin'
                     });
 
