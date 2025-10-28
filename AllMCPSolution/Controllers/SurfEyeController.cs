@@ -389,19 +389,35 @@ public class SurfEyeController: WineSurferControllerBase
                 var fuzzyCandidates = await FindFuzzyCandidatesAsync(match, cancellationToken);
                 searchResults = BuildSurfEyeSearchResults(match, fuzzyCandidates, out var bestCandidate);
 
-                var existing = await _wineRepository.FindByNameAsync(
-                    match.Name!,
-                    match.SubAppellation,
-                    match.Appellation,
-                    cancellationToken);
+                Wine? existing = null;
+                var normalizedName = match.Name?.Trim();
 
-                if (existing is null && !string.IsNullOrWhiteSpace(match.Appellation))
+                if (!string.IsNullOrWhiteSpace(normalizedName))
                 {
-                    existing = await _wineRepository.FindByNameAsync(
-                        match.Name!,
-                        null,
-                        match.Appellation,
+                    var closestMatches = await _wineRepository.FindClosestMatchesAsync(
+                        normalizedName!,
+                        5,
                         cancellationToken);
+
+                    if (!string.IsNullOrWhiteSpace(match.SubAppellation))
+                    {
+                        existing = closestMatches
+                            .FirstOrDefault(wine => string.Equals(
+                                wine?.SubAppellation?.Name,
+                                match.SubAppellation,
+                                StringComparison.OrdinalIgnoreCase));
+                    }
+
+                    if (existing is null && !string.IsNullOrWhiteSpace(match.Appellation))
+                    {
+                        existing = closestMatches
+                            .FirstOrDefault(wine => string.Equals(
+                                wine?.SubAppellation?.Appellation?.Name,
+                                match.Appellation,
+                                StringComparison.OrdinalIgnoreCase));
+                    }
+
+                    existing ??= closestMatches.FirstOrDefault();
                 }
 
                 if (existing is null && bestCandidate is not null)
