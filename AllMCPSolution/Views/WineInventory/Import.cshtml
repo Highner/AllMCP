@@ -252,9 +252,6 @@
                                     <th scope="col">Color</th>
                                     <th scope="col">Amount</th>
                                     <th scope="col">Bottle Info</th>
-                                    <th scope="col">Consumption Date</th>
-                                    <th scope="col">Score</th>
-                                    <th scope="col">Tasting Note</th>
                                     <th scope="col">Status</th>
                                     <th scope="col" class="import-preview__actions-header">Add</th>
                                 </tr>
@@ -296,16 +293,6 @@
                                         ? row.Vintage.Value.ToString(CultureInfo.InvariantCulture)
                                         : string.Empty;
                                     var amountDataValue = row.Amount.ToString(CultureInfo.InvariantCulture);
-                                    var consumptionDateDataValue = row.ConsumptionDate.HasValue
-                                        ? row.ConsumptionDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-                                        : string.Empty;
-                                    var consumptionScoreDataValue = row.ConsumptionScore.HasValue
-                                        ? row.ConsumptionScore.Value.ToString("0.##", CultureInfo.InvariantCulture)
-                                        : string.Empty;
-                                    var consumptionNoteDataValue = string.IsNullOrWhiteSpace(row.ConsumptionNote)
-                                        ? string.Empty
-                                        : row.ConsumptionNote.Replace("\r", " ").Replace("\n", " ");
-                                    var isConsumedDataValue = row.IsConsumed ? "true" : "false";
                                     <tr class="import-preview__row"
                                         data-import-preview-row="@row.RowId"
                                         data-import-preview-row-number="@row.RowNumber"
@@ -319,11 +306,7 @@
                                         data-import-preview-color="@row.Color"
                                         data-import-preview-vintage="@vintageDataValue"
                                         data-import-preview-amount="@amountDataValue"
-                                        data-import-preview-can-inventory="@canInventoryValue"
-                                        data-import-preview-consumed="@isConsumedDataValue"
-                                        data-import-preview-consumption-date="@consumptionDateDataValue"
-                                        data-import-preview-consumption-score="@consumptionScoreDataValue"
-                                        data-import-preview-consumption-note="@consumptionNoteDataValue">
+                                        data-import-preview-can-inventory="@canInventoryValue">
                                         <td class="import-preview__cell import-preview__cell--row">@row.RowNumber</td>
                                         <td class="@wineCellClass">
                                             <span class="import-preview__wine-name">@displayName</span>
@@ -416,36 +399,6 @@
                                                     var bottleWord = row.Amount == 1 ? "bottle" : "bottles";
                                                     <span class="import-preview__meta">@($"{row.Amount} {bottleWord}")</span>
                                                 }
-                                            }
-                                            else
-                                            {
-                                                <span class="import-preview__meta">—</span>
-                                            }
-                                        </td>
-                                        <td class="import-preview__cell import-preview__cell--consumption-date">
-                                            @if (row.ConsumptionDate.HasValue)
-                                            {
-                                                <span>@row.ConsumptionDate.Value.ToString("d", CultureInfo.CurrentCulture)</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="import-preview__meta">—</span>
-                                            }
-                                        </td>
-                                        <td class="import-preview__cell import-preview__cell--consumption-score">
-                                            @if (row.ConsumptionScore.HasValue)
-                                            {
-                                                <span>@row.ConsumptionScore.Value.ToString("0.##", CultureInfo.CurrentCulture)</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="import-preview__meta">—</span>
-                                            }
-                                        </td>
-                                        <td class="import-preview__cell import-preview__cell--consumption-note">
-                                            @if (!string.IsNullOrWhiteSpace(row.ConsumptionNote))
-                                            {
-                                                <span>@row.ConsumptionNote</span>
                                             }
                                             else
                                             {
