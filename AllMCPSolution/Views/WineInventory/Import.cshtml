@@ -228,6 +228,7 @@
                                 <tr>
                                     <th scope="col">Row</th>
                                     <th scope="col">Wine</th>
+                                    <th scope="col">Variety</th>
                                     <th scope="col">Appellation</th>
                                     <th scope="col">Region</th>
                                     <th scope="col">Country</th>
@@ -241,6 +242,7 @@
                                 @foreach (var row in bottlePreviewRows)
                                 {
                                     var displayName = string.IsNullOrWhiteSpace(row.Name) ? "—" : row.Name;
+                                    var hasVariety = !string.IsNullOrWhiteSpace(row.GrapeVariety);
                                     var hasAppellation = !string.IsNullOrWhiteSpace(row.Appellation) || !string.IsNullOrWhiteSpace(row.SubAppellation);
                                     var hasRegion = !string.IsNullOrWhiteSpace(row.Region);
                                     var hasCountry = !string.IsNullOrWhiteSpace(row.Country);
@@ -274,6 +276,7 @@
                                         data-import-preview-region="@row.Region"
                                         data-import-preview-appellation="@row.Appellation"
                                         data-import-preview-sub-appellation="@row.SubAppellation"
+                                        data-import-preview-grape-variety="@row.GrapeVariety"
                                         data-import-preview-color="@row.Color">
                                         <td class="import-preview__cell import-preview__cell--row">@row.RowNumber</td>
                                         <td class="@wineCellClass">
@@ -281,6 +284,16 @@
                                             @if (row.WineExists)
                                             {
                                                 <span class="sr-only">Wine already exists in catalog.</span>
+                                            }
+                                        </td>
+                                        <td class="import-preview__cell import-preview__cell--variety">
+                                            @if (hasVariety)
+                                            {
+                                                <span>@row.GrapeVariety</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="import-preview__meta">—</span>
                                             }
                                         </td>
                                         <td class="@appellationCellClass">
@@ -351,6 +364,7 @@
                                                     data-wine-region="@row.Region"
                                                     data-wine-appellation="@row.Appellation"
                                                     data-wine-sub-appellation="@row.SubAppellation"
+                                                    data-wine-variety="@row.GrapeVariety"
                                                     data-wine-color="@row.Color"
                                                     data-wine-vintage=""
                                                     data-import-preview-add

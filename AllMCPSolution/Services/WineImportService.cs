@@ -418,6 +418,7 @@ public sealed class WineImportService : IWineImportService
                 Region = row.Region ?? string.Empty,
                 Appellation = row.Appellation ?? string.Empty,
                 SubAppellation = row.SubAppellation ?? string.Empty,
+                GrapeVariety = row.GrapeVariety ?? string.Empty,
                 Color = color.ToString(),
                 Amount = amount,
                 WineExists = wineExists,
@@ -475,6 +476,14 @@ public sealed class WineImportService : IWineImportService
             ? reader.GetValue(index)?.ToString()
             : null;
 
+        string? GetVarietyValue()
+        {
+            return Normalize(
+                GetValue("GrapeVariety")
+                ?? GetValue("Grape Variety")
+                ?? GetValue("Variety"));
+        }
+
         return new WineImportRow(
             Normalize(GetValue("Name")),
             Normalize(GetValue("Country")),
@@ -482,7 +491,8 @@ public sealed class WineImportService : IWineImportService
             Normalize(GetValue("Color")),
             Normalize(GetValue("Appellation")),
             Normalize(GetValue("SubAppellation")),
-            includeAmount ? Normalize(GetValue("Amount")) : null);
+            includeAmount ? Normalize(GetValue("Amount")) : null,
+            GetVarietyValue());
     }
 
     private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -624,7 +634,15 @@ public sealed class WineImportService : IWineImportService
         var region = await GetOrCreateRegionAsync(row.Region!, country, result, cache, cancellationToken);
         var appellation = await GetOrCreateAppellationAsync(row.Appellation!, region, result, cache, cancellationToken);
         var subAppellation = await GetOrCreateSubAppellationAsync(row.SubAppellation, appellation, result, cache, cancellationToken);
-        return await GetOrCreateWineAsync(row.Name!, color, appellation, subAppellation, result, cache, cancellationToken);
+        return await GetOrCreateWineAsync(
+            row.Name!,
+            color,
+            appellation,
+            subAppellation,
+            row.GrapeVariety,
+            result,
+            cache,
+            cancellationToken);
     }
 
     private async Task<WineVintage> GetOrCreateWineVintageAsync(
@@ -761,6 +779,7 @@ public sealed class WineImportService : IWineImportService
         WineColor color,
         Appellation appellation,
         SubAppellation subAppellation,
+        string? grapeVariety,
         WineImportResult result,
         ImportCache cache,
         CancellationToken cancellationToken)
@@ -769,11 +788,23 @@ public sealed class WineImportService : IWineImportService
         var cacheKey = $"{subAppellation.Id:D}|{normalized}";
         if (cache.Wines.TryGetValue(cacheKey, out var cached))
         {
+            var shouldUpdate = false;
             if (cached.Color != color || cached.SubAppellationId != subAppellation.Id)
             {
                 cached.Color = color;
                 cached.SubAppellationId = subAppellation.Id;
                 cached.SubAppellation = subAppellation;
+                shouldUpdate = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(grapeVariety) && string.IsNullOrWhiteSpace(cached.GrapeVariety))
+            {
+                cached.GrapeVariety = grapeVariety.Trim();
+                shouldUpdate = true;
+            }
+
+            if (shouldUpdate)
+            {
                 await _wineRepository.UpdateAsync(cached, cancellationToken);
                 result.UpdatedWines++;
             }
@@ -789,6 +820,7 @@ public sealed class WineImportService : IWineImportService
                 Id = Guid.NewGuid(),
                 Name = normalized,
                 Color = color,
+                GrapeVariety = string.IsNullOrWhiteSpace(grapeVariety) ? string.Empty : grapeVariety.Trim(),
                 SubAppellationId = subAppellation.Id,
                 SubAppellation = subAppellation
             };
@@ -799,11 +831,23 @@ public sealed class WineImportService : IWineImportService
             return entity;
         }
 
+        var updated = false;
         if (existing.Color != color || existing.SubAppellationId != subAppellation.Id)
         {
             existing.Color = color;
             existing.SubAppellationId = subAppellation.Id;
             existing.SubAppellation = subAppellation;
+            updated = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(grapeVariety) && string.IsNullOrWhiteSpace(existing.GrapeVariety))
+        {
+            existing.GrapeVariety = grapeVariety.Trim();
+            updated = true;
+        }
+
+        if (updated)
+        {
             await _wineRepository.UpdateAsync(existing, cancellationToken);
             result.UpdatedWines++;
         }
@@ -819,7 +863,8 @@ public sealed class WineImportService : IWineImportService
         string? Color,
         string? Appellation,
         string? SubAppellation,
-        string? Amount)
+        string? Amount,
+        string? GrapeVariety)
     {
         public bool IsEmpty => string.IsNullOrWhiteSpace(Name)
             && string.IsNullOrWhiteSpace(Country)
@@ -827,7 +872,8 @@ public sealed class WineImportService : IWineImportService
             && string.IsNullOrWhiteSpace(Color)
             && string.IsNullOrWhiteSpace(Appellation)
             && string.IsNullOrWhiteSpace(SubAppellation)
-            && string.IsNullOrWhiteSpace(Amount);
+            && string.IsNullOrWhiteSpace(Amount)
+            && string.IsNullOrWhiteSpace(GrapeVariety);
     }
 
     private sealed class ImportCache
@@ -873,6 +919,7 @@ public sealed class WineImportPreviewRow
     public string Region { get; set; } = string.Empty;
     public string Appellation { get; set; } = string.Empty;
     public string SubAppellation { get; set; } = string.Empty;
+    public string GrapeVariety { get; set; } = string.Empty;
     public string Color { get; set; } = string.Empty;
     public int Amount { get; set; }
     public bool WineExists { get; set; }

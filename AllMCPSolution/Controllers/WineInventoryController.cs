@@ -466,6 +466,7 @@ public partial class WineInventoryController : Controller
                     Region = row.Region,
                     Appellation = row.Appellation,
                     SubAppellation = row.SubAppellation,
+                    GrapeVariety = row.GrapeVariety ?? string.Empty,
                     Color = row.Color,
                     Amount = row.Amount,
                     WineExists = row.WineExists,
@@ -568,7 +569,7 @@ public partial class WineInventoryController : Controller
                     region!,
                     appellation!,
                     row.SubAppellation,
-                    null);
+                    row.GrapeVariety);
 
                 var catalogResult = await _wineCatalogService.EnsureWineAsync(catalogRequest, cancellationToken);
 
@@ -753,6 +754,7 @@ public partial class WineInventoryController : Controller
                     Region = trimmedRegion!,
                     Appellation = producer.Appellation,
                     SubAppellation = string.Empty,
+                    GrapeVariety = string.Empty,
                     Color = string.Empty,
                     Amount = 1,
                     WineExists = wineExists,
@@ -977,7 +979,13 @@ public partial class WineInventoryController : Controller
                     if (string.IsNullOrWhiteSpace(existingRow.SubAppellation)
                         && !string.IsNullOrWhiteSpace(wine.Variety))
                     {
-                        existingRow.SubAppellation = wine.Variety;
+                        existingRow.SubAppellation = wine.Variety ?? string.Empty;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(existingRow.GrapeVariety)
+                        && !string.IsNullOrWhiteSpace(wine.Variety))
+                    {
+                        existingRow.GrapeVariety = wine.Variety ?? string.Empty;
                     }
 
                     continue;
@@ -1008,6 +1016,7 @@ public partial class WineInventoryController : Controller
                     Region = regionText,
                     Appellation = wine.Appellation,
                     SubAppellation = wine.Variety,
+                    GrapeVariety = wine.Variety ?? string.Empty,
                     Color = colorText,
                     Amount = 1,
                     WineExists = wineExists,
@@ -2724,6 +2733,7 @@ public class WineInventoryViewModel
         public string? Appellation { get; set; }
         public string? SubAppellation { get; set; }
         public string? Color { get; set; }
+        public string? GrapeVariety { get; set; }
     }
 
     public class ImportReadyWinesResponse
@@ -2866,6 +2876,7 @@ public class WineInventoryViewModel
         public string Region { get; set; } = string.Empty;
         public string Appellation { get; set; } = string.Empty;
         public string SubAppellation { get; set; } = string.Empty;
+        public string GrapeVariety { get; set; } = string.Empty;
         public string Color { get; set; } = string.Empty;
         public int Amount { get; set; }
         public bool WineExists { get; set; }
