@@ -213,6 +213,11 @@
                                     var buttonAriaLabel = string.IsNullOrWhiteSpace(row.Name)
                                         ? "Create wine in catalog"
                                         : $"Create {row.Name} in catalog";
+                                    var statusText = row.WineExists ? "Exists" : "Ready";
+                                    var statusState = row.WineExists ? "existing" : "ready";
+                                    var statusAriaLabel = row.WineExists
+                                        ? "Wine already exists in catalog"
+                                        : "Wine ready to add to catalog";
                                     <tr class="import-preview__row" data-import-preview-row="@row.RowId">
                                         <td class="import-preview__cell import-preview__cell--row">@row.RowNumber</td>
                                         <td class="@wineCellClass">
@@ -274,7 +279,11 @@
                                         <td class="import-preview__cell import-preview__cell--color">@(!string.IsNullOrWhiteSpace(row.Color) ? row.Color : "—")</td>
                                         <td class="import-preview__cell import-preview__cell--amount">@row.Amount</td>
                                         <td class="import-preview__cell import-preview__cell--status">
-                                            <span class="import-preview__status" data-import-preview-status aria-live="polite">Ready</span>
+                                            <span class="import-preview__status"
+                                                  data-import-preview-status
+                                                  data-state="@statusState"
+                                                  aria-live="polite"
+                                                  aria-label="@statusAriaLabel">@statusText</span>
                                         </td>
                                         <td class="import-preview__cell import-preview__cell--actions">
                                             <button type="button"
