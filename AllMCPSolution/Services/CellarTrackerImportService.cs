@@ -122,6 +122,11 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
             var rawAppellation = appellationMatch.Success ? StripTags(appellationMatch.Groups["content"].Value) : string.Empty;
             var appellation = WebUtility.HtmlDecode(rawAppellation).Trim();
 
+            if (string.IsNullOrWhiteSpace(appellation) && !string.IsNullOrWhiteSpace(region))
+            {
+                appellation = region;
+            }
+
             var varietyMatch = VarietySpanRegex.Match(inner);
             var rawVariety = varietyMatch.Success ? StripTags(varietyMatch.Groups["content"].Value) : string.Empty;
             var variety = WebUtility.HtmlDecode(rawVariety).Trim();
