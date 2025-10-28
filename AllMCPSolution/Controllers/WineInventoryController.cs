@@ -3166,7 +3166,7 @@ public class WineInventoryViewModel
         public bool AppellationExists { get; set; }
         public int? Vintage { get; set; }
         public bool HasBottleDetails { get; set; }
-        public bool CanCreateInventory => HasBottleDetails && Vintage.HasValue && Amount > 0;
+        public bool CanCreateInventory => HasBottleDetails && Amount > 0;
     }
 
     public class BottleNotesResponse
