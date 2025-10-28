@@ -456,6 +456,7 @@ public class WineInventoryController : Controller
                     Color = row.Color,
                     Amount = row.Amount,
                     WineExists = row.WineExists,
+                    CountryExists = row.CountryExists,
                     RegionExists = row.RegionExists,
                     AppellationExists = row.AppellationExists
                 })
@@ -2328,6 +2329,7 @@ public class WineInventoryViewModel
         public string Color { get; set; } = string.Empty;
         public int Amount { get; set; }
         public bool WineExists { get; set; }
+        public bool CountryExists { get; set; }
         public bool RegionExists { get; set; }
         public bool AppellationExists { get; set; }
     }
