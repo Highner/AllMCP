@@ -9,6 +9,7 @@
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
         ?? WineSurferTopBarModel.Empty(currentLocation);
     var analyzeUrl = Url.Action("AnalyzeSurfEye", "SurfEye");
+    var identifyUrl = Url.Action("IdentifySurfEye", "SurfEye");
     var hasTasteProfile = Model.HasTasteProfile;
     var displayName = string.IsNullOrWhiteSpace(Model.DisplayName) ? "Surfer" : Model.DisplayName;
     var maxUploadBytes = ViewData["SurfEyeMaxUploadBytes"] is long bytes ? bytes : 8L * 1024L * 1024L;
@@ -405,7 +406,7 @@
         <main>
             <p class="surf-eye-intro">Capture a bottle shot and let Surf Eye spot the labels, then rank them by how well they vibe with @displayName's palate.</p>
             <section class="surf-eye-content">
-                <form id="surf-eye-form" class="surf-eye-card" method="post" enctype="multipart/form-data" data-analyze-url="@analyzeUrl" data-has-taste-profile="@hasTasteProfile.ToString().ToLowerInvariant()" data-max-bytes="@maxUploadBytes">
+                <form id="surf-eye-form" class="surf-eye-card" method="post" enctype="multipart/form-data" data-analyze-url="@analyzeUrl" data-identify-url="@identifyUrl" data-has-taste-profile="@hasTasteProfile.ToString().ToLowerInvariant()" data-max-bytes="@maxUploadBytes">
                     @Html.AntiForgeryToken()
                     <div>
                         <p class="surf-eye-section-title">Capture</p>
@@ -424,7 +425,8 @@
                     <input type="file" id="surf-eye-photo" class="surf-eye-input" accept="image/*" capture="environment" name="Photo" />
                     <div class="surf-eye-actions">
                         <label for="surf-eye-photo" class="sisterhood-button">Open Camera</label>
-                        <button type="button" class="sisterhood-button sisterhood-button--primary" id="surf-eye-analyze">Analyze Photo</button>
+                        <button type="button" class="sisterhood-button sisterhood-button--primary" id="surf-eye-analyze">tell me what to drink</button>
+                        <button type="button" class="sisterhood-button" id="surf-eye-identify">what wine is this</button>
                     </div>
                     <div id="surf-eye-status" class="surf-eye-status">@(hasTasteProfile ? "Snap a photo to begin." : "Snap a photo to identify wines. Add a taste profile to see alignment scores.")</div>
                     <p id="surf-eye-timings" class="surf-eye-timings" hidden></p>
@@ -453,6 +455,7 @@
     const previewImage = document.getElementById('surf-eye-preview');
     const placeholder = document.getElementById('surf-eye-placeholder');
     const analyzeButton = document.getElementById('surf-eye-analyze');
+    const identifyButton = document.getElementById('surf-eye-identify');
     const statusEl = document.getElementById('surf-eye-status');
     const timingsEl = document.getElementById('surf-eye-timings');
     const resultsSection = document.getElementById('surf-eye-results');
@@ -528,14 +531,15 @@
         showCellarMessage(`${wineLabel} was saved to ${wishlistName}.`, 'success');
     });
     const analyzeUrl = form.dataset.analyzeUrl ?? '';
+    const identifyUrl = form.dataset.identifyUrl ?? analyzeUrl;
     const hasTasteProfile = form.dataset.hasTasteProfile === 'true';
     const maxBytes = Number(form.dataset.maxBytes ?? '0');
     const readyStatusMessage = hasTasteProfile
         ? 'Snap a photo to begin.'
         : 'Snap a photo to identify wines. Add a taste profile to see alignment scores.';
     const photoReadyMessage = hasTasteProfile
-        ? 'Photo ready. Tap analyze to see what Surf Eye spots.'
-        : 'Photo ready. Surf Eye will identify wines, but it needs your taste profile to show alignment scores.';
+        ? 'Photo ready. Choose how Surf Eye can help.'
+        : 'Photo ready. Pick an option to have Surf Eye identify the wines. Alignment scores need a taste profile.';
     const analysisInProgressMessage = hasTasteProfile
         ? 'Surf Eye is analyzing your photo…'
         : 'Surf Eye is identifying the wines in your photo. Alignment scores need a taste profile.';
@@ -587,20 +591,25 @@
         return `${percent}% confidence`;
     };
 
-    const setAnalyzeBusy = (isBusy) => {
-        if (!analyzeButton) {
-            return;
-        }
-
+    const setAnalyzeBusy = (isBusy, activeButton = null) => {
         const busy = Boolean(isBusy);
-        analyzeButton.disabled = busy;
-        analyzeButton.dataset.state = busy ? 'loading' : 'ready';
+        const buttons = [analyzeButton, identifyButton];
 
-        if (busy) {
-            analyzeButton.setAttribute('aria-busy', 'true');
-        } else {
-            analyzeButton.removeAttribute('aria-busy');
-        }
+        buttons.forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            button.disabled = busy;
+
+            if (busy && button === activeButton) {
+                button.dataset.state = 'loading';
+                button.setAttribute('aria-busy', 'true');
+            } else {
+                delete button.dataset.state;
+                button.removeAttribute('aria-busy');
+            }
+        });
     };
 
     const renderWines = (wines) => {
@@ -1351,21 +1360,26 @@
         setAnalyzeBusy(false);
     });
 
-    const submitAnalysis = async () => {
+    const submitAnalysis = async (options = {}) => {
+        const endpoint = typeof options?.url === 'string' && options.url.trim().length > 0
+            ? options.url
+            : analyzeUrl;
+        const activeButton = options?.button instanceof HTMLButtonElement
+            ? options.button
+            : null;
         const [file] = photoInput.files ?? [];
         if (!file) {
             setStatus('Snap a photo before analyzing.', 'error');
-            setAnalyzeBusy(false);
             return;
         }
 
-        setAnalyzeBusy(true);
+        setAnalyzeBusy(true, activeButton);
         setStatus(analysisInProgressMessage, 'progress');
         updateTimings(null);
 
         const formData = new FormData(form);
         try {
-            const response = await fetch(analyzeUrl, {
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 body: formData,
                 headers: {
@@ -1386,7 +1400,6 @@
                 setStatus(message, 'error');
                 resultsSection?.classList.remove('is-visible');
                 updateTimings(null);
-                setAnalyzeBusy(false);
                 return;
             }
 
@@ -1417,13 +1430,18 @@
             updateTimings(null);
         }
         finally {
-            setAnalyzeBusy(false);
+            setAnalyzeBusy(false, activeButton);
         }
     };
 
     analyzeButton?.addEventListener('click', (event) => {
         event.preventDefault();
-        submitAnalysis();
+        submitAnalysis({ url: analyzeUrl, button: analyzeButton });
+    });
+
+    identifyButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        submitAnalysis({ url: identifyUrl, button: identifyButton });
     });
 
     form.addEventListener('submit', (event) => {
