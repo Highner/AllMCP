@@ -1,4 +1,5 @@
 using System.ClientModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
@@ -147,6 +148,8 @@ public class SurfEyeController: WineSurferControllerBase
 
         // Run OCR on the uploaded image using Azure Vision OCR service
         string? ocrText = null;
+        double ocrElapsedMilliseconds = 0d;
+        var ocrStopwatch = Stopwatch.StartNew();
         try
         {
             await using var ocrStream = new MemoryStream(imageBytes);
@@ -165,6 +168,11 @@ public class SurfEyeController: WineSurferControllerBase
             // If OCR fails, proceed without it.
             ocrText = null;
         }
+        finally
+        {
+            ocrStopwatch.Stop();
+            ocrElapsedMilliseconds = ocrStopwatch.Elapsed.TotalMilliseconds;
+        }
 
         // Compose the chat messages: system prompt, then user prompt with image and extracted text if available
         var parts = new List<ChatMessageContentPart>
@@ -178,6 +186,8 @@ public class SurfEyeController: WineSurferControllerBase
         }
 
         ChatCompletion completion;
+        double llmElapsedMilliseconds = 0d;
+        var llmStopwatch = Stopwatch.StartNew();
         try
         {
             completion = await _chatGptService.GetChatCompletionAsync(
@@ -199,6 +209,11 @@ public class SurfEyeController: WineSurferControllerBase
         catch (Exception ex)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, new SurfEyeAnalysisError("We couldn't analyze that photo right now. Please try again."));
+        }
+        finally
+        {
+            llmStopwatch.Stop();
+            llmElapsedMilliseconds = llmStopwatch.Elapsed.TotalMilliseconds;
         }
 
         var content = StringUtilities.ExtractCompletionText(completion);
@@ -238,7 +253,10 @@ public class SurfEyeController: WineSurferControllerBase
             : parsedResult.Summary.Trim();
 
         var resolvedMatches = await ResolveSurfEyeMatchesAsync(orderedMatches, cancellationToken);
-        var response = new SurfEyeAnalysisResponse(summary, resolvedMatches);
+        var response = new SurfEyeAnalysisResponse(summary, resolvedMatches)
+        {
+            Timings = new SurfEyeAnalysisTimings(ocrElapsedMilliseconds, llmElapsedMilliseconds)
+        };
         return Json(response);
     }
     
