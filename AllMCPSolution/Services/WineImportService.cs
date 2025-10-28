@@ -360,6 +360,8 @@ public sealed class WineImportService : IWineImportService
             }
 
             var wineExists = await GetWineExistsAsync(row);
+            var country = await GetCountryAsync(row.Country);
+            var countryExists = country is not null;
             var (regionExists, region) = await GetRegionAsync(row.Country, row.Region ?? string.Empty);
             var appellationExists = await GetAppellationExistsAsync(region, row.Appellation ?? string.Empty);
 
@@ -374,6 +376,7 @@ public sealed class WineImportService : IWineImportService
                 Color = color.ToString(),
                 Amount = amount,
                 WineExists = wineExists,
+                CountryExists = countryExists,
                 RegionExists = regionExists,
                 AppellationExists = appellationExists
             });
@@ -828,6 +831,7 @@ public sealed class WineImportPreviewRow
     public string Color { get; set; } = string.Empty;
     public int Amount { get; set; }
     public bool WineExists { get; set; }
+    public bool CountryExists { get; set; }
     public bool RegionExists { get; set; }
     public bool AppellationExists { get; set; }
 }
