@@ -198,10 +198,18 @@
                                     var hasAppellation = !string.IsNullOrWhiteSpace(row.Appellation) || !string.IsNullOrWhiteSpace(row.SubAppellation);
                                     var hasRegion = !string.IsNullOrWhiteSpace(row.Region);
                                     var hasCountry = !string.IsNullOrWhiteSpace(row.Country);
-                                    var wineCellClass = "import-preview__cell import-preview__cell--wine" + (row.WineExists ? " import-preview__cell--match" : string.Empty);
-                                    var appellationCellClass = "import-preview__cell import-preview__cell--appellation" + (row.AppellationExists ? " import-preview__cell--match" : string.Empty);
-                                    var regionCellClass = "import-preview__cell import-preview__cell--region" + (row.RegionExists ? " import-preview__cell--match" : string.Empty);
-                                    var countryCellClass = "import-preview__cell import-preview__cell--country" + (row.CountryExists ? " import-preview__cell--match" : string.Empty);
+                                    var wineCellClass = row.WineExists
+                                        ? "import-preview__cell import-preview__cell--wine import-preview__cell--match"
+                                        : "import-preview__cell import-preview__cell--wine";
+                                    var appellationCellClass = row.AppellationExists
+                                        ? "import-preview__cell import-preview__cell--appellation import-preview__cell--match"
+                                        : "import-preview__cell import-preview__cell--appellation";
+                                    var regionCellClass = row.RegionExists
+                                        ? "import-preview__cell import-preview__cell--region import-preview__cell--match"
+                                        : "import-preview__cell import-preview__cell--region";
+                                    var countryCellClass = row.CountryExists
+                                        ? "import-preview__cell import-preview__cell--country import-preview__cell--match"
+                                        : "import-preview__cell import-preview__cell--country";
                                     var buttonAriaLabel = string.IsNullOrWhiteSpace(row.Name)
                                         ? "Create wine in catalog"
                                         : $"Create {row.Name} in catalog";
