@@ -47,9 +47,21 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
         "<span[^>]*class=['\"][^'\"]*el\\s+var[^'\"]*['\"][^>]*>(?<content>.*?)</span>",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
-    private static readonly Regex QuantitySpanRegex = new(
-        "<span[^>]*class=['\"][^'\"]*\\bel\\s+num[^'\"]*['\"][^>]*>(?<content>.*?)</span>",
+    private static readonly Regex QuantitySpanRegex = CreateElSpanRegex("num");
+
+    private static readonly Regex ConsumptionStatusSpanRegex = CreateElSpanRegex("con");
+
+    private static readonly Regex ConsumptionDateSpanRegex = CreateElSpanRegex("dat");
+
+    private static readonly Regex ConsumptionNoteSpanRegex = CreateElSpanRegex("not");
+
+    private static readonly Regex AnchorWithHrefRegex = new(
+        "<a[^>]*href=['\"](?<href>[^'\"]*)['\"][^>]*>(?<text>.*?)</a>",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+
+    private static readonly Regex ScorePrefixRegex = new(
+        @"^\s*(?<first>\d+(?:[.,]\d+)?)(?:\s*[-–]\s*(?<second>\d+(?:[.,]\d+)?))?",
+        RegexOptions.Compiled);
 
     private static readonly Regex FourDigitVintagePrefixRegex = new(
         @"^\s*(?<year>\d{4})\b",
@@ -58,6 +70,15 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
     private static readonly Regex VintagePrefixRegex = new(
         @"^\s*(?<value>(?:N\.?V\.?|N/V|Non\s+Vintage|\d{2}))(?:\s+|(?=[^A-Za-z]))",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static Regex CreateElSpanRegex(string className)
+    {
+        var escaped = Regex.Escape(className);
+        var pattern =
+            $"<span[^>]*class=['\"](?>[^'\"]*?)(?=[^'\"]*\\bel\\b)(?=[^'\"]*\\b{escaped}\\b)[^'\"]*['\"][^>]*>(?<content>.*?)</span>";
+
+        return new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+    }
 
     public async Task<CellarTrackerImportResult> ParseAsync(
         Stream htmlStream,
@@ -157,9 +178,26 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
             var variety = WebUtility.HtmlDecode(rawVariety).Trim();
 
             var (quantity, hasQuantityInfo) = ExtractQuantity(rowContent);
-            var hasBottleDetails = hasQuantityInfo && vintage.HasValue;
+            var consumption = ExtractConsumption(inner, rowContent);
 
-            wines.Add(new CellarTrackerWine(cleanedName, appellation, variety, vintage, quantity, hasBottleDetails));
+            if (consumption.IsConsumed && quantity <= 0)
+            {
+                quantity = 1;
+            }
+
+            var hasBottleDetails = (hasQuantityInfo || consumption.IsConsumed) && vintage.HasValue;
+
+            wines.Add(new CellarTrackerWine(
+                cleanedName,
+                appellation,
+                variety,
+                vintage,
+                quantity,
+                hasBottleDetails,
+                consumption.IsConsumed,
+                consumption.Date,
+                consumption.Score,
+                consumption.Note));
         }
 
         return new CellarTrackerImportResult(wines, country, region, color);
@@ -283,6 +321,248 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
         return (1, false);
     }
 
+    private static CellarTrackerConsumptionInfo ExtractConsumption(string cellContent, string rowContent)
+    {
+        if (string.IsNullOrWhiteSpace(cellContent) && string.IsNullOrWhiteSpace(rowContent))
+        {
+            return CellarTrackerConsumptionInfo.Empty;
+        }
+
+        var source = string.IsNullOrWhiteSpace(cellContent) ? rowContent : cellContent;
+
+        var isConsumed = false;
+        DateTime? consumptionDate = null;
+        decimal? consumptionScore = null;
+        string? consumptionNote = null;
+
+        var statusMatch = ConsumptionStatusSpanRegex.Match(source);
+        if (statusMatch.Success)
+        {
+            var statusText = WebUtility.HtmlDecode(StripTags(statusMatch.Groups["content"].Value)).Trim();
+            if (!string.IsNullOrWhiteSpace(statusText)
+                && statusText.Contains("drank", StringComparison.OrdinalIgnoreCase))
+            {
+                isConsumed = true;
+            }
+        }
+
+        var dateMatch = ConsumptionDateSpanRegex.Match(source);
+        if (dateMatch.Success)
+        {
+            var dateContent = dateMatch.Groups["content"].Value;
+            var (parsedDate, foundDate) = ExtractConsumptionDate(dateContent);
+            if (foundDate)
+            {
+                consumptionDate = parsedDate;
+                isConsumed = true;
+            }
+        }
+
+        var noteMatch = ConsumptionNoteSpanRegex.Match(source);
+        if (noteMatch.Success)
+        {
+            var rawNote = StripTags(noteMatch.Groups["content"].Value);
+            var decoded = WebUtility.HtmlDecode(rawNote);
+            if (!string.IsNullOrWhiteSpace(decoded))
+            {
+                var normalized = Regex.Replace(decoded, "\\s+", " ").Trim();
+                if (!string.IsNullOrWhiteSpace(normalized))
+                {
+                    var (score, note) = ExtractScoreAndNote(normalized);
+                    if (score.HasValue)
+                    {
+                        consumptionScore = score;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(note))
+                    {
+                        consumptionNote = note;
+                    }
+
+                    if (score.HasValue || !string.IsNullOrWhiteSpace(consumptionNote))
+                    {
+                        isConsumed = true;
+                    }
+                }
+            }
+        }
+
+        return new CellarTrackerConsumptionInfo(isConsumed, consumptionDate, consumptionScore, consumptionNote);
+    }
+
+    private static (DateTime? Date, bool Found) ExtractConsumptionDate(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return (null, false);
+        }
+
+        var linkMatch = AnchorWithHrefRegex.Match(content);
+        if (linkMatch.Success)
+        {
+            var href = WebUtility.HtmlDecode(linkMatch.Groups["href"].Value);
+            if (!string.IsNullOrWhiteSpace(href))
+            {
+                var rawValue = ExtractQueryParameter(href, "ConsumedBegin");
+                if (!string.IsNullOrWhiteSpace(rawValue))
+                {
+                    var decoded = Uri.UnescapeDataString(rawValue);
+                    if (TryParseConsumptionDate(decoded, out var parsed))
+                    {
+                        return (NormalizeConsumptionDate(parsed), true);
+                    }
+                }
+            }
+
+            var linkText = WebUtility.HtmlDecode(StripTags(linkMatch.Groups["text"].Value));
+            if (!string.IsNullOrWhiteSpace(linkText) && TryParseConsumptionDate(linkText, out var parsedText))
+            {
+                return (NormalizeConsumptionDate(parsedText), true);
+            }
+        }
+
+        var fallback = WebUtility.HtmlDecode(StripTags(content));
+        if (!string.IsNullOrWhiteSpace(fallback) && TryParseConsumptionDate(fallback, out var parsedFallback))
+        {
+            return (NormalizeConsumptionDate(parsedFallback), true);
+        }
+
+        return (null, false);
+    }
+
+    private static string? ExtractQueryParameter(string href, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(href) || string.IsNullOrWhiteSpace(parameterName))
+        {
+            return null;
+        }
+
+        var questionIndex = href.IndexOf('?', StringComparison.Ordinal);
+        if (questionIndex < 0 || questionIndex >= href.Length - 1)
+        {
+            return null;
+        }
+
+        var query = href[(questionIndex + 1)..];
+        var segments = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var segment in segments)
+        {
+            var parts = segment.Split('=', 2, StringSplitOptions.None);
+            if (parts.Length != 2)
+            {
+                continue;
+            }
+
+            if (parts[0].Equals(parameterName, StringComparison.OrdinalIgnoreCase))
+            {
+                return parts[1];
+            }
+        }
+
+        return null;
+    }
+
+    private static bool TryParseConsumptionDate(string value, out DateTime result)
+    {
+        var trimmed = value?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            result = default;
+            return false;
+        }
+
+        var formats = new[]
+        {
+            "yyyy-MM-dd",
+            "dd.MM.yyyy",
+            "MM/dd/yyyy",
+            "dd/MM/yyyy"
+        };
+
+        foreach (var format in formats)
+        {
+            if (DateTime.TryParseExact(
+                trimmed,
+                format,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out result))
+            {
+                return true;
+            }
+        }
+
+        if (DateTime.TryParse(trimmed, CultureInfo.InvariantCulture, DateTimeStyles.None, out result))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static (decimal? Score, string Note) ExtractScoreAndNote(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return (null, string.Empty);
+        }
+
+        var match = ScorePrefixRegex.Match(value);
+        if (!match.Success || match.Length == 0)
+        {
+            return (null, value.Trim());
+        }
+
+        var firstToken = match.Groups["first"].Value;
+        if (string.IsNullOrWhiteSpace(firstToken))
+        {
+            return (null, value.Trim());
+        }
+
+        static decimal? ParseScore(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return null;
+            }
+
+            var normalized = token.Replace(',', '.');
+            return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed)
+                ? parsed
+                : null;
+        }
+
+        var firstScore = ParseScore(firstToken);
+        if (!firstScore.HasValue)
+        {
+            return (null, value.Trim());
+        }
+
+        decimal? finalScore = firstScore;
+        var secondToken = match.Groups["second"].Value;
+        if (!string.IsNullOrWhiteSpace(secondToken))
+        {
+            var secondScore = ParseScore(secondToken);
+            if (secondScore.HasValue)
+            {
+                finalScore = Math.Round((firstScore.Value + secondScore.Value) / 2m, 2, MidpointRounding.AwayFromZero);
+            }
+        }
+
+        var remainder = value[match.Length..];
+        remainder = remainder.TrimStart(' ', '-', '–', ':', '.', ',', '\u2013', '\u2014');
+        remainder = Regex.Replace(remainder, "\\s+", " ").Trim();
+
+        return (finalScore, remainder);
+    }
+
+    private static DateTime NormalizeConsumptionDate(DateTime value)
+    {
+        var dateOnly = value.Date;
+        return dateOnly >= DateTime.MaxValue.Date ? dateOnly : dateOnly.AddDays(1);
+    }
+
     private static int? ParseVintageToken(string token)
     {
         if (string.IsNullOrWhiteSpace(token))
@@ -321,10 +601,23 @@ public sealed record CellarTrackerWine(
     string Variety,
     int? Vintage,
     int Quantity,
-    bool HasBottleDetails);
+    bool HasBottleDetails,
+    bool IsConsumed,
+    DateTime? ConsumptionDate,
+    decimal? ConsumptionScore,
+    string? ConsumptionNote);
 
 public sealed record CellarTrackerImportResult(
     IReadOnlyList<CellarTrackerWine> Wines,
     string? Country,
     string? Region,
     string? Color);
+
+internal sealed record CellarTrackerConsumptionInfo(
+    bool IsConsumed,
+    DateTime? Date,
+    decimal? Score,
+    string? Note)
+{
+    public static CellarTrackerConsumptionInfo Empty { get; } = new(false, null, null, null);
+}
