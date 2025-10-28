@@ -113,6 +113,12 @@
             justify-content: center;
             align-items: center;
             min-height: 260px;
+            cursor: pointer;
+        }
+
+        .surf-eye-camera:focus-visible {
+            outline: 2px solid rgba(244, 241, 234, 0.6);
+            outline-offset: 4px;
         }
 
         .surf-eye-preview {
@@ -410,21 +416,20 @@
                     @Html.AntiForgeryToken()
                     <div>
                         <p class="surf-eye-section-title">Capture</p>
-                        <div class="surf-eye-camera">
+                        <div class="surf-eye-camera" role="button" tabindex="0" aria-controls="surf-eye-photo" aria-label="Open the camera to capture a wine label">
                             <img id="surf-eye-preview" class="surf-eye-preview" alt="Preview of the captured wine photo" />
                             <div id="surf-eye-placeholder" class="surf-eye-placeholder">
                                 <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <path d="M16 12l3-4h10l3 4h6a4 4 0 0 1 4 4v18a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V16a4 4 0 0 1 4-4z" />
                                     <circle cx="24" cy="25" r="8" />
                                 </svg>
-                                <span>Open the camera and snap a label</span>
+                                <span>Tap to open the camera and snap a label</span>
                                 <span style="font-size: 0.7rem; letter-spacing: 2px;">Max size @FormatBytes(maxUploadBytes)</span>
                             </div>
                         </div>
                     </div>
                     <input type="file" id="surf-eye-photo" class="surf-eye-input" accept="image/*" capture="environment" name="Photo" />
                     <div class="surf-eye-actions">
-                        <label for="surf-eye-photo" class="sisterhood-button">Open Camera</label>
                         <button type="button" class="sisterhood-button sisterhood-button--primary" id="surf-eye-analyze">tell me what to drink</button>
                         <button type="button" class="sisterhood-button" id="surf-eye-identify">what wine is this</button>
                     </div>
@@ -454,6 +459,7 @@
     const photoInput = document.getElementById('surf-eye-photo');
     const previewImage = document.getElementById('surf-eye-preview');
     const placeholder = document.getElementById('surf-eye-placeholder');
+    const cameraArea = document.querySelector('.surf-eye-camera');
     const analyzeButton = document.getElementById('surf-eye-analyze');
     const identifyButton = document.getElementById('surf-eye-identify');
     const statusEl = document.getElementById('surf-eye-status');
@@ -562,10 +568,42 @@
             URL.revokeObjectURL(previewUrl);
             previewUrl = null;
         }
-        previewImage.style.display = 'none';
-        previewImage.removeAttribute('src');
-        placeholder.style.display = 'flex';
+        if (previewImage) {
+            previewImage.style.display = 'none';
+            previewImage.removeAttribute('src');
+        }
+        if (placeholder) {
+            placeholder.style.display = 'flex';
+        }
     };
+
+    const triggerCamera = () => {
+        if (!photoInput || photoInput.disabled) {
+            return;
+        }
+
+        photoInput.click();
+    };
+
+    if (cameraArea) {
+        cameraArea.addEventListener('click', (event) => {
+            if (event.defaultPrevented) {
+                return;
+            }
+
+            event.preventDefault();
+            triggerCamera();
+        });
+
+        cameraArea.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+            }
+
+            event.preventDefault();
+            triggerCamera();
+        });
+    }
 
     const clearResults = () => {
         if (summaryEl) {
@@ -1355,9 +1393,13 @@
         }
 
         previewUrl = URL.createObjectURL(file);
-        previewImage.src = previewUrl;
-        previewImage.style.display = 'block';
-        placeholder.style.display = 'none';
+        if (previewImage) {
+            previewImage.src = previewUrl;
+            previewImage.style.display = 'block';
+        }
+        if (placeholder) {
+            placeholder.style.display = 'none';
+        }
         setStatus(photoReadyMessage);
         setAnalyzeBusy(false);
     });
