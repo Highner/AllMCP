@@ -66,7 +66,6 @@
         const vintageSummaryCache = new Map();
         let expandedInventoryRow = null;
 
-        setupInventoryTableHeaderOffset();
 
         if (inventoryTable && inventoryInlineTemplate && inventoryInlineRowTemplate) {
             const summaryRows = Array.from(inventoryTable.querySelectorAll('[data-inventory-row]'));
@@ -244,49 +243,6 @@
             }
         }
 
-        function setupInventoryTableHeaderOffset() {
-            if (!inventoryTable) {
-                return;
-            }
-
-            const root = document.documentElement;
-            if (!root) {
-                return;
-            }
-
-            const topBar = document.querySelector('.top-bar');
-            if (!(topBar instanceof HTMLElement)) {
-                root.style.removeProperty('--inventory-table-header-offset');
-                return;
-            }
-
-            let resizeObserver = null;
-
-            const updateOffset = () => {
-                const topBarRect = topBar.getBoundingClientRect();
-                const measuredHeight = Number.isFinite(topBarRect.height) ? topBarRect.height : topBar.offsetHeight;
-                const computedHeight = Math.max(0, Math.round(measuredHeight));
-                root.style.setProperty('--inventory-table-header-offset', `${computedHeight}px`);
-            };
-
-            updateOffset();
-
-            window.addEventListener('resize', updateOffset);
-
-            if ('ResizeObserver' in window) {
-                resizeObserver = new window.ResizeObserver(() => {
-                    updateOffset();
-                });
-                resizeObserver.observe(topBar);
-            }
-
-            window.addEventListener('beforeunload', () => {
-                window.removeEventListener('resize', updateOffset);
-                if (resizeObserver) {
-                    resizeObserver.disconnect();
-                }
-            }, { once: true });
-        }
 
         function createInlineRow() {
             if (!inventoryInlineTemplate?.content?.firstElementChild) {
@@ -309,6 +265,7 @@
                 const scoreCell = templateRow.querySelector('[data-score]');
                 const availableCell = templateRow.querySelector('[data-available]');
                 const drunkCell = templateRow.querySelector('[data-drunk]');
+                const noteCell = templateRow.querySelector('[data-note]');
 
                 if (vintageCell) {
                     vintageCell.textContent = formatVintageLabel(vintage?.vintage);
@@ -337,6 +294,12 @@
                         ? drunkCount.toLocaleString()
                         : '0';
                     drunkCell.textContent = displayDrunk;
+                }
+
+                if (noteCell) {
+                    const note = typeof vintage?.note === 'string' ? vintage.note.trim() : '';
+                    noteCell.textContent = note || '—';
+                    noteCell.title = note || '';
                 }
 
                 const counts = {
@@ -424,6 +387,7 @@
                 const hasScore = typeof detail?.currentUserScore === 'number'
                     && Number.isFinite(detail.currentUserScore);
                 const scoreValue = hasScore ? detail.currentUserScore : 0;
+                const noteText = typeof detail?.currentUserNote === 'string' ? detail.currentUserNote.trim() : '';
 
                 const isDrunk = Boolean(detail?.isDrunk);
 
@@ -438,6 +402,9 @@
                         existing.scoreTotal += scoreValue;
                         existing.scoreCount += 1;
                     }
+                    if (!existing.note && noteText) {
+                        existing.note = noteText;
+                    }
                 } else {
                     results.set(vintageId, {
                         wineVintageId: vintageId,
@@ -446,7 +413,8 @@
                         availableCount: isDrunk ? 0 : 1,
                         drunkCount: isDrunk ? 1 : 0,
                         scoreTotal: scoreValue,
-                        scoreCount: hasScore ? 1 : 0
+                        scoreCount: hasScore ? 1 : 0,
+                        note: noteText
                     });
                 }
             });
@@ -463,7 +431,8 @@
                     availableCount: entry.availableCount,
                     drunkCount: entry.drunkCount,
                     totalCount: entry.totalCount,
-                    averageScore
+                    averageScore,
+                    note: entry.note
                 };
             });
             aggregated.sort((a, b) => {

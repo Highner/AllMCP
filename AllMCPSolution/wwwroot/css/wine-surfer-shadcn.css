@@ -1890,12 +1890,8 @@ table,
 }
 
 .inventory-table thead th {
-    position: sticky;
-    top: var(--inventory-table-header-offset, 88px);
-    z-index: 5;
+    position: static;
     background: hsla(var(--accent) / 0.3);
-    background-clip: padding-box;
-    box-shadow: 0 1px 0 hsla(var(--border) / 0.35);
 }
 
 table thead,
@@ -3087,5 +3083,29 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 
     .wine-surfer-page-header__title {
         letter-spacing: 6px;
+    }
+}
+
+
+/* Inline inventory vintage table: note column styling */
+.inventory-inline-table .inventory-inline-note-header,
+.inventory-inline-table .inventory-inline-note {
+    /* Give the note column greater width than other columns */
+    min-width: 280px;
+    width: 40%;
+}
+
+.inventory-inline-table .inventory-inline-note {
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.45;
+    color: hsla(var(--foreground) / 0.92);
+}
+
+/* Hide note column on small screens (mobile) */
+@media (max-width: 700px) {
+    .inventory-inline-table .inventory-inline-note-header,
+    .inventory-inline-table .inventory-inline-note {
+        display: none;
     }
 }

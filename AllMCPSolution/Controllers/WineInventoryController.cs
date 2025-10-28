@@ -1383,7 +1383,9 @@ public partial class WineInventoryController : Controller
         };
 
         var details = ownedBottles
-            .OrderBy(b => b.IsDrunk)
+            // Order inline table entries by vintage (newest first), then by status/date for stable grouping
+            .OrderByDescending(b => b.WineVintage.Vintage)
+            .ThenBy(b => b.IsDrunk)
             .ThenBy(b => b.DrunkAt ?? DateTime.MaxValue)
             .Select(b =>
             {

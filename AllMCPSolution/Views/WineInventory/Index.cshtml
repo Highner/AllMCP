@@ -78,12 +78,6 @@
                                 <span class="sort-icon" aria-hidden="true"></span>
                             </a>
                         </th>
-                        <th class="summary-header summary-header--vintage">
-                            <a class="sort-header @SortStateClass("vintage")" href="@BuildSortUrl("vintage")">
-                                <span class="header-text">Vintage</span>
-                                <span class="sort-icon" aria-hidden="true"></span>
-                            </a>
-                        </th>
                         <th class="summary-header summary-header--bottles">
                             <span class="header-text">Bottles</span>
                         </th>
@@ -141,7 +135,6 @@
                                 data-appellation-id="@(bottle.AppellationId?.ToString() ?? string.Empty)"
                                 data-summary-wine="@bottle.WineName"
                                 data-summary-appellation="@groupingAppellation"
-                                data-summary-vintage="@groupingVintage"
                                 data-summary-color="@groupingColor"
                                 data-summary-status="@groupingStatus"
                                 tabindex="0"
@@ -149,7 +142,6 @@
                                 aria-expanded="false">
                                 <td class="summary-wine">@bottle.WineName</td>
                                 <td class="summary-appellation">@display</td>
-                                <td class="summary-vintage">—</td>
                                 <td class="summary-bottles" data-field="bottle-count">@bottle.BottleCount</td>
                                 <td class="summary-color">@bottle.Color</td>
                                 <td class="summary-status"><span class="status-pill @bottle.StatusCssClass" data-field="status">@bottle.StatusLabel</span></td>
@@ -160,7 +152,7 @@
                     else
                     {
                         <tr class="crud-table__empty-row empty-row">
-                            <td colspan="7">No bottles yet. Add your first wine above to get started.</td>
+                            <td colspan="6">No bottles yet. Add your first wine above to get started.</td>
                         </tr>
                     }
                 </tbody>
