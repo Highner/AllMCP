@@ -4,6 +4,8 @@ using AllMCPSolution.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,14 +19,26 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         }));
 
 builder.Services
-    .AddControllers()
+    .AddControllers(options =>
+    {
+        var policy = new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
+        options.Filters.Add(new AuthorizeFilter(policy));
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
 builder.Services
-    .AddControllersWithViews()
+    .AddControllersWithViews(options =>
+    {
+        var policy = new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
+        options.Filters.Add(new AuthorizeFilter(policy));
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
