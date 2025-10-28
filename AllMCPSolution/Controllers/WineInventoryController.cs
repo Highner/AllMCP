@@ -4,12 +4,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using AllMCPSolution.Utilities;
 
 namespace AllMCPSolution.Controllers;
 
 [Authorize]
 [Route("wine-manager")]
-public class WineInventoryController : Controller
+public partial class WineInventoryController : Controller
 {
     private readonly IBottleRepository _bottleRepository;
     private readonly IBottleLocationRepository _bottleLocationRepository;
@@ -680,11 +681,56 @@ public class WineInventoryController : Controller
             var regionEntity = existingRegion ?? await _regionRepository
                 .GetOrCreateAsync(trimmedRegion!, countryEntity, cancellationToken);
 
-            var rows = parseResult.Producers
-                .Select((producer, index) => new WineImportPreviewRowViewModel
+            // Define fuzzy matching thresholds similar to WineImportService
+            const double maxNameDistance = 0.2d;
+            const double maxHierarchyDistance = 0.15d;
+
+            bool MatchesImportRow(string sourceName, string? sourceAppellation, Wine candidate)
+            {
+                if (string.IsNullOrWhiteSpace(sourceName))
                 {
-                    RowId = $"star-{index + 1}",
-                    RowNumber = index + 1,
+                    return false;
+                }
+
+                var nameDistance = FuzzyMatchUtilities.CalculateNormalizedDistance(sourceName, candidate.Name);
+                if (nameDistance > maxNameDistance)
+                {
+                    return false;
+                }
+
+                if (!string.IsNullOrWhiteSpace(sourceAppellation))
+                {
+                    var candidateAppellation = candidate.SubAppellation?.Appellation?.Name;
+                    if (string.IsNullOrWhiteSpace(candidateAppellation))
+                    {
+                        return false;
+                    }
+
+                    var distance = FuzzyMatchUtilities.CalculateNormalizedDistance(sourceAppellation!, candidateAppellation);
+                    return distance <= maxHierarchyDistance;
+                }
+
+                return true;
+            }
+
+            var rows = new List<WineImportPreviewRowViewModel>();
+            for (var i = 0; i < parseResult.Producers.Count; i++)
+            {
+                var producer = parseResult.Producers[i];
+
+                // Check for existing appellation under the detected region
+                var existingAppellation = string.IsNullOrWhiteSpace(producer.Appellation)
+                    ? null
+                    : await _appellationRepository.FindByNameAndRegionAsync(producer.Appellation.Trim(), regionEntity.Id, cancellationToken);
+
+                // Find closest wine name matches and evaluate
+                var matches = await _wineRepository.FindClosestMatchesAsync(producer.Name, 5, cancellationToken);
+                var wineExists = matches.Any(m => MatchesImportRow(producer.Name, producer.Appellation, m));
+
+                rows.Add(new WineImportPreviewRowViewModel
+                {
+                    RowId = $"star-{i + 1}",
+                    RowNumber = i + 1,
                     Name = producer.Name,
                     Country = trimmedCountry!,
                     Region = trimmedRegion!,
@@ -692,12 +738,12 @@ public class WineInventoryController : Controller
                     SubAppellation = string.Empty,
                     Color = string.Empty,
                     Amount = 1,
-                    WineExists = false,
-                    CountryExists = countryEntity is not null,
-                    RegionExists = regionEntity is not null,
-                    AppellationExists = false
-                })
-                .ToList();
+                    WineExists = wineExists,
+                    CountryExists = existingCountry is not null,
+                    RegionExists = existingRegion is not null,
+                    AppellationExists = existingAppellation is not null
+                });
+            }
 
             viewModel.BottleUpload.Errors = Array.Empty<string>();
             viewModel.BottleUpload.PreviewRows = rows;
@@ -2479,36 +2525,40 @@ public class WineInventoryViewModel
         public IReadOnlyList<int> Vintages { get; set; } = Array.Empty<int>();
     }
 
-    private static string? FormatCatalogErrors(IReadOnlyDictionary<string, string[]>? errors)
+    // Helper wrapped in partial class to keep controller organized.
+    public partial class WineInventoryController
     {
-        if (errors is null || errors.Count == 0)
+        private static string? FormatCatalogErrors(IReadOnlyDictionary<string, string[]>? errors)
         {
-            return null;
-        }
-
-        var messages = new List<string>();
-        foreach (var entry in errors)
-        {
-            if (entry.Value is null)
+            if (errors is null || errors.Count == 0)
             {
-                continue;
+                return null;
             }
 
-            foreach (var message in entry.Value)
+            var messages = new List<string>();
+            foreach (var entry in errors)
             {
-                if (!string.IsNullOrWhiteSpace(message))
+                if (entry.Value is null)
                 {
-                    messages.Add(message.Trim());
+                    continue;
+                }
+
+                foreach (var message in entry.Value)
+                {
+                    if (!string.IsNullOrWhiteSpace(message))
+                    {
+                        messages.Add(message.Trim());
+                    }
                 }
             }
-        }
 
-        if (messages.Count == 0)
-        {
-            return null;
-        }
+            if (messages.Count == 0)
+            {
+                return null;
+            }
 
-        return string.Join(' ', messages);
+            return string.Join(' ', messages);
+        }
     }
 
     public class WineImportPageViewModel
