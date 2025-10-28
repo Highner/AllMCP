@@ -337,7 +337,7 @@
                 wineNameEl.textContent = 'No bottles found';
             }
             if (vintageEl) {
-                vintageEl.textContent = 'Vintage —';
+                vintageEl.textContent = '- —';
             }
             if (countEl) {
                 countEl.textContent = 'Bottles: 0';
@@ -365,7 +365,7 @@
                 : Number(rawVintage);
             const hasVintage = Number.isFinite(numericVintage) && numericVintage > 0;
             const vintage = hasVintage ? numericVintage : '—';
-            vintageEl.textContent = `Vintage ${vintage}`;
+            vintageEl.textContent = `- ${vintage}`;
         }
 
         if (countEl) {

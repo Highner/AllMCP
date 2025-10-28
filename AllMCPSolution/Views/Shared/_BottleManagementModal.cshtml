@@ -70,14 +70,10 @@
         BodyContent = @<section class="bottle-management" data-bottle-management-root>
             <input type="hidden" value="" data-bottle-management-vintage-id />
             <header class="bottle-management-summary" aria-live="polite">
-                <h3 class="bottle-management-wine" data-bottle-management-wine>Choose a wine</h3>
+                <h3 class="bottle-management-wine">
+                    <span data-bottle-management-wine>Choose a wine</span> <span data-bottle-management-vintage class="bottle-management-vintage">- —</span>
+                </h3>
                 <p class="bottle-management-meta">
-                    <span data-bottle-management-vintage>Vintage —</span>
-                    <span class="bottle-management-meta-separator" aria-hidden="true">•</span>
-                    <span data-bottle-management-count>Bottles: 0</span>
-                    <span class="bottle-management-meta-separator" aria-hidden="true">•</span>
-                    <span data-bottle-management-status>Status: —</span>
-                    <span class="bottle-management-meta-separator" aria-hidden="true">•</span>
                     <span data-bottle-management-average>Avg. score: —</span>
                 </p>
             </header>
@@ -88,7 +84,6 @@
             }
             <section class="bottle-management-table-section">
                 <header class="bottle-management-table-header">
-                    <h4 class="bottle-management-table-title">Your bottles</h4>
                     <div class="bottle-management-actions">
                         <label class="bottle-management-control">
                             <span class="bottle-management-control-label">Location</span>

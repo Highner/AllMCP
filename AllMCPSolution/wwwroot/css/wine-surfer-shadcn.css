@@ -2053,6 +2053,10 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 .inventory-inline-table {
     width: 100%;
     border-collapse: collapse;
+    /* Ensure the inline table doesn't clip its corners/content inside the rounded container */
+    overflow: visible;
+    border-radius: 0;
+    background: transparent;
 }
 
 .inventory-inline-table thead th {
@@ -2062,7 +2066,7 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     text-transform: uppercase;
     font-weight: 600;
     color: hsla(var(--muted-foreground) / 0.9);
-    padding: 0 0 10px;
+    padding: 6px 8px 10px;
 }
 
 .inventory-inline-table td {

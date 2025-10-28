@@ -686,8 +686,12 @@ a.wine-card:focus {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: 12px;
+}
+
+.bottle-management-actions .bottle-management-add-button {
+    margin-left: auto;
 }
 
 .bottle-management-control {
