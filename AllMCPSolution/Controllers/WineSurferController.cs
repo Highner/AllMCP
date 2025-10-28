@@ -3525,7 +3525,12 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
     }
 }
 
-public record SurfEyeAnalysisResponse(string Summary, IReadOnlyList<SurfEyeWineMatch> Wines);
+public record SurfEyeAnalysisResponse(string Summary, IReadOnlyList<SurfEyeWineMatch> Wines)
+{
+    public SurfEyeAnalysisTimings? Timings { get; init; }
+}
+
+public record SurfEyeAnalysisTimings(double OcrMilliseconds, double LlmMilliseconds);
 
 public record SurfEyeWineMatch(
     string Name,

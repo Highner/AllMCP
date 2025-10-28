@@ -165,6 +165,14 @@
             color: #9cf2c6;
         }
 
+        .surf-eye-timings {
+            margin: 0;
+            font-size: 0.75rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: rgba(244, 241, 234, 0.45);
+        }
+
         .surf-eye-results {
             display: none;
             flex-direction: column;
@@ -419,6 +427,7 @@
                         <button type="button" class="sisterhood-button sisterhood-button--primary" id="surf-eye-analyze">Analyze Photo</button>
                     </div>
                     <div id="surf-eye-status" class="surf-eye-status">@(hasTasteProfile ? "Snap a photo to begin." : "Snap a photo to identify wines. Add a taste profile to see alignment scores.")</div>
+                    <p id="surf-eye-timings" class="surf-eye-timings" hidden></p>
                     <div id="surf-eye-results" class="surf-eye-results">
                         <p id="surf-eye-summary" class="surf-eye-summary"></p>
                         <p class="surf-eye-cellar-message" data-favorite-message hidden role="status"></p>
@@ -445,6 +454,7 @@
     const placeholder = document.getElementById('surf-eye-placeholder');
     const analyzeButton = document.getElementById('surf-eye-analyze');
     const statusEl = document.getElementById('surf-eye-status');
+    const timingsEl = document.getElementById('surf-eye-timings');
     const resultsSection = document.getElementById('surf-eye-results');
     const summaryEl = document.getElementById('surf-eye-summary');
     const winesList = document.getElementById('surf-eye-wines');
@@ -459,6 +469,51 @@
         cellarMessage.textContent = text;
         cellarMessage.hidden = text.trim().length === 0;
         cellarMessage.dataset.state = state;
+    };
+    const formatTiming = (milliseconds) => {
+        const value = Number(milliseconds);
+        if (!Number.isFinite(value) || value < 0) {
+            return null;
+        }
+
+        if (value >= 1000) {
+            const seconds = value / 1000;
+            const precision = seconds >= 10 ? 0 : 1;
+            return `${seconds.toFixed(precision)}s`;
+        }
+
+        const rounded = Math.round(value);
+        if (rounded <= 0) {
+            return null;
+        }
+
+        return `${rounded}ms`;
+    };
+    const updateTimings = (timings) => {
+        if (!timingsEl) {
+            return;
+        }
+
+        const ocr = formatTiming(timings?.ocrMilliseconds ?? timings?.ocrMs);
+        const llm = formatTiming(timings?.llmMilliseconds ?? timings?.llmMs);
+        const parts = [];
+
+        if (ocr) {
+            parts.push(`OCR ${ocr}`);
+        }
+
+        if (llm) {
+            parts.push(`LLM ${llm}`);
+        }
+
+        if (parts.length === 0) {
+            timingsEl.textContent = '';
+            timingsEl.hidden = true;
+            return;
+        }
+
+        timingsEl.textContent = `Analysis timings: ${parts.join(' • ')}`;
+        timingsEl.hidden = false;
     };
     document.addEventListener('wishlist:added', (event) => {
         const detail = event?.detail ?? {};
@@ -520,6 +575,7 @@
             emptyState.style.display = 'block';
         }
         showCellarMessage('', 'info');
+        updateTimings(null);
         resultsSection?.classList.remove('is-visible');
     };
 
@@ -1305,6 +1361,7 @@
 
         setAnalyzeBusy(true);
         setStatus(analysisInProgressMessage, 'progress');
+        updateTimings(null);
 
         const formData = new FormData(form);
         try {
@@ -1328,6 +1385,7 @@
                 }
                 setStatus(message, 'error');
                 resultsSection?.classList.remove('is-visible');
+                updateTimings(null);
                 setAnalyzeBusy(false);
                 return;
             }
@@ -1349,12 +1407,14 @@
                 }
                 resultsSection.classList.add('is-visible');
                 setStatus(analysisCompleteMessage, hasTasteProfile ? 'success' : 'info');
+                updateTimings(payload.timings);
             }
         }
         catch (error) {
             console.error('Surf Eye analysis failed', error);
             setStatus('We lost the connection. Try again in a moment.', 'error');
             resultsSection?.classList.remove('is-visible');
+            updateTimings(null);
         }
         finally {
             setAnalyzeBusy(false);
