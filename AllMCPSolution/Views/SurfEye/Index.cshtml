@@ -410,7 +410,6 @@
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main>
-            <p class="surf-eye-intro">Capture a bottle shot and let Surf Eye spot the labels, then rank them by how well they vibe with @displayName's palate.</p>
             <section class="surf-eye-content">
                 <form id="surf-eye-form" class="surf-eye-card" method="post" enctype="multipart/form-data" data-analyze-url="@analyzeUrl" data-identify-url="@identifyUrl" data-has-taste-profile="@hasTasteProfile.ToString().ToLowerInvariant()" data-max-bytes="@maxUploadBytes">
                     @Html.AntiForgeryToken()
