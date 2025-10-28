@@ -1,10 +1,15 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using AllMCPSolution.Utilities;
+using AllMCPSolution.Services;
 
 namespace AllMCPSolution.Controllers;
 
@@ -26,6 +31,7 @@ public partial class WineInventoryController : Controller
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IWineImportService _wineImportService;
     private readonly IStarWineListImportService _starWineListImportService;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public WineInventoryController(
@@ -43,6 +49,7 @@ public partial class WineInventoryController : Controller
         IWineSurferTopBarService topBarService,
         IWineImportService wineImportService,
         IStarWineListImportService starWineListImportService,
+        IHttpClientFactory httpClientFactory,
         UserManager<ApplicationUser> userManager)
     {
         _bottleRepository = bottleRepository;
@@ -59,6 +66,7 @@ public partial class WineInventoryController : Controller
         _topBarService = topBarService;
         _wineImportService = wineImportService;
         _starWineListImportService = starWineListImportService;
+        _httpClientFactory = httpClientFactory;
         _userManager = userManager;
     }
 
@@ -321,6 +329,7 @@ public partial class WineInventoryController : Controller
         IFormFile? wineFile = null,
         IFormFile? bottleFile = null,
         IFormFile? starListFile = null,
+        string? starListRegion = null,
         CancellationToken cancellationToken = default)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
@@ -337,11 +346,19 @@ public partial class WineInventoryController : Controller
         var normalizedType = importType?.Trim().ToLowerInvariant();
         var isBottleImport = string.Equals(normalizedType, "bottles", StringComparison.Ordinal);
         var isStarWineListImport = string.Equals(normalizedType, "starwinelist", StringComparison.Ordinal);
+        var isStarWineListFetch = string.Equals(normalizedType, "starwinelist-fetch", StringComparison.Ordinal);
 
         if (isStarWineListImport)
         {
             await HandleStarWineListImportAsync(
                 starListFile,
+                viewModel,
+                cancellationToken);
+        }
+        else if (isStarWineListFetch)
+        {
+            await HandleStarWineListFetchAsync(
+                starListRegion,
                 viewModel,
                 cancellationToken);
         }
@@ -604,6 +621,7 @@ public partial class WineInventoryController : Controller
 
         viewModel.BottleUpload.SelectedCountry = null;
         viewModel.BottleUpload.SelectedRegion = null;
+        viewModel.BottleUpload.RequestedRegionSlug = null;
         viewModel.BottleUpload.Result = null;
 
         if (file is null || file.Length == 0)
@@ -634,120 +652,11 @@ public partial class WineInventoryController : Controller
             var parseResult = await _starWineListImportService
                 .ParseAsync(stream, cancellationToken);
 
-            var trimmedCountry = string.IsNullOrWhiteSpace(parseResult.Country)
-                ? null
-                : parseResult.Country.Trim();
-            var trimmedRegion = string.IsNullOrWhiteSpace(parseResult.Region)
-                ? null
-                : parseResult.Region.Trim();
-
-            viewModel.BottleUpload.SelectedCountry = trimmedCountry;
-            viewModel.BottleUpload.SelectedRegion = trimmedRegion;
-
-            if (trimmedCountry is null)
-            {
-                errors.Add("We could not determine the country from the uploaded Star Wine List file.");
-            }
-
-            if (trimmedRegion is null)
-            {
-                errors.Add("We could not determine the region from the uploaded Star Wine List file.");
-            }
-
-            if (errors.Count > 0)
-            {
-                viewModel.BottleUpload.Errors = errors;
-                viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
-                viewModel.BottleUpload.UploadedFileName = file.FileName;
-                return;
-            }
-
-            if (parseResult.Producers.Count == 0)
-            {
-                viewModel.BottleUpload.Errors = new[]
-                    { "No producers were found in the uploaded Star Wine List file." };
-                viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
-                viewModel.BottleUpload.UploadedFileName = file.FileName;
-                return;
-            }
-
-            var existingCountry = await _countryRepository
-                .FindByNameAsync(trimmedCountry!, cancellationToken);
-            var countryEntity = existingCountry ?? await _countryRepository
-                .GetOrCreateAsync(trimmedCountry!, cancellationToken);
-
-            var existingRegion = await _regionRepository
-                .FindByNameAndCountryAsync(trimmedRegion!, countryEntity.Id, cancellationToken);
-            var regionEntity = existingRegion ?? await _regionRepository
-                .GetOrCreateAsync(trimmedRegion!, countryEntity, cancellationToken);
-
-            // Define fuzzy matching thresholds similar to WineImportService
-            const double maxNameDistance = 0.2d;
-            const double maxHierarchyDistance = 0.15d;
-
-            bool MatchesImportRow(string sourceName, string? sourceAppellation, Wine candidate)
-            {
-                if (string.IsNullOrWhiteSpace(sourceName))
-                {
-                    return false;
-                }
-
-                var nameDistance = FuzzyMatchUtilities.CalculateNormalizedDistance(sourceName, candidate.Name);
-                if (nameDistance > maxNameDistance)
-                {
-                    return false;
-                }
-
-                if (!string.IsNullOrWhiteSpace(sourceAppellation))
-                {
-                    var candidateAppellation = candidate.SubAppellation?.Appellation?.Name;
-                    if (string.IsNullOrWhiteSpace(candidateAppellation))
-                    {
-                        return false;
-                    }
-
-                    var distance = FuzzyMatchUtilities.CalculateNormalizedDistance(sourceAppellation!, candidateAppellation);
-                    return distance <= maxHierarchyDistance;
-                }
-
-                return true;
-            }
-
-            var rows = new List<WineImportPreviewRowViewModel>();
-            for (var i = 0; i < parseResult.Producers.Count; i++)
-            {
-                var producer = parseResult.Producers[i];
-
-                // Check for existing appellation under the detected region
-                var existingAppellation = string.IsNullOrWhiteSpace(producer.Appellation)
-                    ? null
-                    : await _appellationRepository.FindByNameAndRegionAsync(producer.Appellation.Trim(), regionEntity.Id, cancellationToken);
-
-                // Find closest wine name matches and evaluate
-                var matches = await _wineRepository.FindClosestMatchesAsync(producer.Name, 5, cancellationToken);
-                var wineExists = matches.Any(m => MatchesImportRow(producer.Name, producer.Appellation, m));
-
-                rows.Add(new WineImportPreviewRowViewModel
-                {
-                    RowId = $"star-{i + 1}",
-                    RowNumber = i + 1,
-                    Name = producer.Name,
-                    Country = trimmedCountry!,
-                    Region = trimmedRegion!,
-                    Appellation = producer.Appellation,
-                    SubAppellation = string.Empty,
-                    Color = string.Empty,
-                    Amount = 1,
-                    WineExists = wineExists,
-                    CountryExists = existingCountry is not null,
-                    RegionExists = existingRegion is not null,
-                    AppellationExists = existingAppellation is not null
-                });
-            }
-
-            viewModel.BottleUpload.Errors = Array.Empty<string>();
-            viewModel.BottleUpload.PreviewRows = rows;
-            viewModel.BottleUpload.UploadedFileName = file.FileName;
+            await ApplyStarWineListResultAsync(
+                parseResult,
+                file.FileName,
+                viewModel,
+                cancellationToken);
         }
         catch (InvalidDataException ex)
         {
@@ -764,6 +673,277 @@ public partial class WineInventoryController : Controller
             viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
             viewModel.BottleUpload.UploadedFileName = file?.FileName;
         }
+    }
+
+    private async Task HandleStarWineListFetchAsync(
+        string? regionSlug,
+        WineImportPageViewModel viewModel,
+        CancellationToken cancellationToken)
+    {
+        var errors = new List<string>();
+
+        viewModel.BottleUpload.SelectedCountry = null;
+        viewModel.BottleUpload.SelectedRegion = null;
+        viewModel.BottleUpload.Result = null;
+
+        var trimmedRegion = string.IsNullOrWhiteSpace(regionSlug)
+            ? null
+            : regionSlug.Trim();
+
+        if (!string.IsNullOrWhiteSpace(trimmedRegion))
+        {
+            var slug = trimmedRegion.Replace(' ', '-').Trim('-');
+            viewModel.BottleUpload.RequestedRegionSlug = slug.ToLowerInvariant();
+        }
+        else
+        {
+            viewModel.BottleUpload.RequestedRegionSlug = null;
+        }
+
+        if (string.IsNullOrWhiteSpace(viewModel.BottleUpload.RequestedRegionSlug))
+        {
+            errors.Add("Please choose a region to fetch from Star Wine List.");
+            viewModel.BottleUpload.Errors = errors;
+            viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+            viewModel.BottleUpload.UploadedFileName = null;
+            return;
+        }
+
+        var regionSlugValue = viewModel.BottleUpload.RequestedRegionSlug!;
+        var baseLabel = $"Star Wine List – {BuildStarWineListRegionLabel(regionSlugValue)}";
+
+        var httpClient = _httpClientFactory.CreateClient();
+        if (!httpClient.DefaultRequestHeaders.UserAgent.Any())
+        {
+            httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("AllMCPSolution", "1.0"));
+        }
+
+        var producers = new List<StarWineListProducer>();
+        string? detectedCountry = null;
+        string? detectedRegion = null;
+
+        var page = 1;
+        const int maxPages = 50;
+
+        while (page <= maxPages)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var url = page == 1
+                ? $"https://starwinelist.com/wine-producers/{regionSlugValue}"
+                : $"https://starwinelist.com/wine-producers/{regionSlugValue}?page={page}";
+
+            using var response = await httpClient.GetAsync(url, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                if (page == 1)
+                {
+                    errors.Add($"We could not fetch the Star Wine List page for '{regionSlugValue}'. ({(int)response.StatusCode} {response.ReasonPhrase})");
+                    viewModel.BottleUpload.Errors = errors;
+                    viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+                    viewModel.BottleUpload.UploadedFileName = baseLabel;
+                    return;
+                }
+
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    break;
+                }
+
+                errors.Add($"We encountered an error while fetching page {page} for '{regionSlugValue}'. ({(int)response.StatusCode} {response.ReasonPhrase})");
+                break;
+            }
+
+            using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var pageResult = await _starWineListImportService.ParseAsync(responseStream, cancellationToken);
+
+            if (pageResult.Producers.Count == 0)
+            {
+                if (page == 1)
+                {
+                    errors.Add($"No producers were found for the region '{regionSlugValue}'.");
+                    viewModel.BottleUpload.Errors = errors;
+                    viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+                    viewModel.BottleUpload.UploadedFileName = baseLabel;
+                    return;
+                }
+
+                break;
+            }
+
+            producers.AddRange(pageResult.Producers);
+
+            if (detectedCountry is null && !string.IsNullOrWhiteSpace(pageResult.Country))
+            {
+                detectedCountry = pageResult.Country.Trim();
+            }
+
+            if (detectedRegion is null && !string.IsNullOrWhiteSpace(pageResult.Region))
+            {
+                detectedRegion = pageResult.Region.Trim();
+            }
+
+            page++;
+        }
+
+        if (errors.Count > 0)
+        {
+            viewModel.BottleUpload.Errors = errors;
+            viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+            viewModel.BottleUpload.UploadedFileName = baseLabel;
+            return;
+        }
+
+        if (producers.Count == 0)
+        {
+            viewModel.BottleUpload.Errors = new[]
+            {
+                $"No producers were found for the region '{regionSlugValue}'."
+            };
+            viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+            viewModel.BottleUpload.UploadedFileName = baseLabel;
+            return;
+        }
+
+        detectedRegion ??= BuildStarWineListRegionLabel(regionSlugValue);
+
+        var aggregatedResult = new StarWineListImportResult(producers, detectedCountry, detectedRegion);
+        var sourceLabel = $"{baseLabel} (fetched)";
+
+        await ApplyStarWineListResultAsync(aggregatedResult, sourceLabel, viewModel, cancellationToken);
+    }
+
+    private async Task ApplyStarWineListResultAsync(
+        StarWineListImportResult parseResult,
+        string? sourceLabel,
+        WineImportPageViewModel viewModel,
+        CancellationToken cancellationToken)
+    {
+        var errors = new List<string>();
+
+        var trimmedCountry = string.IsNullOrWhiteSpace(parseResult.Country)
+            ? null
+            : parseResult.Country.Trim();
+        var trimmedRegion = string.IsNullOrWhiteSpace(parseResult.Region)
+            ? null
+            : parseResult.Region.Trim();
+
+        viewModel.BottleUpload.SelectedCountry = trimmedCountry;
+        viewModel.BottleUpload.SelectedRegion = trimmedRegion;
+
+        if (parseResult.Producers.Count == 0)
+        {
+            errors.Add("No producers were found in the Star Wine List data.");
+        }
+
+        if (trimmedCountry is null)
+        {
+            errors.Add("We could not determine the country from the Star Wine List data.");
+        }
+
+        if (trimmedRegion is null)
+        {
+            errors.Add("We could not determine the region from the Star Wine List data.");
+        }
+
+        if (errors.Count > 0)
+        {
+            viewModel.BottleUpload.Errors = errors;
+            viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+            viewModel.BottleUpload.UploadedFileName = sourceLabel;
+            return;
+        }
+
+        var existingCountry = await _countryRepository
+            .FindByNameAsync(trimmedCountry!, cancellationToken);
+        var countryEntity = existingCountry ?? await _countryRepository
+            .GetOrCreateAsync(trimmedCountry!, cancellationToken);
+
+        var existingRegion = await _regionRepository
+            .FindByNameAndCountryAsync(trimmedRegion!, countryEntity.Id, cancellationToken);
+        var regionEntity = existingRegion ?? await _regionRepository
+            .GetOrCreateAsync(trimmedRegion!, countryEntity, cancellationToken);
+
+        const double maxNameDistance = 0.2d;
+        const double maxHierarchyDistance = 0.15d;
+
+        bool MatchesImportRow(string sourceName, string? sourceAppellation, Wine candidate)
+        {
+            if (string.IsNullOrWhiteSpace(sourceName))
+            {
+                return false;
+            }
+
+            var nameDistance = FuzzyMatchUtilities.CalculateNormalizedDistance(sourceName, candidate.Name);
+            if (nameDistance > maxNameDistance)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(sourceAppellation))
+            {
+                var candidateAppellation = candidate.SubAppellation?.Appellation?.Name;
+                if (string.IsNullOrWhiteSpace(candidateAppellation))
+                {
+                    return false;
+                }
+
+                var distance = FuzzyMatchUtilities.CalculateNormalizedDistance(sourceAppellation!, candidateAppellation);
+                return distance <= maxHierarchyDistance;
+            }
+
+            return true;
+        }
+
+        var rows = new List<WineImportPreviewRowViewModel>();
+        for (var i = 0; i < parseResult.Producers.Count; i++)
+        {
+            var producer = parseResult.Producers[i];
+
+            var existingAppellation = string.IsNullOrWhiteSpace(producer.Appellation)
+                ? null
+                : await _appellationRepository.FindByNameAndRegionAsync(
+                    producer.Appellation.Trim(),
+                    regionEntity.Id,
+                    cancellationToken);
+
+            var matches = await _wineRepository.FindClosestMatchesAsync(producer.Name, 5, cancellationToken);
+            var wineExists = matches.Any(m => MatchesImportRow(producer.Name, producer.Appellation, m));
+
+            rows.Add(new WineImportPreviewRowViewModel
+            {
+                RowId = $"star-{i + 1}",
+                RowNumber = i + 1,
+                Name = producer.Name,
+                Country = trimmedCountry!,
+                Region = trimmedRegion!,
+                Appellation = producer.Appellation,
+                SubAppellation = string.Empty,
+                Color = string.Empty,
+                Amount = 1,
+                WineExists = wineExists,
+                CountryExists = existingCountry is not null,
+                RegionExists = existingRegion is not null,
+                AppellationExists = existingAppellation is not null
+            });
+        }
+
+        viewModel.BottleUpload.Errors = Array.Empty<string>();
+        viewModel.BottleUpload.PreviewRows = rows;
+        viewModel.BottleUpload.UploadedFileName = sourceLabel;
+    }
+
+    private static string BuildStarWineListRegionLabel(string regionSlug)
+    {
+        if (string.IsNullOrWhiteSpace(regionSlug))
+        {
+            return "Unknown Region";
+        }
+
+        var normalized = regionSlug.Replace('-', ' ').Trim();
+        var label = CultureInfo.InvariantCulture.TextInfo.ToTitleCase(normalized);
+        return string.IsNullOrWhiteSpace(label) ? regionSlug : label;
     }
 
     [HttpGet("bottles/{wineVintageId:guid}")]
@@ -2576,6 +2756,7 @@ public class WineInventoryViewModel
             Array.Empty<WineImportPreviewRowViewModel>();
         public string? SelectedCountry { get; set; }
         public string? SelectedRegion { get; set; }
+        public string? RequestedRegionSlug { get; set; }
         public bool HasErrors => Errors.Count > 0;
         public bool HasResult => Result is not null;
         public bool HasPreview => PreviewRows.Count > 0;
