@@ -26,6 +26,7 @@ public partial class WineInventoryController : Controller
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IWineImportService _wineImportService;
     private readonly IStarWineListImportService _starWineListImportService;
+    private readonly ICellarTrackerImportService _cellarTrackerImportService;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public WineInventoryController(
@@ -43,6 +44,7 @@ public partial class WineInventoryController : Controller
         IWineSurferTopBarService topBarService,
         IWineImportService wineImportService,
         IStarWineListImportService starWineListImportService,
+        ICellarTrackerImportService cellarTrackerImportService,
         UserManager<ApplicationUser> userManager)
     {
         _bottleRepository = bottleRepository;
@@ -59,6 +61,7 @@ public partial class WineInventoryController : Controller
         _topBarService = topBarService;
         _wineImportService = wineImportService;
         _starWineListImportService = starWineListImportService;
+        _cellarTrackerImportService = cellarTrackerImportService;
         _userManager = userManager;
     }
 
@@ -321,6 +324,7 @@ public partial class WineInventoryController : Controller
         IFormFile? wineFile = null,
         IFormFile? bottleFile = null,
         IFormFile? starListFile = null,
+        IFormFile? cellarTrackerFile = null,
         CancellationToken cancellationToken = default)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
@@ -337,11 +341,19 @@ public partial class WineInventoryController : Controller
         var normalizedType = importType?.Trim().ToLowerInvariant();
         var isBottleImport = string.Equals(normalizedType, "bottles", StringComparison.Ordinal);
         var isStarWineListImport = string.Equals(normalizedType, "starwinelist", StringComparison.Ordinal);
+        var isCellarTrackerImport = string.Equals(normalizedType, "cellartracker", StringComparison.Ordinal);
 
         if (isStarWineListImport)
         {
             await HandleStarWineListImportAsync(
                 starListFile,
+                viewModel,
+                cancellationToken);
+        }
+        else if (isCellarTrackerImport)
+        {
+            await HandleCellarTrackerImportAsync(
+                cellarTrackerFile,
                 viewModel,
                 cancellationToken);
         }
@@ -399,6 +411,10 @@ public partial class WineInventoryController : Controller
         WineImportPageViewModel viewModel,
         CancellationToken cancellationToken)
     {
+        viewModel.BottleUpload.SelectedCountry = null;
+        viewModel.BottleUpload.SelectedRegion = null;
+        viewModel.BottleUpload.SelectedColor = null;
+
         if (file is null || file.Length == 0)
         {
             viewModel.BottleUpload.Errors = new[] { "Please select an Excel file to upload." };
@@ -604,6 +620,7 @@ public partial class WineInventoryController : Controller
 
         viewModel.BottleUpload.SelectedCountry = null;
         viewModel.BottleUpload.SelectedRegion = null;
+        viewModel.BottleUpload.SelectedColor = null;
         viewModel.BottleUpload.Result = null;
 
         if (file is null || file.Length == 0)
@@ -760,6 +777,197 @@ public partial class WineInventoryController : Controller
             viewModel.BottleUpload.Errors = new[]
             {
                 $"An unexpected error occurred while processing the Star Wine List file: {ex.Message}"
+            };
+            viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+            viewModel.BottleUpload.UploadedFileName = file?.FileName;
+        }
+    }
+
+    private async Task HandleCellarTrackerImportAsync(
+        IFormFile? file,
+        WineImportPageViewModel viewModel,
+        CancellationToken cancellationToken)
+    {
+        var errors = new List<string>();
+
+        viewModel.BottleUpload.SelectedCountry = null;
+        viewModel.BottleUpload.SelectedRegion = null;
+        viewModel.BottleUpload.SelectedColor = null;
+        viewModel.BottleUpload.Result = null;
+
+        if (file is null || file.Length == 0)
+        {
+            errors.Add("Please select an HTML file to upload.");
+        }
+        else
+        {
+            var extension = Path.GetExtension(file.FileName);
+            if (!string.Equals(extension, ".html", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(extension, ".htm", StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add("Unsupported file type. Please upload an .html file.");
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            viewModel.BottleUpload.Errors = errors;
+            viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+            viewModel.BottleUpload.UploadedFileName = file?.FileName;
+            return;
+        }
+
+        try
+        {
+            await using var stream = file!.OpenReadStream();
+            var parseResult = await _cellarTrackerImportService
+                .ParseAsync(stream, cancellationToken);
+
+            var trimmedRegion = string.IsNullOrWhiteSpace(parseResult.Region)
+                ? null
+                : parseResult.Region.Trim();
+            var trimmedColor = string.IsNullOrWhiteSpace(parseResult.Color)
+                ? null
+                : parseResult.Color.Trim();
+
+            viewModel.BottleUpload.SelectedRegion = trimmedRegion;
+            viewModel.BottleUpload.SelectedColor = trimmedColor;
+
+            Region? existingRegion = null;
+            Country? existingCountry = null;
+
+            if (trimmedRegion is not null)
+            {
+                existingRegion = await _regionRepository.FindByNameAsync(trimmedRegion, cancellationToken);
+                existingCountry = existingRegion?.Country;
+                if (!string.IsNullOrWhiteSpace(existingCountry?.Name))
+                {
+                    viewModel.BottleUpload.SelectedCountry = existingCountry!.Name;
+                }
+            }
+
+            if (trimmedRegion is null)
+            {
+                errors.Add("We could not determine the region from the uploaded CellarTracker file.");
+            }
+
+            if (trimmedColor is null)
+            {
+                errors.Add("We could not determine the color from the uploaded CellarTracker file.");
+            }
+
+            if (errors.Count > 0)
+            {
+                viewModel.BottleUpload.Errors = errors;
+                viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+                viewModel.BottleUpload.UploadedFileName = file.FileName;
+                return;
+            }
+
+            if (parseResult.Wines.Count == 0)
+            {
+                viewModel.BottleUpload.Errors = new[]
+                    { "No wines were found in the uploaded CellarTracker file." };
+                viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+                viewModel.BottleUpload.UploadedFileName = file.FileName;
+                return;
+            }
+
+            WineColor? parsedColor = null;
+            if (trimmedColor is not null
+                && Enum.TryParse<WineColor>(trimmedColor, true, out var wineColor))
+            {
+                parsedColor = wineColor;
+            }
+
+            const double maxNameDistance = 0.2d;
+            const double maxHierarchyDistance = 0.15d;
+
+            bool MatchesImportRow(CellarTrackerWine wine, Wine candidate)
+            {
+                if (string.IsNullOrWhiteSpace(wine.Name))
+                {
+                    return false;
+                }
+
+                var nameDistance = FuzzyMatchUtilities.CalculateNormalizedDistance(wine.Name, candidate.Name);
+                if (nameDistance > maxNameDistance)
+                {
+                    return false;
+                }
+
+                if (parsedColor.HasValue && candidate.Color != parsedColor.Value)
+                {
+                    return false;
+                }
+
+                if (!string.IsNullOrWhiteSpace(wine.Appellation))
+                {
+                    var candidateAppellation = candidate.SubAppellation?.Appellation?.Name;
+                    if (string.IsNullOrWhiteSpace(candidateAppellation))
+                    {
+                        return false;
+                    }
+
+                    var distance = FuzzyMatchUtilities.CalculateNormalizedDistance(wine.Appellation!, candidateAppellation);
+                    return distance <= maxHierarchyDistance;
+                }
+
+                return true;
+            }
+
+            var rows = new List<WineImportPreviewRowViewModel>();
+            for (var i = 0; i < parseResult.Wines.Count; i++)
+            {
+                var wine = parseResult.Wines[i];
+
+                Appellation? existingAppellation = null;
+                if (existingRegion is not null && !string.IsNullOrWhiteSpace(wine.Appellation))
+                {
+                    existingAppellation = await _appellationRepository
+                        .FindByNameAndRegionAsync(wine.Appellation.Trim(), existingRegion.Id, cancellationToken);
+                }
+
+                var matches = await _wineRepository.FindClosestMatchesAsync(wine.Name, 5, cancellationToken);
+                var wineExists = matches.Any(candidate => MatchesImportRow(wine, candidate));
+
+                var regionText = trimmedRegion ?? string.Empty;
+                var colorText = trimmedColor ?? string.Empty;
+                var countryText = viewModel.BottleUpload.SelectedCountry ?? string.Empty;
+
+                rows.Add(new WineImportPreviewRowViewModel
+                {
+                    RowId = $"cellar-{i + 1}",
+                    RowNumber = i + 1,
+                    Name = wine.Name,
+                    Country = countryText,
+                    Region = regionText,
+                    Appellation = wine.Appellation,
+                    SubAppellation = wine.Variety,
+                    Color = colorText,
+                    Amount = 1,
+                    WineExists = wineExists,
+                    CountryExists = existingCountry is not null,
+                    RegionExists = existingRegion is not null,
+                    AppellationExists = existingAppellation is not null
+                });
+            }
+
+            viewModel.BottleUpload.Errors = Array.Empty<string>();
+            viewModel.BottleUpload.PreviewRows = rows;
+            viewModel.BottleUpload.UploadedFileName = file.FileName;
+        }
+        catch (InvalidDataException ex)
+        {
+            viewModel.BottleUpload.Errors = new[] { ex.Message };
+            viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+            viewModel.BottleUpload.UploadedFileName = file?.FileName;
+        }
+        catch (Exception ex)
+        {
+            viewModel.BottleUpload.Errors = new[]
+            {
+                $"An unexpected error occurred while processing the CellarTracker file: {ex.Message}"
             };
             viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
             viewModel.BottleUpload.UploadedFileName = file?.FileName;
@@ -2576,6 +2784,7 @@ public class WineInventoryViewModel
             Array.Empty<WineImportPreviewRowViewModel>();
         public string? SelectedCountry { get; set; }
         public string? SelectedRegion { get; set; }
+        public string? SelectedColor { get; set; }
         public bool HasErrors => Errors.Count > 0;
         public bool HasResult => Result is not null;
         public bool HasPreview => PreviewRows.Count > 0;
