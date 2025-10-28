@@ -24,6 +24,7 @@ public class SurfEyeController: WineSurferControllerBase
     private readonly IChatGptPromptService _chatGptPromptService;
     private readonly IChatGptService _chatGptService;
     private readonly IOcrService _ocrService;
+    private readonly string _surfEyeAnalysisModel;
     private readonly string _surfEyeIdentifyModel;
 
     private const int SurfEyeMaxUploadBytes = 8 * 1024 * 1024;
@@ -61,6 +62,9 @@ public class SurfEyeController: WineSurferControllerBase
             ? options!.DefaultModel!
             : ChatGptOptions.FallbackModel;
 
+        _surfEyeAnalysisModel = string.IsNullOrWhiteSpace(options?.SurfEyeAnalysisModel)
+            ? fallbackModel
+            : options!.SurfEyeAnalysisModel!;
         _surfEyeIdentifyModel = string.IsNullOrWhiteSpace(options?.SmallModel)
             ? fallbackModel
             : options!.SmallModel!;
@@ -106,7 +110,7 @@ public class SurfEyeController: WineSurferControllerBase
     [RequestSizeLimit(SurfEyeMaxUploadBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = SurfEyeMaxUploadBytes)]
     public Task<IActionResult> AnalyzeSurfEye([FromForm] SurfEyeAnalysisRequest request, CancellationToken cancellationToken) =>
-        AnalyzeSurfEyeInternalAsync(request, allowTasteProfile: true, modelOverride: null, cancellationToken);
+        AnalyzeSurfEyeInternalAsync(request, allowTasteProfile: true, modelOverride: _surfEyeAnalysisModel, cancellationToken);
 
     [Authorize]
     [HttpPost("surf-eye/identify")]
