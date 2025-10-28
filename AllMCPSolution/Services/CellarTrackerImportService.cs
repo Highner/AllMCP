@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -23,10 +22,6 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
         "<input[^>]*type=['\"]hidden['\"][^>]*name=['\"](?<name>Region|Type|Country)['\"][^>]*value=['\"](?<value>[^'\"]*)['\"][^>]*>",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
-    private static readonly Regex WineRowRegex = new(
-        "<tr[^>]*>(?<content>.*?)</tr>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
-
     private static readonly Regex WineCellRegex = new(
         "<td[^>]*class=['\"][^'\"]*\\bname\\b[^'\"]*['\"][^>]*>(?<content>.*?)</td>",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
@@ -47,12 +42,8 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
         "<span[^>]*class=['\"][^'\"]*el\\s+var[^'\"]*['\"][^>]*>(?<content>.*?)</span>",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
-    private static readonly Regex QuantitySpanRegex = new(
-        "<span[^>]*class=['\"][^'\"]*\\bel\\s+num[^'\"]*['\"][^>]*>(?<content>.*?)</span>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
-
-    private static readonly Regex VintagePrefixRegex = new(
-        @"^\s*(?<value>(?:N\.?V\.?|N/V|Non\s+Vintage|\d{2}|\d{4}))(?:\s+|(?=[^A-Za-z]))",
+    private static readonly Regex LeadingVintageRegex = new(
+        @"^\s*(?:N\.?V\.?|N/V|Non\s+Vintage|\d{2}|\d{4})(?:\s+|(?=[^A-Za-z]))",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public async Task<CellarTrackerImportResult> ParseAsync(
@@ -105,21 +96,9 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
 
         var wines = new List<CellarTrackerWine>();
 
-        foreach (Match rowMatch in WineRowRegex.Matches(content))
+        foreach (Match cellMatch in WineCellRegex.Matches(content))
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            var rowContent = rowMatch.Groups["content"].Value;
-            if (string.IsNullOrWhiteSpace(rowContent))
-            {
-                continue;
-            }
-
-            var cellMatch = WineCellRegex.Match(rowContent);
-            if (!cellMatch.Success)
-            {
-                continue;
-            }
 
             var inner = cellMatch.Groups["content"].Value;
             if (string.IsNullOrWhiteSpace(inner))
@@ -133,7 +112,7 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
             var rawName = nameMatch.Success ? StripTags(nameMatch.Groups["text"].Value) : StripTags(headerContent);
             var decodedName = WebUtility.HtmlDecode(rawName).Trim();
 
-            var (cleanedName, vintage) = ExtractNameAndVintage(decodedName);
+            var cleanedName = RemoveVintagePrefix(decodedName);
             if (string.IsNullOrWhiteSpace(cleanedName))
             {
                 continue;
@@ -152,10 +131,7 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
             var rawVariety = varietyMatch.Success ? StripTags(varietyMatch.Groups["content"].Value) : string.Empty;
             var variety = WebUtility.HtmlDecode(rawVariety).Trim();
 
-            var (quantity, hasQuantityInfo) = ExtractQuantity(rowContent);
-            var hasBottleDetails = hasQuantityInfo && vintage.HasValue;
-
-            wines.Add(new CellarTrackerWine(cleanedName, appellation, variety, vintage, quantity, hasBottleDetails));
+            wines.Add(new CellarTrackerWine(cleanedName, appellation, variety));
         }
 
         return new CellarTrackerImportResult(wines, country, region, color);
@@ -171,100 +147,32 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
         return Regex.Replace(value, "<.*?>", string.Empty, RegexOptions.Singleline);
     }
 
-    private static (string CleanedName, int? Vintage) ExtractNameAndVintage(string value)
+    private static string RemoveVintagePrefix(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return (string.Empty, null);
+            return string.Empty;
         }
 
         var trimmed = value.Trim();
-        int? vintage = null;
 
+        // Remove common vintage prefixes such as four-digit years or NV/NV.
         while (true)
         {
-            var match = VintagePrefixRegex.Match(trimmed);
+            var match = LeadingVintageRegex.Match(trimmed);
             if (!match.Success || match.Length == 0)
             {
                 break;
             }
 
-            var token = match.Groups["value"].Value;
-            var maybeVintage = ParseVintageToken(token);
-            if (maybeVintage.HasValue && !vintage.HasValue)
-            {
-                vintage = maybeVintage;
-            }
-
             trimmed = trimmed[match.Length..].TrimStart('-', '—', ',', '.', '\'');
         }
 
-        return (trimmed.Trim(), vintage);
-    }
-
-    private static (int Quantity, bool HasQuantityInfo) ExtractQuantity(string rowContent)
-    {
-        if (string.IsNullOrWhiteSpace(rowContent))
-        {
-            return (1, false);
-        }
-
-        var match = QuantitySpanRegex.Match(rowContent);
-        if (!match.Success)
-        {
-            return (1, false);
-        }
-
-        var rawQuantity = StripTags(match.Groups["content"].Value);
-        var decoded = WebUtility.HtmlDecode(rawQuantity).Trim();
-
-        if (int.TryParse(decoded, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0)
-        {
-            return (parsed, true);
-        }
-
-        return (1, false);
-    }
-
-    private static int? ParseVintageToken(string token)
-    {
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return null;
-        }
-
-        var normalized = token.Trim();
-        if (normalized.Equals("NV", StringComparison.OrdinalIgnoreCase)
-            || normalized.Equals("N.V", StringComparison.OrdinalIgnoreCase)
-            || normalized.Equals("N/V", StringComparison.OrdinalIgnoreCase)
-            || normalized.Equals("Non Vintage", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0;
-        }
-
-        if (int.TryParse(normalized, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
-        {
-            if (normalized.Length == 2)
-            {
-                var currentYearSuffix = DateTime.UtcNow.Year % 100;
-                var century = parsed <= currentYearSuffix ? 2000 : 1900;
-                return century + parsed;
-            }
-
-            return parsed;
-        }
-
-        return null;
+        return trimmed.Trim();
     }
 }
 
-public sealed record CellarTrackerWine(
-    string Name,
-    string Appellation,
-    string Variety,
-    int? Vintage,
-    int Quantity,
-    bool HasBottleDetails);
+public sealed record CellarTrackerWine(string Name, string Appellation, string Variety);
 
 public sealed record CellarTrackerImportResult(
     IReadOnlyList<CellarTrackerWine> Wines,
