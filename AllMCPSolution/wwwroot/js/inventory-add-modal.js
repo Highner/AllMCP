@@ -715,7 +715,7 @@
 
             try {
                 setModalLoading(true);
-                await sendJson('/wine-manager/inventory', {
+                const result = await sendJson('/wine-manager/inventory', {
                     method: 'POST',
                     body: JSON.stringify({ wineId, vintage: vintageValue, quantity: quantityValue, bottleLocationId: locationValue || null })
                 });
@@ -730,7 +730,8 @@
                         vintage: vintageValue,
                         quantity: quantityValue,
                         bottleLocationId: locationValue || null,
-                        message
+                        message,
+                        result
                     }
                 }));
 

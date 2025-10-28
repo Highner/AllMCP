@@ -43,7 +43,7 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
     private static readonly Regex LeadingVintageRegex = new(
-        "^\\s*(?:N\\.?V\\.?|N/V|Non\\s+Vintage|\d{2}|\d{4})(?:\\s+|(?=[^A-Za-z]))",
+        @"^\s*(?:N\.?V\.?|N/V|Non\s+Vintage|\d{2}|\d{4})(?:\s+|(?=[^A-Za-z]))",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public async Task<CellarTrackerImportResult> ParseAsync(

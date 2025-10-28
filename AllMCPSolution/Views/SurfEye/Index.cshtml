@@ -982,47 +982,40 @@
                 return fallbackMessage;
             };
 
-            const ensureBottleForWine = async ({ wineId, vintage }) => {
-                const payload = {
-                    WineId: wineId,
-                    Vintage: vintage,
-                    Quantity: 1
-                };
-
-                let data = null;
-                let raw = '';
-
-                const response = await fetch('/wine-manager/inventory', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify(payload)
-                });
-
+            const openInventoryAddModalFlow = (context) => new Promise((resolve, reject) => {
                 try {
-                    raw = await response.text();
-                    if (raw) {
-                        data = JSON.parse(raw);
+                    const api = window.InventoryAddModal;
+                    if (!api || typeof api.open !== 'function') {
+                        reject(new Error('Unable to open add wine modal.'));
+                        return;
                     }
+
+                    const handler = (event) => {
+                        try {
+                            document.removeEventListener('inventoryAddModal:submitted', handler);
+                            resolve(event?.detail ?? null);
+                        } catch (e) {
+                            resolve(null);
+                        }
+                    };
+
+                    // One-time listener for submission
+                    document.addEventListener('inventoryAddModal:submitted', handler, { once: true });
+
+                    // Open with provided context (expects id/name/vintage and source)
+                    api.open({
+                        source: 'surf-eye',
+                        id: context?.id ?? '',
+                        name: context?.name ?? '',
+                        vintage: context?.vintage ?? ''
+                    }).catch(error => {
+                        document.removeEventListener('inventoryAddModal:submitted', handler);
+                        reject(error);
+                    });
                 } catch (error) {
-                    console.error('Surf Eye drink action could not parse inventory response', error);
+                    reject(error instanceof Error ? error : new Error('Unable to open add wine modal.'));
                 }
-
-                if (!response.ok) {
-                    const message = extractProblemMessage(data, raw)
-                        || 'We could not add a bottle of this wine right now. Please try again.';
-                    throw new Error(message);
-                }
-
-                if (!data) {
-                    throw new Error('We could not add a bottle of this wine right now. Please try again.');
-                }
-
-                return data;
-            };
+            });
 
             const openDrinkModalForDetail = (detail, context) => {
                 if (!detail || typeof detail !== 'object') {
@@ -1148,7 +1141,13 @@
                     button.dataset.wineId = wineId;
                     button.dataset.wineVintage = String(vintageNumber);
 
-                    const payload = await ensureBottleForWine({ wineId, vintage: vintageNumber });
+                    const submission = await openInventoryAddModalFlow({ id: wineId, name: normalizedContext.name, vintage: vintageNumber });
+                    if (!submission) {
+                        showCellarMessage('Adding bottle was canceled.', 'info');
+                        return;
+                    }
+
+                    const payload = submission?.result ?? null;
                     const detail = selectBottleDetail(payload);
                     if (!detail) {
                         throw new Error('Bottle was added, but its details were unavailable.');
