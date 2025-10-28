@@ -193,7 +193,8 @@
                 region: row.dataset.importPreviewRegion || '',
                 appellation: row.dataset.importPreviewAppellation || '',
                 subAppellation: row.dataset.importPreviewSubAppellation || '',
-                color: row.dataset.importPreviewColor || ''
+                color: row.dataset.importPreviewColor || '',
+                grapeVariety: row.dataset.importPreviewGrapeVariety || ''
             }));
 
             setBulkButtonBusy(true);
