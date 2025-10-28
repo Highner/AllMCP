@@ -926,4 +926,8 @@ public sealed class WineImportPreviewRow
     public bool CountryExists { get; set; }
     public bool RegionExists { get; set; }
     public bool AppellationExists { get; set; }
+    public bool IsConsumed { get; set; }
+    public DateTime? ConsumptionDate { get; set; }
+    public decimal? ConsumptionScore { get; set; }
+    public string ConsumptionNote { get; set; } = string.Empty;
 }
