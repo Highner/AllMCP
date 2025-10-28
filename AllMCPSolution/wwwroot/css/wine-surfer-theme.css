@@ -751,7 +751,8 @@ a.wine-card:focus {
         justify-content: flex-start;
     }
 
-    .bottle-management-table .bottle-management-col-price {
+    .bottle-management-table .bottle-management-col-price,
+    .bottle-management-table .bottle-management-col-status {
         display: none;
     }
 }
