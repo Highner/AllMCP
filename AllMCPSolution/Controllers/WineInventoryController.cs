@@ -859,6 +859,9 @@ public partial class WineInventoryController : Controller
             var parseResult = await _cellarTrackerImportService
                 .ParseAsync(stream, cancellationToken);
 
+            var trimmedCountry = string.IsNullOrWhiteSpace(parseResult.Country)
+                ? null
+                : parseResult.Country.Trim();
             var trimmedRegion = string.IsNullOrWhiteSpace(parseResult.Region)
                 ? null
                 : parseResult.Region.Trim();
@@ -866,6 +869,7 @@ public partial class WineInventoryController : Controller
                 ? null
                 : parseResult.Color.Trim();
 
+            viewModel.BottleUpload.SelectedCountry = trimmedCountry;
             viewModel.BottleUpload.SelectedRegion = trimmedRegion;
             viewModel.BottleUpload.SelectedColor = trimmedColor;
 
@@ -876,10 +880,17 @@ public partial class WineInventoryController : Controller
             {
                 existingRegion = await _regionRepository.FindByNameAsync(trimmedRegion, cancellationToken);
                 existingCountry = existingRegion?.Country;
-                if (!string.IsNullOrWhiteSpace(existingCountry?.Name))
+                if (viewModel.BottleUpload.SelectedCountry is null
+                    && !string.IsNullOrWhiteSpace(existingCountry?.Name))
                 {
                     viewModel.BottleUpload.SelectedCountry = existingCountry!.Name;
                 }
+            }
+
+            if (trimmedCountry is null
+                && existingCountry is null)
+            {
+                errors.Add("We could not determine the country from the uploaded CellarTracker file.");
             }
 
             if (trimmedRegion is null)

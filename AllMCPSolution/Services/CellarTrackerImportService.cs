@@ -19,7 +19,7 @@ public interface ICellarTrackerImportService
 public sealed class CellarTrackerImportService : ICellarTrackerImportService
 {
     private static readonly Regex HiddenInputRegex = new(
-        "<input[^>]*type=['\"]hidden['\"][^>]*name=['\"](?<name>Region|Type)['\"][^>]*value=['\"](?<value>[^'\"]*)['\"][^>]*>",
+        "<input[^>]*type=['\"]hidden['\"][^>]*name=['\"](?<name>Region|Type|Country)['\"][^>]*value=['\"](?<value>[^'\"]*)['\"][^>]*>",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
     private static readonly Regex WineCellRegex = new(
@@ -67,9 +67,10 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
 
         if (string.IsNullOrWhiteSpace(content))
         {
-            return new CellarTrackerImportResult(Array.Empty<CellarTrackerWine>(), null, null);
+            return new CellarTrackerImportResult(Array.Empty<CellarTrackerWine>(), null, null, null);
         }
 
+        string? country = null;
         string? region = null;
         string? color = null;
 
@@ -79,7 +80,11 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
 
             var name = match.Groups["name"].Value;
             var value = WebUtility.HtmlDecode(match.Groups["value"].Value).Trim();
-            if (string.Equals(name, "Region", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(name, "Country", StringComparison.OrdinalIgnoreCase))
+            {
+                country ??= string.IsNullOrWhiteSpace(value) ? null : value;
+            }
+            else if (string.Equals(name, "Region", StringComparison.OrdinalIgnoreCase))
             {
                 region ??= string.IsNullOrWhiteSpace(value) ? null : value;
             }
@@ -124,7 +129,7 @@ public sealed class CellarTrackerImportService : ICellarTrackerImportService
             wines.Add(new CellarTrackerWine(cleanedName, appellation, variety));
         }
 
-        return new CellarTrackerImportResult(wines, region, color);
+        return new CellarTrackerImportResult(wines, country, region, color);
     }
 
     private static string StripTags(string value)
@@ -166,5 +171,6 @@ public sealed record CellarTrackerWine(string Name, string Appellation, string V
 
 public sealed record CellarTrackerImportResult(
     IReadOnlyList<CellarTrackerWine> Wines,
+    string? Country,
     string? Region,
     string? Color);
