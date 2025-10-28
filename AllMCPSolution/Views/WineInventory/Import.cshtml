@@ -155,27 +155,6 @@
                     </div>
                     <button type="submit" class="submit-button">upload starwinelist</button>
                 </form>
-                <form action="/wine-manager/import" method="post" class="wine-import-form">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="importType" value="starwinelist-fetch" />
-                    <div class="form-field">
-                        <label for="starListRegion">Fetch Star Wine List Region</label>
-                        <input type="text"
-                               id="starListRegion"
-                               name="starListRegion"
-                               value="@(bottlePanel.RequestedRegionSlug ?? string.Empty)"
-                               placeholder="bordeaux"
-                               autocapitalize="none"
-                               spellcheck="false" />
-                        <p class="field-description">
-                            Enter the region slug from
-                            <a href="https://starwinelist.com/wine-producers" target="_blank" rel="noopener">Star Wine List</a>
-                            (for example <code>bordeaux</code>). We will download every page for the region and stage the
-                            producers for review below.
-                        </p>
-                    </div>
-                    <button type="submit" class="submit-button">Fetch Star Wine List region</button>
-                </form>
             </div>
 
             @if (bottleHasErrors)
