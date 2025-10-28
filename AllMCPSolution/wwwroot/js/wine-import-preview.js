@@ -259,6 +259,22 @@
                         failedCount += 1;
                         markRowAsError(row, entry.error);
                     }
+
+                    if (entry?.countryCreated) {
+                        const countryCell = row.querySelector('.import-preview__cell--country');
+                        if (countryCell) {
+                            countryCell.classList.add('import-preview__cell--match');
+                            let srOnly = countryCell.querySelector('.sr-only');
+                            if (!srOnly) {
+                                srOnly = document.createElement('span');
+                                srOnly.classList.add('sr-only');
+                                srOnly.textContent = 'Country added to catalog.';
+                                countryCell.appendChild(srOnly);
+                            } else {
+                                srOnly.textContent = 'Country added to catalog.';
+                            }
+                        }
+                    }
                 });
 
                 const parts = [];
@@ -279,6 +295,11 @@
                 const totalFailed = Number.parseInt(result?.failed, 10) || failedCount;
                 if (totalFailed > 0) {
                     parts.push(`${totalFailed} ${totalFailed === 1 ? 'error' : 'errors'}`);
+                }
+
+                const countriesCreated = Number.parseInt(result?.createdCountries, 10) || 0;
+                if (countriesCreated > 0) {
+                    parts.push(`${countriesCreated} ${countriesCreated === 1 ? 'country' : 'countries'} added`);
                 }
 
                 const summary = parts.length > 0

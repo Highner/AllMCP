@@ -507,6 +507,8 @@ public partial class WineInventoryController : Controller
             TotalRequested = request.Rows.Count
         };
 
+        var ensuredCountries = new Dictionary<string, Country>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var row in request.Rows)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -562,10 +564,42 @@ public partial class WineInventoryController : Controller
 
             try
             {
+                Country? ensuredCountry = null;
+                var country = row.Country?.Trim();
+                if (!string.IsNullOrWhiteSpace(country))
+                {
+                    if (!ensuredCountries.TryGetValue(country, out ensuredCountry))
+                    {
+                        try
+                        {
+                            var existingCountry = await _countryRepository.FindByNameAsync(country, cancellationToken);
+                            if (existingCountry is not null)
+                            {
+                                ensuredCountry = existingCountry;
+                            }
+                            else
+                            {
+                                ensuredCountry = await _countryRepository.GetOrCreateAsync(country, cancellationToken);
+                                response.CreatedCountries++;
+                                resultEntry.CountryCreated = true;
+                            }
+
+                            ensuredCountries[country] = ensuredCountry;
+                        }
+                        catch (Exception ex)
+                        {
+                            resultEntry.Error = $"Unable to ensure country '{country}': {ex.Message}";
+                            response.Rows.Add(resultEntry);
+                            response.Failed++;
+                            continue;
+                        }
+                    }
+                }
+
                 var catalogRequest = new WineCatalogRequest(
                     name!,
                     color!,
-                    row.Country,
+                    ensuredCountry?.Name ?? row.Country,
                     region!,
                     appellation!,
                     row.SubAppellation,
@@ -2736,6 +2770,7 @@ public class WineInventoryViewModel
         public int Created { get; set; }
         public int AlreadyExists { get; set; }
         public int Failed { get; set; }
+        public int CreatedCountries { get; set; }
         public List<ImportReadyWineRowResult> Rows { get; } = [];
         public List<string> Errors { get; } = [];
     }
@@ -2746,6 +2781,7 @@ public class WineInventoryViewModel
         public int RowNumber { get; set; }
         public bool Created { get; set; }
         public bool AlreadyExists { get; set; }
+        public bool CountryCreated { get; set; }
         public string? Error { get; set; }
     }
 
