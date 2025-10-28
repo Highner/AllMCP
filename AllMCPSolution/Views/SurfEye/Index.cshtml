@@ -950,11 +950,43 @@
                 }
             });
 
+            const extractProblemMessage = (problem, fallback) => {
+                const fallbackMessage = toTrimmedString(fallback);
+                if (!problem || typeof problem !== 'object') {
+                    return fallbackMessage;
+                }
+
+                const primary = toTrimmedString(problem.message ?? problem.error ?? problem.title);
+                if (primary) {
+                    return primary;
+                }
+
+                const errors = problem.errors ?? problem.Errors;
+                if (errors && typeof errors === 'object') {
+                    for (const key of Object.keys(errors)) {
+                        const entry = errors[key];
+                        if (Array.isArray(entry) && entry.length > 0) {
+                            const text = toTrimmedString(entry[0]);
+                            if (text) {
+                                return text;
+                            }
+                        } else if (typeof entry === 'string') {
+                            const text = toTrimmedString(entry);
+                            if (text) {
+                                return text;
+                            }
+                        }
+                    }
+                }
+
+                return fallbackMessage;
+            };
+
             const ensureBottleForWine = async ({ wineId, vintage }) => {
                 const payload = {
-                    wineId,
-                    vintage,
-                    quantity: 1
+                    WineId: wineId,
+                    Vintage: vintage,
+                    Quantity: 1
                 };
 
                 let data = null;
@@ -966,6 +998,7 @@
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify(payload)
                 });
 
@@ -979,7 +1012,7 @@
                 }
 
                 if (!response.ok) {
-                    const message = toTrimmedString(data?.message ?? data?.error ?? data?.title ?? raw)
+                    const message = extractProblemMessage(data, raw)
                         || 'We could not add a bottle of this wine right now. Please try again.';
                     throw new Error(message);
                 }
