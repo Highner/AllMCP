@@ -967,8 +967,9 @@ public partial class WineInventoryController : Controller
                 parsedColor = wineColor;
             }
 
-            const double maxNameDistance = 0.2d;
-            const double maxHierarchyDistance = 0.15d;
+            // CellarTracker imports tend to be noisy, so tighten the thresholds to reduce false matches.
+            const double maxNameDistance = 0.12d;
+            const double maxHierarchyDistance = 0.12d;
 
             bool MatchesImportRow(CellarTrackerWine wine, Wine candidate)
             {
