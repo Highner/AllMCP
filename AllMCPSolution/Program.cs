@@ -59,6 +59,7 @@ builder.Services.AddScoped<ITerroirMergeRepository, TerroirMergeRepository>();
 builder.Services.AddScoped<IWineSurferTopBarService, WineSurferTopBarService>();
 builder.Services.AddScoped<IBottleSummaryService, BottleSummaryService>();
 builder.Services.AddScoped<IWineImportService, WineImportService>();
+builder.Services.AddScoped<IStarWineListImportService, StarWineListImportService>();
 builder.Services.AddScoped<IChatGptService, ChatGptService>();
 builder.Services.AddScoped<IChatGptPromptService, ChatGptPromptService>();
 builder.Services.AddScoped<IWineCatalogService, WineCatalogService>();

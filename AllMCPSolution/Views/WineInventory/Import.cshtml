@@ -127,6 +127,33 @@
                 <button type="submit" class="submit-button">Upload and Import Bottles</button>
             </form>
 
+            <div class="starwinelist-upload">
+                <h3>Import from Star Wine List</h3>
+                <p class="field-description">
+                    Provide the country, region, and a downloaded Star Wine List HTML page to quickly stage producers for review.
+                </p>
+                <form action="/wine-manager/import" method="post" enctype="multipart/form-data" class="wine-import-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="importType" value="starwinelist" />
+                    <div class="form-field">
+                        <label for="starListCountry">Country</label>
+                        <input type="text" id="starListCountry" name="starListCountry" value="@bottlePanel.SelectedCountry" />
+                    </div>
+                    <div class="form-field">
+                        <label for="starListRegion">Region</label>
+                        <input type="text" id="starListRegion" name="starListRegion" value="@bottlePanel.SelectedRegion" />
+                    </div>
+                    <div class="form-field">
+                        <label for="starListFile">Star Wine List HTML File</label>
+                        <input type="file" id="starListFile" name="starListFile" accept=".html,.htm" />
+                        <p class="field-description">
+                            Upload a Star Wine List producers page. We will extract each producer and appellation into the preview list below.
+                        </p>
+                    </div>
+                    <button type="submit" class="submit-button">upload starwinelist</button>
+                </form>
+            </div>
+
             @if (bottleHasErrors)
             {
                 <div class="import-errors wine-surface wine-surface-border">

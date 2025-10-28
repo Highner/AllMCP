@@ -24,6 +24,7 @@ public class WineInventoryController : Controller
     private readonly IWineCatalogService _wineCatalogService;
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IWineImportService _wineImportService;
+    private readonly IStarWineListImportService _starWineListImportService;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public WineInventoryController(
@@ -40,6 +41,7 @@ public class WineInventoryController : Controller
         IWineCatalogService wineCatalogService,
         IWineSurferTopBarService topBarService,
         IWineImportService wineImportService,
+        IStarWineListImportService starWineListImportService,
         UserManager<ApplicationUser> userManager)
     {
         _bottleRepository = bottleRepository;
@@ -55,6 +57,7 @@ public class WineInventoryController : Controller
         _wineCatalogService = wineCatalogService;
         _topBarService = topBarService;
         _wineImportService = wineImportService;
+        _starWineListImportService = starWineListImportService;
         _userManager = userManager;
     }
 
@@ -316,6 +319,9 @@ public class WineInventoryController : Controller
         string importType = "wines",
         IFormFile? wineFile = null,
         IFormFile? bottleFile = null,
+        IFormFile? starListFile = null,
+        string? starListCountry = null,
+        string? starListRegion = null,
         CancellationToken cancellationToken = default)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
@@ -331,8 +337,18 @@ public class WineInventoryController : Controller
 
         var normalizedType = importType?.Trim().ToLowerInvariant();
         var isBottleImport = string.Equals(normalizedType, "bottles", StringComparison.Ordinal);
+        var isStarWineListImport = string.Equals(normalizedType, "starwinelist", StringComparison.Ordinal);
 
-        if (isBottleImport)
+        if (isStarWineListImport)
+        {
+            await HandleStarWineListImportAsync(
+                starListFile,
+                starListCountry,
+                starListRegion,
+                viewModel,
+                cancellationToken);
+        }
+        else if (isBottleImport)
         {
             await HandleBottleImportAsync(bottleFile, currentUserId, viewModel, cancellationToken);
         }
@@ -450,6 +466,104 @@ public class WineInventoryController : Controller
         {
             viewModel.BottleUpload.Errors = new[]
                 { $"An unexpected error occurred while importing bottles: {ex.Message}" };
+        }
+    }
+
+    private async Task HandleStarWineListImportAsync(
+        IFormFile? file,
+        string? country,
+        string? region,
+        WineImportPageViewModel viewModel,
+        CancellationToken cancellationToken)
+    {
+        var errors = new List<string>();
+        var trimmedCountry = string.IsNullOrWhiteSpace(country) ? null : country.Trim();
+        var trimmedRegion = string.IsNullOrWhiteSpace(region) ? null : region.Trim();
+
+        viewModel.BottleUpload.SelectedCountry = trimmedCountry;
+        viewModel.BottleUpload.SelectedRegion = trimmedRegion;
+        viewModel.BottleUpload.Result = null;
+
+        if (trimmedCountry is null)
+        {
+            errors.Add("Please select a country.");
+        }
+
+        if (trimmedRegion is null)
+        {
+            errors.Add("Please select a region.");
+        }
+
+        if (file is null || file.Length == 0)
+        {
+            errors.Add("Please select an HTML file to upload.");
+        }
+        else
+        {
+            var extension = Path.GetExtension(file.FileName);
+            if (!string.Equals(extension, ".html", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(extension, ".htm", StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add("Unsupported file type. Please upload an .html file.");
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            viewModel.BottleUpload.Errors = errors;
+            viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+            viewModel.BottleUpload.UploadedFileName = file?.FileName;
+            return;
+        }
+
+        try
+        {
+            await using var stream = file!.OpenReadStream();
+            var producers = await _starWineListImportService
+                .ExtractProducersAsync(stream, cancellationToken);
+
+            if (producers.Count == 0)
+            {
+                viewModel.BottleUpload.Errors = new[]
+                    { "No producers were found in the uploaded Star Wine List file." };
+                viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+                viewModel.BottleUpload.UploadedFileName = file.FileName;
+                return;
+            }
+
+            var rows = producers
+                .Select((producer, index) => new WineImportPreviewRowViewModel
+                {
+                    RowId = $"star-{index + 1}",
+                    RowNumber = index + 1,
+                    Name = producer.Name,
+                    Country = trimmedCountry!,
+                    Region = trimmedRegion!,
+                    Appellation = producer.Appellation,
+                    SubAppellation = string.Empty,
+                    Color = string.Empty,
+                    Amount = 1
+                })
+                .ToList();
+
+            viewModel.BottleUpload.Errors = Array.Empty<string>();
+            viewModel.BottleUpload.PreviewRows = rows;
+            viewModel.BottleUpload.UploadedFileName = file.FileName;
+        }
+        catch (InvalidDataException ex)
+        {
+            viewModel.BottleUpload.Errors = new[] { ex.Message };
+            viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+            viewModel.BottleUpload.UploadedFileName = file?.FileName;
+        }
+        catch (Exception ex)
+        {
+            viewModel.BottleUpload.Errors = new[]
+            {
+                $"An unexpected error occurred while processing the Star Wine List file: {ex.Message}"
+            };
+            viewModel.BottleUpload.PreviewRows = Array.Empty<WineImportPreviewRowViewModel>();
+            viewModel.BottleUpload.UploadedFileName = file?.FileName;
         }
     }
 
@@ -2189,6 +2303,8 @@ public class WineInventoryViewModel
         public IReadOnlyList<string> Errors { get; set; } = Array.Empty<string>();
         public IReadOnlyList<WineImportPreviewRowViewModel> PreviewRows { get; set; } =
             Array.Empty<WineImportPreviewRowViewModel>();
+        public string? SelectedCountry { get; set; }
+        public string? SelectedRegion { get; set; }
         public bool HasErrors => Errors.Count > 0;
         public bool HasResult => Result is not null;
         public bool HasPreview => PreviewRows.Count > 0;
