@@ -3591,7 +3591,8 @@ public record GenerateTasteProfileWine(
     string? Color,
     string? Variety,
     string? Vintage,
-    string? SubAppellation);
+    string? SubAppellation,
+    decimal? EstimatedPricePerBottleEur);
 
 public record GenerateTasteProfileError(string Error);
 
@@ -3632,7 +3633,8 @@ public record WineSurferSuggestedWine(
     string? Color,
     string? Variety,
     string? Vintage,
-    string? SubAppellationName);
+    string? SubAppellationName,
+    decimal? EstimatedPricePerBottleEur);
 
 
 

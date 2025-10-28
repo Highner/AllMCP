@@ -38,11 +38,12 @@ public interface IChatGptPromptService
 public class ChatGptPromptService : IChatGptPromptService
 {
     private const string TasteProfileSystemPromptText =
-        "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\\\"summary\\\":\\\"...\\\",\\\"profile\\\":\\\"...\\\",\\\"suggestedAppellations\\\":[{\\\"country\\\":\\\"...\\\",\\\"region\\\":\\\"...\\\",\\\"appellation\\\":\\\"...\\\",\\\"subAppellation\\\":null,\\\"reason\\\":\\\"...\\\",\\\"wines\\\":[{\\\"name\\\":\\\"...\\\",\\\"color\\\":\\\"Red\\\",\\\"variety\\\":\\\"...\\\",\\\"subAppellation\\\":null,\\\"vintage\\\":\\\"2019\\\"},{\\\"name\\\":\\\"...\\\",\\\"color\\\":\\\"White\\\",\\\"variety\\\":null,\\\"subAppellation\\\":null,\\\"vintage\\\":\\\"NV\\\"}]}]}. " +
+        "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\\\"summary\\\":\\\"...\\\",\\\"profile\\\":\\\"...\\\",\\\"suggestedAppellations\\\":[{\\\"country\\\":\\\"...\\\",\\\"region\\\":\\\"...\\\",\\\"appellation\\\":\\\"...\\\",\\\"subAppellation\\\":null,\\\"reason\\\":\\\"...\\\",\\\"wines\\\":[{\\\"name\\\":\\\"...\\\",\\\"color\\\":\\\"Red\\\",\\\"variety\\\":\\\"...\\\",\\\"subAppellation\\\":null,\\\"vintage\\\":\\\"2019\\\",\\\"estimatedPricePerBottleEur\\\":45},{\\\"name\\\":\\\"...\\\",\\\"color\\\":\\\"White\\\",\\\"variety\\\":null,\\\"subAppellation\\\":null,\\\"vintage\\\":\\\"NV\\\",\\\"estimatedPricePerBottleEur\\\":28}]}]}. " +
         "The summary must be 200 characters or fewer and offer a concise descriptor of the user's palate. " +
         "The profile must be structured as a list of ‘green-light’ descriptors to embrace and ‘red-light’ descriptors to avoid, grouped by sensory themes without recommending specific new wines. " +
         "The suggestedAppellations array must contain exactly two entries describing appellations or sub-appellations that fit the profile, each with country, region, appellation strings, subAppellation set to a string or null, and a single-sentence reason of 200 characters or fewer explaining the match. " +
-        "For each suggested appellation, include a wines array with two or three entries highlighting wines from that location. Each wine must provide the full label name (producer and climat, if applicable) without repeating grape varieties, regions, or appellation names, a color of Red, White, or Rose, an optional variety string or null, an optional subAppellation or null, and a vintage string that is either a 4-digit year or \\\"NV\\\". " +
+        "For each suggested appellation, include a wines array with two or three entries highlighting wines from that location. Each wine must provide the full label name (producer and climat, if applicable) without repeating grape varieties, regions, or appellation names, a color of Red, White, or Rose, an optional variety string or null, an optional subAppellation or null, a vintage string that is either a 4-digit year or \\\"NV\\\", and an estimatedPricePerBottleEur number that reflects the estimated euro price per bottle (positive numeric value without currency symbols). " +
+        "All estimatedPricePerBottleEur values must be realistic, positive, and denominated in euros. " +
         "Do not include code fences, or any explanatory text outside the JSON object. Use markdown in the profile field only.";
 
     private const string SurfEyeSystemPromptText = """
@@ -144,13 +145,13 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
         builder.AppendLine("Identify consistent stylistic preferences, texture, structure, and favored regions or grapes.");
         builder.AppendLine("Use only the provided information and avoid recommending specific new bottles.");
         builder.AppendLine("Also include exactly two suggested appellations or sub-appellations that match the palate, providing country, region, appellation, an optional subAppellation (use null when unknown), and a single-sentence reason under 200 characters explaining the fit. Suggest only appellations that are not already in use.");
-        builder.AppendLine("For each suggested appellation list two or three representative wines from that location, giving the label name (without the vintage, grape varieties, regions, or appellation names), color (Red, White, or Rose), an optional variety, an optional subAppellation (e.g. the Burgundy village), and a vintage string that is either a four-digit year or \"NV\".");
+        builder.AppendLine("For each suggested appellation list two or three representative wines from that location, giving the label name (without the vintage, grape varieties, regions, or appellation names), color (Red, White, or Rose), an optional variety, an optional subAppellation (e.g. the Burgundy village), a vintage string that is either a four-digit year or \"NV\", and an estimatedPricePerBottleEur number indicating the euro price per bottle (positive number without currency symbols).");
         if (suggestionBudget.HasValue && suggestionBudget.Value > 0)
         {
             var budgetText = suggestionBudget.Value.ToString("0.##", CultureInfo.InvariantCulture);
             builder.AppendLine($"Ensure all suggested wines are priced at or below the user's suggestion budget of {budgetText} per bottle.");
         }
-        builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\",\"wines\":[{\"name\":\"...\",\"color\":\"Red\",\"variety\":\"...\",\"subAppellation\":null,\"vintage\":\"2019\"}]}]}. No markdown or commentary.");
+        builder.AppendLine("Respond only with JSON: {\"summary\":\"...\",\"profile\":\"...\",\"suggestedAppellations\":[{\"country\":\"...\",\"region\":\"...\",\"appellation\":\"...\",\"subAppellation\":null,\"reason\":\"...\",\"wines\":[{\"name\":\"...\",\"color\":\"Red\",\"variety\":\"...\",\"subAppellation\":null,\"vintage\":\"2019\",\"estimatedPricePerBottleEur\":45}]}]}. No markdown or commentary.");
 
         return builder.ToString();
     }

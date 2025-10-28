@@ -130,6 +130,22 @@
             ? "https://www.wine-searcher.com/"
             : $"https://www.wine-searcher.com/find/{encoded}";
     }
+
+    private static string? FormatEstimatedPrice(decimal? value)
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        var normalized = value.Value;
+        if (normalized <= 0)
+        {
+            return null;
+        }
+
+        return $"€{normalized.ToString("0.##", CultureInfo.InvariantCulture)}";
+    }
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -1394,6 +1410,10 @@
             color: rgba(244, 241, 234, 0.68);
         }
 
+        .suggested-wine-item__price {
+            color: rgba(244, 241, 234, 0.85);
+        }
+
         .suggested-wine-item__action {
             flex-shrink: 0;
         }
@@ -1738,6 +1758,7 @@
                                                 var varietyData = wine.Variety ?? string.Empty;
                                                 var colorData = wine.Color ?? string.Empty;
                                                 var vintageData = wine.Vintage ?? string.Empty;
+                                                var priceLabel = FormatEstimatedPrice(wine.EstimatedPricePerBottleEur);
                                                 <li class="suggested-wine-item" role="listitem">
                                                     <div class="suggested-wine-item__content">
                                                         <p class="suggested-wine-item__name">@wine.Name</p>
@@ -1748,6 +1769,10 @@
                                                         @if (!string.IsNullOrEmpty(wineMeta))
                                                         {
                                                             <p class="suggested-wine-item__meta">@wineMeta</p>
+                                                        }
+                                                        @if (!string.IsNullOrWhiteSpace(priceLabel))
+                                                        {
+                                                            <p class="suggested-wine-item__meta suggested-wine-item__price">@priceLabel</p>
                                                         }
                                                     </div>
                                                     <div class="suggested-wine-item__actions">
