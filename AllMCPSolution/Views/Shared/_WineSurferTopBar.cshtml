@@ -22,8 +22,13 @@
     {
         navItems.Add(("/wine-surfer/surf-eye", "Surf Eye"));
         navItems.Add(("/wine-surfer/taste-profile", "Taste Profile"));
-        navItems.Add(("/wine-surfer/wine-waves", "Wine Waves"));
-        navItems.Add(("/wine-surfer/fellow-surfers", "Fellow Surfers"));
+
+        if (isAdmin)
+        {
+            navItems.Add(("/wine-surfer/wine-waves", "Wine Waves"));
+            navItems.Add(("/wine-surfer/fellow-surfers", "Fellow Surfers"));
+        }
+
         navItems.Add(("/wine-surfer/wishlists", "Wishlists"));
     }
 
