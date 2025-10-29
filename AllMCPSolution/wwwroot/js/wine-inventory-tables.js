@@ -263,8 +263,9 @@
                 const templateRow = inventoryInlineRowTemplate.content.firstElementChild.cloneNode(true);
                 const vintageCell = templateRow.querySelector('[data-vintage]');
                 const scoreCell = templateRow.querySelector('[data-score]');
-                const availableCell = templateRow.querySelector('[data-available]');
-                const drunkCell = templateRow.querySelector('[data-drunk]');
+                const bottleCell = templateRow.querySelector('[data-bottle-count]');
+                const bottleDisplay = templateRow.querySelector('[data-bottle-count-display]');
+                const bottleAccessible = templateRow.querySelector('[data-bottle-count-accessible]');
                 const noteCell = templateRow.querySelector('[data-note]');
 
                 if (vintageCell) {
@@ -278,22 +279,38 @@
                 const availableCount = typeof vintage?.availableCount === 'number'
                     ? vintage.availableCount
                     : (typeof vintage?.count === 'number' ? vintage.count : 0);
-                const drunkCount = typeof vintage?.drunkCount === 'number'
+                const enjoyedCount = typeof vintage?.drunkCount === 'number'
                     ? vintage.drunkCount
                     : 0;
+                const totalCount = typeof vintage?.totalCount === 'number'
+                    ? vintage.totalCount
+                    : availableCount + enjoyedCount;
 
-                if (availableCell) {
-                    const displayAvailable = Number.isFinite(availableCount)
-                        ? availableCount.toLocaleString()
-                        : '0';
-                    availableCell.textContent = displayAvailable;
+                const formattedAvailable = Number.isFinite(availableCount)
+                    ? availableCount
+                    : 0;
+                const formattedTotal = Number.isFinite(totalCount)
+                    ? totalCount
+                    : formattedAvailable + (Number.isFinite(enjoyedCount) ? enjoyedCount : 0);
+                const formattedEnjoyed = Number.isFinite(enjoyedCount)
+                    ? enjoyedCount
+                    : 0;
+
+                if (bottleCell) {
+                    bottleCell.dataset.availableCount = String(formattedAvailable);
+                    bottleCell.dataset.totalCount = String(formattedTotal);
+                    bottleCell.dataset.enjoyedCount = String(formattedEnjoyed);
                 }
 
-                if (drunkCell) {
-                    const displayDrunk = Number.isFinite(drunkCount)
-                        ? drunkCount.toLocaleString()
-                        : '0';
-                    drunkCell.textContent = displayDrunk;
+                if (bottleDisplay) {
+                    bottleDisplay.textContent = `${formattedAvailable.toLocaleString()}/${formattedTotal.toLocaleString()}`;
+                }
+
+                if (bottleAccessible) {
+                    const availableNoun = formattedAvailable === 1 ? 'bottle' : 'bottles';
+                    const totalNoun = formattedTotal === 1 ? 'bottle' : 'bottles';
+                    const enjoyedNoun = formattedEnjoyed === 1 ? 'bottle' : 'bottles';
+                    bottleAccessible.textContent = `${formattedAvailable} ${availableNoun} available of a total of ${formattedTotal} ${totalNoun} (${formattedEnjoyed} ${enjoyedNoun} enjoyed)`;
                 }
 
                 if (noteCell) {
@@ -304,10 +321,8 @@
 
                 const counts = {
                     availableCount,
-                    drunkCount,
-                    totalCount: typeof vintage?.totalCount === 'number'
-                        ? vintage.totalCount
-                        : availableCount + drunkCount
+                    drunkCount: enjoyedCount,
+                    totalCount
                 };
 
                 bindVintageInlineRow(templateRow, { ...vintage, ...counts });

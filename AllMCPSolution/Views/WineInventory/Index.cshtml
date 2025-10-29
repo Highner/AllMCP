@@ -142,7 +142,10 @@
                                 aria-expanded="false">
                                 <td class="summary-wine">@bottle.WineName</td>
                                 <td class="summary-appellation">@display</td>
-                                <td class="summary-bottles" data-field="bottle-count">@bottle.BottleCount</td>
+                                <td class="summary-bottles" data-field="bottle-count">
+                                    <span aria-hidden="true">@bottle.AvailableBottleCount/@bottle.BottleCount</span>
+                                    <span class="sr-only">@bottle.AvailableBottleCount bottles available of a total of @bottle.BottleCount</span>
+                                </td>
                                 <td class="summary-color">@bottle.Color</td>
                                 <td class="summary-status"><span class="status-pill @bottle.StatusCssClass" data-field="status">@bottle.StatusLabel</span></td>
                                 <td class="summary-score" data-field="score">@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
