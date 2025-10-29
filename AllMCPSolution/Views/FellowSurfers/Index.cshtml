@@ -1,0 +1,122 @@
+@model AllMCPSolution.Controllers.FellowSurfersController.FellowSurfersViewModel
+@using AllMCPSolution.Controllers
+@using AllMCPSolution.Models
+@{
+    Layout = null;
+    var currentPath = Context?.Request?.Path.Value ?? string.Empty;
+    var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
+        ?? WineSurferTopBarModel.Empty(currentPath);
+    ViewData["WineSurferPageTitle"] = "Fellow Surfers";
+
+    var displayName = string.IsNullOrWhiteSpace(Model.CurrentUserDisplayName)
+        ? "Wine Surfer"
+        : Model.CurrentUserDisplayName;
+    var connectionCount = Model.ConnectionCount;
+    var sisterhoodCount = Model.SisterhoodCount;
+    var connectionLabel = connectionCount == 1 ? "fellow surfer" : "fellow surfers";
+    var sisterhoodLabel = sisterhoodCount == 1 ? "sisterhood" : "sisterhoods";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fellow Surfers • Wine Surfer</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#050505" />
+    <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
+    <link rel="stylesheet" href="/css/wine-surfer-shared-ui.css" />
+    <script defer src="/js/pwa.js"></script>
+    <style>
+        :root { color-scheme: dark; }
+        body { margin: 0; background: var(--wine-app-background); color: hsl(var(--foreground)); }
+        .fellow-surfers-page { min-height: 100vh; display: flex; flex-direction: column; }
+        .fellow-surfers-header { padding: 24px 24px 12px; display: flex; flex-direction: column; gap: 8px; }
+        .fellow-surfers-title { font-size: 2rem; font-weight: 700; margin: 0; }
+        .fellow-surfers-subtitle { margin: 0; color: hsl(var(--muted-foreground)); font-size: 0.95rem; }
+        .fellow-surfers-summary { margin: 0; font-size: 0.95rem; color: hsl(var(--muted-foreground)); }
+        .connections-section { padding: 12px 24px 96px; flex: 1; }
+        .connections-grid { display: grid; gap: 16px; list-style: none; margin: 0; padding: 0; }
+        .connection-card { background: var(--wine-surface-gradient); border: 1px solid var(--wine-surface-border); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--wine-card-shadow); }
+        .connection-card__header { display: flex; align-items: center; gap: 12px; }
+        .connection-card__avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)); border: 1px solid rgba(255, 255, 255, 0.16); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.1rem; color: hsl(var(--foreground)); }
+        .connection-card__name { margin: 0; font-size: 1.1rem; font-weight: 600; }
+        .connection-card__email { margin: 0; font-size: 0.9rem; color: hsl(var(--muted-foreground)); }
+        .connection-card__body { display: flex; flex-direction: column; gap: 12px; }
+        .shared-sisterhoods { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+        .shared-sisterhoods__item { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 999px; padding: 8px 14px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; }
+        .shared-sisterhoods__item a { color: inherit; text-decoration: none; font-weight: 600; }
+        .shared-sisterhoods__item a:hover, .shared-sisterhoods__item a:focus-visible { text-decoration: underline; }
+        .connections-empty { margin: 32px 0; padding: 24px; border-radius: 16px; border: 1px dashed rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.04); text-align: center; font-size: 0.95rem; color: hsl(var(--muted-foreground)); }
+        @@media (min-width: 640px) {
+            .connections-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+            .fellow-surfers-header { padding: 32px 48px 16px; }
+            .connections-section { padding: 16px 48px 96px; }
+        }
+        @@media (min-width: 960px) {
+            .fellow-surfers-title { font-size: 2.4rem; }
+            .connection-card { padding: 24px; }
+        }
+    </style>
+</head>
+<body class="wine-app wine-app--with-bottom-nav">
+    <div class="fellow-surfers-page">
+        @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
+        <main class="connections-section" aria-label="Fellow surfers network">
+            <header class="fellow-surfers-header">
+                <h1 class="fellow-surfers-title">Fellow Surfers</h1>
+                <p class="fellow-surfers-subtitle">Hey @displayName, here are the wine lovers riding the waves with you.</p>
+                <p class="fellow-surfers-summary">
+                    You're connected to <strong>@connectionCount</strong> @connectionLabel across <strong>@sisterhoodCount</strong> @sisterhoodLabel.
+                </p>
+            </header>
+
+            @if (connectionCount > 0)
+            {
+                <ul class="connections-grid">
+                @foreach (var connection in Model.Connections)
+                {
+                    <li>
+                        <article class="connection-card">
+                            <div class="connection-card__header">
+                                <div class="connection-card__avatar" aria-hidden="true">@connection.AvatarLetter</div>
+                                <div>
+                                    <h2 class="connection-card__name">@connection.DisplayName</h2>
+                                    @if (!string.IsNullOrWhiteSpace(connection.Email))
+                                    {
+                                        <p class="connection-card__email">@connection.Email</p>
+                                    }
+                                    <p class="fellow-surfers-summary">@connection.SharedSisterhoodCount @((connection.SharedSisterhoodCount == 1) ? "shared sisterhood" : "shared sisterhoods")</p>
+                                </div>
+                            </div>
+                            <div class="connection-card__body">
+                                <ul class="shared-sisterhoods">
+                                @foreach (var shared in connection.SharedSisterhoods)
+                                {
+                                    var description = string.IsNullOrWhiteSpace(shared.Description)
+                                        ? null
+                                        : shared.Description;
+                                    <li class="shared-sisterhoods__item">
+                                        <a href="/wine-surfer/sisterhoods#sisterhood-@shared.SisterhoodId" title="@description">@shared.Name</a>
+                                    </li>
+                                }
+                                </ul>
+                            </div>
+                        </article>
+                    </li>
+                }
+                </ul>
+            }
+            else
+            {
+                <div class="connections-empty">
+                    You haven't met any fellow surfers yet. Join or create a sisterhood to start building your tasting circle.
+                </div>
+            }
+        </main>
+        @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
+    </div>
+</body>
+</html>
