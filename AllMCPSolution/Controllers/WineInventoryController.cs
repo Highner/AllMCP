@@ -191,6 +191,7 @@ public partial class WineInventoryController : Controller
                 var firstBottle = bottlesInWine.First();
                 var totalCount = bottlesInWine.Count;
                 var drunkCount = bottlesInWine.Count(b => b.IsDrunk);
+                var availableCount = Math.Max(totalCount - drunkCount, 0);
                 var (statusLabel, statusClass) = drunkCount switch
                 {
                     var d when d == 0 => ("Cellared", "cellared"),
@@ -210,6 +211,7 @@ public partial class WineInventoryController : Controller
                     Vintage = 0, // displayed as — in the view
                     Color = firstBottle.WineVintage.Wine.Color.ToString(),
                     BottleCount = totalCount,
+                    AvailableBottleCount = availableCount,
                     StatusLabel = statusLabel,
                     StatusCssClass = statusClass,
                     AverageScore = CalculateAverageScore(bottlesInWine)
@@ -1357,6 +1359,7 @@ public partial class WineInventoryController : Controller
 
         var totalCount = ownedBottles.Count;
         var drunkCount = ownedBottles.Count(b => b.IsDrunk);
+        var availableCount = Math.Max(totalCount - drunkCount, 0);
         var (statusLabel, statusClass) = drunkCount switch
         {
             var d when d == 0 => ("Cellared", "cellared"),
@@ -1377,6 +1380,7 @@ public partial class WineInventoryController : Controller
             Vintage = 0,
             Color = first.WineVintage.Wine.Color.ToString(),
             BottleCount = totalCount,
+            AvailableBottleCount = availableCount,
             StatusLabel = statusLabel,
             StatusCssClass = statusClass,
             AverageScore = CalculateAverageScore(ownedBottles)
@@ -2648,6 +2652,7 @@ public partial class WineInventoryController : Controller
         var firstBottle = bottles.First();
         var totalCount = bottles.Count;
         var drunkCount = bottles.Count(b => b.IsDrunk);
+        var availableCount = Math.Max(totalCount - drunkCount, 0);
 
         var (statusLabel, statusClass) = drunkCount switch
         {
@@ -2668,6 +2673,7 @@ public partial class WineInventoryController : Controller
             Vintage = firstBottle.WineVintage.Vintage,
             Color = firstBottle.WineVintage.Wine.Color.ToString(),
             BottleCount = totalCount,
+            AvailableBottleCount = availableCount,
             StatusLabel = statusLabel,
             StatusCssClass = statusClass,
             AverageScore = averageScore
@@ -2865,6 +2871,7 @@ public class WineInventoryViewModel
         public int Vintage { get; set; }
         public string Color { get; set; } = string.Empty;
         public int BottleCount { get; set; }
+        public int AvailableBottleCount { get; set; }
         public string StatusLabel { get; set; } = string.Empty;
         public string StatusCssClass { get; set; } = string.Empty;
         public decimal? AverageScore { get; set; }
