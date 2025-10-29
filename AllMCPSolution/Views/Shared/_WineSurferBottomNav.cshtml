@@ -1,4 +1,5 @@
 @using System.Linq
+@using AllMCPSolution.Controllers
 @model string?
 @{
     var rawPath = Model;
@@ -17,20 +18,22 @@
     }
 
     var isAuthenticated = User?.Identity?.IsAuthenticated == true;
+    var topBarModel = ViewData?["WineSurferTopBarModel"] as WineSurferTopBarModel;
+    var isAdmin = topBarModel?.IsAdmin == true;
 
-    var navItems = new (string Href, string Label, bool RequiresAuthentication, string IconKey)[]
+    var navItems = new (string Href, string Label, bool RequiresAuthentication, bool RequiresAdmin, string IconKey)[]
     {
-        ("/", "Home", false, "home"),
-        ("/wine-manager", "Inventory", false, "inventory"),
-        ("/wine-surfer/surf-eye", "Surf Eye", true, "surf-eye"),
-        ("/wine-surfer/taste-profile", "Taste Profile", true, "taste-profile"),
-        ("/wine-surfer/wine-waves", "Wine Waves", true, "wine-waves"),
-        ("/wine-surfer/sisterhoods", "Sisterhoods", false, "sisterhoods"),
-        ("/wine-surfer/wishlists", "Wishlists", true, "wishlists")
+        ("/", "Home", false, false, "home"),
+        ("/wine-manager", "Inventory", false, false, "inventory"),
+        ("/wine-surfer/surf-eye", "Surf Eye", true, false, "surf-eye"),
+        ("/wine-surfer/taste-profile", "Taste Profile", true, false, "taste-profile"),
+        ("/wine-surfer/wine-waves", "Wine Waves", true, true, "wine-waves"),
+        ("/wine-surfer/sisterhoods", "Sisterhoods", false, false, "sisterhoods"),
+        ("/wine-surfer/wishlists", "Wishlists", true, false, "wishlists")
     };
 
     var visibleItems = navItems
-        .Where(item => isAuthenticated || !item.RequiresAuthentication)
+        .Where(item => (isAuthenticated || !item.RequiresAuthentication) && (isAdmin || !item.RequiresAdmin))
         .ToList();
 }
 

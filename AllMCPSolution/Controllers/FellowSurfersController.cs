@@ -67,6 +67,12 @@ public sealed class FellowSurfersController : WineSurferControllerBase
         ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
         Response.ContentType = "text/html; charset=utf-8";
 
+        var isAdmin = await IsCurrentUserAdminAsync(cancellationToken);
+        if (!isAdmin)
+        {
+            return Forbid();
+        }
+
         var identityName = User?.Identity?.Name;
         var email = User?.FindFirstValue(ClaimTypes.Email) ?? User?.FindFirstValue("email");
         var domainUser = await _userRepository.GetByIdAsync(currentUserId.Value, cancellationToken);

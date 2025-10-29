@@ -86,6 +86,12 @@ public sealed class WineWavesController : WineSurferControllerBase
             return Challenge();
         }
 
+        var isAdmin = await IsCurrentUserAdminAsync(cancellationToken);
+        if (!isAdmin)
+        {
+            return Forbid();
+        }
+
         var scores = await _evolutionScoreRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
 
         var datasets = scores
