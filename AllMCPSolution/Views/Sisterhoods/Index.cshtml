@@ -167,6 +167,75 @@
             width: calc(100% + var(--wine-surfer-left-gutter, 0px));
         }
 
+        .section-header {
+            position: sticky;
+            top: calc(
+                96px +
+                12px
+            );
+            z-index: 9;
+            padding: 12px 20px;
+            margin-bottom: 16px;
+            isolation: isolate;
+        }
+
+        .section-header > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .section-header::before {
+            content: "";
+            position: absolute;
+            inset: -4px 0;
+            border-radius: 18px;
+            background: linear-gradient(
+                135deg,
+                hsla(var(--accent) / 0.88),
+                hsla(var(--accent) / 0.72)
+            );
+            border: 1px solid hsla(var(--border) / 0.5);
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+            opacity: 0;
+            transform: translate3d(0, 8px, 0) scale(0.98);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+        }
+
+        .section-header.section-header--stuck::before {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+        }
+
+        .sisterhood-sticky-header {
+            margin-bottom: 24px;
+        }
+
+        .sisterhood-sticky-header[hidden] {
+            display: none !important;
+        }
+
+        @@media (max-width: 768px) {
+            .section-title {
+                font-size: 18px;
+                letter-spacing: 4px;
+            }
+        }
+
+        @@media (min-width: 769px) {
+            .sisterhood-sticky-header {
+                display: none;
+            }
+        }
+
         .brand {
             display: flex;
             align-items: center;
@@ -1706,6 +1775,13 @@
             </section>
         }
         <section class="sisterhood-grid" aria-label="Wine Surfer sisterhood communities">
+            @{
+                var firstSisterhoodName = Model.Sisterhoods.Count > 0 ? Model.Sisterhoods[0].Name : null;
+                var initialStickyName = string.IsNullOrWhiteSpace(firstSisterhoodName) ? "Sisterhood" : firstSisterhoodName;
+            }
+            <div class="sisterhood-sticky-header section-header" data-sisterhood-sticky-header hidden>
+                <h2 class="section-title" data-sisterhood-sticky-label>@initialStickyName</h2>
+            </div>
             @if (Model.Sisterhoods.Count > 0)
             {
                 foreach (var sisterhood in Model.Sisterhoods)
@@ -2222,6 +2298,150 @@
         let isRateModalOpen = () => false;
         let closeContributeModal = null;
         let isContributeModalOpen = () => false;
+
+        const stickyHeader = document.querySelector('[data-sisterhood-sticky-header]');
+        const stickyLabel = stickyHeader?.querySelector('[data-sisterhood-sticky-label]');
+        const sisterhoodCards = Array.from(document.querySelectorAll('[data-sisterhood-card]'));
+        const stickyMediaQuery = typeof window.matchMedia === 'function'
+            ? window.matchMedia('(max-width: 768px)')
+            : null;
+
+        const initializeSisterhoodStickyHeader = () => {
+            if (!stickyHeader || !stickyLabel || sisterhoodCards.length === 0) {
+                if (stickyHeader) {
+                    stickyHeader.setAttribute('hidden', '');
+                }
+                return;
+            }
+
+            let activeCard = null;
+            let isEnabled = false;
+            let ticking = false;
+
+            const computeStickyTop = () => Number.parseFloat(window.getComputedStyle(stickyHeader).top) || 0;
+
+            const setActiveCard = (card) => {
+                if (!card || card === activeCard) {
+                    return;
+                }
+
+                activeCard = card;
+
+                const name = card.querySelector('.sisterhood-name')?.textContent?.trim();
+                stickyLabel.textContent = name || 'Sisterhood';
+
+                const identifier = card.getAttribute('data-sisterhood-id') ?? '';
+                if (identifier) {
+                    stickyHeader.dataset.activeSisterhoodId = identifier;
+                } else {
+                    delete stickyHeader.dataset.activeSisterhoodId;
+                }
+            };
+
+            const updateStickyState = () => {
+                if (!isEnabled) {
+                    return;
+                }
+
+                const stickyTop = computeStickyTop();
+                const stickyHeight = stickyHeader.offsetHeight || 0;
+                const activationLine = stickyTop + stickyHeight + 12;
+
+                let candidate = sisterhoodCards[0] ?? null;
+
+                for (const card of sisterhoodCards) {
+                    const rect = card.getBoundingClientRect();
+                    if (rect.bottom <= stickyTop + 1) {
+                        continue;
+                    }
+
+                    candidate = card;
+
+                    if (rect.top <= activationLine) {
+                        break;
+                    }
+                }
+
+                if (candidate && candidate !== activeCard) {
+                    setActiveCard(candidate);
+                }
+
+                const headerTop = stickyHeader.getBoundingClientRect().top;
+                const isStuck = headerTop <= stickyTop + 0.5;
+                stickyHeader.classList.toggle('section-header--stuck', isStuck);
+            };
+
+            const requestStickyUpdate = () => {
+                if (!isEnabled || ticking) {
+                    return;
+                }
+
+                ticking = true;
+
+                window.requestAnimationFrame(() => {
+                    ticking = false;
+                    updateStickyState();
+                });
+            };
+
+            const enableSticky = () => {
+                if (isEnabled) {
+                    updateStickyState();
+                    return;
+                }
+
+                isEnabled = true;
+                stickyHeader.removeAttribute('hidden');
+                setActiveCard(sisterhoodCards[0] ?? null);
+                updateStickyState();
+                document.addEventListener('scroll', requestStickyUpdate, { passive: true });
+                window.addEventListener('resize', requestStickyUpdate);
+            };
+
+            const disableSticky = () => {
+                if (!isEnabled) {
+                    return;
+                }
+
+                isEnabled = false;
+                activeCard = null;
+                stickyHeader.setAttribute('hidden', '');
+                stickyHeader.classList.remove('section-header--stuck');
+                delete stickyHeader.dataset.activeSisterhoodId;
+                document.removeEventListener('scroll', requestStickyUpdate);
+                window.removeEventListener('resize', requestStickyUpdate);
+            };
+
+            const applyState = () => {
+                const shouldEnable = stickyMediaQuery
+                    ? stickyMediaQuery.matches
+                    : window.innerWidth <= 768;
+
+                if (shouldEnable) {
+                    enableSticky();
+                } else {
+                    disableSticky();
+                }
+            };
+
+            applyState();
+
+            if (stickyMediaQuery) {
+                const handleMediaChange = () => {
+                    applyState();
+                };
+
+                if (typeof stickyMediaQuery.addEventListener === 'function') {
+                    stickyMediaQuery.addEventListener('change', handleMediaChange);
+                } else if (typeof stickyMediaQuery.addListener === 'function') {
+                    stickyMediaQuery.addListener(handleMediaChange);
+                }
+            } else {
+                window.addEventListener('resize', applyState);
+            }
+        };
+
+        initializeSisterhoodStickyHeader();
 
         const contributeModal = document.querySelector('[data-contribute-modal]');
         if (contributeModal) {
