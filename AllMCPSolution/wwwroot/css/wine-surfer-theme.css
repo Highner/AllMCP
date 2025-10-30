@@ -941,6 +941,25 @@ a.wine-card:focus {
     }
 }
 
+@media (max-width: 680px) {
+    [data-sip-session-bottle-card] .bottle-card-header {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    [data-sip-session-bottle-card] .bottle-card-header .bottle-name {
+        flex-basis: 100%;
+        line-height: 1.4;
+        letter-spacing: 3px;
+        overflow-wrap: anywhere;
+    }
+
+    [data-sip-session-bottle-card] .bottle-card-header .bottle-vintage {
+        flex-basis: 100%;
+        order: 2;
+    }
+}
+
 /* Flatten the sip session bottle card: remove hover overlay effect specifically for bottle cards */
 [data-sip-session-bottle-card].wine-card-hover::after {
     display: none !important;
