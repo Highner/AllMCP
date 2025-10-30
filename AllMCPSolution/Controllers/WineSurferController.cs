@@ -1017,7 +1017,8 @@ public class WineSurferController : WineSurferControllerBase
                                     displayName,
                                     m.IsAdmin,
                                     m.UserId == currentUserId,
-                                    GetAvatarLetter(displayName));
+                                    GetAvatarLetter(displayName),
+                                    ProfilePhotoUtilities.CreateDataUrl(m.User?.ProfilePhoto, m.User?.ProfilePhotoContentType));
 
                                 return new
                                 {
@@ -4052,7 +4053,7 @@ public record WineSurferSipSessionBottle(
     decimal? SisterhoodAverageScore,
     bool IsRevealed);
 
-public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter);
+public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter, string? ProfilePhotoUrl);
 
 public record WineSurferSisterhoodFavoriteRegion(Guid RegionId, string Name, string? CountryName, decimal AverageScore);
 

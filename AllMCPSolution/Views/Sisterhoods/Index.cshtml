@@ -1966,7 +1966,17 @@
                                     <li>
                                         @{ var avatarLabel = string.IsNullOrWhiteSpace(member.DisplayName) ? "Member avatar" : $"Avatar for {member.DisplayName}"; }
                                             <div class="member-identity">
-                                                <span class="member-avatar" role="img" aria-label="@avatarLabel">@member.AvatarLetter</span>
+                                                @{
+                                                    var memberPhotoUrl = string.IsNullOrWhiteSpace(member.ProfilePhotoUrl) ? null : member.ProfilePhotoUrl.Trim();
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(memberPhotoUrl))
+                                                {
+                                                    <img class="member-avatar" src="@memberPhotoUrl" alt="@avatarLabel" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="member-avatar" role="img" aria-label="@avatarLabel">@member.AvatarLetter</span>
+                                                }
                                                 <div class="member-details">
                                                     <span class="member-name">@member.DisplayName</span>
                                                     @if (member.IsAdmin || member.IsCurrentUser)

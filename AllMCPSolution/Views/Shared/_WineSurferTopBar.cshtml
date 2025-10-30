@@ -210,7 +210,7 @@
                 {
                     <img src="@profilePhotoUrl" alt="" class="top-bar-avatar__photo" data-account-avatar-image />
                 }
-                <span aria-hidden="true" data-account-avatar-letter>@avatarLetter</span>
+                <span aria-hidden="true" data-account-avatar-letter @(string.IsNullOrEmpty(profilePhotoUrl) ? string.Empty : "hidden")>@avatarLetter</span>
             </button>
             @if (totalNotificationCount > 0)
             {
