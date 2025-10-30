@@ -70,9 +70,9 @@ public record DrinkBottleModalViewModel
 
     public string FormCssClass { get; init; } = "drink-bottle-form";
 
-    public string SubmitButtonCssClass { get; init; } = "crud-table__action-button drink-bottle-submit";
+    public string SubmitButtonCssClass { get; init; } = string.Empty;
 
-    public string CancelButtonCssClass { get; init; } = "crud-table__action-button secondary drink-bottle-cancel";
+    public string CancelButtonCssClass { get; init; } = string.Empty;
 
     public int NoteRows { get; init; } = 4;
 
