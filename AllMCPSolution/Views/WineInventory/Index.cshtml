@@ -72,6 +72,12 @@
                                 <span class="sort-icon" aria-hidden="true"></span>
                             </a>
                         </th>
+                        <th class="summary-header summary-header--region">
+                            <a class="sort-header @SortStateClass("region")" href="@BuildSortUrl("region")">
+                                <span class="header-text">Region</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
+                        </th>
                         <th class="summary-header summary-header--appellation">
                             <a class="sort-header @SortStateClass("appellation")" href="@BuildSortUrl("appellation")">
                                 <span class="header-text">Appellation</span>
@@ -108,8 +114,11 @@
                         {
                             var subAppellation = string.IsNullOrWhiteSpace(bottle.SubAppellation) ? null : bottle.SubAppellation;
                             var appellation = string.IsNullOrWhiteSpace(bottle.Appellation) ? null : bottle.Appellation;
+                            var region = string.IsNullOrWhiteSpace(bottle.Region) ? null : bottle.Region;
                             var display = "—";
+                            var regionDisplay = region ?? "—";
                             var groupingAppellation = string.Empty;
+                            var groupingRegion = region ?? string.Empty;
                             if (!string.IsNullOrEmpty(subAppellation) && !string.IsNullOrEmpty(appellation) && !string.Equals(subAppellation, appellation, StringComparison.OrdinalIgnoreCase))
                             {
                                 display = $"{subAppellation} ({appellation})";
@@ -134,6 +143,7 @@
                                 data-sub-appellation-id="@(bottle.SubAppellationId?.ToString() ?? string.Empty)"
                                 data-appellation-id="@(bottle.AppellationId?.ToString() ?? string.Empty)"
                                 data-summary-wine="@bottle.WineName"
+                                data-summary-region="@groupingRegion"
                                 data-summary-appellation="@groupingAppellation"
                                 data-summary-color="@groupingColor"
                                 data-summary-status="@groupingStatus"
@@ -141,6 +151,7 @@
                                 role="button"
                                 aria-expanded="false">
                                 <td class="summary-wine">@bottle.WineName</td>
+                                <td class="summary-region">@regionDisplay</td>
                                 <td class="summary-appellation">@display</td>
                                 <td class="summary-bottles" data-field="bottle-count">
                                     <span aria-hidden="true">@bottle.AvailableBottleCount/@bottle.BottleCount</span>
@@ -155,7 +166,7 @@
                     else
                     {
                         <tr class="crud-table__empty-row empty-row">
-                            <td colspan="6">No bottles yet. Add your first wine above to get started.</td>
+                            <td colspan="7">No bottles yet. Add your first wine above to get started.</td>
                         </tr>
                     }
                 </tbody>
