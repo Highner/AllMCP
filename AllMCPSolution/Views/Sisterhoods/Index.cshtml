@@ -811,9 +811,8 @@
         }
 
         .sisterhood-actions {
-            display: inline-flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            display: flex;
+            justify-content: flex-end;
         }
 
         .member-list {
@@ -1592,20 +1591,9 @@
             }
 
             .sisterhood-actions {
-                display: flex;
-                flex-direction: column;
+                align-self: stretch;
                 width: 100%;
-                gap: 10px;
-            }
-
-            .sisterhood-actions .inline-form {
-                display: block;
-                width: 100%;
-            }
-
-            .sisterhood-actions .sisterhood-button {
-                width: 100%;
-                justify-content: center;
+                justify-content: flex-end;
             }
         }
     </style>
@@ -1788,34 +1776,60 @@
                             </div>
                             @if (hasActions)
                             {
+                                var triggerLabel = string.IsNullOrWhiteSpace(sisterhood.Name)
+                                    ? "Open sisterhood actions"
+                                    : $"Open actions for {sisterhood.Name}";
+                                var menuLabel = string.IsNullOrWhiteSpace(sisterhood.Name)
+                                    ? "Sisterhood actions"
+                                    : $"{sisterhood.Name} actions";
+                                var menuId = $"sisterhood-actions-menu-{sisterhood.Id}";
+                                var editAttributes = new Dictionary<string, string>
+                                {
+                                    ["data-sisterhood-edit-toggle"] = sisterhood.Id.ToString(),
+                                    ["aria-controls"] = $"edit-sisterhood-form-{sisterhood.Id}",
+                                    ["aria-expanded"] = "false"
+                                };
+                                var deleteHiddenFields = new[]
+                                {
+                                    new KeyValuePair<string, string>("SisterhoodId", sisterhood.Id.ToString())
+                                };
+                                var deleteOption = new ActionMenuButtonDeleteOption(
+                                    Label: "Delete sisterhood",
+                                    FormAction: Url.Action("DeleteSisterhood", "WineSurfer") ?? "/wine-surfer/sisterhoods/delete",
+                                    HiddenFields: deleteHiddenFields,
+                                    ConfirmMessage: "Delete this sisterhood? This cannot be undone.");
+                                var editOption = new ActionMenuButtonEditOption(
+                                    Label: "Edit",
+                                    Attributes: editAttributes);
+                                List<ActionMenuButtonItem>? additionalItems = null;
+                                if (isCurrentUserMember && leaveConfirmName is not null && Model.CurrentUserId.HasValue)
+                                {
+                                    additionalItems = new List<ActionMenuButtonItem>
+                                    {
+                                        new(
+                                            ActionMenuButtonItemKind.Form,
+                                            Label: "Leave sisterhood",
+                                            ButtonCssClass: "action-menu__button--ghost-danger",
+                                            FormAction: Url.Action("RemoveSisterhoodMember", "WineSurfer") ?? "/wine-surfer/sisterhoods/members/remove",
+                                            HiddenFields: new[]
+                                            {
+                                                new KeyValuePair<string, string>("SisterhoodId", sisterhood.Id.ToString()),
+                                                new KeyValuePair<string, string>("UserId", Model.CurrentUserId.Value.ToString())
+                                            },
+                                            ConfirmMessage: $"Leave {leaveConfirmName}?" )
+                                    };
+                                }
+                                var menuModel = new ActionMenuButtonModel(
+                                    MenuId: menuId,
+                                    TriggerAriaLabel: triggerLabel,
+                                    MenuLabel: menuLabel,
+                                    Edit: editOption,
+                                    Delete: deleteOption,
+                                    AdditionalItems: additionalItems,
+                                    ShowEdit: sisterhood.CanManage,
+                                    ShowDelete: sisterhood.CanManage);
                                 <div class="sisterhood-actions wine-card__actions">
-                                    @if (sisterhood.CanManage)
-                                    {
-                                        <button type="button"
-                                                class="sisterhood-button"
-                                                data-sisterhood-edit-toggle="@sisterhood.Id"
-                                                aria-expanded="false"
-                                                aria-controls="edit-sisterhood-form-@sisterhood.Id">
-                                            Edit
-                                        </button>
-                                        <form method="post" action="@Url.Action("DeleteSisterhood", "WineSurfer")" class="inline-form" onsubmit="return confirm('Delete this sisterhood? This cannot be undone.');">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
-                                            <button type="submit" class="sisterhood-button sisterhood-button--danger">Delete</button>
-                                        </form>
-                                    }
-                                    @if (isCurrentUserMember && leaveConfirmName is not null)
-                                    {
-                                        <form method="post"
-                                              action="@Url.Action("RemoveSisterhoodMember", "WineSurfer")"
-                                              class="inline-form"
-                                              onsubmit="return confirm('Leave @leaveConfirmName?');">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
-                                            <input type="hidden" name="UserId" value="@Model.CurrentUserId" />
-                                            <button type="submit" class="sisterhood-button sisterhood-button--ghost-danger">Leave sisterhood</button>
-                                        </form>
-                                    }
+                                    @await Html.PartialAsync("_ActionMenuButton", menuModel)
                                 </div>
                             }
                         </div>
@@ -2800,6 +2814,95 @@
         if (toggleButton && createForm) {
             toggleButton.addEventListener('click', () => {
                 createForm.classList.toggle('open');
+            });
+        }
+
+        const actionMenus = document.querySelectorAll('[data-action-menu]');
+        let activeActionMenu = null;
+
+        const closeActionMenu = (menu, { focusTrigger = false } = {}) => {
+            if (!menu || !menu.hasAttribute('data-open')) {
+                return;
+            }
+
+            const trigger = menu.querySelector('[data-action-menu-trigger]');
+            const content = menu.querySelector('[data-action-menu-content]');
+
+            if (content) {
+                content.setAttribute('hidden', '');
+            }
+
+            if (trigger) {
+                trigger.setAttribute('aria-expanded', 'false');
+                if (focusTrigger) {
+                    window.requestAnimationFrame(() => trigger.focus());
+                }
+            }
+
+            menu.removeAttribute('data-open');
+
+            if (activeActionMenu === menu) {
+                activeActionMenu = null;
+            }
+        };
+
+        const closeAllActionMenus = (focusTrigger = false) => {
+            actionMenus.forEach(menu => {
+                closeActionMenu(menu, { focusTrigger: focusTrigger && menu === activeActionMenu });
+            });
+        };
+
+        if (actionMenus.length > 0) {
+            actionMenus.forEach(menu => {
+                const trigger = menu.querySelector('[data-action-menu-trigger]');
+                const content = menu.querySelector('[data-action-menu-content]');
+
+                if (!trigger || !content) {
+                    return;
+                }
+
+                trigger.addEventListener('click', event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const isOpen = menu.hasAttribute('data-open');
+
+                    closeAllActionMenus();
+
+                    if (!isOpen) {
+                        menu.setAttribute('data-open', '');
+                        trigger.setAttribute('aria-expanded', 'true');
+                        content.removeAttribute('hidden');
+                        activeActionMenu = menu;
+                    }
+                });
+
+                content.addEventListener('click', event => {
+                    event.stopPropagation();
+
+                    const target = event.target instanceof Element
+                        ? event.target.closest('[data-action-menu-item]')
+                        : null;
+
+                    if (target) {
+                        closeActionMenu(menu);
+                    }
+                });
+            });
+
+            document.addEventListener('click', event => {
+                const target = event.target instanceof Element ? event.target : null;
+                actionMenus.forEach(menu => {
+                    if (!menu.contains(target)) {
+                        closeActionMenu(menu);
+                    }
+                });
+            });
+
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    closeAllActionMenus(true);
+                }
             });
         }
 

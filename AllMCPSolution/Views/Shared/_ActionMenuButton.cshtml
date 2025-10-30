@@ -1,0 +1,126 @@
+@using System
+@using System.Collections.Generic
+@model AllMCPSolution.Models.ActionMenuButtonModel
+
+@functions {
+    private static string BuildButtonClass(string? additional)
+    {
+        const string baseClass = "action-menu__button";
+        return string.IsNullOrWhiteSpace(additional) ? baseClass : $"{baseClass} {additional}";
+    }
+
+    private static string BuildFormClass(string? additional)
+    {
+        const string baseClass = "inline-form action-menu__form";
+        return string.IsNullOrWhiteSpace(additional) ? baseClass : additional;
+    }
+
+    private static IEnumerable<KeyValuePair<string, string>> EmptyFields()
+    {
+        return Array.Empty<KeyValuePair<string, string>>();
+    }
+}
+
+<div class="action-menu" data-action-menu>
+    <button type="button"
+            class="action-menu__trigger"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            aria-controls="@Model.MenuId"
+            aria-label="@Model.TriggerAriaLabel"
+            data-action-menu-trigger>
+        <span class="sr-only">@Model.TriggerAriaLabel</span>
+        <svg class="action-menu__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="5" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="12" cy="19" r="2" />
+        </svg>
+    </button>
+    <div class="action-menu__content"
+         id="@Model.MenuId"
+         role="menu"
+         aria-label="@Model.MenuLabel"
+         data-action-menu-content
+         hidden>
+        @if (Model.ShowEdit)
+        {
+            <button type="button"
+                    class="@BuildButtonClass(Model.Edit.AdditionalCssClass)"
+                    role="menuitem"
+                    data-action-menu-item
+                    @foreach (var attribute in Model.Edit.Attributes)
+                    {
+                        <text> @attribute.Key="@attribute.Value"</text>
+                    }>@Model.Edit.Label</button>
+        }
+        @if (Model.ShowDelete)
+        {
+            <form method="post"
+                  action="@Model.Delete.FormAction"
+                  class="@BuildFormClass(Model.Delete.FormCssClass)"
+                  role="none"
+                  @(string.IsNullOrWhiteSpace(Model.Delete.ConfirmMessage) ? null : $"onsubmit=\"return confirm('{Model.Delete.ConfirmMessage}');\"")>
+                @if (Model.Delete.IncludeAntiforgery)
+                {
+                    @Html.AntiForgeryToken()
+                }
+                @foreach (var field in Model.Delete.HiddenFields ?? EmptyFields())
+                {
+                    <input type="hidden" name="@field.Key" value="@field.Value" />
+                }
+                @{ var deleteButtonClass = BuildButtonClass(string.IsNullOrWhiteSpace(Model.Delete.ButtonCssClass)
+                    ? "action-menu__button--danger"
+                    : Model.Delete.ButtonCssClass); }
+                <button type="submit"
+                        class="@deleteButtonClass"
+                        data-action-menu-item
+                        role="menuitem">
+                    @Model.Delete.Label
+                </button>
+            </form>
+        }
+        @if (Model.AdditionalItems is { Count: > 0 } additionalItems)
+        {
+            foreach (var item in additionalItems)
+            {
+                if (item.Kind == AllMCPSolution.Models.ActionMenuButtonItemKind.Button)
+                {
+                    @{ var itemButtonClass = BuildButtonClass(item.ButtonCssClass); }
+                    <button type="button"
+                            class="@itemButtonClass"
+                            role="menuitem"
+                            data-action-menu-item
+                            @foreach (var attribute in item.Attributes ?? new Dictionary<string, string>())
+                            {
+                                <text> @attribute.Key="@attribute.Value"</text>
+                            }>@item.Label</button>
+                }
+                else if (item.Kind == AllMCPSolution.Models.ActionMenuButtonItemKind.Form && !string.IsNullOrWhiteSpace(item.FormAction))
+                {
+                    var method = string.IsNullOrWhiteSpace(item.Method) ? "post" : item.Method;
+                    <form method="@method"
+                          action="@item.FormAction"
+                          class="@BuildFormClass(item.FormCssClass)"
+                          role="none"
+                          @(string.IsNullOrWhiteSpace(item.ConfirmMessage) ? null : $"onsubmit=\"return confirm('{item.ConfirmMessage}');\"")>
+                        @if (item.IncludeAntiforgery && string.Equals(method, "post", System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            @Html.AntiForgeryToken()
+                        }
+                        @foreach (var field in item.HiddenFields ?? EmptyFields())
+                        {
+                            <input type="hidden" name="@field.Key" value="@field.Value" />
+                        }
+                        @{ var itemButtonClass = BuildButtonClass(item.ButtonCssClass); }
+                        <button type="submit"
+                                class="@itemButtonClass"
+                                data-action-menu-item
+                                role="menuitem">
+                            @item.Label
+                        </button>
+                    </form>
+                }
+            }
+        }
+    </div>
+</div>
