@@ -60,10 +60,12 @@
          hidden>
         @if (Model.ShowEdit)
         {
+            var editAttributes = BuildAttributes(Model.Edit.Attributes);
             <button type="button"
                     class="@BuildButtonClass(Model.Edit.AdditionalCssClass)"
                     role="menuitem"
-                    data-action-menu-item>@Model.Edit.Label</button>
+                    data-action-menu-item
+                    @Html.Raw(editAttributes)>@Model.Edit.Label</button>
         }
         @if (Model.ShowDelete)
         {
@@ -97,10 +99,12 @@
             {
                 if (item.Kind == AllMCPSolution.Models.ActionMenuButtonItemKind.Button)
                 {
+                    var itemAttributes = BuildAttributes(item.Attributes);
                     <button type="button"
                             class="@BuildButtonClass(item.ButtonCssClass)"
                             role="menuitem"
-                            data-action-menu-item>@item.Label</button>
+                            data-action-menu-item
+                            @Html.Raw(itemAttributes)>@item.Label</button>
                 }
                 else if (item.Kind == AllMCPSolution.Models.ActionMenuButtonItemKind.Form && !string.IsNullOrWhiteSpace(item.FormAction))
                 {
