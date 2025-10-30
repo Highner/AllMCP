@@ -2,6 +2,7 @@ using System.ClientModel;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using OpenAI;
 using OpenAI.Chat;
 
 namespace AllMCPSolution.Services;
@@ -12,12 +13,14 @@ public interface IChatGptService
         IEnumerable<ChatMessage> messages,
         string? model = null,
         double? temperature = null,
+        bool useWebSearch = false,
         CancellationToken ct = default);
 
     IAsyncEnumerable<string> StreamChatCompletionAsync(
         IEnumerable<ChatMessage> messages,
         string? model = null,
         double? temperature = null,
+        bool useWebSearch = false,
         CancellationToken ct = default);
 }
 
@@ -67,12 +70,13 @@ public sealed class ChatGptService : IChatGptService
         IEnumerable<ChatMessage> messages,
         string? model = null,
         double? temperature = null,
+        bool useWebSearch = false,
         CancellationToken ct = default)
     {
         EnsureConfigured();
 
         var materializedMessages = MaterializeMessages(messages);
-        var completionOptions = CreateCompletionOptions(temperature);
+        var completionOptions = CreateCompletionOptions(temperature, useWebSearch);
         var client = ResolveClient(model);
 
         try
@@ -96,12 +100,13 @@ public sealed class ChatGptService : IChatGptService
         IEnumerable<ChatMessage> messages,
         string? model = null,
         double? temperature = null,
+        bool useWebSearch = false,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         EnsureConfigured();
 
         var materializedMessages = MaterializeMessages(messages);
-        var completionOptions = CreateCompletionOptions(temperature);
+        var completionOptions = CreateCompletionOptions(temperature, useWebSearch);
         var client = ResolveClient(model);
 
         AsyncCollectionResult<StreamingChatCompletionUpdate> response;
@@ -148,12 +153,18 @@ public sealed class ChatGptService : IChatGptService
         //}
     }
 
-    private static ChatCompletionOptions CreateCompletionOptions(double? temperature)
+    private static ChatCompletionOptions CreateCompletionOptions(double? temperature, bool useWebSearch)
     {
         var options = new ChatCompletionOptions
         {
-             
+
         };
+
+        if (useWebSearch)
+        {
+            options.Tools.Add(new WebSearchTool());
+            options.ToolChoice = ToolChoice.Auto;
+        }
 
         return options;
     }

@@ -199,6 +199,7 @@ public sealed class WineWavesController : WineSurferControllerBase
                     new UserChatMessage(prompt)
                 },
                 model: _wineWavesModel,
+                useWebSearch: true,
                 ct: cancellationToken);
         }
         catch (ChatGptServiceNotConfiguredException)
