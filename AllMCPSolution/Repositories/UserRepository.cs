@@ -19,7 +19,13 @@ public interface IUserRepository
     Task<ApplicationUser> GetOrCreateAsync(string name, string tasteProfile, string? tasteProfileSummary = null, CancellationToken ct = default);
     Task AddAsync(ApplicationUser user, CancellationToken ct = default);
     Task UpdateAsync(ApplicationUser user, CancellationToken ct = default);
-    Task<ApplicationUser?> UpdateDisplayNameAsync(Guid id, string displayName, CancellationToken ct = default);
+    Task<ApplicationUser?> UpdateDisplayNameAsync(
+        Guid id,
+        string displayName,
+        bool updateProfilePhoto = false,
+        byte[]? profilePhoto = null,
+        string? profilePhotoContentType = null,
+        CancellationToken ct = default);
     Task<ApplicationUser?> UpdateTasteProfileAsync(
         Guid id,
         Guid? tasteProfileId,
@@ -295,7 +301,13 @@ public class UserRepository : IUserRepository
         EnsureSucceeded(result, $"Failed to update user '{existing.Name}'.");
     }
 
-    public async Task<ApplicationUser?> UpdateDisplayNameAsync(Guid id, string displayName, CancellationToken ct = default)
+    public async Task<ApplicationUser?> UpdateDisplayNameAsync(
+        Guid id,
+        string displayName,
+        bool updateProfilePhoto = false,
+        byte[]? profilePhoto = null,
+        string? profilePhotoContentType = null,
+        CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -318,6 +330,22 @@ public class UserRepository : IUserRepository
         else
         {
             user.UserName = trimmed;
+        }
+
+        if (updateProfilePhoto)
+        {
+            if (profilePhoto is null || profilePhoto.Length == 0)
+            {
+                user.ProfilePhoto = null;
+                user.ProfilePhotoContentType = null;
+            }
+            else
+            {
+                user.ProfilePhoto = profilePhoto;
+                user.ProfilePhotoContentType = string.IsNullOrWhiteSpace(profilePhotoContentType)
+                    ? null
+                    : profilePhotoContentType.Trim();
+            }
         }
 
         var result = await _userManager.UpdateAsync(user);

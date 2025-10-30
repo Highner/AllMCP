@@ -132,6 +132,10 @@
         avatarLetter = trimmedDisplayName[..1].ToUpperInvariant();
     }
 
+    var profilePhotoUrl = string.IsNullOrWhiteSpace(Model?.ProfilePhotoUrl)
+        ? null
+        : Model.ProfilePhotoUrl.Trim();
+
     var avatarAccountLabel = string.IsNullOrEmpty(trimmedDisplayName)
         ? "Guest account"
         : $"{trimmedDisplayName}'s account";
@@ -200,8 +204,13 @@
                 aria-label="@avatarButtonLabel"
                 data-account-label="@avatarAccountLabel"
                 data-user-id="@notificationStorageUserKey"
-                data-is-authenticated="@(isAuthenticated ? "true" : "false")">
-                <span aria-hidden="true">@avatarLetter</span>
+                data-is-authenticated="@(isAuthenticated ? "true" : "false")"
+                data-account-photo="@profilePhotoUrl">
+                @if (!string.IsNullOrEmpty(profilePhotoUrl))
+                {
+                    <img src="@profilePhotoUrl" alt="" class="top-bar-avatar__photo" data-account-avatar-image />
+                }
+                <span aria-hidden="true" data-account-avatar-letter>@avatarLetter</span>
             </button>
             @if (totalNotificationCount > 0)
             {
@@ -403,7 +412,7 @@
 </header>
 @if (isAuthenticated && !string.IsNullOrEmpty(updateDisplayNameUrl))
 {
-    <div class="account-edit-layer" data-account-edit-layer data-account-display-name="@trimmedDisplayName" hidden>
+    <div class="account-edit-layer" data-account-edit-layer data-account-display-name="@trimmedDisplayName" data-account-photo-url="@profilePhotoUrl" hidden>
         <div class="account-edit-backdrop" data-edit-account-dismiss aria-hidden="true"></div>
         <div class="account-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="accountEditTitle">
             <form id="accountEditForm" class="account-edit-form" method="post" action="@updateDisplayNameUrl" novalidate>
@@ -415,6 +424,27 @@
                     </button>
                 </div>
                 <p class="account-edit-description">Update the name that appears across Wine Surfer experiences.</p>
+                <div class="account-edit-field account-edit-field--photo">
+                    <span class="account-edit-label">Profile photo</span>
+                    <div class="account-photo-preview" data-account-photo-preview-container>
+                        @if (!string.IsNullOrEmpty(profilePhotoUrl))
+                        {
+                            <img src="@profilePhotoUrl" alt="Current profile photo" class="account-photo-preview__image" data-account-photo-preview />
+                        }
+                        else
+                        {
+                            <span class="account-photo-preview__placeholder" data-account-photo-placeholder>@avatarLetter</span>
+                        }
+                    </div>
+                    <button type="button" class="account-photo-trigger" data-account-photo-trigger>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 7h4l2-2h4l2 2h4v12H4z"></path>
+                            <circle cx="12" cy="13" r="3.5"></circle>
+                        </svg>
+                        <span>Update photo</span>
+                    </button>
+                    <input type="file" name="ProfilePhoto" accept="image/*" capture="user" data-account-photo-input hidden />
+                </div>
                 <div class="account-edit-field">
                     <label class="account-edit-label" for="accountEditDisplayName">Display name</label>
                     <input
@@ -458,6 +488,12 @@
         const accountEditCancelButtons = accountEditLayer ? Array.from(accountEditLayer.querySelectorAll('[data-edit-account-cancel]')) : [];
         const accountDisplayTargets = document.querySelectorAll('[data-account-display-name]');
         const accountEditSubmit = accountEditForm?.querySelector('.account-edit-submit') ?? null;
+        const accountPhotoInput = accountEditForm?.querySelector('[data-account-photo-input]') ?? null;
+        const accountPhotoTrigger = accountEditForm?.querySelector('[data-account-photo-trigger]') ?? null;
+        const accountPhotoPreview = accountEditForm?.querySelector('[data-account-photo-preview]') ?? null;
+        const accountPhotoPlaceholder = accountEditForm?.querySelector('[data-account-photo-placeholder]') ?? null;
+        const initialAccountPhotoUrl = accountEditLayer?.getAttribute('data-account-photo-url') ?? '';
+        let accountPhotoObjectUrl = null;
 
         const normalizeCategoryKey = (value) => {
             if (typeof value !== 'string') {
@@ -668,6 +704,107 @@
             }
         };
 
+        const setAccountPhotoPreview = (photoUrl) => {
+            const candidate = typeof photoUrl === 'string' ? photoUrl.trim() : '';
+
+            if (accountPhotoPreview) {
+                if (candidate) {
+                    accountPhotoPreview.src = candidate;
+                    accountPhotoPreview.removeAttribute('hidden');
+                    accountPhotoPreview.dataset.originalSrc = candidate;
+                } else if (accountPhotoPreview.dataset.originalSrc) {
+                    accountPhotoPreview.src = accountPhotoPreview.dataset.originalSrc;
+                    accountPhotoPreview.removeAttribute('hidden');
+                } else {
+                    accountPhotoPreview.setAttribute('hidden', 'true');
+                }
+            }
+
+            if (accountPhotoPlaceholder) {
+                const shouldHide = Boolean(candidate || (accountPhotoPreview && accountPhotoPreview.dataset.originalSrc));
+                accountPhotoPlaceholder.toggleAttribute('hidden', shouldHide);
+            }
+        };
+
+        const setAccountAvatar = (photoUrl, letter) => {
+            if (!notificationToggle) {
+                return;
+            }
+
+            const sanitizedUrl = typeof photoUrl === 'string' ? photoUrl.trim() : '';
+            const resolvedLetter = typeof letter === 'string' && letter.trim().length > 0
+                ? letter.trim()[0].toUpperCase()
+                : '?';
+
+            notificationToggle.dataset.accountPhoto = sanitizedUrl;
+
+            const avatarImage = notificationToggle.querySelector('[data-account-avatar-image]');
+            const avatarLetter = notificationToggle.querySelector('[data-account-avatar-letter]');
+
+            if (sanitizedUrl) {
+                if (avatarImage) {
+                    avatarImage.src = sanitizedUrl;
+                } else if (avatarLetter) {
+                    const img = document.createElement('img');
+                    img.className = 'top-bar-avatar__photo';
+                    img.alt = '';
+                    img.setAttribute('data-account-avatar-image', '');
+                    img.src = sanitizedUrl;
+                    notificationToggle.insertBefore(img, avatarLetter);
+                }
+
+                if (avatarLetter) {
+                    avatarLetter.setAttribute('hidden', 'true');
+                    avatarLetter.textContent = resolvedLetter;
+                }
+            } else {
+                if (avatarImage) {
+                    avatarImage.remove();
+                }
+
+                if (avatarLetter) {
+                    avatarLetter.removeAttribute('hidden');
+                    avatarLetter.textContent = resolvedLetter;
+                }
+            }
+        };
+
+        if (accountPhotoPreview) {
+            if (initialAccountPhotoUrl) {
+                accountPhotoPreview.src = initialAccountPhotoUrl;
+                accountPhotoPreview.dataset.originalSrc = initialAccountPhotoUrl;
+                accountPhotoPreview.removeAttribute('hidden');
+                accountPhotoPlaceholder?.setAttribute('hidden', 'true');
+            } else {
+                accountPhotoPreview.setAttribute('hidden', 'true');
+                accountPhotoPlaceholder?.removeAttribute('hidden');
+            }
+        }
+
+        if (accountPhotoTrigger && accountPhotoInput) {
+            accountPhotoTrigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                accountPhotoInput.click();
+            });
+
+            accountPhotoInput.addEventListener('change', () => {
+                if (accountPhotoObjectUrl) {
+                    URL.revokeObjectURL(accountPhotoObjectUrl);
+                    accountPhotoObjectUrl = null;
+                }
+
+                const file = accountPhotoInput.files && accountPhotoInput.files[0];
+                if (!file) {
+                    const existing = accountEditLayer?.getAttribute('data-account-photo-url') ?? '';
+                    setAccountPhotoPreview(existing);
+                    return;
+                }
+
+                accountPhotoObjectUrl = URL.createObjectURL(file);
+                setAccountPhotoPreview(accountPhotoObjectUrl);
+            });
+        }
+
         const setEditError = (message) => {
             if (!accountEditError) {
                 return;
@@ -717,6 +854,23 @@
             accountEditInput.value = currentName;
             accountEditInput.readOnly = false;
 
+            if (accountPhotoPlaceholder) {
+                const placeholderLetter = currentName.length > 0 ? currentName[0].toUpperCase() : '?';
+                accountPhotoPlaceholder.textContent = placeholderLetter;
+            }
+
+            if (accountPhotoInput) {
+                accountPhotoInput.value = '';
+            }
+
+            if (accountPhotoObjectUrl) {
+                URL.revokeObjectURL(accountPhotoObjectUrl);
+                accountPhotoObjectUrl = null;
+            }
+
+            const existingPhoto = accountEditLayer.getAttribute('data-account-photo-url') ?? '';
+            setAccountPhotoPreview(existingPhoto);
+
             setEditError('');
             setEditLoading(false);
 
@@ -744,6 +898,18 @@
             if (accountEditInput) {
                 accountEditInput.readOnly = false;
             }
+
+            if (accountPhotoInput) {
+                accountPhotoInput.value = '';
+            }
+
+            if (accountPhotoObjectUrl) {
+                URL.revokeObjectURL(accountPhotoObjectUrl);
+                accountPhotoObjectUrl = null;
+            }
+
+            const fallbackPhoto = accountEditLayer.getAttribute('data-account-photo-url') ?? '';
+            setAccountPhotoPreview(fallbackPhoto);
 
             const target = lastFocusedBeforeEdit;
             lastFocusedBeforeEdit = null;
@@ -1030,17 +1196,35 @@
                         const accountLabel = typeof payload?.accountLabel === 'string'
                             ? payload.accountLabel
                             : (displayName ? `${displayName}'s account` : 'Guest account');
+                        const photoUrl = typeof payload?.photoUrl === 'string' && payload.photoUrl.trim().length > 0
+                            ? payload.photoUrl.trim()
+                            : '';
 
                         setAccountDisplayName(displayName, menuName);
+                        setAccountAvatar(photoUrl, displayName);
+
+                        if (accountPhotoPlaceholder) {
+                            accountPhotoPlaceholder.textContent = avatarLetter;
+                        }
 
                         if (notificationToggle) {
                             notificationToggle.dataset.accountLabel = accountLabel;
-                            const avatarSpan = notificationToggle.querySelector('span');
-                            if (avatarSpan) {
-                                avatarSpan.textContent = avatarLetter;
-                            }
-
                             updateAvatarLabel(getVisibleNotificationCount());
+                        }
+
+                        if (accountEditLayer) {
+                            accountEditLayer.setAttribute('data-account-photo-url', photoUrl);
+                        }
+
+                        setAccountPhotoPreview(photoUrl);
+
+                        if (accountPhotoInput) {
+                            accountPhotoInput.value = '';
+                        }
+
+                        if (accountPhotoObjectUrl) {
+                            URL.revokeObjectURL(accountPhotoObjectUrl);
+                            accountPhotoObjectUrl = null;
                         }
 
                         closeEditModal();

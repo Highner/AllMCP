@@ -48,6 +48,21 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
             entity.Property(u => u.SuggestionBudget)
                 .HasColumnType("decimal(10,2)");
+
+            entity.Property(u => u.ProfilePhoto)
+                .HasColumnType("varbinary(max)");
+
+            entity.Property(u => u.ProfilePhotoContentType)
+                .HasMaxLength(128);
+        });
+
+        modelBuilder.Entity<Sisterhood>(entity =>
+        {
+            entity.Property(s => s.ProfilePhoto)
+                .HasColumnType("varbinary(max)");
+
+            entity.Property(s => s.ProfilePhotoContentType)
+                .HasMaxLength(128);
         });
 
         modelBuilder.Entity<TasteProfile>(entity =>

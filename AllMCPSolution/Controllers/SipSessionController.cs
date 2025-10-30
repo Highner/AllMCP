@@ -243,7 +243,8 @@ public class SipSessionController : WineSurferControllerBase
                     domainUserSummary,
                     domainUserProfile,
                     domainUser?.SuggestionBudget,
-                    domainUser?.IsAdmin == true);
+                    domainUser?.IsAdmin == true,
+                    ProfilePhotoUtilities.CreateDataUrl(domainUser?.ProfilePhoto, domainUser?.ProfilePhotoContentType));
             }
 
             if (currentUserId.HasValue || normalizedEmail is not null)

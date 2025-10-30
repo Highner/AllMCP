@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace AllMCPSolution.Models;
 
@@ -108,6 +109,9 @@ public class UpdateAccountDisplayNameViewModel
     [StringLength(128, MinimumLength = 2, ErrorMessage = "Display name must be between {2} and {1} characters long.")]
     [Display(Name = "Display name")]
     public string DisplayName { get; set; } = string.Empty;
+
+    [Display(Name = "Profile photo")]
+    public IFormFile? ProfilePhoto { get; set; }
 }
 
 public class PasswordResetNotificationViewModel

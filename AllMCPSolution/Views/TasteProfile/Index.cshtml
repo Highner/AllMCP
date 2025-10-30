@@ -15,7 +15,8 @@
             Model.IncomingInvitations,
             Model.SentInvitationNotifications,
             displayName: Model.CurrentUser?.DisplayName,
-            isAdmin: Model.CurrentUser?.IsAdmin == true);
+            isAdmin: Model.CurrentUser?.IsAdmin == true,
+            profilePhotoUrl: Model.CurrentUser?.ProfilePhotoUrl);
     var tasteProfileSummary = Model.TasteProfileSummary ?? string.Empty;
     var summaryMaxLength = Model.SummaryMaxLength;
     var tasteProfile = Model.TasteProfile ?? string.Empty;

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using AllMCPSolution.Controllers;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
+using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.Identity;
 
 namespace AllMCPSolution.Services;
@@ -152,7 +153,8 @@ public class WineSurferTopBarService : IWineSurferTopBarService
             dismissedStamps,
             sections,
             displayName,
-            isAdmin);
+            isAdmin,
+            ProfilePhotoUtilities.CreateDataUrl(domainUser?.ProfilePhoto, domainUser?.ProfilePhotoContentType));
     }
 
     private Guid? GetCurrentUserId(ClaimsPrincipal user)

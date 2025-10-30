@@ -13,7 +13,8 @@
             Model.IncomingInvitations,
             Model.SentInvitationNotifications,
             displayName: Model.CurrentUser?.DisplayName,
-            isAdmin: Model.CurrentUser?.IsAdmin == true);
+            isAdmin: Model.CurrentUser?.IsAdmin == true,
+            profilePhotoUrl: Model.CurrentUser?.ProfilePhotoUrl);
     var colors = Enum.GetValues(typeof(WineColor)).Cast<WineColor>().ToList();
     ViewData["WineSurferPageTitle"] = "Terroir manager";
     var hasStatus = !string.IsNullOrWhiteSpace(Model.StatusMessage);

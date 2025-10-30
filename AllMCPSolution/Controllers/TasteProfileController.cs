@@ -214,7 +214,8 @@ public class TasteProfileController: WineSurferControllerBase
                     domainUserSummary,
                     domainUserProfile,
                     domainUser?.SuggestionBudget,
-                    isAdmin);
+                    isAdmin,
+                    ProfilePhotoUtilities.CreateDataUrl(domainUser?.ProfilePhoto, domainUser?.ProfilePhotoContentType));
             }
 
             if (currentUserId.HasValue || normalizedEmail is not null)

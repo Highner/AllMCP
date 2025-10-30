@@ -1528,7 +1528,8 @@
             Model.IncomingInvitations,
             Model.SentInvitationNotifications,
             displayName: Model.CurrentUser?.DisplayName,
-            isAdmin: Model.CurrentUser?.IsAdmin == true);
+            isAdmin: Model.CurrentUser?.IsAdmin == true,
+            profilePhotoUrl: Model.CurrentUser?.ProfilePhotoUrl);
     ViewData["WineSurferPageTitle"] = "Wine Surfer";
     var manageableSisterhoods = Model.ManageableSisterhoods ?? Array.Empty<WineSurferSisterhoodOption>();
     var canCreateSipSession = manageableSisterhoods.Count > 0;
