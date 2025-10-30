@@ -166,6 +166,13 @@ public partial class WineInventoryController : Controller
             "color" => descending
                 ? sortSource.OrderByDescending(b => b.WineVintage.Wine.Color)
                 : sortSource.OrderBy(b => b.WineVintage.Wine.Color),
+            "region" => descending
+                ? sortSource.OrderByDescending(b => b.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name)
+                    .ThenByDescending(b => b.WineVintage.Wine.SubAppellation?.Appellation?.Name)
+                    .ThenByDescending(b => b.WineVintage.Wine.SubAppellation?.Name)
+                : sortSource.OrderBy(b => b.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name)
+                    .ThenBy(b => b.WineVintage.Wine.SubAppellation?.Appellation?.Name)
+                    .ThenBy(b => b.WineVintage.Wine.SubAppellation?.Name),
             "status" => descending
                 ? sortSource.OrderByDescending(b => b.IsDrunk)
                 : sortSource.OrderBy(b => b.IsDrunk),
@@ -204,6 +211,7 @@ public partial class WineInventoryController : Controller
                     WineVintageId = Guid.Empty, // no single vintage represents the wine-level row
                     WineId = firstBottle.WineVintage.Wine.Id,
                     WineName = firstBottle.WineVintage.Wine.Name,
+                    Region = firstBottle.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name,
                     SubAppellation = firstBottle.WineVintage.Wine.SubAppellation?.Name,
                     Appellation = firstBottle.WineVintage.Wine.SubAppellation?.Appellation?.Name,
                     SubAppellationId = firstBottle.WineVintage.Wine.SubAppellation?.Id,
@@ -230,6 +238,13 @@ public partial class WineInventoryController : Controller
             "color" => descending
                 ? groupedBottles.OrderByDescending(b => b.Color)
                 : groupedBottles.OrderBy(b => b.Color),
+            "region" => descending
+                ? groupedBottles.OrderByDescending(b => b.Region)
+                    .ThenByDescending(b => b.Appellation)
+                    .ThenByDescending(b => b.SubAppellation)
+                : groupedBottles.OrderBy(b => b.Region)
+                    .ThenBy(b => b.Appellation)
+                    .ThenBy(b => b.SubAppellation),
             "status" => descending
                 ? groupedBottles.OrderByDescending(b => b.StatusLabel)
                 : groupedBottles.OrderBy(b => b.StatusLabel),
@@ -1373,6 +1388,7 @@ public partial class WineInventoryController : Controller
             WineVintageId = Guid.Empty,
             WineId = wineId,
             WineName = first.WineVintage.Wine.Name,
+            Region = first.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name,
             SubAppellation = first.WineVintage.Wine.SubAppellation?.Name,
             Appellation = first.WineVintage.Wine.SubAppellation?.Appellation?.Name,
             SubAppellationId = first.WineVintage.Wine.SubAppellation?.Id,
@@ -2666,6 +2682,7 @@ public partial class WineInventoryController : Controller
             WineVintageId = groupId,
             WineId = firstBottle.WineVintage.Wine.Id,
             WineName = firstBottle.WineVintage.Wine.Name,
+            Region = firstBottle.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name,
             SubAppellation = firstBottle.WineVintage.Wine.SubAppellation?.Name,
             Appellation = firstBottle.WineVintage.Wine.SubAppellation?.Appellation?.Name,
             SubAppellationId = firstBottle.WineVintage.Wine.SubAppellation?.Id,
@@ -2864,6 +2881,7 @@ public class WineInventoryViewModel
         public Guid WineVintageId { get; set; }
         public Guid WineId { get; set; }
         public string WineName { get; set; } = string.Empty;
+        public string? Region { get; set; }
         public string? SubAppellation { get; set; }
         public string? Appellation { get; set; }
         public Guid? SubAppellationId { get; set; }
