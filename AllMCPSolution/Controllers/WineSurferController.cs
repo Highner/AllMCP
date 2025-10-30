@@ -248,6 +248,7 @@ public class WineSurferController : WineSurferControllerBase
         IReadOnlyList<WineSurferBiggestSplashWine> biggestSplashWines = Array.Empty<WineSurferBiggestSplashWine>();
         IReadOnlyList<WineSurferSipSessionBottle> favoriteBottles = Array.Empty<WineSurferSipSessionBottle>();
         IReadOnlyCollection<Guid> inventoryWineIds = Array.Empty<Guid>();
+        IReadOnlyCollection<WineSurferInventoryWine> inventoryWineVintages = Array.Empty<WineSurferInventoryWine>();
         IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
         if (currentUserId.HasValue)
         {
@@ -260,18 +261,30 @@ public class WineSurferController : WineSurferControllerBase
             if (ownedBottles.Count > 0)
             {
                 var ownedWineIds = new HashSet<Guid>();
+                var ownedWineVintages = new HashSet<WineSurferInventoryWine>();
                 foreach (var bottle in ownedBottles)
                 {
                     var wineId = bottle.WineVintage?.Wine?.Id ?? Guid.Empty;
                     if (wineId != Guid.Empty)
                     {
                         ownedWineIds.Add(wineId);
+
+                        var vintageValue = bottle.WineVintage?.Vintage;
+                        if (vintageValue.HasValue)
+                        {
+                            ownedWineVintages.Add(new WineSurferInventoryWine(wineId, vintageValue.Value));
+                        }
                     }
                 }
 
                 if (ownedWineIds.Count > 0)
                 {
                     inventoryWineIds = ownedWineIds;
+                }
+
+                if (ownedWineVintages.Count > 0)
+                {
+                    inventoryWineVintages = ownedWineVintages;
                 }
 
                 favoriteBottles = CreateBottleSummaries(ownedBottles, currentUserId)
@@ -394,7 +407,8 @@ public class WineSurferController : WineSurferControllerBase
             biggestSplashYear,
             favoriteBottles,
             suggestedAppellations,
-            inventoryWineIds);
+            inventoryWineIds,
+            inventoryWineVintages);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
     }
@@ -3647,7 +3661,10 @@ public record WineSurferLandingViewModel(
     int BiggestSplashYear,
     IReadOnlyList<WineSurferSipSessionBottle> FavoriteBottles,
     IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations,
-    IReadOnlyCollection<Guid> InventoryWineIds);
+    IReadOnlyCollection<Guid> InventoryWineIds,
+    IReadOnlyCollection<WineSurferInventoryWine> InventoryWineVintages);
+
+public record WineSurferInventoryWine(Guid WineId, int Vintage);
 
 public record WineSurferBiggestSplashWine(
     Guid WineId,

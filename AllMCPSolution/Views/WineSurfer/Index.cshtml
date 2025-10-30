@@ -1683,7 +1683,13 @@
                         }
                         else
                         {
-                            var inventoryWineIds = Model.InventoryWineIds ?? Array.Empty<Guid>();
+                            var inventoryWineVintages = Model.InventoryWineVintages ?? Array.Empty<WineSurferInventoryWine>();
+                            HashSet<(Guid WineId, int Vintage)>? inventoryWineVintageSet = null;
+                            if (inventoryWineVintages.Count > 0)
+                            {
+                                inventoryWineVintageSet = new HashSet<(Guid WineId, int Vintage)>(
+                                    inventoryWineVintages.Select(entry => (entry.WineId, entry.Vintage)));
+                            }
                             <p class="suggested-wines-message" data-suggested-message hidden role="status"></p>
                             <div class="suggested-wine-groups" role="list">
                                 @foreach (var suggestion in suggestionsWithWines)
@@ -1729,7 +1735,19 @@
                                                 var searchUrl = CreateWineSearcherUrl(suggestion, wine);
                                                 var showWineSubApp = !string.IsNullOrWhiteSpace(wine.SubAppellationName) &&
                                                     !string.Equals(wine.SubAppellationName, headline, StringComparison.OrdinalIgnoreCase);
-                                                var isInInventory = inventoryWineIds.Contains(wine.WineId);
+                                                var isInInventory = false;
+                                                if (inventoryWineVintageSet is not null && !string.IsNullOrWhiteSpace(wine.Vintage))
+                                                {
+                                                    var trimmedVintage = wine.Vintage.Trim();
+                                                    if (int.TryParse(
+                                                            trimmedVintage,
+                                                            NumberStyles.Integer,
+                                                            CultureInfo.InvariantCulture,
+                                                            out var numericVintage))
+                                                    {
+                                                        isInInventory = inventoryWineVintageSet.Contains((wine.WineId, numericVintage));
+                                                    }
+                                                }
                                                 var addButtonLabel = isInInventory ? "In Inventory" : "add";
                                                 var addButtonAriaLabel = isInInventory
                                                     ? $"{wine.Name} is already in your inventory"
