@@ -19,6 +19,22 @@
     {
         return Array.Empty<KeyValuePair<string, string>>();
     }
+
+    // Builds a string of HTML attributes from a dictionary, with HTML-encoded keys and values.
+    private static string BuildAttributes(IEnumerable<KeyValuePair<string, string>>? attrs)
+    {
+        if (attrs == null)
+            return string.Empty;
+        var sb = new System.Text.StringBuilder();
+        foreach (var kv in attrs)
+        {
+            if (string.IsNullOrWhiteSpace(kv.Key)) continue;
+            var key = System.Net.WebUtility.HtmlEncode(kv.Key);
+            var val = System.Net.WebUtility.HtmlEncode(kv.Value ?? string.Empty);
+            sb.Append(' ').Append(key).Append("=\"").Append(val).Append('\"');
+        }
+        return sb.ToString();
+    }
 }
 
 <div class="action-menu" data-action-menu>
@@ -47,11 +63,7 @@
             <button type="button"
                     class="@BuildButtonClass(Model.Edit.AdditionalCssClass)"
                     role="menuitem"
-                    data-action-menu-item
-                    @foreach (var attribute in Model.Edit.Attributes)
-                    {
-                        <text> @attribute.Key="@attribute.Value"</text>
-                    }>@Model.Edit.Label</button>
+                    data-action-menu-item>@Model.Edit.Label</button>
         }
         @if (Model.ShowDelete)
         {
@@ -85,15 +97,10 @@
             {
                 if (item.Kind == AllMCPSolution.Models.ActionMenuButtonItemKind.Button)
                 {
-                    @{ var itemButtonClass = BuildButtonClass(item.ButtonCssClass); }
                     <button type="button"
-                            class="@itemButtonClass"
+                            class="@BuildButtonClass(item.ButtonCssClass)"
                             role="menuitem"
-                            data-action-menu-item
-                            @foreach (var attribute in item.Attributes ?? new Dictionary<string, string>())
-                            {
-                                <text> @attribute.Key="@attribute.Value"</text>
-                            }>@item.Label</button>
+                            data-action-menu-item>@item.Label</button>
                 }
                 else if (item.Kind == AllMCPSolution.Models.ActionMenuButtonItemKind.Form && !string.IsNullOrWhiteSpace(item.FormAction))
                 {
