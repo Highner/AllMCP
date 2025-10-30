@@ -1281,3 +1281,11 @@ a.wine-card:focus {
         min-width: 0;
     }
 }
+
+
+/* Hide bottom nav when any modal/backdrop is open */
+body:has(.wine-surfer-modal-backdrop:not([hidden])) .wine-surfer-bottom-nav,
+body:has(.wine-surfer-modal-backdrop.open) .wine-surfer-bottom-nav,
+body:has(.account-edit-layer.open) .wine-surfer-bottom-nav {
+    display: none !important;
+}
