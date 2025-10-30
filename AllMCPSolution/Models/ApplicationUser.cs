@@ -10,6 +10,10 @@ public class ApplicationUser : IdentityUser<Guid>
 
     public decimal? SuggestionBudget { get; set; }
 
+    public byte[]? ProfilePhoto { get; set; }
+
+    public string? ProfilePhotoContentType { get; set; }
+
     public ICollection<Bottle> Bottles { get; set; } = [];
     public ICollection<TastingNote> TastingNotes { get; set; } = [];
     public ICollection<BottleLocation> BottleLocations { get; set; } = [];

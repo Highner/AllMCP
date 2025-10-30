@@ -155,6 +155,8 @@ public class SisterhoodRepository : ISisterhoodRepository
                 Id = s.Id,
                 Name = s.Name,
                 Description = s.Description,
+                ProfilePhoto = s.ProfilePhoto,
+                ProfilePhotoContentType = s.ProfilePhotoContentType,
             })
             .ToListAsync(ct);
     }
@@ -229,6 +231,13 @@ public class SisterhoodRepository : ISisterhoodRepository
             ? null
             : sisterhood.Description.Trim();
 
+        var normalizedPhoto = sisterhood.ProfilePhoto is { Length: > 0 }
+            ? sisterhood.ProfilePhoto
+            : null;
+        var trimmedContentType = string.IsNullOrWhiteSpace(sisterhood.ProfilePhotoContentType)
+            ? null
+            : sisterhood.ProfilePhotoContentType.Trim();
+
         var nameConflictExists = await _db.Sisterhoods
             .AsNoTracking()
             .AnyAsync(s => s.Name == trimmedName && s.Id != sisterhood.Id, ct);
@@ -243,11 +252,15 @@ public class SisterhoodRepository : ISisterhoodRepository
             Id = sisterhood.Id,
             Name = trimmedName,
             Description = trimmedDescription,
+            ProfilePhoto = normalizedPhoto,
+            ProfilePhotoContentType = trimmedContentType,
         };
 
         _db.Sisterhoods.Attach(entity);
         _db.Entry(entity).Property(s => s.Name).IsModified = true;
         _db.Entry(entity).Property(s => s.Description).IsModified = true;
+        _db.Entry(entity).Property(s => s.ProfilePhoto).IsModified = true;
+        _db.Entry(entity).Property(s => s.ProfilePhotoContentType).IsModified = true;
 
         try
         {

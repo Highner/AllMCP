@@ -16,7 +16,8 @@
             Model.IncomingInvitations,
             Model.SentInvitationNotifications,
             displayName: Model.DisplayName,
-            isAdmin: Model.IsAdmin);
+            isAdmin: Model.IsAdmin,
+            profilePhotoUrl: Model.ProfilePhotoUrl);
     ViewData["WineSurferPageTitle"] = "Sisterhoods";
 }
 
@@ -121,6 +122,46 @@
         @@media (min-width: 900px) {
             .sisterhood-card__grid { grid-template-columns: 1fr 1fr; align-items: start; }
         }
+        .sisterhood-header { display: flex; align-items: center; gap: 18px; }
+        .sisterhood-card__avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
+            overflow: hidden;
+            background: hsla(var(--accent) / 0.16);
+            border: 1px solid hsla(var(--border) / 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .sisterhood-card__avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .sisterhood-card__avatar-placeholder {
+            font-size: 28px;
+            font-weight: 600;
+            color: hsla(var(--foreground) / 0.8);
+            letter-spacing: 0.08em;
+        }
+        .form-field--photo {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .form-field--photo .form-field__label {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+        .form-field--photo .form-field__hint {
+            font-size: 0.85rem;
+            color: hsla(var(--foreground) / 0.6);
+            margin: 0;
+        }
+        .sisterhood-photo-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sisterhood-photo-trigger svg { width: 16px; height: 16px; }
         /* Ensure top header/description remain full width within the card by placing grid only around body sections */
         :root {
             color-scheme: dark;
@@ -1757,9 +1798,27 @@
                             : sisterhood.Name.Replace("'", "\\'"))
                         : null;
                     var hasActions = sisterhood.CanManage || isCurrentUserMember;
+                    var profilePhotoUrl = string.IsNullOrWhiteSpace(sisterhood.ProfilePhotoUrl)
+                        ? null
+                        : sisterhood.ProfilePhotoUrl.Trim();
+                    var sisterhoodInitial = string.IsNullOrWhiteSpace(sisterhood.Name)
+                        ? "S"
+                        : sisterhood.Name.Trim()[0].ToString().ToUpperInvariant();
 
                     <article id="sisterhood-@sisterhood.Id" class="sisterhood-card wine-card wine-surface wine-surface-border wine-card-hover" data-sisterhood-card data-sisterhood-id="@sisterhood.Id">
                         <div class="sisterhood-header wine-card__header">
+                            <div class="sisterhood-card__avatar" data-sisterhood-photo-container="@sisterhood.Id">
+                                @if (!string.IsNullOrWhiteSpace(profilePhotoUrl))
+                                {
+                                    <img src="@profilePhotoUrl" alt="Profile photo for @sisterhood.Name" data-sisterhood-photo-display="@sisterhood.Id" />
+                                    <span class="sisterhood-card__avatar-placeholder" data-sisterhood-photo-placeholder="@sisterhood.Id" hidden>@sisterhoodInitial</span>
+                                }
+                                else
+                                {
+                                    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Profile photo for @sisterhood.Name" data-sisterhood-photo-display="@sisterhood.Id" hidden />
+                                    <span class="sisterhood-card__avatar-placeholder" data-sisterhood-photo-placeholder="@sisterhood.Id">@sisterhoodInitial</span>
+                                }
+                            </div>
                             <div>
                                 <h2 class="sisterhood-name wine-card__title">@sisterhood.Name</h2>
                                 <p class="sisterhood-members wine-card__subtitle">
@@ -1841,6 +1900,7 @@
                         @if (sisterhood.CanManage)
                         {
                             <form method="post"
+                                  enctype="multipart/form-data"
                                   action="@Url.Action("UpdateSisterhoodDetails", "WineSurfer")"
                                   class="edit-sisterhood-form"
                                   data-sisterhood-edit-form
@@ -1848,6 +1908,13 @@
                                   id="edit-sisterhood-form-@sisterhood.Id">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="SisterhoodId" value="@sisterhood.Id" />
+                                <input type="file"
+                                       id="edit-photo-@sisterhood.Id"
+                                       name="ProfilePhoto"
+                                       accept="image/*"
+                                       capture="environment"
+                                       data-sisterhood-photo-input="@sisterhood.Id"
+                                       hidden />
                                 <div class="form-grid">
                                     <div class="form-field">
                                         <label for="edit-name-@sisterhood.Id">Name</label>
@@ -1864,6 +1931,19 @@
                                         <textarea id="edit-description-@sisterhood.Id"
                                                   name="Description"
                                                   maxlength="1024">@(sisterhood.Description ?? string.Empty)</textarea>
+                                    </div>
+                                    <div class="form-field form-field--photo">
+                                        <span class="form-field__label">Profile photo</span>
+                                        <button type="button"
+                                                class="sisterhood-button sisterhood-button--ghost sisterhood-photo-trigger"
+                                                data-sisterhood-photo-trigger="@sisterhood.Id">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <path d="M4 7h4l2-2h4l2 2h4v12H4z"></path>
+                                                <circle cx="12" cy="13" r="3.5"></circle>
+                                            </svg>
+                                            <span>Update photo</span>
+                                        </button>
+                                        <p class="form-field__hint">Open your camera to capture a new sisterhood image.</p>
                                     </div>
                                 </div>
                                 <div class="form-actions">
@@ -2908,6 +2988,7 @@
 
         const editForms = new Map();
         const editToggles = new Map();
+        const sisterhoodPhotoPreviews = new Map();
 
         document.querySelectorAll('[data-sisterhood-edit-form]').forEach(form => {
             const sisterhoodId = form.getAttribute('data-sisterhood-id');
@@ -2916,6 +2997,68 @@
             }
 
             editForms.set(sisterhoodId, form);
+
+            const photoInput = form.querySelector(`[data-sisterhood-photo-input="${sisterhoodId}"]`);
+            const photoTrigger = form.querySelector(`[data-sisterhood-photo-trigger="${sisterhoodId}"]`);
+            const photoDisplay = document.querySelector(`[data-sisterhood-photo-display="${sisterhoodId}"]`);
+            const photoPlaceholder = document.querySelector(`[data-sisterhood-photo-placeholder="${sisterhoodId}"]`);
+
+            const updatePhotoPreview = (url) => {
+                const originalSrc = photoDisplay?.dataset.originalSrc ?? '';
+                const hasOriginalPhoto = originalSrc !== '';
+
+                if (photoDisplay) {
+                    if (url) {
+                        photoDisplay.src = url;
+                        photoDisplay.removeAttribute('hidden');
+                    } else if (hasOriginalPhoto) {
+                        photoDisplay.src = originalSrc;
+                        photoDisplay.removeAttribute('hidden');
+                    } else {
+                        photoDisplay.setAttribute('hidden', '');
+                    }
+                }
+
+                if (photoPlaceholder) {
+                    if (url || hasOriginalPhoto) {
+                        photoPlaceholder.setAttribute('hidden', '');
+                    } else {
+                        photoPlaceholder.removeAttribute('hidden');
+                    }
+                }
+            };
+
+            if (photoDisplay
+                && !photoDisplay.dataset.originalSrc
+                && photoDisplay.getAttribute('src')
+                && !photoDisplay.hasAttribute('hidden')) {
+                photoDisplay.dataset.originalSrc = photoDisplay.getAttribute('src');
+            }
+
+            if (photoTrigger && photoInput) {
+                photoTrigger.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    photoInput.click();
+                });
+
+                photoInput.addEventListener('change', () => {
+                    const existingPreview = sisterhoodPhotoPreviews.get(sisterhoodId);
+                    if (existingPreview) {
+                        URL.revokeObjectURL(existingPreview);
+                        sisterhoodPhotoPreviews.delete(sisterhoodId);
+                    }
+
+                    const file = photoInput.files && photoInput.files[0];
+                    if (!file) {
+                        updatePhotoPreview(photoDisplay?.dataset.originalSrc ?? '');
+                        return;
+                    }
+
+                    const nextUrl = URL.createObjectURL(file);
+                    sisterhoodPhotoPreviews.set(sisterhoodId, nextUrl);
+                    updatePhotoPreview(nextUrl);
+                });
+            }
         });
 
         document.querySelectorAll('[data-sisterhood-edit-toggle]').forEach(button => {

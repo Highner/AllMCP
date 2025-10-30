@@ -3,8 +3,10 @@ using System.Threading;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
+using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -331,9 +333,39 @@ public class AccountController : Controller
             return Unauthorized();
         }
 
+        ProfilePhotoPayload? newPhoto = null;
+
+        if (model.ProfilePhoto is { Length: > 0 })
+        {
+            try
+            {
+                newPhoto = await ProfilePhotoUtilities.ReadAndValidateAsync(
+                    model.ProfilePhoto,
+                    HttpContext.RequestAborted);
+            }
+            catch (InvalidOperationException ex)
+            {
+                ModelState.AddModelError(nameof(model.ProfilePhoto), ex.Message);
+                return ValidationProblem(ModelState);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read profile photo for user {UserId}.", user.Id);
+                ModelState.AddModelError(nameof(model.ProfilePhoto), "We couldn't save that photo. Please try again.");
+                return ValidationProblem(ModelState);
+            }
+        }
+
         try
         {
-            var updatedUser = await _userRepository.UpdateDisplayNameAsync(user.Id, trimmedName, HttpContext.RequestAborted);
+            var updatedUser = await _userRepository.UpdateDisplayNameAsync(
+                user.Id,
+                trimmedName,
+                updateProfilePhoto: newPhoto is not null,
+                profilePhoto: newPhoto?.Bytes,
+                profilePhotoContentType: newPhoto?.ContentType,
+                ct: HttpContext.RequestAborted);
+
             if (updatedUser is null)
             {
                 return NotFound();
@@ -348,19 +380,31 @@ public class AccountController : Controller
                 ? "Guest account"
                 : $"{trimmedName}'s account";
             var menuName = string.IsNullOrWhiteSpace(trimmedName) ? "Account" : trimmedName;
+            var finalPhotoUrl = ProfilePhotoUtilities.CreateDataUrl(
+                updatedUser.ProfilePhoto,
+                updatedUser.ProfilePhotoContentType);
 
             return Ok(new
             {
                 displayName = trimmedName,
                 menuName,
                 avatarLetter,
-                accountLabel
+                accountLabel,
+                photoUrl = finalPhotoUrl
             });
         }
         catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Failed to update display name for user {UserId}.", user.Id);
-            return BadRequest(new { error = "We couldn't update your display name. Please try again." });
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update account profile for user {UserId}.", user.Id);
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                error = "We couldn't update your account. Please try again."
+            });
         }
     }
 

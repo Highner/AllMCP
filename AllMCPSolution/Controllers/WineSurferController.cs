@@ -10,8 +10,11 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AllMCPSolution.Services;
 using AllMCPSolution.Utilities;
+using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
@@ -62,6 +65,7 @@ public class WineSurferController : WineSurferControllerBase
 
     private readonly IWineSurferTopBarService _topBarService;
     private readonly ISuggestedAppellationService _suggestedAppellationService;
+    private readonly ILogger<WineSurferController> _logger;
 
     public WineSurferController(
         IWineRepository wineRepository,
@@ -77,6 +81,7 @@ public class WineSurferController : WineSurferControllerBase
         IChatGptPromptService chatGptPromptService,
         IWineSurferTopBarService topBarService,
         ISuggestedAppellationService suggestedAppellationService,
+        ILogger<WineSurferController> logger,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _wineRepository = wineRepository;
@@ -91,6 +96,7 @@ public class WineSurferController : WineSurferControllerBase
         _chatGptPromptService = chatGptPromptService;
         _topBarService = topBarService;
         _suggestedAppellationService = suggestedAppellationService;
+        _logger = logger;
     }
 
     [HttpGet("")]
@@ -170,7 +176,8 @@ public class WineSurferController : WineSurferControllerBase
                     domainUserSummary,
                     domainUserProfile,
                     domainUser?.SuggestionBudget,
-                    domainUser?.IsAdmin == true);
+                    domainUser?.IsAdmin == true,
+                    ProfilePhotoUtilities.CreateDataUrl(domainUser?.ProfilePhoto, domainUser?.ProfilePhotoContentType));
             }
 
             if (currentUserId.HasValue || normalizedEmail is not null)
@@ -597,7 +604,8 @@ public class WineSurferController : WineSurferControllerBase
                     domainUserSummary,
                     domainUserProfile,
                     domainUser?.SuggestionBudget,
-                    domainUser?.IsAdmin == true);
+                    domainUser?.IsAdmin == true,
+                    ProfilePhotoUtilities.CreateDataUrl(domainUser?.ProfilePhoto, domainUser?.ProfilePhotoContentType));
             }
 
             if (currentUserId.HasValue || normalizedEmail is not null)
@@ -836,7 +844,8 @@ public class WineSurferController : WineSurferControllerBase
                 domainUserSummary,
                 domainUserProfile,
                 domainUser?.SuggestionBudget,
-                domainUser?.IsAdmin == true);
+                domainUser?.IsAdmin == true,
+                ProfilePhotoUtilities.CreateDataUrl(domainUser?.ProfilePhoto, domainUser?.ProfilePhotoContentType));
         }
 
         if (currentUserId.HasValue || normalizedEmail is not null)
@@ -1079,7 +1088,8 @@ public class WineSurferController : WineSurferControllerBase
                             memberSummaries,
                             favoriteRegion,
                             pendingInvitations,
-                            sessionSummaries);
+                            sessionSummaries,
+                            ProfilePhotoUtilities.CreateDataUrl(s.ProfilePhoto, s.ProfilePhotoContentType));
                     })
                     .ToList();
 
@@ -1113,7 +1123,18 @@ public class WineSurferController : WineSurferControllerBase
             }
         }
 
-        var model = new WineSurferSisterhoodsViewModel(isAuthenticated, displayName, isAdmin, sisterhoods, currentUserId, statusMessage, errorMessage, incomingInvitations, sentInvitationNotifications, availableBottles);
+        var model = new WineSurferSisterhoodsViewModel(
+            isAuthenticated,
+            displayName,
+            ProfilePhotoUtilities.CreateDataUrl(domainUser?.ProfilePhoto, domainUser?.ProfilePhotoContentType),
+            isAdmin,
+            sisterhoods,
+            currentUserId,
+            statusMessage,
+            errorMessage,
+            incomingInvitations,
+            sentInvitationNotifications,
+            availableBottles);
         return View("~/Views/Sisterhoods/Index.cshtml", model);
     }
 
@@ -1231,8 +1252,46 @@ public class WineSurferController : WineSurferControllerBase
 
         var existingDescription = sisterhood.Description ?? string.Empty;
         var nextDescription = trimmedDescription ?? string.Empty;
+        var existingPhoto = sisterhood.ProfilePhoto;
+        var existingContentType = string.IsNullOrWhiteSpace(sisterhood.ProfilePhotoContentType)
+            ? null
+            : sisterhood.ProfilePhotoContentType!.Trim();
+
+        ProfilePhotoPayload? newPhoto = null;
+
+        if (request.ProfilePhoto is { Length: > 0 })
+        {
+            try
+            {
+                newPhoto = await ProfilePhotoUtilities.ReadAndValidateAsync(
+                    request.ProfilePhoto,
+                    cancellationToken);
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["SisterhoodError"] = ex.Message;
+                return RedirectToAction(nameof(Sisterhoods));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read profile photo for sisterhood {SisterhoodId}.", sisterhood.Id);
+                TempData["SisterhoodError"] = "We couldn't save that photo. Please try again.";
+                return RedirectToAction(nameof(Sisterhoods));
+            }
+        }
+
+        var nextPhoto = newPhoto?.Bytes ?? existingPhoto;
+        var nextContentType = newPhoto?.ContentType ?? existingContentType;
+
+        var photosEqual = existingPhoto is null || existingPhoto.Length == 0
+            ? nextPhoto is null || nextPhoto.Length == 0
+            : nextPhoto is not null && nextPhoto.Length == existingPhoto.Length
+                && existingPhoto.AsSpan().SequenceEqual(nextPhoto)
+                && string.Equals(existingContentType, nextContentType, StringComparison.OrdinalIgnoreCase);
+
         if (string.Equals(sisterhood.Name, trimmedName, StringComparison.Ordinal)
-            && string.Equals(existingDescription, nextDescription, StringComparison.Ordinal))
+            && string.Equals(existingDescription, nextDescription, StringComparison.Ordinal)
+            && photosEqual)
         {
             TempData["SisterhoodStatus"] = "No changes to save.";
             return RedirectToAction(nameof(Sisterhoods));
@@ -1245,6 +1304,8 @@ public class WineSurferController : WineSurferControllerBase
                 Id = request.SisterhoodId,
                 Name = trimmedName,
                 Description = trimmedDescription,
+                ProfilePhoto = nextPhoto,
+                ProfilePhotoContentType = nextContentType,
             }, cancellationToken);
 
             TempData["SisterhoodStatus"] = $"Updated '{trimmedName}'.";
@@ -2929,6 +2990,9 @@ public class WineSurferController : WineSurferControllerBase
 
         [StringLength(1024)]
         public string? Description { get; set; }
+
+        [Display(Name = "Profile photo")]
+        public IFormFile? ProfilePhoto { get; set; }
     }
 
     public class InviteSisterhoodMemberRequest : IValidatableObject
@@ -3720,7 +3784,8 @@ public record WineSurferTopBarModel(
     IReadOnlyDictionary<string, IReadOnlyCollection<string>> DismissedNotificationStamps,
     IReadOnlyList<WineSurferTopBarLink> FooterLinks,
     string? DisplayName = null,
-    bool IsAdmin = false)
+    bool IsAdmin = false,
+    string? ProfilePhotoUrl = null)
 {
     public const string SisterhoodNotificationsUrl = "/wine-surfer/sisterhoods";
     public const string DefaultPanelHeading = "Notifications";
@@ -3741,7 +3806,8 @@ public record WineSurferTopBarModel(
             EmptyDismissedMap,
             Array.Empty<WineSurferTopBarLink>(),
             null,
-            isAdmin);
+            isAdmin,
+            null);
     }
 
     public static IReadOnlyList<WineSurferTopBarNotificationSection> BuildSections(
@@ -3864,7 +3930,8 @@ public record WineSurferTopBarModel(
         IReadOnlyDictionary<string, IReadOnlyCollection<string>>? dismissed = null,
         IReadOnlyList<WineSurferTopBarNotificationSection>? precomputedSections = null,
         string? displayName = null,
-        bool isAdmin = false)
+        bool isAdmin = false,
+        string? profilePhotoUrl = null)
     {
         var sections = precomputedSections ?? BuildSections(
             incomingInvitations,
@@ -3893,6 +3960,7 @@ public record WineSurferTopBarModel(
         }
 
         var trimmedDisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim();
+        var trimmedPhotoUrl = string.IsNullOrWhiteSpace(profilePhotoUrl) ? null : profilePhotoUrl.Trim();
 
         return new WineSurferTopBarModel(
             currentPath,
@@ -3902,7 +3970,8 @@ public record WineSurferTopBarModel(
             dismissedMap,
             footerLinks,
             trimmedDisplayName,
-            isAdmin);
+            isAdmin,
+            trimmedPhotoUrl);
     }
 }
 
@@ -3933,6 +4002,7 @@ public record WineSurferPageHeaderModel(string Title);
 public record WineSurferSisterhoodsViewModel(
     bool IsAuthenticated,
     string? DisplayName,
+    string? ProfilePhotoUrl,
     bool IsAdmin,
     IReadOnlyList<WineSurferSisterhoodSummary> Sisterhoods,
     Guid? CurrentUserId,
@@ -3951,7 +4021,8 @@ public record WineSurferSisterhoodSummary(
     IReadOnlyList<WineSurferSisterhoodMember> Members,
     WineSurferSisterhoodFavoriteRegion? FavoriteRegion,
     IReadOnlyList<WineSurferSisterhoodInvitationSummary> PendingInvitations,
-    IReadOnlyList<WineSurferSipSessionSummary> SipSessions);
+    IReadOnlyList<WineSurferSipSessionSummary> SipSessions,
+    string? ProfilePhotoUrl);
 
 public record WineSurferSipSessionSummary(
     Guid Id,
@@ -4042,4 +4113,5 @@ public record WineSurferCurrentUser(
     string? TasteProfileSummary,
     string? TasteProfile,
     decimal? SuggestionBudget,
-    bool IsAdmin);
+    bool IsAdmin,
+    string? ProfilePhotoUrl);
