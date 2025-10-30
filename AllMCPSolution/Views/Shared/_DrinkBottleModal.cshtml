@@ -32,6 +32,10 @@
     var scoreDisplayId = $"{popoverId}-score-display";
     var scoreTicksId = $"{popoverId}-score-ticks";
     var noteOnlyMessageId = $"{popoverId}-note-only-message";
+    var submitButtonCssClass = "crud-table__action-button drink-bottle-submit" +
+        (string.IsNullOrWhiteSpace(options.SubmitButtonCssClass) ? string.Empty : $" {options.SubmitButtonCssClass}");
+    var cancelButtonCssClass = "crud-table__action-button drink-bottle-cancel" +
+        (string.IsNullOrWhiteSpace(options.CancelButtonCssClass) ? " secondary" : $" {options.CancelButtonCssClass}");
 
     var modal = new WineSurferModalShell
     {
@@ -128,8 +132,8 @@
             </label>
             <p class="inventory-add-error drink-bottle-error" role="alert" aria-hidden="true"></p>
             <div class="inventory-add-actions drink-bottle-actions">
-                <button type="button" class="drink-bottle-cancel @options.CancelButtonCssClass">@cancelLabel</button>
-                <button type="submit" class="drink-bottle-submit @options.SubmitButtonCssClass">@submitLabel</button>
+                <button type="button" class="@cancelButtonCssClass">@cancelLabel</button>
+                <button type="submit" class="@submitButtonCssClass">@submitLabel</button>
             </div>
         </form>
     };
