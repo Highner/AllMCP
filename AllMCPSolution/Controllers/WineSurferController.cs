@@ -951,6 +951,7 @@ public class WineSurferController : WineSurferControllerBase
         string? displayName = null;
         Guid? currentUserId = null;
         var isAdmin = false;
+        string? profilePhotoUrl = null;
         IReadOnlyList<WineSurferSisterhoodSummary> sisterhoods = Array.Empty<WineSurferSisterhoodSummary>();
         IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
         IReadOnlyList<WineSurferSipSessionBottle> availableBottles = Array.Empty<WineSurferSipSessionBottle>();
@@ -982,6 +983,7 @@ public class WineSurferController : WineSurferControllerBase
                 currentUserId = domainUser.Id;
                 normalizedEmail ??= StringUtilities.NormalizeEmailCandidate(domainUser.Email);
                 isAdmin = domainUser.IsAdmin;
+                profilePhotoUrl = ProfilePhotoUtilities.CreateDataUrl(domainUser?.ProfilePhoto, domainUser?.ProfilePhotoContentType);
             }
 
             if (string.IsNullOrWhiteSpace(normalizedEmail) && StringUtilities.LooksLikeEmail(displayName))
@@ -1126,7 +1128,7 @@ public class WineSurferController : WineSurferControllerBase
         var model = new WineSurferSisterhoodsViewModel(
             isAuthenticated,
             displayName,
-            ProfilePhotoUtilities.CreateDataUrl(domainUser?.ProfilePhoto, domainUser?.ProfilePhotoContentType),
+            profilePhotoUrl,
             isAdmin,
             sisterhoods,
             currentUserId,

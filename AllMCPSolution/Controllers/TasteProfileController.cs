@@ -539,6 +539,7 @@ public class TasteProfileController: WineSurferControllerBase
                     new UserChatMessage(prompt)
                 },
                 model: _tasteProfileModel,
+                useWebSearch: true,
                 ct: cancellationToken);
         }
         catch (ChatGptServiceNotConfiguredException)
@@ -654,6 +655,7 @@ public class TasteProfileController: WineSurferControllerBase
                         new UserChatMessage(prompt)
                     },
                     model: _tasteProfileModel,
+                    useWebSearch: true,
                     ct: cancellationToken)
                 .WithCancellation(cancellationToken))
             {
