@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenAI.Chat;
+using Microsoft.Extensions.Options;
 
 namespace AllMCPSolution.Controllers;
 
@@ -51,6 +52,7 @@ public class TasteProfileController: WineSurferControllerBase
     private readonly IChatGptService _chatGptService;
     private readonly IWineCatalogService _wineCatalogService;
     private readonly ITasteProfileRepository _tasteProfileRepository;
+    private readonly string _tasteProfileModel;
     private static readonly TimeSpan SentInvitationNotificationWindow = TimeSpan.FromDays(7);
 
 
@@ -103,6 +105,7 @@ public class TasteProfileController: WineSurferControllerBase
         IChatGptService chatGptService,
         IWineCatalogService wineCatalogService,
         ITasteProfileRepository tasteProfileRepository,
+        IOptions<ChatGptOptions> chatGptOptions,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
@@ -117,6 +120,20 @@ public class TasteProfileController: WineSurferControllerBase
         _chatGptService = chatGptService;
         _wineCatalogService = wineCatalogService;
         _tasteProfileRepository = tasteProfileRepository;
+
+        if (chatGptOptions is null)
+        {
+            throw new ArgumentNullException(nameof(chatGptOptions));
+        }
+
+        var options = chatGptOptions.Value;
+        var fallbackModel = !string.IsNullOrWhiteSpace(options?.DefaultModel)
+            ? options!.DefaultModel!
+            : ChatGptOptions.FallbackModel;
+
+        _tasteProfileModel = string.IsNullOrWhiteSpace(options?.TasteProfileModel)
+            ? fallbackModel
+            : options!.TasteProfileModel!;
     }
 
     [Authorize]
@@ -520,6 +537,7 @@ public class TasteProfileController: WineSurferControllerBase
                     new SystemChatMessage(_chatGptPromptService.TasteProfileGenerationSystemPrompt),
                     new UserChatMessage(prompt)
                 },
+                model: _tasteProfileModel,
                 ct: cancellationToken);
         }
         catch (ChatGptServiceNotConfiguredException)
@@ -634,6 +652,7 @@ public class TasteProfileController: WineSurferControllerBase
                         new SystemChatMessage(_chatGptPromptService.TasteProfileGenerationSystemPrompt),
                         new UserChatMessage(prompt)
                     },
+                    model: _tasteProfileModel,
                     ct: cancellationToken)
                 .WithCancellation(cancellationToken))
             {
