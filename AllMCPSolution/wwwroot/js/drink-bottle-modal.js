@@ -765,8 +765,44 @@
             updatePrompt(card, Boolean(trimmedNote || normalizedScore != null));
         };
 
+        const ensureSipSessionContext = () => {
+            const card = contextState.card;
+            if (!(card instanceof HTMLElement)) {
+                return;
+            }
+
+            const assignIfMissing = (input, value) => {
+                if (!input || input.value) {
+                    return;
+                }
+
+                const trimmed = typeof value === 'string' ? value.trim() : '';
+                if (trimmed) {
+                    input.value = trimmed;
+                }
+            };
+
+            const fallback = (primary, attributeName) => {
+                if (primary) {
+                    return primary;
+                }
+
+                if (typeof attributeName !== 'string' || !attributeName) {
+                    return '';
+                }
+
+                return card.getAttribute(attributeName) ?? '';
+            };
+
+            const dataset = card.dataset ?? {};
+            assignIfMissing(hiddenSisterhood, fallback(dataset.sisterhoodId, 'data-sisterhood-id'));
+            assignIfMissing(hiddenSession, fallback(dataset.sipSessionId, 'data-sip-session-id'));
+            assignIfMissing(hiddenBottle, fallback(dataset.bottleId, 'data-bottle-id'));
+        };
+
         const submitSipSession = async (noteValue, scoreValue) => {
             const card = contextState.card;
+            ensureSipSessionContext();
             const sisterhoodId = hiddenSisterhood?.value ?? '';
             const sessionId = hiddenSession?.value ?? '';
             const bottleId = hiddenBottle?.value ?? '';
