@@ -1638,82 +1638,6 @@
                             @await Html.PartialAsync("_SipSessionModalRegion", sipSessionCreateTemplate)
                         }
                     </section>
-                    <section class="favorite-wines" aria-label="Favourite wines">
-                        <div class="favorite-wines-header section-header">
-                            <h2 class="section-title">Favourite wines</h2>
-                            @if (isAuthenticated)
-                            {
-                                <button type="button" class="sisterhood-button inventory-add-trigger" data-add-wine-trigger="favorites">Add wine to inventory</button>
-                            }
-                        </div>
-                        <p class="favorite-wines-message" data-favorite-message hidden role="status"></p>
-                        @if (!isAuthenticated)
-                        {
-                            <p class="favorite-wines-empty" role="status">Sign in to rate bottles and see your top picks here.</p>
-                        }
-                        else if (Model.FavoriteBottles.Count > 0)
-                        {
-                            <div class="favorite-wines-grid" role="list">
-                                @foreach (var bottle in Model.FavoriteBottles)
-                                {
-                                    var enjoyedAt = NormalizeDateTime(bottle.DrunkAtUtc);
-                                    var statusLabel = bottle.IsDrunk
-                                        ? (enjoyedAt.HasValue ? $"Enjoyed on {enjoyedAt.Value:MMM d, yyyy}" : "Enjoyed")
-                                        : "Cellared";
-                                    <article class="favorite-wine-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" role="listitem">
-                                        <header class="favorite-wine-header wine-card__header">
-                                            <h3 class="favorite-wine-name wine-card__title">@bottle.WineName</h3>
-                                            @if (bottle.Vintage.HasValue && bottle.Vintage.Value > 0)
-                                            {
-                                                <span class="favorite-wine-vintage wine-card__subtitle">@bottle.Vintage.Value</span>
-                                            }
-                                        </header>
-                                        <dl class="favorite-wine-stats wine-card__stats" aria-label="Tasting stats for @bottle.Label">
-                                            <div class="favorite-wine-stat wine-card__stat">
-                                                <dt>Your score</dt>
-                                                <dd>@FormatScore(bottle.CurrentUserScore)</dd>
-                                            </div>
-                                            <div class="favorite-wine-stat wine-card__stat">
-                                                <dt>Average score</dt>
-                                                <dd>@FormatScore(bottle.AverageScore)</dd>
-                                            </div>
-                                        </dl>
-                                        <p class="favorite-wine-status">@statusLabel</p>
-                                    </article>
-                                }
-                            </div>
-                        }
-                        else
-                        {
-                            <p class="favorite-wines-empty" role="status">Rate a few bottles to light up your favourites.</p>
-                        }
-                    </section>
-                </div>
-                <div class="dashboard-column dashboard-column--right">
-                    <section class="taste-profile-summary" aria-label="Taste profile summary">
-                        <div class="taste-profile-summary-header section-header">
-                            <h2 class="section-title">Taste profile</h2>
-                            @if (isAuthenticated)
-                            {
-                                <a class="sisterhood-button taste-profile-summary-action" href="@tasteProfileUrl">View taste profile</a>
-                            }
-                        </div>
-                        <div class="taste-profile-summary-card wine-card wine-surface wine-surface-border wine-surfer-card">
-                            <p class="taste-profile-summary-caption">Your palate at a glance</p>
-                            @if (!isAuthenticated)
-                            {
-                                <p class="taste-profile-summary-empty" role="status">Sign in to build your taste profile summary and unlock personalised surfing.</p>
-                            }
-                            else if (hasTasteProfileSummary)
-                            {
-                                <p class="taste-profile-summary-text">@tasteProfileSummary</p>
-                            }
-                            else
-                            {
-                                <p class="taste-profile-summary-empty" role="status">Add a taste profile summary on the <a href="@tasteProfileUrl">Taste Profile page</a> to guide your next recommendations.</p>
-                            }
-                        </div>
-                    </section>
                     <section class="suggested-wines" aria-label="Suggested wines">
                         <div class="suggested-wines-header section-header">
                             <h2 class="section-title">Suggested sips</h2>
@@ -1846,6 +1770,82 @@
                                 }
                             </div>
                         }
+                    </section>
+                    <section class="favorite-wines" aria-label="Favourite wines">
+                        <div class="favorite-wines-header section-header">
+                            <h2 class="section-title">Favourite wines</h2>
+                            @if (isAuthenticated)
+                            {
+                                <button type="button" class="sisterhood-button inventory-add-trigger" data-add-wine-trigger="favorites">Add wine to inventory</button>
+                            }
+                        </div>
+                        <p class="favorite-wines-message" data-favorite-message hidden role="status"></p>
+                        @if (!isAuthenticated)
+                        {
+                            <p class="favorite-wines-empty" role="status">Sign in to rate bottles and see your top picks here.</p>
+                        }
+                        else if (Model.FavoriteBottles.Count > 0)
+                        {
+                            <div class="favorite-wines-grid" role="list">
+                                @foreach (var bottle in Model.FavoriteBottles)
+                                {
+                                    var enjoyedAt = NormalizeDateTime(bottle.DrunkAtUtc);
+                                    var statusLabel = bottle.IsDrunk
+                                        ? (enjoyedAt.HasValue ? $"Enjoyed on {enjoyedAt.Value:MMM d, yyyy}" : "Enjoyed")
+                                        : "Cellared";
+                                    <article class="favorite-wine-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card" role="listitem">
+                                        <header class="favorite-wine-header wine-card__header">
+                                            <h3 class="favorite-wine-name wine-card__title">@bottle.WineName</h3>
+                                            @if (bottle.Vintage.HasValue && bottle.Vintage.Value > 0)
+                                            {
+                                                <span class="favorite-wine-vintage wine-card__subtitle">@bottle.Vintage.Value</span>
+                                            }
+                                        </header>
+                                        <dl class="favorite-wine-stats wine-card__stats" aria-label="Tasting stats for @bottle.Label">
+                                            <div class="favorite-wine-stat wine-card__stat">
+                                                <dt>Your score</dt>
+                                                <dd>@FormatScore(bottle.CurrentUserScore)</dd>
+                                            </div>
+                                            <div class="favorite-wine-stat wine-card__stat">
+                                                <dt>Average score</dt>
+                                                <dd>@FormatScore(bottle.AverageScore)</dd>
+                                            </div>
+                                        </dl>
+                                        <p class="favorite-wine-status">@statusLabel</p>
+                                    </article>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="favorite-wines-empty" role="status">Rate a few bottles to light up your favourites.</p>
+                        }
+                    </section>
+                </div>
+                <div class="dashboard-column dashboard-column--right">
+                    <section class="taste-profile-summary" aria-label="Taste profile summary">
+                        <div class="taste-profile-summary-header section-header">
+                            <h2 class="section-title">Taste profile</h2>
+                            @if (isAuthenticated)
+                            {
+                                <a class="sisterhood-button taste-profile-summary-action" href="@tasteProfileUrl">View taste profile</a>
+                            }
+                        </div>
+                        <div class="taste-profile-summary-card wine-card wine-surface wine-surface-border wine-surfer-card">
+                            <p class="taste-profile-summary-caption">Your palate at a glance</p>
+                            @if (!isAuthenticated)
+                            {
+                                <p class="taste-profile-summary-empty" role="status">Sign in to build your taste profile summary and unlock personalised surfing.</p>
+                            }
+                            else if (hasTasteProfileSummary)
+                            {
+                                <p class="taste-profile-summary-text">@tasteProfileSummary</p>
+                            }
+                            else
+                            {
+                                <p class="taste-profile-summary-empty" role="status">Add a taste profile summary on the <a href="@tasteProfileUrl">Taste Profile page</a> to guide your next recommendations.</p>
+                            }
+                        </div>
                     </section>
                     <section class="biggest-splash" aria-label="Biggest splash surf score leaders">
                         <div class="biggest-splash-header section-header">
