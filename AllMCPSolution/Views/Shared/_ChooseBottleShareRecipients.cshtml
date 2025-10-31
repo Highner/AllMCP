@@ -1,0 +1,66 @@
+@using System.Collections.Generic
+@using AllMCPSolution.Models
+@{
+    var modal = new WineSurferModalShell
+    {
+        BackdropId = "choose-recipients-overlay",
+        BackdropCssClass = "wine-surfer-modal-backdrop choose-recipients-overlay",
+        BackdropAttributes = new Dictionary<string, string?>
+        {
+            ["hidden"] = null,
+            ["aria-hidden"] = "true"
+        },
+        DialogId = "choose-recipients-modal",
+        DialogCssClass = "wine-surfer-modal choose-recipients-modal",
+        DialogAttributes = new Dictionary<string, string?>
+        {
+            ["aria-labelledby"] = "choose-recipients-title",
+            ["data-choose-recipients-modal"] = "true"
+        },
+        HeaderCssClass = "wine-surfer-modal__header choose-recipients-header",
+        Title = "Choose Sisters to Share With",
+        TitleCssClass = "wine-surfer-modal__title choose-recipients-title",
+        TitleElementId = "choose-recipients-title",
+        BodyCssClass = "wine-surfer-modal__body choose-recipients-body",
+        CloseButtonCssClass = "wine-surfer-modal__close choose-recipients-close",
+        CloseButtonLabel = "Close share recipients dialog",
+        CloseButtonAttributes = new Dictionary<string, string?>
+        {
+            ["data-choose-recipients-close"] = null
+        },
+        BodyContent = @<section class="choose-recipients-section">
+            <div class="choose-recipients-toolbar">
+                <label class="choose-recipients-filter-label">
+                    <span class="sr-only">Filter</span>
+                    <input type="search"
+                           class="choose-recipients-filter-input"
+                           placeholder="Filter by name or sisterhood"
+                           aria-label="Filter by name, email, or sisterhood"
+                           autocomplete="off"
+                           spellcheck="false" />
+                </label>
+            </div>
+            <div class="choose-recipients-list-container">
+                <table class="crud-table__table choose-recipients-table">
+                    <thead>
+                        <tr class="crud-table__header-row">
+                            <th scope="col" class="choose-col-select" aria-label="Select"></th>
+                            <th scope="col" class="choose-col-name">Name</th>
+                            <th scope="col" class="choose-col-email">Email</th>
+                            <th scope="col" class="choose-col-sisterhoods">Sisterhoods</th>
+                        </tr>
+                    </thead>
+                    <tbody id="choose-recipients-tbody">
+                        <tr class="empty-row"><td colspan="4">Loading connected members…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="choose-recipients-actions">
+                <button type="button" class="crud-table__action-button secondary choose-recipients-cancel">Cancel</button>
+                <button type="button" class="crud-table__action-button choose-recipients-select" disabled>Select</button>
+            </div>
+        </section>
+    };
+}
+@await Html.PartialAsync("_WineSurferModalShell", modal)
+<script src="/js/choose-recipients-modal.js" defer></script>
