@@ -628,6 +628,8 @@
             const note = card.dataset.bottleNote ?? card.getAttribute('data-bottle-note') ?? '';
             const score = card.dataset.bottleScore ?? card.getAttribute('data-bottle-score') ?? '';
             const noteId = card.dataset.bottleNoteId ?? card.getAttribute('data-bottle-note-id') ?? '';
+            const sisterhoodContext = card.dataset.sisterhoodId ?? card.getAttribute('data-sisterhood-id') ?? '';
+            const sessionContext = card.dataset.sipSessionId ?? card.getAttribute('data-sip-session-id') ?? '';
             const normalizedNoteId = (noteId ?? '').trim();
             const noteText = typeof note === 'string' ? note : '';
             const normalizedScore = (score ?? '').trim();
@@ -637,6 +639,14 @@
                 || normalizedScore.length > 0;
             const ownedByCurrentUser = card.dataset.bottleOwnedByCurrentUser ?? card.getAttribute('data-bottle-owned-by-current-user') ?? '';
             const isNoteOnly = (ownedByCurrentUser || '').toLowerCase() === 'false';
+
+            if (hiddenSisterhood) {
+                hiddenSisterhood.value = sisterhoodContext ?? '';
+            }
+
+            if (hiddenSession) {
+                hiddenSession.value = sessionContext ?? '';
+            }
 
             openModal({
                 context: 'sip-session',

@@ -63,6 +63,22 @@
     var noteIdAttribute = Model.CurrentUserNoteId.HasValue ? Model.CurrentUserNoteId.Value.ToString() : string.Empty;
     var canManageBottle = isOwnedByCurrentUser && sisterhoodId.HasValue && sipSessionId.HasValue;
     var canRevealBottle = canManageBottle && !isRevealed;
+
+    Guid? contextSisterhoodId = ViewData["BottleContextSisterhoodId"] switch
+    {
+        Guid guid => guid,
+        string guidValue when Guid.TryParse(guidValue, out var parsed) => parsed,
+        _ => null
+    };
+    Guid? contextSipSessionId = ViewData["BottleContextSipSessionId"] switch
+    {
+        Guid guid => guid,
+        string guidValue when Guid.TryParse(guidValue, out var parsed) => parsed,
+        _ => null
+    };
+
+    var dataSisterhoodId = (contextSisterhoodId ?? sisterhoodId)?.ToString();
+    var dataSipSessionId = (contextSipSessionId ?? sipSessionId)?.ToString();
 }
 <article class="bottle-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card"
          data-sip-session-bottle-card
@@ -76,6 +92,8 @@
          data-bottle-owned-by-current-user="@(isOwnedByCurrentUser ? "true" : "false")"
          data-bottle-interactive="@(isInteractive ? "true" : "false")"
          data-bottle-revealed="@(Model.IsRevealed ? "true" : "false")"
+         data-sisterhood-id="@dataSisterhoodId"
+         data-sip-session-id="@dataSipSessionId"
          aria-label="@ariaLabel"
          @(isInteractive ? "role=\"button\"" : null)
          @(isInteractive ? "tabindex=\"0\"" : null)>

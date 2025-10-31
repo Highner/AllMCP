@@ -1,6 +1,7 @@
 @model AllMCPSolution.Controllers.WineSurferLandingViewModel
 @using AllMCPSolution.Controllers
 @using AllMCPSolution.Models
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
 @using System.Collections.Generic
 @using System.Globalization
 @using System.Linq
@@ -225,6 +226,16 @@
 
         .upcoming-sessions-header .section-title {
             margin: 0;
+        }
+
+        .upcoming-session-bottles-header .section-title {
+            margin: 0;
+        }
+
+        .upcoming-session-bottle-list {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
         }
 
         .wine-surfer-card {
@@ -1221,6 +1232,47 @@
         .Where(suggestion => suggestion.Wines.Count > 0)
         .ToList();
     var hasSuggestedWines = suggestionsWithWines.Count > 0;
+    var upcomingSipSessionBottles = new List<(Guid SisterhoodId, Guid SessionId, WineSurferSipSessionBottle Bottle)>();
+    if (Model.UpcomingSipSessions is { Count: > 0 })
+    {
+        foreach (var upcoming in Model.UpcomingSipSessions)
+        {
+            var sessionSummary = upcoming.Session;
+            if (sessionSummary is null)
+            {
+                continue;
+            }
+
+            var bottleSummaries = sessionSummary.Bottles ?? Array.Empty<WineSurferSipSessionBottle>();
+            foreach (var bottle in bottleSummaries)
+            {
+                if (bottle is null)
+                {
+                    continue;
+                }
+
+                upcomingSipSessionBottles.Add((upcoming.SisterhoodId, sessionSummary.Id, bottle));
+            }
+        }
+    }
+    var hasUpcomingSipSessionBottles = upcomingSipSessionBottles.Count > 0;
+    DrinkBottleModalViewModel? drinkBottleModalModel = null;
+    if (isAuthenticated)
+    {
+        drinkBottleModalModel = new DrinkBottleModalViewModel
+        {
+            IncludeAntiForgeryToken = true,
+            FormMethod = "post",
+            FormAction = Url.Action("RateSipSessionBottle", "WineSurfer"),
+            HiddenFields = new[]
+            {
+                new DrinkBottleModalHiddenField("SisterhoodId", string.Empty),
+                new DrinkBottleModalHiddenField("SipSessionId", string.Empty),
+                new DrinkBottleModalHiddenField("BottleId", string.Empty),
+                new DrinkBottleModalHiddenField("NoteId", string.Empty)
+            }
+        };
+    }
 }
 <body class="wine-app wine-app--with-bottom-nav @bodyClass">
     <div class="page-content">
@@ -1292,6 +1344,37 @@
                         @if (canCreateSipSession && sipSessionCreateTemplate is not null)
                         {
                             @await Html.PartialAsync("_SipSessionModalRegion", sipSessionCreateTemplate)
+                        }
+                    </section>
+                    <section class="upcoming-session-bottles" aria-label="Bottles from upcoming sip sessions">
+                        <div class="upcoming-session-bottles-header section-header">
+                            <h2 class="section-title">Upcoming session bottles</h2>
+                        </div>
+                        @if (hasUpcomingSipSessionBottles)
+                        {
+                            <div class="upcoming-session-bottle-list">
+                                @foreach (var entry in upcomingSipSessionBottles)
+                                {
+                                    var bottle = entry.Bottle;
+                                    if (bottle is null)
+                                    {
+                                        continue;
+                                    }
+
+                                    var bottleViewData = new ViewDataDictionary(ViewData);
+                                    bottleViewData["IsAuthenticated"] = isAuthenticated;
+                                    bottleViewData["BottleContextSisterhoodId"] = entry.SisterhoodId;
+                                    bottleViewData["BottleContextSipSessionId"] = entry.SessionId;
+                                    bottleViewData.Remove("SisterhoodId");
+                                    bottleViewData.Remove("SipSessionId");
+                                    bottleViewData.Remove("ReturnUrl");
+                                    @await Html.PartialAsync("_BottleCard", bottle, bottleViewData)
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="sip-session-empty" role="status">No bottles are planned for upcoming sip sessions yet. Check back soon for new additions.</p>
                         }
                     </section>
                     <section class="suggested-wines" aria-label="Suggested wines">
@@ -1432,7 +1515,10 @@
             @if (isAuthenticated)
             {
                 @await Html.PartialAsync("_InventoryAddModal", inventoryAddModalModel)
-                @await Html.PartialAsync("_DrinkBottleModal", AllMCPSolution.Models.DrinkBottleModalViewModel.Default)
+                if (drinkBottleModalModel is not null)
+                {
+                    @await Html.PartialAsync("_DrinkBottleModal", drinkBottleModalModel)
+                }
             }
             @if (sipSessionCreateTemplate is not null)
             {
