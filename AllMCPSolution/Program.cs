@@ -72,6 +72,7 @@ builder.Services.AddScoped<ISipSessionRepository, SipSessionRepository>();
 builder.Services.AddScoped<IWineSurferNotificationDismissalRepository, WineSurferNotificationDismissalRepository>();
 builder.Services.AddScoped<ITerroirMergeRepository, TerroirMergeRepository>();
 builder.Services.AddScoped<IWineSurferTopBarService, WineSurferTopBarService>();
+builder.Services.AddScoped<ISisterhoodConnectionService, SisterhoodConnectionService>();
 builder.Services.AddScoped<IBottleSummaryService, BottleSummaryService>();
 builder.Services.AddScoped<IWineImportService, WineImportService>();
 builder.Services.AddScoped<IStarWineListImportService, StarWineListImportService>();
