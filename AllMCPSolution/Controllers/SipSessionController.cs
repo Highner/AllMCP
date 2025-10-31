@@ -462,6 +462,8 @@ public class SipSessionController : WineSurferControllerBase
                     sisterhoodAverageScore = null;
                 }
 
+                var currentUserMarkedNotTasted = currentUserNote?.NotTasted ?? false;
+
                 return new WineSurferSipSessionBottle(
                     bottle.Id,
                     wineName,
@@ -472,6 +474,7 @@ public class SipSessionController : WineSurferControllerBase
                     bottle.DrunkAt,
                     currentUserNote?.Id,
                     currentUserNote?.Note,
+                    currentUserMarkedNotTasted,
                     currentUserNote?.Score,
                     averageScore,
                     sisterhoodAverageScore,

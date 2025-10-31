@@ -106,6 +106,8 @@ public sealed class BottleSummaryService : IBottleSummaryService
                     sisterhoodAverageScore = null;
                 }
 
+                var currentUserMarkedNotTasted = currentUserNote?.NotTasted ?? false;
+
                 return new WineSurferSipSessionBottle(
                     bottle.Id,
                     wineName,
@@ -116,6 +118,7 @@ public sealed class BottleSummaryService : IBottleSummaryService
                     bottle.DrunkAt,
                     currentUserNote?.Id,
                     currentUserNote?.Note,
+                    currentUserMarkedNotTasted,
                     currentUserNote?.Score,
                     averageScore,
                     sisterhoodAverageScore,

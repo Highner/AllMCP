@@ -474,6 +474,7 @@
             contextState.external = null;
             contextState.requireDate = false;
             contextState.noteOnly = false;
+            contextState.notTasted = false;
             contextState.successMessage = '';
             contextState.initialFocus = null;
         };
@@ -498,6 +499,7 @@
             form.reset();
             scoreControl.reset();
             setNoteOnlyState(false);
+            setNotTastedState(false);
 
             if (dateInput) {
                 dateInput.value = resolveDefaultDateValue();
@@ -555,7 +557,8 @@
                 successMessage = '',
                 external = null,
                 initialFocus = null,
-                noteOnly = false
+                noteOnly = false,
+                notTasted = false
             } = openOptions;
 
             resetCloseTimer();
@@ -591,6 +594,11 @@
             }
 
             setNoteOnlyState(contextState.noteOnly);
+
+            setNotTastedState(Boolean(notTasted));
+            if (notTastedCheckbox) {
+                notTastedCheckbox.checked = Boolean(notTasted);
+            }
 
             if (score != null && score !== '') {
                 scoreControl.setValue(score);
@@ -638,7 +646,8 @@
                 successMessage: detail.successMessage ?? '',
                 external: detail,
                 initialFocus: detail.initialFocus ?? null,
-                noteOnly: Boolean(detail.noteOnly)
+                noteOnly: Boolean(detail.noteOnly),
+                notTasted: Boolean(detail.notTasted)
             });
         };
 
@@ -663,6 +672,9 @@
                 || normalizedScore.length > 0;
             const ownedByCurrentUser = card.dataset.bottleOwnedByCurrentUser ?? card.getAttribute('data-bottle-owned-by-current-user') ?? '';
             const isNoteOnly = (ownedByCurrentUser || '').toLowerCase() === 'false';
+            const notTasted = (card.dataset.bottleNotTasted ?? card.getAttribute('data-bottle-not-tasted') ?? '')
+                .toString()
+                .toLowerCase() === 'true';
 
             if (hiddenSisterhood) {
                 hiddenSisterhood.value = sisterhoodContext ?? '';
@@ -681,7 +693,8 @@
                 score: normalizedScore,
                 mode: hasExisting ? 'edit' : 'create',
                 card,
-                noteOnly: isNoteOnly
+                noteOnly: isNoteOnly,
+                notTasted
             });
         };
 
@@ -715,6 +728,7 @@
             const sisterhoodAverageValue = payload.sisterhoodAverageScore ?? null;
             const noteIdValue = payload.noteId ?? payload.noteID ?? payload.noteID ?? payload.noteIdValue ?? null;
             const normalizedScore = scoreValue == null ? null : Number(scoreValue);
+            const isNotTasted = Boolean(contextState.notTasted);
 
             card.dataset.bottleNote = noteText;
             card.setAttribute('data-bottle-note', noteText);
@@ -722,9 +736,14 @@
             card.setAttribute('data-bottle-score', normalizedScore == null ? '' : String(normalizedScore));
             card.dataset.bottleNoteId = noteIdValue ? String(noteIdValue) : '';
             card.setAttribute('data-bottle-note-id', noteIdValue ? String(noteIdValue) : '');
+            card.dataset.bottleNotTasted = isNotTasted ? 'true' : 'false';
+            card.setAttribute('data-bottle-not-tasted', isNotTasted ? 'true' : 'false');
 
             if (noteDisplay) {
-                if (trimmedNote) {
+                if (isNotTasted) {
+                    noteDisplay.textContent = 'You marked this bottle as not tasted.';
+                    noteDisplay.style.display = '';
+                } else if (trimmedNote) {
                     noteDisplay.textContent = trimmedNote;
                     noteDisplay.style.display = '';
                 } else {

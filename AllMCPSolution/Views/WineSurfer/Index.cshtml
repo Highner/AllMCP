@@ -1252,6 +1252,11 @@
                     continue;
                 }
 
+                if (bottle.CurrentUserScore.HasValue || bottle.CurrentUserMarkedNotTasted)
+                {
+                    continue;
+                }
+
                 upcomingSipSessionBottles.Add((upcoming.SisterhoodId, sessionSummary.Id, bottle));
             }
         }
@@ -1375,7 +1380,7 @@
                         }
                         else
                         {
-                            <p class="sip-session-empty" role="status">No bottles are planned for upcoming sip sessions yet. Check back soon for new additions.</p>
+                            <p class="sip-session-empty" role="status">You're all caught up on upcoming session bottles. New wines will appear here when there are tastings to rate.</p>
                         }
                     </section>
                 </div>
