@@ -15,6 +15,20 @@
     var sisterhoodCount = Model.SisterhoodCount;
     var connectionLabel = connectionCount == 1 ? "fellow surfer" : "fellow surfers";
     var sisterhoodLabel = sisterhoodCount == 1 ? "sisterhood" : "sisterhoods";
+    var openButtonDisabledAttribute = connectionCount == 0 ? "disabled" : null;
+    var userSelectModal = new SisterhoodUserSelectModalViewModel
+    {
+        Users = Model.Connections,
+        IntroText = "Pick the fellow surfers connected to your sisterhoods.",
+        FilterLabel = "Filter fellow surfers",
+        FilterPlaceholder = "Search by name, email, or sisterhood",
+        SubmitButtonText = "Select surfers",
+        SubmitButtonAriaLabel = "Select fellow surfers",
+        NoUsersMessage = "You don't have any fellow surfers yet. Join a sisterhood to start building your tasting circle.",
+        StatusEmptyMessage = "No fellow surfers selected.",
+        StatusSingularFormat = "{0} fellow surfer selected.",
+        StatusPluralFormat = "{0} fellow surfers selected."
+    };
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -29,6 +43,7 @@
     <link rel="stylesheet" href="/css/wine-surfer-shadcn.css" />
     <link rel="stylesheet" href="/css/wine-surfer-shared-ui.css" />
     <script defer src="/js/pwa.js"></script>
+    <script defer src="/js/sisterhood-user-select-modal.js"></script>
     <style>
         :root { color-scheme: dark; }
         body { margin: 0; background: var(--wine-app-background); color: hsl(var(--foreground)); }
@@ -48,6 +63,7 @@
         .fellow-surfers-summary { margin: 0; font-size: 0.95rem; color: hsl(var(--muted-foreground)); }
         .connections-section { padding: 12px 24px 96px; flex: 1; }
         .connections-grid { display: grid; gap: 16px; list-style: none; margin: 0; padding: 0; }
+        .fellow-surfers-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
         .connection-card { background: var(--wine-surface-gradient); border: 1px solid var(--wine-surface-border); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--wine-card-shadow); }
         .connection-card__header { display: flex; align-items: center; gap: 12px; }
         .connection-card__avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)); border: 1px solid rgba(255, 255, 255, 0.16); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.1rem; color: hsl(var(--foreground)); }
@@ -79,6 +95,14 @@
                 <p class="fellow-surfers-summary">
                     You're connected to <strong>@connectionCount</strong> @connectionLabel across <strong>@sisterhoodCount</strong> @sisterhoodLabel.
                 </p>
+                <div class="fellow-surfers-actions">
+                    <button type="button"
+                            class="wine-surfer-button sisterhood-button--primary"
+                            data-sisterhood-user-select-open
+                            @openButtonDisabledAttribute>
+                        Select fellow surfers
+                    </button>
+                </div>
             </section>
 
             @if (connectionCount > 0)
@@ -125,6 +149,7 @@
             }
         </main>
         @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
+        @await Html.PartialAsync("_SisterhoodUserSelectModal", userSelectModal)
     </div>
 </body>
 </html>

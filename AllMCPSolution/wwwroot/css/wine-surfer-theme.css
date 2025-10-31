@@ -756,8 +756,224 @@ a.wine-card:focus {
     }
 
     .bottle-management-table .bottle-management-col-price,
-    .bottle-management-table .bottle-management-col-status {
+.bottle-management-table .bottle-management-col-status {
         display: none;
+    }
+}
+
+.wine-surfer-modal.sisterhood-user-select-modal {
+    width: min(640px, calc(100% - 32px));
+    max-height: min(90vh, 720px);
+    padding: 0;
+}
+
+.wine-surfer-modal__body.sisterhood-user-select-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: rgba(16, 16, 20, 0.92);
+}
+
+.sisterhood-user-select-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.sisterhood-user-select-intro {
+    margin: 0;
+    font-size: 0.95rem;
+    color: rgba(244, 241, 234, 0.86);
+}
+
+.sisterhood-user-select-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sisterhood-user-select-filter-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(244, 241, 234, 0.62);
+}
+
+.sisterhood-user-select-filter-input {
+    appearance: none;
+    background: rgba(16, 16, 20, 0.7);
+    border: 1px solid rgba(244, 241, 234, 0.16);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    color: #f4f1ea;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sisterhood-user-select-filter-input:focus {
+    outline: none;
+    border-color: rgba(244, 241, 234, 0.36);
+    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.18);
+}
+
+.sisterhood-user-select-filter-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.sisterhood-user-select-list-container {
+    max-height: min(360px, 56vh);
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid rgba(244, 241, 234, 0.12);
+    border-radius: 16px;
+    background: rgba(10, 10, 14, 0.55);
+}
+
+.sisterhood-user-select-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sisterhood-user-select-item[hidden] {
+    display: none !important;
+}
+
+.sisterhood-user-select-option {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(244, 241, 234, 0.12);
+    background: rgba(244, 241, 234, 0.04);
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sisterhood-user-select-option:hover,
+.sisterhood-user-select-option:focus-within {
+    border-color: rgba(244, 241, 234, 0.28);
+    background: rgba(244, 241, 234, 0.08);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.sisterhood-user-select-checkbox {
+    margin-top: 6px;
+    width: 18px;
+    height: 18px;
+    accent-color: #f4f1ea;
+}
+
+.sisterhood-user-select-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid rgba(244, 241, 234, 0.28);
+    background: linear-gradient(135deg, rgba(244, 241, 234, 0.24), rgba(244, 241, 234, 0));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #f4f1ea;
+}
+
+.sisterhood-user-select-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sisterhood-user-select-name {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    color: #f4f1ea;
+}
+
+.sisterhood-user-select-email {
+    font-size: 0.85rem;
+    color: rgba(244, 241, 234, 0.72);
+}
+
+.sisterhood-user-select-shared-count {
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(244, 241, 234, 0.58);
+}
+
+.sisterhood-user-select-sisterhoods {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.sisterhood-user-select-sisterhoods li {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(244, 241, 234, 0.08);
+    border: 1px solid rgba(244, 241, 234, 0.14);
+    font-size: 0.75rem;
+    color: rgba(244, 241, 234, 0.88);
+}
+
+.sisterhood-user-select-empty,
+.sisterhood-user-select-empty-state,
+.sisterhood-user-select-status {
+    margin: 0;
+    font-size: 0.85rem;
+    color: rgba(244, 241, 234, 0.74);
+}
+
+.sisterhood-user-select-empty {
+    color: rgba(244, 241, 234, 0.58);
+}
+
+.sisterhood-user-select-empty-state {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px dashed rgba(244, 241, 234, 0.28);
+    background: rgba(244, 241, 234, 0.06);
+}
+
+.sisterhood-user-select-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.sisterhood-user-select-submit[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+    .wine-surfer-modal__body.sisterhood-user-select-body {
+        padding: 20px;
+        gap: 14px;
+    }
+
+    .sisterhood-user-select-option {
+        padding: 10px 12px;
+        gap: 10px;
+    }
+
+    .sisterhood-user-select-avatar {
+        width: 34px;
+        height: 34px;
+        font-size: 0.95rem;
     }
 }
 

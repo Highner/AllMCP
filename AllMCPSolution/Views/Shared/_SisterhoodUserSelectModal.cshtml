@@ -1,0 +1,147 @@
+@model AllMCPSolution.Models.SisterhoodUserSelectModalViewModel
+@using System.Collections.Generic
+@using System.Linq
+@using AllMCPSolution.Models
+@{
+    var users = Model.Users ?? Array.Empty<SisterhoodConnectionUser>();
+    var hasUsers = users.Count > 0;
+    var introId = string.IsNullOrWhiteSpace(Model.ModalId)
+        ? "sisterhood-user-select-intro"
+        : $"{Model.ModalId}-intro";
+    var statusId = string.IsNullOrWhiteSpace(Model.ModalId)
+        ? "sisterhood-user-select-status"
+        : $"{Model.ModalId}-status";
+    var listId = string.IsNullOrWhiteSpace(Model.ModalId)
+        ? "sisterhood-user-select-list"
+        : $"{Model.ModalId}-list";
+    var formAction = string.IsNullOrWhiteSpace(Model.FormAction) ? null : Model.FormAction;
+    var selectionFieldName = string.IsNullOrWhiteSpace(Model.FieldName) ? "SelectedUserIds" : Model.FieldName;
+    var dialogAttributes = new Dictionary<string, string?>
+    {
+        ["aria-labelledby"] = Model.TitleElementId,
+        ["aria-describedby"] = $"{introId} {statusId}".Trim(),
+        ["data-sisterhood-user-select-dialog"] = null
+    };
+    var modal = new WineSurferModalShell
+    {
+        BackdropId = Model.OverlayId,
+        BackdropCssClass = "wine-surfer-modal-backdrop sisterhood-user-select-overlay",
+        BackdropAttributes = new Dictionary<string, string?>
+        {
+            ["hidden"] = null,
+            ["aria-hidden"] = "true",
+            ["data-sisterhood-user-select-overlay"] = null
+        },
+        DialogId = Model.ModalId,
+        DialogCssClass = "wine-surfer-modal sisterhood-user-select-modal",
+        DialogAttributes = dialogAttributes,
+        HeaderCssClass = "wine-surfer-modal__header sisterhood-user-select-header",
+        Title = Model.Title,
+        TitleCssClass = "wine-surfer-modal__title sisterhood-user-select-title",
+        TitleElementId = Model.TitleElementId,
+        BodyCssClass = "wine-surfer-modal__body sisterhood-user-select-body",
+        CloseButtonCssClass = "wine-surfer-modal__close sisterhood-user-select-close",
+        CloseButtonLabel = Model.CloseButtonLabel,
+        CloseButtonAttributes = new Dictionary<string, string?>
+        {
+            ["data-sisterhood-user-select-close"] = null
+        },
+        BodyContent = @<form class="sisterhood-user-select-form"
+                             method="@Model.FormMethod"
+                             @((formAction is null) ? null : $"action=\"{formAction}\"")
+                             data-sisterhood-user-select-form>
+            <p class="sisterhood-user-select-intro" id="@introId">@Model.IntroText</p>
+            <label class="sisterhood-user-select-filter">
+                <span class="sisterhood-user-select-filter-label">@Model.FilterLabel</span>
+                <input type="search"
+                       class="sisterhood-user-select-filter-input"
+                       placeholder="@Model.FilterPlaceholder"
+                       aria-label="@Model.FilterLabel"
+                       autocomplete="off"
+                       spellcheck="false"
+                       data-sisterhood-user-select-filter
+                       @(hasUsers ? null : "disabled") />
+            </label>
+            <p class="sisterhood-user-select-empty-state"
+               data-sisterhood-user-select-empty-state
+               @(hasUsers ? "hidden" : null)>@Model.NoUsersMessage</p>
+            <div class="sisterhood-user-select-list-container">
+                <ul class="sisterhood-user-select-list"
+                    id="@listId"
+                    data-sisterhood-user-select-list
+                    role="listbox"
+                    aria-multiselectable="true">
+                    @foreach (var user in users)
+                    {
+                        var filterParts = new List<string> { user.DisplayName };
+                        if (!string.IsNullOrWhiteSpace(user.Email))
+                        {
+                            filterParts.Add(user.Email!);
+                        }
+                        foreach (var shared in user.SharedSisterhoods)
+                        {
+                            if (!string.IsNullOrWhiteSpace(shared.Name))
+                            {
+                                filterParts.Add(shared.Name);
+                            }
+                        }
+                        var filterText = string.Join(' ', filterParts.Where(part => !string.IsNullOrWhiteSpace(part)));
+                        <li class="sisterhood-user-select-item"
+                            data-sisterhood-user-select-item
+                            data-filter-text="@filterText">
+                            <label class="sisterhood-user-select-option">
+                                <input type="checkbox"
+                                       class="sisterhood-user-select-checkbox"
+                                       name="@selectionFieldName"
+                                       value="@user.UserId"
+                                       data-sisterhood-user-select-option />
+                                <span class="sisterhood-user-select-avatar" aria-hidden="true">@user.AvatarLetter</span>
+                                <span class="sisterhood-user-select-text">
+                                    <span class="sisterhood-user-select-name">@user.DisplayName</span>
+                                    @if (!string.IsNullOrWhiteSpace(user.Email))
+                                    {
+                                        <span class="sisterhood-user-select-email">@user.Email</span>
+                                    }
+                                    <span class="sisterhood-user-select-shared-count">
+                                        @user.SharedSisterhoodCount @((user.SharedSisterhoodCount == 1) ? "shared sisterhood" : "shared sisterhoods")
+                                    </span>
+                                    @if (user.SharedSisterhoods.Count > 0)
+                                    {
+                                        <ul class="sisterhood-user-select-sisterhoods">
+                                        @foreach (var shared in user.SharedSisterhoods)
+                                        {
+                                            <li>@shared.Name</li>
+                                        }
+                                        </ul>
+                                    }
+                                </span>
+                            </label>
+                        </li>
+                    }
+                </ul>
+            </div>
+            <p class="sisterhood-user-select-empty"
+               data-sisterhood-user-select-empty
+               hidden>@Model.EmptyMessage</p>
+            <p class="sisterhood-user-select-status"
+               id="@statusId"
+               role="status"
+               aria-live="polite"
+               data-sisterhood-user-select-status
+               data-empty-message="@Model.StatusEmptyMessage"
+               data-singular-format="@Model.StatusSingularFormat"
+               data-plural-format="@Model.StatusPluralFormat">@Model.StatusEmptyMessage</p>
+            <div class="sisterhood-user-select-actions">
+                <button type="button"
+                        class="crud-table__action-button secondary sisterhood-user-select-cancel"
+                        data-sisterhood-user-select-cancel>@Model.CancelButtonText</button>
+                <button type="submit"
+                        class="crud-table__action-button sisterhood-user-select-submit"
+                        aria-label="@Model.SubmitButtonAriaLabel"
+                        data-sisterhood-user-select-submit
+                        @(hasUsers ? null : "disabled")>@Model.SubmitButtonText</button>
+            </div>
+        </form>
+    };
+}
+@await Html.PartialAsync("_WineSurferModalShell", modal)
