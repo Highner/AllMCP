@@ -404,7 +404,11 @@ public class WineSurferController : WineSurferControllerBase
         await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken);
 
         var winesToDrink = upcomingSipSessions
-            .SelectMany(s => s.Session.Bottles)
+            .SelectMany(s => s.Session.Bottles ?? Array.Empty<WineSurferSipSessionBottle>())
+            .Where(bottle =>
+                bottle is not null &&
+                !bottle.CurrentUserScore.HasValue &&
+                !bottle.CurrentUserMarkedNotTasted)
             .ToList();
 
         var model = new WineSurferLandingViewModel(
@@ -3467,6 +3471,8 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
                 sisterhoodAverageScore = null;
             }
 
+            var currentUserMarkedNotTasted = currentUserNote?.NotTasted ?? false;
+
             return new WineSurferSipSessionBottle(
                 bottle.Id,
                 wineName,
@@ -3477,6 +3483,7 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesIn
                 bottle.DrunkAt,
                 currentUserNote?.Id,
                 currentUserNote?.Note,
+                currentUserMarkedNotTasted,
                 currentUserNote?.Score,
                 averageScore,
                 sisterhoodAverageScore,
@@ -4064,6 +4071,7 @@ public record WineSurferSipSessionBottle(
     DateTime? DrunkAtUtc,
     Guid? CurrentUserNoteId,
     string? CurrentUserNote,
+    bool CurrentUserMarkedNotTasted,
     decimal? CurrentUserScore,
     decimal? AverageScore,
     decimal? SisterhoodAverageScore,

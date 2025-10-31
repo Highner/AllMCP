@@ -26,6 +26,7 @@
     };
     string? returnUrl = ViewData["ReturnUrl"] as string;
     var isOwnedByCurrentUser = Model.IsOwnedByCurrentUser;
+    var isMarkedNotTasted = Model.CurrentUserMarkedNotTasted;
     var isRevealed = Model.IsRevealed;
     var label = string.IsNullOrWhiteSpace(Model.Label) ? Model.WineName : Model.Label;
     var trimmedLabel = string.IsNullOrWhiteSpace(label) ? "Bottle" : label.Trim();
@@ -37,7 +38,14 @@
     var noteDisplay = string.IsNullOrEmpty(normalizedNote)
         ? (isInteractive ? string.Empty : "Sign in to add your tasting note.")
         : normalizedNote;
-    var noteCssClass = string.IsNullOrEmpty(normalizedNote) ? "bottle-note bottle-note--empty" : "bottle-note";
+    if (isMarkedNotTasted)
+    {
+        noteDisplay = "You marked this bottle as not tasted.";
+    }
+
+    var noteCssClass = string.IsNullOrEmpty(normalizedNote) && !isMarkedNotTasted
+        ? "bottle-note bottle-note--empty"
+        : "bottle-note";
 
     string? hiddenNotice = null;
     if (!isRevealed)
@@ -91,6 +99,7 @@
          data-bottle-sisterhood-average="@FormatScore(Model.SisterhoodAverageScore)"
          data-bottle-owned-by-current-user="@(isOwnedByCurrentUser ? "true" : "false")"
          data-bottle-interactive="@(isInteractive ? "true" : "false")"
+         data-bottle-not-tasted="@(isMarkedNotTasted ? "true" : "false")"
          data-bottle-revealed="@(Model.IsRevealed ? "true" : "false")"
          data-sisterhood-id="@dataSisterhoodId"
          data-sip-session-id="@dataSipSessionId"
