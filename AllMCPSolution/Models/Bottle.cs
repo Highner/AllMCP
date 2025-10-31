@@ -20,4 +20,5 @@ public class Bottle
     public ICollection<TastingNote> TastingNotes { get; set; } = [];
 
     public ICollection<SipSessionBottle> SipSessions { get; set; } = [];
+    public ICollection<BottleShare> Shares { get; set; } = [];
 }

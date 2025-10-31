@@ -23,4 +23,6 @@ public class ApplicationUser : IdentityUser<Guid>
     public ICollection<WineVintageEvolutionScore> WineVintageEvolutionScores { get; set; } = [];
     public ICollection<TasteProfile> TasteProfiles { get; set; } = [];
     public ICollection<Wishlist> Wishlists { get; set; } = [];
+    public ICollection<BottleShare> GrantedBottleShares { get; set; } = [];
+    public ICollection<BottleShare> ReceivedBottleShares { get; set; } = [];
 }
