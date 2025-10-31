@@ -403,6 +403,10 @@ public class WineSurferController : WineSurferControllerBase
 
         await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken);
 
+        var winesToDrink = upcomingSipSessions
+            .SelectMany(s => s.Session.Bottles)
+            .ToList();
+
         var model = new WineSurferLandingViewModel(
             highlightPoints,
             currentUser,
@@ -413,6 +417,7 @@ public class WineSurferController : WineSurferControllerBase
             biggestSplashWines,
             biggestSplashYear,
             favoriteBottles,
+            winesToDrink,
             suggestedAppellations,
             inventoryWineIds,
             inventoryWineVintages);
@@ -2523,12 +2528,13 @@ public class WineSurferController : WineSurferControllerBase
         var bottleLabel = CreateBottleLabel(bottle);
 
         var hasNote = !string.IsNullOrWhiteSpace(noteText);
-        if (!hasNote && score is null)
+        var notTasted = request.NotTasted;
+        if (!notTasted && !hasNote && score is null)
         {
             return Error("Add a tasting note or score.");
         }
 
-        var noteToSave = hasNote ? noteText! : string.Empty;
+        var noteToSave = notTasted ? string.Empty : (hasNote ? noteText! : string.Empty);
 
         try
         {
@@ -2540,12 +2546,13 @@ public class WineSurferController : WineSurferControllerBase
 
             if (existing is not null)
             {
+                existing.NotTasted = notTasted;
                 existing.Note = noteToSave;
-                existing.Score = score;
+                existing.Score = notTasted ? null : score;
                 await _tastingNoteRepository.UpdateAsync(existing, cancellationToken);
                 message = $"Updated your tasting note for {bottleLabel}.";
             }
-            else
+            else if (!notTasted)
             {
                 var entity = new TastingNote
                 {
@@ -2560,8 +2567,13 @@ public class WineSurferController : WineSurferControllerBase
                 existing = entity;
                 message = $"Saved a tasting note for {bottleLabel}.";
             }
+            else
+            {
+                existing = existingNotes.FirstOrDefault(n => n.UserId == currentUserId.Value);
+                message = $"Marked as not tasted for {bottleLabel}.";
+            }
 
-            var noteId = existing.Id;
+            var noteId = existing?.Id ?? Guid.Empty;
 
             if (isOwnedByCurrentUser)
             {
@@ -3196,6 +3208,9 @@ public class WineSurferController : WineSurferControllerBase
 
         // Accept as raw string to avoid culture-specific model binding issues; we'll parse manually.
         public string? Score { get; set; }
+
+        // When true, indicates the bottle wasn't tasted (clear any existing note/score and don't create new)
+        public bool NotTasted { get; set; }
     }
 
     public class DeleteSipSessionBottleNoteRequest
@@ -3727,6 +3742,7 @@ public record WineSurferLandingViewModel(
     IReadOnlyList<WineSurferBiggestSplashWine> BiggestSplashWines,
     int BiggestSplashYear,
     IReadOnlyList<WineSurferSipSessionBottle> FavoriteBottles,
+    IReadOnlyList<WineSurferSipSessionBottle> WinesToDrink,
     IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations,
     IReadOnlyCollection<Guid> InventoryWineIds,
     IReadOnlyCollection<WineSurferInventoryWine> InventoryWineVintages);

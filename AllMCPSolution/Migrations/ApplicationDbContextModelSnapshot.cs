@@ -513,6 +513,9 @@ namespace AllMCPSolution.Migrations
                     b.Property<Guid>("BottleId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("NotTasted")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Note")
                         .IsRequired()
                         .HasMaxLength(2048)

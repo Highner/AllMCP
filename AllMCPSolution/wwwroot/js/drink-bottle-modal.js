@@ -217,6 +217,7 @@
         const dateInput = popover.querySelector('.drink-bottle-date');
         const dateField = form.querySelector('.drink-bottle-date-field');
         const noteOnlyMessage = form.querySelector('.drink-bottle-note-only-message');
+        const notTastedCheckbox = form.querySelector('.drink-bottle-not-tasted');
         const errorElement = popover.querySelector('.drink-bottle-error');
         const cancelButton = popover.querySelector('.drink-bottle-cancel');
         const headerCloseButton = popover.querySelector('[data-drink-bottle-close]');
@@ -302,12 +303,35 @@
 
         scoreControl.setValue(scoreDefaultValue);
 
+        const setNotTastedState = (checked) => {
+            const isChecked = Boolean(checked);
+            contextState.notTasted = isChecked;
+            if (noteInput) {
+                noteInput.value = isChecked ? '' : noteInput.value;
+                setElementDisabled(noteInput, isChecked);
+            }
+            if (scoreControl && scoreControl.input) {
+                scoreControl.setValue('');
+                setElementDisabled(scoreControl.input, isChecked);
+                if (scoreClearButton) {
+                    setElementDisabled(scoreClearButton, isChecked);
+                }
+            }
+        };
+
+        if (notTastedCheckbox) {
+            notTastedCheckbox.addEventListener('change', () => {
+                setNotTastedState(notTastedCheckbox.checked);
+            });
+        }
+
         const contextState = {
             context: null,
             card: null,
             data: null,
             external: null,
             requireDate: false,
+            notTasted: false,
             noteOnly: false,
             successMessage: '',
             initialFocus: null
@@ -757,9 +781,14 @@
             payload.set('SisterhoodId', sisterhoodId);
             payload.set('SipSessionId', sessionId);
             payload.set('BottleId', bottleId);
-            payload.set('Note', noteValue);
-            if (scoreValue != null) {
-                payload.set('Score', String(scoreValue));
+            if (contextState.notTasted) {
+                payload.set('NotTasted', 'true');
+                payload.set('Note', '');
+            } else {
+                payload.set('Note', noteValue);
+                if (scoreValue != null) {
+                    payload.set('Score', String(scoreValue));
+                }
             }
 
             const noteIdentifier = hiddenNoteId?.value?.trim();
@@ -848,7 +877,7 @@
                 return;
             }
 
-            if (!noteValue && parsedScore == null) {
+            if (!contextState.notTasted && !noteValue && parsedScore == null) {
                 showFeedback('Add a tasting note or score.');
                 focusField('note');
                 return;
@@ -896,6 +925,7 @@
                 extras: external,
                 requireDate,
                 noteOnly: isNoteOnly,
+                notTasted: Boolean(contextState.notTasted),
                 showError: (message) => {
                     showFeedback(message);
                 },

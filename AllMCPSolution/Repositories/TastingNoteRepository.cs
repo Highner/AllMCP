@@ -63,6 +63,13 @@ public class TastingNoteRepository : ITastingNoteRepository
 
     public async Task AddAsync(TastingNote tastingNote, CancellationToken ct = default)
     {
+        if (tastingNote is null) throw new ArgumentNullException(nameof(tastingNote));
+        // Normalize when not tasted: clear note and score
+        if (tastingNote.NotTasted)
+        {
+            tastingNote.Note = string.Empty;
+            tastingNote.Score = null;
+        }
         _db.TastingNotes.Add(tastingNote);
         await _db.SaveChangesAsync(ct);
     }
@@ -79,8 +86,9 @@ public class TastingNoteRepository : ITastingNoteRepository
             throw new ArgumentException("Tasting note ID must be provided.", nameof(tastingNote));
         }
 
-        var trimmedNote = tastingNote.Note?.Trim() ?? string.Empty;
-        var scoreValue = tastingNote.Score;
+        var isNotTasted = tastingNote.NotTasted;
+        var trimmedNote = isNotTasted ? string.Empty : (tastingNote.Note?.Trim() ?? string.Empty);
+        var scoreValue = isNotTasted ? null : tastingNote.Score;
 
         var affected = await _db.TastingNotes
             .Where(tn => tn.Id == tastingNote.Id)

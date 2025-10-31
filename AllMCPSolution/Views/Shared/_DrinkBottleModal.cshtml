@@ -94,6 +94,10 @@
                 <input type="hidden" class="drink-bottle-date" value="@defaultDateValue" />
             }
             <p id="@noteOnlyMessageId" class="drink-bottle-note-only-message" hidden></p>
+            <label class="inventory-add-field drink-bottle-not-tasted-field">
+                <input type="checkbox" class="drink-bottle-not-tasted" />
+                <span class="inventory-add-label">Not tasted</span>
+            </label>
             @if (options.ShowScore)
             {
                 <label class="inventory-add-field drink-bottle-score-field">

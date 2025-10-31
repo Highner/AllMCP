@@ -83,6 +83,7 @@ public class SipSessionRepository : ISipSessionRepository
 
         var utcDate = utcNow.Date;
         var userId = memberUserId.Value;
+        var recentWindowStart = utcNow.AddHours(-24);
 
         IQueryable<SipSession> query = _db.SipSessions
             .AsNoTracking()
@@ -95,7 +96,7 @@ public class SipSessionRepository : ISipSessionRepository
                 .ThenInclude(link => link.Bottle)
                     .ThenInclude(bottle => bottle.TastingNotes)
             .Where(session =>
-                (session.ScheduledAt.HasValue && session.ScheduledAt.Value >= utcNow) ||
+                (session.ScheduledAt.HasValue && session.ScheduledAt.Value >= recentWindowStart) ||
                 (!session.ScheduledAt.HasValue && session.Date.HasValue && session.Date.Value.Date >= utcDate))
             .Where(session =>
                 session.Sisterhood != null &&

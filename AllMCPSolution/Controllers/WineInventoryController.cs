@@ -2285,14 +2285,15 @@ public partial class WineInventoryController : Controller
         var trimmedNote = request.Note?.Trim();
         var hasNote = !string.IsNullOrWhiteSpace(trimmedNote);
         var hasScore = request.Score.HasValue;
+        var notTasted = (request as TastingNoteCreateRequest)?.NotTasted ?? (request is TastingNoteUpdateRequest ut ? ut.NotTasted : false);
 
-        if (!hasNote && !hasScore)
+        if (!notTasted && !hasNote && !hasScore)
         {
             ModelState.AddModelError(nameof(request.Note), "Provide a tasting note or score.");
             return ValidationProblem(ModelState);
         }
 
-        var noteToSave = hasNote ? trimmedNote! : string.Empty;
+        var noteToSave = notTasted ? string.Empty : (hasNote ? trimmedNote! : string.Empty);
 
         var bottle = await _bottleRepository.GetByIdAsync(request.BottleId, cancellationToken);
         if (bottle is null)
@@ -2324,13 +2325,14 @@ public partial class WineInventoryController : Controller
                 Id = existingNote.Id,
                 BottleId = existingNote.BottleId,
                 Note = noteToSave,
-                Score = request.Score,
+                Score = notTasted ? null : request.Score,
+                NotTasted = notTasted,
                 UserId = existingNote.UserId
             };
 
             await _tastingNoteRepository.UpdateAsync(updatedNote, cancellationToken);
         }
-        else
+        else if (!notTasted)
         {
             var entity = new TastingNote
             {
@@ -2371,7 +2373,8 @@ public partial class WineInventoryController : Controller
         var hasNote = !string.IsNullOrWhiteSpace(trimmedNote);
         var hasScore = request.Score.HasValue;
 
-        if (!hasNote && !hasScore)
+        var notTasted = request.NotTasted;
+        if (!notTasted && !hasNote && !hasScore)
         {
             ModelState.AddModelError(nameof(request.Note), "Provide a tasting note or score.");
             return ValidationProblem(ModelState);
@@ -2393,8 +2396,9 @@ public partial class WineInventoryController : Controller
             return NotFound();
         }
 
-        existing.Note = hasNote ? trimmedNote! : string.Empty;
-        existing.Score = request.Score;
+        existing.NotTasted = notTasted;
+        existing.Note = notTasted ? string.Empty : (hasNote ? trimmedNote! : string.Empty);
+        existing.Score = notTasted ? null : request.Score;
 
         await _tastingNoteRepository.UpdateAsync(existing, cancellationToken);
 
@@ -3281,6 +3285,8 @@ public class WineInventoryViewModel
         [StringLength(2048)] public string? Note { get; set; }
 
         [Range(0, 10)] public decimal? Score { get; set; }
+
+        public bool NotTasted { get; set; }
     }
 
     public class TastingNoteCreateRequest : TastingNoteUpdateRequest
