@@ -192,6 +192,38 @@ namespace AllMCPSolution.Migrations
                     b.ToTable("BottleLocations");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.BottleShare", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BottleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("SharedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("SharedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SharedWithUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SharedByUserId");
+
+                    b.HasIndex("SharedWithUserId");
+
+                    b.HasIndex("BottleId", "SharedWithUserId")
+                        .IsUnique();
+
+                    b.ToTable("BottleShares");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.Country", b =>
                 {
                     b.Property<Guid>("Id")
@@ -512,9 +544,6 @@ namespace AllMCPSolution.Migrations
 
                     b.Property<Guid>("BottleId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("NotTasted")
-                        .HasColumnType("bit");
 
                     b.Property<string>("Note")
                         .IsRequired()
@@ -868,6 +897,33 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.BottleShare", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.Bottle", "Bottle")
+                        .WithMany("Shares")
+                        .HasForeignKey("BottleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AllMCPSolution.Models.ApplicationUser", "SharedByUser")
+                        .WithMany("GrantedBottleShares")
+                        .HasForeignKey("SharedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AllMCPSolution.Models.ApplicationUser", "SharedWithUser")
+                        .WithMany("ReceivedBottleShares")
+                        .HasForeignKey("SharedWithUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Bottle");
+
+                    b.Navigation("SharedByUser");
+
+                    b.Navigation("SharedWithUser");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.Region", b =>
                 {
                     b.HasOne("AllMCPSolution.Models.Country", "Country")
@@ -1169,7 +1225,11 @@ namespace AllMCPSolution.Migrations
 
                     b.Navigation("Bottles");
 
+                    b.Navigation("GrantedBottleShares");
+
                     b.Navigation("NotificationDismissals");
+
+                    b.Navigation("ReceivedBottleShares");
 
                     b.Navigation("SisterhoodInvitations");
 
@@ -1186,6 +1246,8 @@ namespace AllMCPSolution.Migrations
 
             modelBuilder.Entity("AllMCPSolution.Models.Bottle", b =>
                 {
+                    b.Navigation("Shares");
+
                     b.Navigation("SipSessions");
 
                     b.Navigation("TastingNotes");

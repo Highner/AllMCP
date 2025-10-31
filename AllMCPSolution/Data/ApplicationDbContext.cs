@@ -262,12 +262,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.HasOne(share => share.SharedByUser)
                 .WithMany(user => user.GrantedBottleShares)
                 .HasForeignKey(share => share.SharedByUserId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(share => share.SharedWithUser)
                 .WithMany(user => user.ReceivedBottleShares)
                 .HasForeignKey(share => share.SharedWithUserId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<BottleLocation>(e =>
