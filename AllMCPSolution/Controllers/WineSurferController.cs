@@ -67,38 +67,6 @@ public class WineSurferController : WineSurferControllerBase
     private readonly ISuggestedAppellationService _suggestedAppellationService;
     private readonly ILogger<WineSurferController> _logger;
 
-    private sealed class ConnectedUserBuilder
-    {
-        private static readonly StringComparer NameComparer = StringComparer.OrdinalIgnoreCase;
-
-        public ConnectedUserBuilder(Guid id, string displayName, string? email)
-        {
-            Id = id;
-            DisplayName = displayName;
-            Email = email;
-        }
-
-        public Guid Id { get; }
-
-        public string DisplayName { get; }
-
-        public string? Email { get; }
-
-        public HashSet<string> Sisterhoods { get; } = new(NameComparer);
-
-        public WineSurferConnectedUser ToConnectedUser()
-        {
-            var ordered = Sisterhoods
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Select(name => name!.Trim())
-                .Where(name => !string.IsNullOrEmpty(name))
-                .OrderBy(name => name, NameComparer)
-                .ToList();
-
-            return new WineSurferConnectedUser(Id, DisplayName, Email, ordered);
-        }
-    }
-
     public WineSurferController(
         IWineRepository wineRepository,
         IUserRepository userRepository,
@@ -289,7 +257,6 @@ public class WineSurferController : WineSurferControllerBase
         IReadOnlyCollection<Guid> inventoryWineIds = Array.Empty<Guid>();
         IReadOnlyCollection<WineSurferInventoryWine> inventoryWineVintages = Array.Empty<WineSurferInventoryWine>();
         IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
-        IReadOnlyList<WineSurferConnectedUser> connectedUsers = Array.Empty<WineSurferConnectedUser>();
         if (currentUserId.HasValue)
         {
             var adminSisterhoods = await _sisterhoodRepository.GetAdminForUserAsync(currentUserId.Value, cancellationToken);
@@ -424,61 +391,6 @@ public class WineSurferController : WineSurferControllerBase
                     highlightPoints.AddRange(suggestionHighlights);
                 }
             }
-
-            var sisterhoods = await _sisterhoodRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
-            if (sisterhoods.Count > 0)
-            {
-                var connectionMap = new Dictionary<Guid, ConnectedUserBuilder>();
-                foreach (var sisterhood in sisterhoods)
-                {
-                    var memberships = sisterhood.Memberships ?? Array.Empty<SisterhoodMembership>();
-                    var sisterhoodName = string.IsNullOrWhiteSpace(sisterhood.Name)
-                        ? string.Empty
-                        : sisterhood.Name.Trim();
-
-                    foreach (var membership in memberships)
-                    {
-                        if (membership.UserId == currentUserId.Value)
-                        {
-                            continue;
-                        }
-
-                        var user = membership.User;
-                        if (user is null)
-                        {
-                            continue;
-                        }
-
-                        if (!connectionMap.TryGetValue(user.Id, out var builder))
-                        {
-                            var displayName = string.IsNullOrWhiteSpace(user.Name)
-                                ? (!string.IsNullOrWhiteSpace(user.Email)
-                                    ? user.Email!.Trim()
-                                    : "Member")
-                                : user.Name.Trim();
-                            var email = string.IsNullOrWhiteSpace(user.Email)
-                                ? null
-                                : user.Email!.Trim();
-                            builder = new ConnectedUserBuilder(user.Id, displayName, email);
-                            connectionMap[user.Id] = builder;
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(sisterhoodName))
-                        {
-                            builder.Sisterhoods.Add(sisterhoodName);
-                        }
-                    }
-                }
-
-                if (connectionMap.Count > 0)
-                {
-                    connectedUsers = connectionMap.Values
-                        .Select(builder => builder.ToConnectedUser())
-                        .OrderBy(user => user.DisplayName, StringComparer.OrdinalIgnoreCase)
-                        .ThenBy(user => user.Email, StringComparer.OrdinalIgnoreCase)
-                        .ToList();
-                }
-            }
         }
 
         if (highlightPoints.Count > 1)
@@ -512,8 +424,7 @@ public class WineSurferController : WineSurferControllerBase
             winesToDrink,
             suggestedAppellations,
             inventoryWineIds,
-            inventoryWineVintages,
-            connectedUsers);
+            inventoryWineVintages);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
     }
@@ -3841,16 +3752,9 @@ public record WineSurferLandingViewModel(
     IReadOnlyList<WineSurferSipSessionBottle> WinesToDrink,
     IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations,
     IReadOnlyCollection<Guid> InventoryWineIds,
-    IReadOnlyCollection<WineSurferInventoryWine> InventoryWineVintages,
-    IReadOnlyList<WineSurferConnectedUser> ConnectedUsers);
+    IReadOnlyCollection<WineSurferInventoryWine> InventoryWineVintages);
 
 public record WineSurferInventoryWine(Guid WineId, int Vintage);
-
-public record WineSurferConnectedUser(
-    Guid Id,
-    string DisplayName,
-    string? Email,
-    IReadOnlyList<string> Sisterhoods);
 
 public record WineSurferBiggestSplashWine(
     Guid WineId,

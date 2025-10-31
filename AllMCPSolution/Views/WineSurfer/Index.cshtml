@@ -1228,14 +1228,12 @@
             CancelButtonLabel: "Cancel");
     }
     var isAuthenticated = Model.CurrentUser is not null;
-    var connectedUsers = Model.ConnectedUsers ?? Array.Empty<WineSurferConnectedUser>();
     var suggestedAppellations = Model.SuggestedAppellations ?? Array.Empty<WineSurferSuggestedAppellation>();
     var suggestionsWithWines = suggestedAppellations
         .Where(suggestion => suggestion.Wines.Count > 0)
         .ToList();
     var hasSuggestedWines = suggestionsWithWines.Count > 0;
     var upcomingSipSessionBottles = new List<(Guid SisterhoodId, Guid SessionId, WineSurferSipSessionBottle Bottle)>();
-    var canShareBottles = isAuthenticated && connectedUsers.Count > 0;
     if (Model.UpcomingSipSessions is { Count: > 0 })
     {
         foreach (var upcoming in Model.UpcomingSipSessions)
@@ -1357,20 +1355,6 @@
                     <section class="upcoming-session-bottles" aria-label="Bottles from upcoming sip sessions">
                         <div class="upcoming-session-bottles-header section-header">
                             <h2 class="section-title">Upcoming session bottles</h2>
-                            @if (isAuthenticated)
-                            {
-                                var shareButtonTitle = canShareBottles
-                                    ? "Share bottles with your sisterhood connections."
-                                    : "Invite sisterhood members to enable bottle sharing.";
-                                <button type="button"
-                                        class="sisterhood-button share-bottle-button"
-                                        data-share-bottle-trigger="true"
-                                        aria-haspopup="dialog"
-                                        aria-controls="choose-bottles-modal"
-                                        title="@shareButtonTitle">
-                                    Share bottle
-                                </button>
-                            }
                         </div>
                         @if (hasUpcomingSipSessionBottles)
                         {
@@ -2740,18 +2724,6 @@
                 });
         })();
     </script>
-    @await Html.PartialAsync("_ChooseBottlesFromInventory")
-    @await Html.PartialAsync("_ChooseBottleShareRecipients")
-    <script id="shareBottleUserData" type="application/json">
-        @Html.Raw(JsonSerializer.Serialize(connectedUsers.Select(user => new
-        {
-            user.Id,
-            user.DisplayName,
-            user.Email,
-            Sisterhoods = user.Sisterhoods ?? Array.Empty<string>()
-        }), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
-    </script>
-    <script src="/js/share-bottle-flow.js" defer></script>
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>
