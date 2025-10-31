@@ -33,6 +33,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<TasteProfile> TasteProfiles { get; set; }
     public DbSet<Wishlist> Wishlists { get; set; }
     public DbSet<WineVintageWish> WineVintageWishes { get; set; }
+    public DbSet<BottleShare> BottleShares { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -242,6 +243,31 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .WithMany(u => u.Bottles)
                 .HasForeignKey(b => b.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<BottleShare>(entity =>
+        {
+            entity.Property(share => share.SharedAt)
+                .HasColumnType("datetime2")
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+
+            entity.HasIndex(share => new { share.BottleId, share.SharedWithUserId })
+                .IsUnique();
+
+            entity.HasOne(share => share.Bottle)
+                .WithMany(bottle => bottle.Shares)
+                .HasForeignKey(share => share.BottleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(share => share.SharedByUser)
+                .WithMany(user => user.GrantedBottleShares)
+                .HasForeignKey(share => share.SharedByUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(share => share.SharedWithUser)
+                .WithMany(user => user.ReceivedBottleShares)
+                .HasForeignKey(share => share.SharedWithUserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<BottleLocation>(e =>

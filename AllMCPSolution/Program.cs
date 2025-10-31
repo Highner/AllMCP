@@ -62,6 +62,7 @@ builder.Services.AddScoped<IWishlistRepository, WishlistRepository>();
 builder.Services.AddScoped<IWineVintageWishRepository, WineVintageWishRepository>();
 builder.Services.AddScoped<IBottleRepository, BottleRepository>();
 builder.Services.AddScoped<IBottleLocationRepository, BottleLocationRepository>();
+builder.Services.AddScoped<IBottleShareRepository, BottleShareRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITasteProfileRepository, TasteProfileRepository>();
 builder.Services.AddScoped<ITastingNoteRepository, TastingNoteRepository>();
