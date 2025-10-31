@@ -122,8 +122,15 @@
         @@media (min-width: 900px) {
             .sisterhood-card__grid { grid-template-columns: 1fr 1fr; align-items: start; }
         }
-        .sisterhood-header { display: flex; align-items: center; gap: 18px; }
+        .sisterhood-header {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            grid-template-areas: "avatar details actions";
+            align-items: center;
+            gap: 18px;
+        }
         .sisterhood-card__avatar {
+            grid-area: avatar;
             width: 72px;
             height: 72px;
             border-radius: 20px;
@@ -845,15 +852,22 @@
         }
 
         .sisterhood-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            grid-template-areas: "avatar details actions";
+            align-items: center;
             gap: 12px;
+        }
+
+        .sisterhood-header__details {
+            grid-area: details;
+            min-width: 0;
         }
 
         .sisterhood-actions {
             display: flex;
             justify-content: flex-end;
+            grid-area: actions;
         }
 
         .member-list {
@@ -875,6 +889,7 @@
             border: 1px solid var(--wine-surface-border);
             background: rgba(244, 241, 234, 0.04);
         }
+
 
         .member-identity {
             display: flex;
@@ -1626,15 +1641,21 @@
             }
 
             .sisterhood-header {
-                flex-direction: column;
+                grid-template-columns: 1fr auto;
+                grid-template-areas:
+                    "details actions"
+                    "avatar avatar";
                 align-items: flex-start;
                 gap: 16px;
             }
 
+            .sisterhood-card__avatar {
+                justify-self: start;
+            }
+
             .sisterhood-actions {
-                align-self: stretch;
-                width: 100%;
-                justify-content: flex-end;
+                align-self: flex-start;
+                width: auto;
             }
         }
     </style>
@@ -1819,7 +1840,7 @@
                                     <span class="sisterhood-card__avatar-placeholder" data-sisterhood-photo-placeholder="@sisterhood.Id">@sisterhoodInitial</span>
                                 }
                             </div>
-                            <div>
+                            <div class="sisterhood-header__details">
                                 <h2 class="sisterhood-name wine-card__title">@sisterhood.Name</h2>
                                 <p class="sisterhood-members wine-card__subtitle">
                                     @sisterhood.MemberCount @((sisterhood.MemberCount == 1) ? "member" : "members")
