@@ -252,6 +252,21 @@
     updateSelectionState();
   }
 
+  function hasNativeFormAction(){
+    if(!state.form){
+      return false;
+    }
+    const action = state.form.getAttribute('action');
+    if(!action){
+      return false;
+    }
+    const trimmed = action.trim();
+    if(trimmed.length === 0 || trimmed === '#'){
+      return false;
+    }
+    return true;
+  }
+
   function onFormSubmit(event){
     const selectedIds = getSelectedIds();
     const submitEvent = new CustomEvent('sisterhood-user-select:submit', {
@@ -259,10 +274,12 @@
         selectedIds,
         submitter: event.submitter || null
       },
+      bubbles: true,
       cancelable: true
     });
     const proceed = state.form.dispatchEvent(submitEvent);
-    if(!proceed || state.items.length === 0){
+    const allowNativeSubmit = proceed && state.items.length > 0 && hasNativeFormAction();
+    if(!allowNativeSubmit){
       event.preventDefault();
     }
   }
