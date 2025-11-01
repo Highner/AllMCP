@@ -12,6 +12,10 @@
     Layout = null;
     var inventoryAddModalModel = ViewData["InventoryAddModal"] as InventoryAddModalViewModel
         ?? new InventoryAddModalViewModel();
+    var wineWizardModalModel = ViewData["WineWizardModal"] as WineWizardViewModel
+        ?? new WineWizardViewModel();
+    wineWizardModalModel.InventoryAddModal = inventoryAddModalModel;
+    wineWizardModalModel.SisterhoodUserSelectModal ??= new SisterhoodUserSelectModalViewModel();
 }
 
 @functions {
@@ -1355,6 +1359,14 @@
                     <section class="upcoming-session-bottles" aria-label="Bottles from upcoming sip sessions">
                         <div class="upcoming-session-bottles-header section-header">
                             <h2 class="section-title">Upcoming session bottles</h2>
+                            @if (isAuthenticated)
+                            {
+                                <button type="button"
+                                        class="sisterhood-button"
+                                        data-share-bottles-button>
+                                    Share bottles
+                                </button>
+                            }
                         </div>
                         @if (hasUpcomingSipSessionBottles)
                         {
@@ -1522,7 +1534,7 @@
             </div>
             @if (isAuthenticated)
             {
-                @await Html.PartialAsync("_InventoryAddModal", inventoryAddModalModel)
+                @await Html.PartialAsync("_WineWizardModal", wineWizardModalModel)
                 if (drinkBottleModalModel is not null)
                 {
                     @await Html.PartialAsync("_DrinkBottleModal", drinkBottleModalModel)
@@ -1861,6 +1873,62 @@
                                     : 'Unable to open add wine modal.';
                                 showMessage(message, 'error');
                             }
+                        });
+                    })();
+                </script>
+            }
+            @if (isAuthenticated)
+            {
+                <script defer src="/js/sisterhood-user-select-modal.js"></script>
+                <script>
+                    (function () {
+                        const shareButton = document.querySelector('[data-share-bottles-button]');
+                        if (!shareButton) {
+                            return;
+                        }
+
+                        const setBusy = (isBusy) => {
+                            if (isBusy) {
+                                shareButton.dataset.state = 'loading';
+                                shareButton.setAttribute('aria-busy', 'true');
+                                shareButton.setAttribute('disabled', 'disabled');
+                            } else {
+                                delete shareButton.dataset.state;
+                                shareButton.removeAttribute('aria-busy');
+                                shareButton.removeAttribute('disabled');
+                            }
+                        };
+
+                        shareButton.addEventListener('click', (event) => {
+                            event.preventDefault();
+
+                            if (!window.WineWizard || typeof window.WineWizard.start !== 'function') {
+                                window.alert('Sharing bottles is unavailable right now.');
+                                return;
+                            }
+
+                            if (shareButton.dataset.state === 'loading') {
+                                return;
+                            }
+
+                            setBusy(true);
+
+                            Promise.resolve(window.WineWizard.start())
+                                .catch((error) => {
+                                    const message = (error && typeof error.message === 'string')
+                                        ? error.message
+                                        : 'Sharing bottles is unavailable right now.';
+                                    const normalized = message.toLowerCase();
+                                    if (normalized.includes('cancelled') || normalized.includes('already running')) {
+                                        return;
+                                    }
+
+                                    console.error(error);
+                                    window.alert(message);
+                                })
+                                .finally(() => {
+                                    setBusy(false);
+                                });
                         });
                     })();
                 </script>
