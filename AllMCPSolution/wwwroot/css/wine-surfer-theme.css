@@ -259,7 +259,12 @@ body.wine-app--with-bottom-nav {
     pointer-events: none;
     background: var(--wine-surface-highlight);
     opacity: 0;
+    border-radius: inherit;
     transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.wine-card-hover[data-action-menu-open] {
+    overflow: visible;
 }
 
 .wine-card-hover:hover::after,
