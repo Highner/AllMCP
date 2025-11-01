@@ -2,6 +2,7 @@
 @using AllMCPSolution.Controllers
 @using AllMCPSolution.Models
 @using Microsoft.AspNetCore.Mvc.ViewFeatures
+@using System
 @using System.Collections.Generic
 @using System.Globalization
 @using System.Linq
@@ -1539,7 +1540,22 @@
                                                         <span class="shared-bottle-label-date">on @sharedDateLabel at @sharedTimeLabel</span>
                                                     </p>
                                                     @{
-                                                        var bottleViewData = CreateBottleCardViewData(null, null, false);
+                                                        var sharedContextSisterhoodId = shared.ContextSisterhoodId;
+                                                        if (sharedContextSisterhoodId.HasValue && sharedContextSisterhoodId.Value == Guid.Empty)
+                                                        {
+                                                            sharedContextSisterhoodId = null;
+                                                        }
+
+                                                        var sharedContextSipSessionId = shared.ContextSipSessionId;
+                                                        if (sharedContextSipSessionId.HasValue && sharedContextSipSessionId.Value == Guid.Empty)
+                                                        {
+                                                            sharedContextSipSessionId = null;
+                                                        }
+
+                                                        var bottleViewData = CreateBottleCardViewData(
+                                                            sharedContextSisterhoodId,
+                                                            sharedContextSipSessionId,
+                                                            isAuthenticated);
                                                         @await Html.PartialAsync("_BottleCard", sharedBottle, bottleViewData);
                                                     }
                                                 </div>
@@ -1575,7 +1591,22 @@
                                                         <span class="shared-bottle-label-date">on @sharedDateLabel at @sharedTimeLabel</span>
                                                     </p>
                                                     @{
-                                                        var bottleViewData = CreateBottleCardViewData(null, null, false);
+                                                        var sharedContextSisterhoodId = shared.ContextSisterhoodId;
+                                                        if (sharedContextSisterhoodId.HasValue && sharedContextSisterhoodId.Value == Guid.Empty)
+                                                        {
+                                                            sharedContextSisterhoodId = null;
+                                                        }
+
+                                                        var sharedContextSipSessionId = shared.ContextSipSessionId;
+                                                        if (sharedContextSipSessionId.HasValue && sharedContextSipSessionId.Value == Guid.Empty)
+                                                        {
+                                                            sharedContextSipSessionId = null;
+                                                        }
+
+                                                        var bottleViewData = CreateBottleCardViewData(
+                                                            sharedContextSisterhoodId,
+                                                            sharedContextSipSessionId,
+                                                            isAuthenticated);
                                                         @await Html.PartialAsync("_BottleCard", sharedBottle, bottleViewData);
                                                     }
                                                 </div>
