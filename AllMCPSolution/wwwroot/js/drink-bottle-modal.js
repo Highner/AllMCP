@@ -546,7 +546,6 @@
         const openModal = (openOptions = {}) => {
             const {
                 context = 'external',
-                card = null,
                 label = '',
                 bottleId = '',
                 noteId = '',
@@ -559,22 +558,13 @@
                 external = null,
                 initialFocus = null,
                 noteOnly = false,
-                notTasted = false,
-                sisterhoodId = '',
-                sipSessionId = ''
+                notTasted = false
             } = openOptions;
 
             resetCloseTimer();
             contextState.context = context;
-            contextState.card = card ?? null;
-            const normalizedSisterhood = typeof sisterhoodId === 'string' ? sisterhoodId.trim() : '';
-            const normalizedSession = typeof sipSessionId === 'string' ? sipSessionId.trim() : '';
-            contextState.data = {
-                bottleId,
-                noteId,
-                sisterhoodId: normalizedSisterhood,
-                sipSessionId: normalizedSession
-            };
+            contextState.card = openOptions.card ?? null;
+            contextState.data = { bottleId, noteId };
             contextState.external = external;
             contextState.requireDate = Boolean(requireDate);
             contextState.noteOnly = Boolean(noteOnly);
@@ -704,9 +694,7 @@
                 mode: hasExisting ? 'edit' : 'create',
                 card,
                 noteOnly: isNoteOnly,
-                notTasted,
-                sisterhoodId: sisterhoodContext,
-                sipSessionId: sessionContext
+                notTasted
             });
         };
 
@@ -826,59 +814,18 @@
             };
 
             const dataset = card.dataset ?? {};
-            const stored = contextState.data ?? {};
-            const sisterhoodFallback = fallback(dataset.sisterhoodId, 'data-sisterhood-id')
-                || (typeof stored.sisterhoodId === 'string' ? stored.sisterhoodId : '');
-            const sessionFallback = fallback(dataset.sipSessionId, 'data-sip-session-id')
-                || (typeof stored.sipSessionId === 'string' ? stored.sipSessionId : '');
-            const bottleFallback = fallback(dataset.bottleId, 'data-bottle-id')
-                || (typeof stored.bottleId === 'string' ? stored.bottleId : '');
-
-            assignIfMissing(hiddenSisterhood, sisterhoodFallback);
-            assignIfMissing(hiddenSession, sessionFallback);
-            assignIfMissing(hiddenBottle, bottleFallback);
+            assignIfMissing(hiddenSisterhood, fallback(dataset.sisterhoodId, 'data-sisterhood-id'));
+            assignIfMissing(hiddenSession, fallback(dataset.sipSessionId, 'data-sip-session-id'));
+            assignIfMissing(hiddenBottle, fallback(dataset.bottleId, 'data-bottle-id'));
         };
 
         const submitSipSession = async (noteValue, scoreValue) => {
             const card = contextState.card;
             ensureSipSessionContext();
-            const stored = contextState.data ?? {};
-            let sisterhoodId = hiddenSisterhood?.value ?? '';
-            let sessionId = hiddenSession?.value ?? '';
-            let bottleId = hiddenBottle?.value ?? '';
+            const sisterhoodId = hiddenSisterhood?.value ?? '';
+            const sessionId = hiddenSession?.value ?? '';
+            const bottleId = hiddenBottle?.value ?? '';
             const token = tokenInput?.value ?? '';
-
-            const normalize = (value) => typeof value === 'string' ? value.trim() : '';
-
-            if (!sisterhoodId) {
-                if (normalize(stored.sisterhoodId)) {
-                    sisterhoodId = normalize(stored.sisterhoodId);
-                } else if (card instanceof HTMLElement) {
-                    sisterhoodId = normalize(card.dataset?.sisterhoodId ?? card.getAttribute('data-sisterhood-id'));
-                }
-            } else {
-                sisterhoodId = normalize(sisterhoodId);
-            }
-
-            if (!sessionId) {
-                if (normalize(stored.sipSessionId)) {
-                    sessionId = normalize(stored.sipSessionId);
-                } else if (card instanceof HTMLElement) {
-                    sessionId = normalize(card.dataset?.sipSessionId ?? card.getAttribute('data-sip-session-id'));
-                }
-            } else {
-                sessionId = normalize(sessionId);
-            }
-
-            if (!bottleId) {
-                if (normalize(stored.bottleId)) {
-                    bottleId = normalize(stored.bottleId);
-                } else if (card instanceof HTMLElement) {
-                    bottleId = normalize(card.dataset?.bottleId ?? card.getAttribute('data-bottle-id'));
-                }
-            } else {
-                bottleId = normalize(bottleId);
-            }
 
             if (!card || !sisterhoodId || !sessionId || !bottleId) {
                 showFeedback('Missing sip session context. Please refresh and try again.');
