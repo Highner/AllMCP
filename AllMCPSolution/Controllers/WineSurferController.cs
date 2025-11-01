@@ -10,6 +10,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AllMCPSolution.Models;
 using AllMCPSolution.Services;
 using AllMCPSolution.Utilities;
 using Microsoft.Extensions.Logging;
@@ -47,6 +48,7 @@ public class WineSurferController : WineSurferControllerBase
     private readonly ITastingNoteRepository _tastingNoteRepository;
     private readonly IChatGptService _chatGptService;
     private readonly IChatGptPromptService _chatGptPromptService;
+    private readonly ISisterhoodConnectionService _connectionService;
     private static readonly TimeSpan SentInvitationNotificationWindow = TimeSpan.FromDays(7);
 
 
@@ -81,6 +83,7 @@ public class WineSurferController : WineSurferControllerBase
         IChatGptPromptService chatGptPromptService,
         IWineSurferTopBarService topBarService,
         ISuggestedAppellationService suggestedAppellationService,
+        ISisterhoodConnectionService connectionService,
         ILogger<WineSurferController> logger,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
@@ -96,6 +99,7 @@ public class WineSurferController : WineSurferControllerBase
         _chatGptPromptService = chatGptPromptService;
         _topBarService = topBarService;
         _suggestedAppellationService = suggestedAppellationService;
+        _connectionService = connectionService;
         _logger = logger;
     }
 
@@ -402,6 +406,7 @@ public class WineSurferController : WineSurferControllerBase
         }
 
         await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken);
+        await SetWineWizardViewDataAsync(currentUserId, cancellationToken);
 
         var winesToDrink = upcomingSipSessions
             .SelectMany(s => s.Session.Bottles ?? Array.Empty<WineSurferSipSessionBottle>())
@@ -2886,6 +2891,47 @@ public class WineSurferController : WineSurferControllerBase
         }
 
         ViewData["InventoryAddModal"] = viewModel;
+    }
+
+    private async Task SetWineWizardViewDataAsync(Guid? currentUserId, CancellationToken cancellationToken)
+    {
+        var inventoryViewModel = ViewData["InventoryAddModal"] as InventoryAddModalViewModel
+            ?? new InventoryAddModalViewModel();
+
+        ViewData["InventoryAddModal"] = inventoryViewModel;
+
+        SisterhoodUserSelectModalViewModel sisterhoodModal;
+
+        if (!currentUserId.HasValue)
+        {
+            sisterhoodModal = new SisterhoodUserSelectModalViewModel();
+        }
+        else
+        {
+            var connections = await _connectionService.GetConnectionsAsync(currentUserId.Value, cancellationToken);
+
+            sisterhoodModal = new SisterhoodUserSelectModalViewModel
+            {
+                Users = connections,
+                IntroText = "Pick the fellow surfers to share these bottles with.",
+                FilterLabel = "Filter fellow surfers",
+                FilterPlaceholder = "Search by name, email, or sisterhood",
+                SubmitButtonText = "Share bottles",
+                SubmitButtonAriaLabel = "Share selected bottles",
+                NoUsersMessage = "You don't have any fellow surfers yet. Join a sisterhood to start sharing wines.",
+                StatusEmptyMessage = "No fellow surfers selected.",
+                StatusSingularFormat = "{0} fellow surfer selected.",
+                StatusPluralFormat = "{0} fellow surfers selected."
+            };
+        }
+
+        var wizardModel = new WineWizardViewModel
+        {
+            InventoryAddModal = inventoryViewModel,
+            SisterhoodUserSelectModal = sisterhoodModal
+        };
+
+        ViewData["WineWizardModal"] = wizardModel;
     }
 
 
