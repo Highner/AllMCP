@@ -1479,11 +1479,9 @@
 
                             @if (hasSharedBottles)
                             {
-                                @{
-                                    var sharedGroupClass = hasUpcomingSipSessionBottles
-                                        ? "shared-bottle-group shared-bottle-group--with-upcoming"
-                                        : "shared-bottle-group";
-                                }
+                                var sharedGroupClass = hasUpcomingSipSessionBottles
+                                    ? "shared-bottle-group shared-bottle-group--with-upcoming"
+                                    : "shared-bottle-group";
 
                                 @if (hasSharedWithYouBottles)
                                 {
