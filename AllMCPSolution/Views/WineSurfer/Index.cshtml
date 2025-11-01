@@ -2,6 +2,7 @@
 @using AllMCPSolution.Controllers
 @using AllMCPSolution.Models
 @using Microsoft.AspNetCore.Mvc.ViewFeatures
+@using System
 @using System.Collections.Generic
 @using System.Globalization
 @using System.Linq
@@ -1539,7 +1540,23 @@
                                                         <span class="shared-bottle-label-date">on @sharedDateLabel at @sharedTimeLabel</span>
                                                     </p>
                                                     @{
-                                                        var bottleViewData = CreateBottleCardViewData(null, null, false);
+                                                        var sharedContextSisterhoodId = shared.ContextSisterhoodId;
+                                                        var sharedContextSipSessionId = shared.ContextSipSessionId;
+                                                        var allowSharedInteraction = isAuthenticated
+                                                            && sharedContextSisterhoodId.HasValue
+                                                            && sharedContextSipSessionId.HasValue
+                                                            && sharedContextSisterhoodId.Value != Guid.Empty
+                                                            && sharedContextSipSessionId.Value != Guid.Empty;
+                                                        if (!allowSharedInteraction)
+                                                        {
+                                                            sharedContextSisterhoodId = null;
+                                                            sharedContextSipSessionId = null;
+                                                        }
+
+                                                        var bottleViewData = CreateBottleCardViewData(
+                                                            sharedContextSisterhoodId,
+                                                            sharedContextSipSessionId,
+                                                            allowSharedInteraction);
                                                         @await Html.PartialAsync("_BottleCard", sharedBottle, bottleViewData);
                                                     }
                                                 </div>
@@ -1575,7 +1592,23 @@
                                                         <span class="shared-bottle-label-date">on @sharedDateLabel at @sharedTimeLabel</span>
                                                     </p>
                                                     @{
-                                                        var bottleViewData = CreateBottleCardViewData(null, null, false);
+                                                        var sharedContextSisterhoodId = shared.ContextSisterhoodId;
+                                                        var sharedContextSipSessionId = shared.ContextSipSessionId;
+                                                        var allowSharedInteraction = isAuthenticated
+                                                            && sharedContextSisterhoodId.HasValue
+                                                            && sharedContextSipSessionId.HasValue
+                                                            && sharedContextSisterhoodId.Value != Guid.Empty
+                                                            && sharedContextSipSessionId.Value != Guid.Empty;
+                                                        if (!allowSharedInteraction)
+                                                        {
+                                                            sharedContextSisterhoodId = null;
+                                                            sharedContextSipSessionId = null;
+                                                        }
+
+                                                        var bottleViewData = CreateBottleCardViewData(
+                                                            sharedContextSisterhoodId,
+                                                            sharedContextSipSessionId,
+                                                            allowSharedInteraction);
                                                         @await Html.PartialAsync("_BottleCard", sharedBottle, bottleViewData);
                                                     }
                                                 </div>

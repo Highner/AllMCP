@@ -3539,13 +3539,34 @@ private static IReadOnlyList<WineSurferSharedBottle> CreateSharedBottleSummaries
             sharedWithDisplayName = "You";
         }
 
+        Guid? contextSisterhoodId = null;
+        Guid? contextSipSessionId = null;
+
+        var sipSessionBottle = share.Bottle?.SipSessions?
+            .FirstOrDefault(sessionBottle => sessionBottle?.SipSession is not null);
+        var sipSession = sipSessionBottle?.SipSession;
+        if (sipSession is not null)
+        {
+            if (sipSession.Id != Guid.Empty)
+            {
+                contextSipSessionId = sipSession.Id;
+            }
+
+            if (sipSession.SisterhoodId != Guid.Empty)
+            {
+                contextSisterhoodId = sipSession.SisterhoodId;
+            }
+        }
+
         results.Add(new WineSurferSharedBottle(
             share.Id,
             summary,
             sharedByDisplayName,
             sharedWithDisplayName,
             share.SharedAt,
-            isSharedByCurrentUser));
+            isSharedByCurrentUser,
+            contextSisterhoodId,
+            contextSipSessionId));
     }
 
     if (results.Count == 0)
@@ -4249,7 +4270,9 @@ public record WineSurferSharedBottle(
     string? SharedByDisplayName,
     string? SharedWithDisplayName,
     DateTime SharedAtUtc,
-    bool IsSharedByCurrentUser);
+    bool IsSharedByCurrentUser,
+    Guid? ContextSisterhoodId,
+    Guid? ContextSipSessionId);
 
 public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter, string? ProfilePhotoUrl);
 
