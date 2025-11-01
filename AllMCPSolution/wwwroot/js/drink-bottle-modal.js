@@ -1073,14 +1073,12 @@
             '[data-sip-session-remove-form]'
         ].join(', ');
 
-        const resolveInteractiveCard = (source) => {
-            let element = source instanceof Element ? source : null;
-
-            if (!element && source instanceof Node && source.nodeType === Node.TEXT_NODE) {
-                element = source.parentElement;
+        const tryResolveCardFromElement = (element) => {
+            if (!(element instanceof Element)) {
+                return null;
             }
 
-            if (!(element instanceof Element)) {
+            if (element.closest('.drink-bottle-popover')) {
                 return null;
             }
 
@@ -1096,12 +1094,41 @@
             return card;
         };
 
+        const resolveInteractiveCard = (eventOrTarget) => {
+            const path = typeof eventOrTarget?.composedPath === 'function'
+                ? eventOrTarget.composedPath()
+                : null;
+
+            if (Array.isArray(path)) {
+                for (const item of path) {
+                    const cardFromPath = tryResolveCardFromElement(item);
+                    if (cardFromPath) {
+                        return cardFromPath;
+                    }
+                }
+            }
+
+            const rawTarget = eventOrTarget?.target ?? eventOrTarget;
+
+            if (rawTarget instanceof Element) {
+                return tryResolveCardFromElement(rawTarget);
+            }
+
+            if (typeof Node !== 'undefined'
+                && rawTarget instanceof Node
+                && rawTarget.nodeType === Node.TEXT_NODE) {
+                return tryResolveCardFromElement(rawTarget.parentElement);
+            }
+
+            return null;
+        };
+
         document.addEventListener('click', (event) => {
             if (loading) {
                 return;
             }
 
-            const card = resolveInteractiveCard(event.target);
+            const card = resolveInteractiveCard(event);
             if (!card) {
                 return;
             }
@@ -1115,7 +1142,7 @@
                 return;
             }
 
-            const card = resolveInteractiveCard(event.target);
+            const card = resolveInteractiveCard(event);
             if (!card) {
                 return;
             }
