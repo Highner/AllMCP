@@ -1261,6 +1261,10 @@
     var requestPath = Context.Request.Path.HasValue ? Context.Request.Path.Value : string.Empty;
     var requestQuery = Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value : string.Empty;
     var currentLocation = string.Concat(requestPath, requestQuery);
+    if (!string.IsNullOrWhiteSpace(currentLocation))
+    {
+        ViewData["ReturnUrl"] = currentLocation;
+    }
     var topBarModel = (ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel)
         ?? WineSurferTopBarModel.CreateFromSisterhoodData(
             currentLocation,
@@ -1354,11 +1358,16 @@
 
     ViewData["IsAuthenticated"] = isAuthenticated;
 
-    ViewDataDictionary CreateBottleCardViewData(Guid? contextSisterhoodId, Guid? contextSipSessionId, bool allowInteraction)
+    ViewDataDictionary CreateBottleCardViewData(
+        Guid? contextSisterhoodId,
+        Guid? contextSipSessionId,
+        bool allowInteraction,
+        bool allowShareRemoval = false)
     {
         var bottleViewData = new ViewDataDictionary(ViewData)
         {
-            ["IsAuthenticated"] = allowInteraction
+            ["IsAuthenticated"] = allowInteraction,
+            ["AllowBottleShareRemoval"] = allowShareRemoval
         };
 
         if (contextSisterhoodId.HasValue)
@@ -1555,7 +1564,8 @@
                                                         var bottleViewData = CreateBottleCardViewData(
                                                             sharedContextSisterhoodId,
                                                             sharedContextSipSessionId,
-                                                            isAuthenticated);
+                                                            isAuthenticated,
+                                                            allowShareRemoval: shared.IsSharedByCurrentUser);
                                                         @await Html.PartialAsync("_BottleCard", sharedBottle, bottleViewData);
                                                     }
                                                 </div>
@@ -1606,7 +1616,8 @@
                                                         var bottleViewData = CreateBottleCardViewData(
                                                             sharedContextSisterhoodId,
                                                             sharedContextSipSessionId,
-                                                            isAuthenticated);
+                                                            isAuthenticated,
+                                                            allowShareRemoval: shared.IsSharedByCurrentUser);
                                                         @await Html.PartialAsync("_BottleCard", sharedBottle, bottleViewData);
                                                     }
                                                 </div>
