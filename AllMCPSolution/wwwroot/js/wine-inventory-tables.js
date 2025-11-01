@@ -65,6 +65,25 @@
         const inventoryInlineRowTemplate = document.getElementById('inventory-wine-vintage-row-template');
         const vintageSummaryCache = new Map();
         let expandedInventoryRow = null;
+        let activeActionMenu = null;
+        let actionMenuEventsBound = false;
+
+        function setActionMenuCardOverflow(menu, isOpen) {
+            if (!(menu instanceof HTMLElement)) {
+                return;
+            }
+
+            const card = menu.closest('.wine-card-hover');
+            if (!card) {
+                return;
+            }
+
+            if (isOpen) {
+                card.setAttribute('data-action-menu-open', '');
+            } else {
+                card.removeAttribute('data-action-menu-open');
+            }
+        }
 
 
         if (inventoryTable && inventoryInlineTemplate && inventoryInlineRowTemplate) {
@@ -79,6 +98,148 @@
                 collapseInventoryRow(expandedInventoryRow);
             }
         };
+
+        function closeActionMenu(menu, { focusTrigger = false } = {}) {
+            if (!(menu instanceof HTMLElement) || !menu.hasAttribute('data-open')) {
+                return;
+            }
+
+            const trigger = menu.querySelector('[data-action-menu-trigger]');
+            const content = menu.querySelector('[data-action-menu-content]');
+
+            if (content) {
+                content.setAttribute('hidden', '');
+            }
+
+            if (trigger) {
+                trigger.setAttribute('aria-expanded', 'false');
+                if (focusTrigger) {
+                    window.requestAnimationFrame(() => trigger.focus());
+                }
+            }
+
+            menu.removeAttribute('data-open');
+            setActionMenuCardOverflow(menu, false);
+
+            if (activeActionMenu === menu) {
+                activeActionMenu = null;
+            }
+        }
+
+        function bindActionMenuGlobalHandlers() {
+            if (actionMenuEventsBound) {
+                return;
+            }
+
+            document.addEventListener('click', (event) => {
+                const target = event.target instanceof Element ? event.target : null;
+
+                if (activeActionMenu && (!target || !activeActionMenu.contains(target))) {
+                    closeActionMenu(activeActionMenu);
+                }
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && activeActionMenu) {
+                    closeActionMenu(activeActionMenu, { focusTrigger: true });
+                }
+            });
+
+            actionMenuEventsBound = true;
+        }
+
+        function initializeActionMenu(menu) {
+            if (!(menu instanceof HTMLElement) || menu.dataset.actionMenuBound === 'true') {
+                return;
+            }
+
+            const trigger = menu.querySelector('[data-action-menu-trigger]');
+            const content = menu.querySelector('[data-action-menu-content]');
+
+            if (!trigger || !content) {
+                return;
+            }
+
+            menu.dataset.actionMenuBound = 'true';
+
+            trigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const isOpen = menu.hasAttribute('data-open');
+
+                if (activeActionMenu && activeActionMenu !== menu) {
+                    closeActionMenu(activeActionMenu);
+                }
+
+                if (isOpen) {
+                    closeActionMenu(menu);
+                } else {
+                    menu.setAttribute('data-open', '');
+                    trigger.setAttribute('aria-expanded', 'true');
+                    content.removeAttribute('hidden');
+                    setActionMenuCardOverflow(menu, true);
+                    activeActionMenu = menu;
+                }
+            });
+
+            content.addEventListener('click', (event) => {
+                event.stopPropagation();
+
+                const target = event.target instanceof Element
+                    ? event.target.closest('[data-action-menu-item]')
+                    : null;
+
+                if (target) {
+                    closeActionMenu(menu);
+                }
+            });
+
+            bindActionMenuGlobalHandlers();
+        }
+
+        function configureLocationActionMenu(card) {
+            if (!(card instanceof HTMLElement)) {
+                return;
+            }
+
+            const menu = card.querySelector('[data-action-menu]');
+            if (!menu) {
+                return;
+            }
+
+            const trigger = menu.querySelector('[data-action-menu-trigger]');
+            const content = menu.querySelector('[data-action-menu-content]');
+
+            if (!trigger || !content) {
+                return;
+            }
+
+            const locationId = card.dataset.locationId ?? '';
+            if (locationId) {
+                const menuId = `location-actions-menu-${locationId}`;
+                content.id = menuId;
+                trigger.setAttribute('aria-controls', menuId);
+            }
+
+            const displayName = (card.dataset.locationName ?? '').trim();
+            const triggerLabel = displayName
+                ? `Open actions for ${displayName}`
+                : 'Open storage location actions';
+            const menuLabel = displayName
+                ? `${displayName} actions`
+                : 'Storage location actions';
+
+            trigger.setAttribute('aria-label', triggerLabel);
+            const srLabel = trigger.querySelector('.sr-only');
+            if (srLabel) {
+                srLabel.textContent = triggerLabel;
+            }
+
+            content.setAttribute('aria-label', menuLabel);
+
+            initializeActionMenu(menu);
+        }
 
         function bindInventorySummaryRow(row) {
             if (!(row instanceof HTMLTableRowElement) || row.dataset.inlineBound === 'true') {
@@ -655,6 +816,8 @@
                 return;
             }
 
+            configureLocationActionMenu(card);
+
             const editButton = card.querySelector('[data-location-edit]');
             const deleteButton = card.querySelector('[data-location-delete]');
             const form = card.querySelector('[data-location-edit-form]');
@@ -903,6 +1066,11 @@
                 return;
             }
 
+            const menu = card.querySelector('[data-action-menu]');
+            if (menu) {
+                closeActionMenu(menu);
+            }
+
             card.remove();
             updateLocationEmptyState();
         }
@@ -1049,6 +1217,8 @@
             if (title) {
                 title.textContent = resolvedName;
             }
+
+            configureLocationActionMenu(card);
         }
 
         function setLocationCapacity(card, capacity) {
