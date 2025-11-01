@@ -71,6 +71,9 @@
     var noteIdAttribute = Model.CurrentUserNoteId.HasValue ? Model.CurrentUserNoteId.Value.ToString() : string.Empty;
     var canManageBottle = isOwnedByCurrentUser && sisterhoodId.HasValue && sipSessionId.HasValue;
     var canRevealBottle = canManageBottle && !isRevealed;
+    var allowBottleShareRemoval = ViewData["AllowBottleShareRemoval"] as bool? ?? false;
+    var hasValidBottleId = Model.Id != Guid.Empty;
+    var canRemoveBottleShare = allowBottleShareRemoval && isOwnedByCurrentUser && hasValidBottleId;
 
     Guid? contextSisterhoodId = ViewData["BottleContextSisterhoodId"] switch
     {
@@ -135,44 +138,66 @@
     {
         <p class="@noteCssClass" data-bottle-note-display>@noteDisplay</p>
     }
-    @if (canManageBottle)
+    @if (canManageBottle || canRemoveBottleShare)
     {
         <footer class="wine-card__actions bottle-card-actions">
-            @if (canRevealBottle)
+            @if (canManageBottle)
             {
+                @if (canRevealBottle)
+                {
+                    <form method="post"
+                          action="@Url.Action("RevealSipSessionBottle", "WineSurfer")"
+                          class="bottle-card-reveal-form"
+                          data-sip-session-reveal-form>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="SisterhoodId" value="@sisterhoodId.Value" />
+                        <input type="hidden" name="SipSessionId" value="@sipSessionId.Value" />
+                        <input type="hidden" name="BottleId" value="@Model.Id" />
+                        <button type="submit"
+                                class="sisterhood-button bottle-reveal-button"
+                                data-sip-session-reveal-button>
+                            Reveal bottle
+                        </button>
+                    </form>
+                }
                 <form method="post"
-                      action="@Url.Action("RevealSipSessionBottle", "WineSurfer")"
-                      class="bottle-card-reveal-form"
-                      data-sip-session-reveal-form>
+                      action="@Url.Action("RemoveSipSessionBottle", "WineSurfer")"
+                      data-sip-session-remove-form
+                      onsubmit="return confirm('@removeConfirmAttribute');">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="SisterhoodId" value="@sisterhoodId.Value" />
                     <input type="hidden" name="SipSessionId" value="@sipSessionId.Value" />
                     <input type="hidden" name="BottleId" value="@Model.Id" />
+                    @if (!string.IsNullOrWhiteSpace(returnUrl))
+                    {
+                        <input type="hidden" name="ReturnUrl" value="@returnUrl" />
+                    }
                     <button type="submit"
-                            class="sisterhood-button bottle-reveal-button"
-                            data-sip-session-reveal-button>
-                        Reveal bottle
+                            class="sisterhood-button sisterhood-button--danger"
+                            data-sip-session-remove-button>
+                        Remove bottle
                     </button>
                 </form>
             }
-            <form method="post"
-                  action="@Url.Action("RemoveSipSessionBottle", "WineSurfer")"
-                  data-sip-session-remove-form
-                  onsubmit="return confirm('@removeConfirmAttribute');">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="SisterhoodId" value="@sisterhoodId.Value" />
-                <input type="hidden" name="SipSessionId" value="@sipSessionId.Value" />
-                <input type="hidden" name="BottleId" value="@Model.Id" />
-                @if (!string.IsNullOrWhiteSpace(returnUrl))
-                {
-                    <input type="hidden" name="ReturnUrl" value="@returnUrl" />
-                }
-                <button type="submit"
-                        class="sisterhood-button sisterhood-button--danger"
-                        data-sip-session-remove-button>
-                    Remove bottle
-                </button>
-            </form>
+            @if (canRemoveBottleShare)
+            {
+                <form method="post"
+                      action="@Url.Action("RemoveBottleShares", "WineSurfer")"
+                      data-sip-session-remove-form
+                      onsubmit="return confirm('@removeConfirmAttribute');">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="BottleId" value="@Model.Id" />
+                    @if (!string.IsNullOrWhiteSpace(returnUrl))
+                    {
+                        <input type="hidden" name="ReturnUrl" value="@returnUrl" />
+                    }
+                    <button type="submit"
+                            class="sisterhood-button sisterhood-button--danger"
+                            data-sip-session-remove-button>
+                        Remove bottle
+                    </button>
+                </form>
+            }
         </footer>
     }
 </article>
