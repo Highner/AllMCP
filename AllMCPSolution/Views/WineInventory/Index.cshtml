@@ -59,17 +59,17 @@
             Title = "Your Cellar",
             AdditionalCssClass = "location-header--table",
             Actions = _ => new HtmlString($@"
-                <div class=\"inventory-section-header__filter\">
-                    <label class=\"sr-only\" for=\"your-cellar-filter\">Filter your cellar</label>
-                    <input type=\"search\"
-                           id=\"your-cellar-filter\"
-                           class=\"input inventory-section-header__filter-input\"
-                           placeholder=\"Filter wines\"
-                           autocomplete=\"off\"
-                           value=\"{headerFilterValue}\"
+                <div class=""inventory-section-header__filter"">
+                    <label class=""sr-only"" for=""your-cellar-filter"">Filter your cellar</label>
+                    <input type=""search""
+                           id=""your-cellar-filter""
+                           class=""input inventory-section-header__filter-input""
+                           placeholder=""Filter wines""
+                           autocomplete=""off""
+                           value=""{headerFilterValue}""
                            data-inventory-header-filter-input />
                 </div>
-                <button type=\"button\" class=\"wine-surfer-button wine-surfer-button--orange inventory-add-trigger\" data-add-wine-trigger=\"inventory\">Add wine</button>
+                <button type=""button"" class=""wine-surfer-button wine-surfer-button--orange inventory-add-trigger"" data-add-wine-trigger=""inventory"">Add wine</button>
             ")
         }).GetAwaiter().GetResult(),
         DataTableKey = "summary",
