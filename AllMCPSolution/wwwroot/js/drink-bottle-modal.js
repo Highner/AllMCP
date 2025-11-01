@@ -880,14 +880,20 @@
                 bottleId = normalize(bottleId);
             }
 
-            if (!card || !sisterhoodId || !sessionId || !bottleId) {
-                showFeedback('Missing sip session context. Please refresh and try again.');
+            // Allow saving notes without explicit sisterhood/session context as long as bottleId is known
+            if (!card || !bottleId) {
+                showFeedback('Missing bottle context. Please refresh and try again.');
                 return;
             }
 
             const payload = new URLSearchParams();
-            payload.set('SisterhoodId', sisterhoodId);
-            payload.set('SipSessionId', sessionId);
+            // Only include contextual identifiers if present; they are optional
+            if (sisterhoodId) {
+                payload.set('SisterhoodId', sisterhoodId);
+            }
+            if (sessionId) {
+                payload.set('SipSessionId', sessionId);
+            }
             payload.set('BottleId', bottleId);
             if (contextState.notTasted) {
                 payload.set('NotTasted', 'true');
