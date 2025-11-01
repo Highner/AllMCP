@@ -1066,53 +1066,95 @@
             }
         });
 
-        const allCards = Array.from(document.querySelectorAll('[data-sip-session-bottle-card]'));
-        const revealButtons = Array.from(document.querySelectorAll('[data-sip-session-reveal-button]'));
-        const revealForms = Array.from(document.querySelectorAll('[data-sip-session-reveal-form]'));
-        const removeButtons = Array.from(document.querySelectorAll('[data-sip-session-remove-button]'));
-        const removeForms = Array.from(document.querySelectorAll('[data-sip-session-remove-form]'));
-        const interactiveCards = allCards.filter(card => card.dataset.bottleInteractive !== 'false');
+        const bottleActionSelector = [
+            '[data-sip-session-reveal-button]',
+            '[data-sip-session-reveal-form]',
+            '[data-sip-session-remove-button]',
+            '[data-sip-session-remove-form]'
+        ].join(', ');
 
-        const attachBottleActionGuards = (buttons, forms) => {
-            buttons.forEach(button => {
-                button.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                });
+        const tryResolveCardFromElement = (element) => {
+            if (!(element instanceof Element)) {
+                return null;
+            }
 
-                button.addEventListener('keydown', (event) => {
-                    event.stopPropagation();
-                });
-            });
+            if (element.closest('.drink-bottle-popover')) {
+                return null;
+            }
 
-            forms.forEach(formElement => {
-                formElement.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                });
-            });
+            if (element.closest(bottleActionSelector)) {
+                return null;
+            }
+
+            const card = element.closest('[data-sip-session-bottle-card]');
+            if (!card || card.dataset.bottleInteractive === 'false') {
+                return null;
+            }
+
+            return card;
         };
 
-        attachBottleActionGuards(revealButtons, revealForms);
-        attachBottleActionGuards(removeButtons, removeForms);
+        const resolveInteractiveCard = (eventOrTarget) => {
+            const path = typeof eventOrTarget?.composedPath === 'function'
+                ? eventOrTarget.composedPath()
+                : null;
 
-        interactiveCards.forEach((card) => {
-            card.addEventListener('click', () => {
-                if (loading) {
-                    return;
-                }
-
-                contextState.card = card;
-                handleOpenFromCard(card);
-            });
-
-            card.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    if (!loading) {
-                        contextState.card = card;
-                        handleOpenFromCard(card);
+            if (Array.isArray(path)) {
+                for (const item of path) {
+                    const cardFromPath = tryResolveCardFromElement(item);
+                    if (cardFromPath) {
+                        return cardFromPath;
                     }
                 }
-            });
+            }
+
+            const rawTarget = eventOrTarget?.target ?? eventOrTarget;
+
+            if (rawTarget instanceof Element) {
+                return tryResolveCardFromElement(rawTarget);
+            }
+
+            if (typeof Node !== 'undefined'
+                && rawTarget instanceof Node
+                && rawTarget.nodeType === Node.TEXT_NODE) {
+                return tryResolveCardFromElement(rawTarget.parentElement);
+            }
+
+            return null;
+        };
+
+        document.addEventListener('click', (event) => {
+            if (loading) {
+                return;
+            }
+
+            const card = resolveInteractiveCard(event);
+            if (!card) {
+                return;
+            }
+
+            contextState.card = card;
+            handleOpenFromCard(card);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+            }
+
+            const card = resolveInteractiveCard(event);
+            if (!card) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (loading) {
+                return;
+            }
+
+            contextState.card = card;
+            handleOpenFromCard(card);
         });
     });
 })();
