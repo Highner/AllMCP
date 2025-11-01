@@ -2327,61 +2327,6 @@ public class WineSurferController : WineSurferControllerBase
     }
 
     [Authorize]
-    [HttpPost("bottles/remove-share")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemoveBottleShares(RemoveBottleSharesRequest request, CancellationToken cancellationToken)
-    {
-        if (!ModelState.IsValid || request is null || request.BottleId == Guid.Empty)
-        {
-            TempData["SisterhoodError"] = "We couldn't update that bottle share.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        var currentUserId = GetCurrentUserId();
-        if (!currentUserId.HasValue)
-        {
-            return Challenge();
-        }
-
-        var bottle = await _bottleRepository.GetByIdAsync(request.BottleId, cancellationToken);
-        if (bottle is null || !bottle.UserId.HasValue || bottle.UserId.Value != currentUserId.Value)
-        {
-            TempData["SisterhoodError"] = "We couldn't find that bottle.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        try
-        {
-            var removedCount = await _bottleShareRepository.DeleteForBottleOwnerAsync(
-                request.BottleId,
-                currentUserId.Value,
-                cancellationToken);
-
-            if (removedCount > 0)
-            {
-                var bottleLabel = CreateBottleLabel(bottle);
-                var noun = removedCount == 1 ? "share" : "shares";
-                TempData["SisterhoodStatus"] = $"Removed {noun} for {bottleLabel}.";
-            }
-            else
-            {
-                TempData["SisterhoodStatus"] = "There were no shares to remove for that bottle.";
-            }
-        }
-        catch (Exception)
-        {
-            TempData["SisterhoodError"] = "We couldn't update that bottle share right now. Please try again.";
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.ReturnUrl) && Url.IsLocalUrl(request.ReturnUrl))
-        {
-            return Redirect(request.ReturnUrl);
-        }
-
-        return RedirectToAction(nameof(Index));
-    }
-
-    [Authorize]
     [HttpPost("sisterhoods/sessions/reveal-bottle")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RevealSipSessionBottle(RevealSipSessionBottleRequest request, CancellationToken cancellationToken)
@@ -3314,15 +3259,6 @@ public class WineSurferController : WineSurferControllerBase
         [Required]
         public Guid BottleId { get; set; }
 
-        public string? ReturnUrl { get; set; }
-    }
-
-    public class RemoveBottleSharesRequest
-    {
-        [Required]
-        public Guid BottleId { get; set; }
-
-        [StringLength(512)]
         public string? ReturnUrl { get; set; }
     }
 
