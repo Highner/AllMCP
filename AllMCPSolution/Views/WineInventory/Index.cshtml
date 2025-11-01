@@ -529,34 +529,27 @@
             </template>
                 </section>
 
-                <section class="inventory-filters">
-                    <form method="get" class="filters">
-                        @(Html.PartialAsync("_InventorySectionHeader", new InventorySectionHeaderModel
-                        {
-                            Title = "Filters",
-                            Actions = _ => new HtmlString("<button type=\"submit\" class=\"wine-surfer-button wine-surfer-button--orange\">Apply</button>")
-                        }).GetAwaiter().GetResult())
-                        <label>
-                            Status
-                            <select name="status" data-default-value="all">
-                                @foreach (var option in Model.StatusOptions)
-                                {
-                                    var isSelected = string.Equals(option.Value, Model.Status, StringComparison.OrdinalIgnoreCase) ||
-                                                     (string.IsNullOrEmpty(option.Value) && string.Equals(Model.Status, "all", StringComparison.OrdinalIgnoreCase));
-                                    <option value="@option.Value" selected="@(isSelected ? "selected" : null)">@option.Label</option>
-                                }
-                            </select>
-                        </label>
-                        <label>
-                            Search
-                            <input type="text" name="search" value="@Model.Search" placeholder="Wine, appellation, vintage" data-default-value="" />
-                        </label>
-                        <input type="hidden" name="sortField" value="@Model.SortField" data-default-value="wine" />
-                        <input type="hidden" name="sortDir" value="@Model.SortDirection" data-default-value="asc" />
-                        <button type="button" class="wine-surfer-button wine-surfer-button--red filters__clear-button" data-clear-filters>Clear filters</button>
-                    </form>
-                </section>
             </div>
+
+            <form method="get" class="filters" hidden>
+                <input type="hidden"
+                       name="status"
+                       value="@(string.IsNullOrWhiteSpace(Model.Status) ? "all" : Model.Status)"
+                       data-default-value="all" />
+                <input type="hidden"
+                       name="search"
+                       value="@(Model.Search ?? string.Empty)"
+                       data-default-value="" />
+                <input type="hidden"
+                       name="sortField"
+                       value="@(Model.SortField ?? "wine")"
+                       data-default-value="wine" />
+                <input type="hidden"
+                       name="sortDir"
+                       value="@(Model.SortDirection ?? "asc")"
+                       data-default-value="asc" />
+            </form>
+
             <div class="inventory-right">
                 @if (!hasBottles)
                 {
