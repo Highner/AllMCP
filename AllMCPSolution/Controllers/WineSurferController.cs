@@ -43,6 +43,7 @@ public class WineSurferController : WineSurferControllerBase
     private readonly ISisterhoodInvitationRepository _sisterhoodInvitationRepository;
     private readonly ISipSessionRepository _sipSessionRepository;
     private readonly IBottleRepository _bottleRepository;
+    private readonly IBottleShareRepository _bottleShareRepository;
     private readonly IWineVintageEvolutionScoreRepository _evolutionScoreRepository;
     private readonly IBottleLocationRepository _bottleLocationRepository;
     private readonly ITastingNoteRepository _tastingNoteRepository;
@@ -76,6 +77,7 @@ public class WineSurferController : WineSurferControllerBase
         ISisterhoodInvitationRepository sisterhoodInvitationRepository,
         ISipSessionRepository sipSessionRepository,
         IBottleRepository bottleRepository,
+        IBottleShareRepository bottleShareRepository,
         IWineVintageEvolutionScoreRepository evolutionScoreRepository,
         IBottleLocationRepository bottleLocationRepository,
         ITastingNoteRepository tastingNoteRepository,
@@ -92,6 +94,7 @@ public class WineSurferController : WineSurferControllerBase
         _sisterhoodInvitationRepository = sisterhoodInvitationRepository;
         _sipSessionRepository = sipSessionRepository;
         _bottleRepository = bottleRepository;
+        _bottleShareRepository = bottleShareRepository;
         _evolutionScoreRepository = evolutionScoreRepository;
         _bottleLocationRepository = bottleLocationRepository;
         _tastingNoteRepository = tastingNoteRepository;
@@ -258,6 +261,7 @@ public class WineSurferController : WineSurferControllerBase
         IReadOnlyList<WineSurferSisterhoodOption> manageableSisterhoods = Array.Empty<WineSurferSisterhoodOption>();
         IReadOnlyList<WineSurferBiggestSplashWine> biggestSplashWines = Array.Empty<WineSurferBiggestSplashWine>();
         IReadOnlyList<WineSurferSipSessionBottle> favoriteBottles = Array.Empty<WineSurferSipSessionBottle>();
+        IReadOnlyList<WineSurferSharedBottle> sharedBottles = Array.Empty<WineSurferSharedBottle>();
         IReadOnlyCollection<Guid> inventoryWineIds = Array.Empty<Guid>();
         IReadOnlyCollection<WineSurferInventoryWine> inventoryWineVintages = Array.Empty<WineSurferInventoryWine>();
         IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
@@ -306,6 +310,16 @@ public class WineSurferController : WineSurferControllerBase
                     .ThenBy(bottle => bottle.Label, StringComparer.OrdinalIgnoreCase)
                     .Take(3)
                     .ToList();
+            }
+
+            var receivedShares = await _bottleShareRepository.GetSharesForRecipientAsync(currentUserId.Value, cancellationToken);
+            if (receivedShares.Count > 0)
+            {
+                var shareSummaries = CreateSharedBottleSummaries(receivedShares, currentUserId);
+                if (shareSummaries.Count > 0)
+                {
+                    sharedBottles = shareSummaries;
+                }
             }
 
             var evolutionScores = await _evolutionScoreRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
@@ -427,6 +441,7 @@ public class WineSurferController : WineSurferControllerBase
             biggestSplashYear,
             favoriteBottles,
             winesToDrink,
+            sharedBottles,
             suggestedAppellations,
             inventoryWineIds,
             inventoryWineVintages);
@@ -3442,6 +3457,62 @@ private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummaries(
         sisterhoodAverageScores);
 }
 
+private static IReadOnlyList<WineSurferSharedBottle> CreateSharedBottleSummaries(
+    IEnumerable<BottleShare>? shares,
+    Guid? currentUserId)
+{
+    if (shares is null)
+    {
+        return Array.Empty<WineSurferSharedBottle>();
+    }
+
+    var shareList = shares
+        .Where(share => share is not null && share.Bottle is not null)
+        .ToList();
+
+    if (shareList.Count == 0)
+    {
+        return Array.Empty<WineSurferSharedBottle>();
+    }
+
+    var bottleSummaries = CreateBottleSummaries(shareList.Select(share => share.Bottle), currentUserId);
+    var summaryById = bottleSummaries.ToDictionary(summary => summary.Id);
+
+    var results = new List<WineSurferSharedBottle>(shareList.Count);
+    foreach (var share in shareList)
+    {
+        var bottle = share.Bottle;
+        if (bottle is null || !summaryById.TryGetValue(bottle.Id, out var summary))
+        {
+            continue;
+        }
+
+        var sharedByUser = share.SharedByUser;
+        var sharedByDisplayName = StringUtilities.ResolveDisplayName(
+            sharedByUser?.Name,
+            sharedByUser?.UserName,
+            sharedByUser?.Email);
+
+        results.Add(new WineSurferSharedBottle(
+            share.Id,
+            summary,
+            sharedByDisplayName,
+            share.SharedAt));
+    }
+
+    if (results.Count == 0)
+    {
+        return Array.Empty<WineSurferSharedBottle>();
+    }
+
+    return results
+        .OrderByDescending(entry => entry.SharedAtUtc)
+        .ThenBy(entry => entry.Bottle.WineName, StringComparer.OrdinalIgnoreCase)
+        .ThenBy(entry => entry.Bottle.Vintage ?? int.MaxValue)
+        .ThenBy(entry => entry.Bottle.Label, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+}
+
 private static IReadOnlyList<WineSurferSipSessionBottle> CreateBottleSummariesInternal<T>(
     IEnumerable<T>? source,
     Func<T, Bottle?> bottleSelector,
@@ -3796,6 +3867,7 @@ public record WineSurferLandingViewModel(
     int BiggestSplashYear,
     IReadOnlyList<WineSurferSipSessionBottle> FavoriteBottles,
     IReadOnlyList<WineSurferSipSessionBottle> WinesToDrink,
+    IReadOnlyList<WineSurferSharedBottle> SharedBottles,
     IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations,
     IReadOnlyCollection<Guid> InventoryWineIds,
     IReadOnlyCollection<WineSurferInventoryWine> InventoryWineVintages);
@@ -4122,6 +4194,12 @@ public record WineSurferSipSessionBottle(
     decimal? AverageScore,
     decimal? SisterhoodAverageScore,
     bool IsRevealed);
+
+public record WineSurferSharedBottle(
+    Guid ShareId,
+    WineSurferSipSessionBottle Bottle,
+    string? SharedByDisplayName,
+    DateTime SharedAtUtc);
 
 public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter, string? ProfilePhotoUrl);
 
