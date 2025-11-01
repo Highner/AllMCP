@@ -13,6 +13,7 @@
         const clearFiltersButton = filtersForm?.querySelector('[data-clear-filters]');
         const headerFilterInput = document.querySelector('[data-inventory-header-filter-input]');
         const filtersSearchInput = filtersForm?.querySelector('input[name="search"]');
+        const headerFilterFocusStorageKey = 'wine-inventory:restore-header-focus';
         let headerFilterDebounceId = null;
 
         function submitFiltersForm() {
@@ -20,11 +21,62 @@
                 return;
             }
 
+            if (headerFilterInput) {
+                try {
+                    if (document.activeElement === headerFilterInput) {
+                        sessionStorage.setItem(headerFilterFocusStorageKey, 'true');
+                    } else {
+                        sessionStorage.removeItem(headerFilterFocusStorageKey);
+                    }
+                } catch (error) {
+                    // Ignore storage failures (e.g., disabled cookies).
+                }
+            }
+
             if (typeof filtersForm.requestSubmit === 'function') {
                 filtersForm.requestSubmit();
             } else {
                 filtersForm.submit();
             }
+        }
+
+        if (headerFilterInput) {
+            let shouldRestoreFocus = false;
+
+            try {
+                shouldRestoreFocus = sessionStorage.getItem(headerFilterFocusStorageKey) === 'true';
+            } catch (error) {
+                shouldRestoreFocus = false;
+            }
+
+            if (shouldRestoreFocus) {
+                window.requestAnimationFrame(() => {
+                    try {
+                        headerFilterInput.focus({ preventScroll: true });
+                    } catch (error) {
+                        headerFilterInput.focus();
+                    }
+
+                    if (typeof headerFilterInput.setSelectionRange === 'function') {
+                        const length = headerFilterInput.value.length;
+                        headerFilterInput.setSelectionRange(length, length);
+                    }
+                });
+
+                try {
+                    sessionStorage.removeItem(headerFilterFocusStorageKey);
+                } catch (error) {
+                    // Ignore storage failures.
+                }
+            }
+
+            headerFilterInput.addEventListener('blur', () => {
+                try {
+                    sessionStorage.removeItem(headerFilterFocusStorageKey);
+                } catch (error) {
+                    // Ignore storage failures.
+                }
+            });
         }
 
         if (filtersForm && clearFiltersButton) {
