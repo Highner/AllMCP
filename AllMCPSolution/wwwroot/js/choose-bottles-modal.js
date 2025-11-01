@@ -40,19 +40,27 @@
     document.addEventListener('keydown', handleKeydown);
   }
 
-  function close(){
+  function close(reason = 'dismissed'){
     const overlay = qs(document, SELECTORS.overlay);
+    const dialog = qs(document, SELECTORS.dialog);
     if(!overlay){ return; }
     overlay.setAttribute('aria-hidden','true');
     overlay.setAttribute('hidden','');
     document.removeEventListener('keydown', handleKeydown);
+    if(dialog){
+      const detail = {
+        reason,
+        selectedIds: Array.from(state.selected)
+      };
+      dialog.dispatchEvent(new CustomEvent('choose-bottles:closed', { detail, bubbles: true }));
+    }
   }
 
   function mount(dialog){
     // wire close
-    qsa(dialog, SELECTORS.closeBtn).forEach(btn => btn.addEventListener('click', close));
+    qsa(dialog, SELECTORS.closeBtn).forEach(btn => btn.addEventListener('click', () => close('close')));
     const cancel = qs(dialog, SELECTORS.cancelBtn);
-    if(cancel){ cancel.addEventListener('click', close); }
+    if(cancel){ cancel.addEventListener('click', () => close('cancel')); }
 
     const filter = qs(dialog, SELECTORS.filter);
     if(filter){ filter.addEventListener('input', applyFilter); }
@@ -62,7 +70,7 @@
   }
 
   function handleKeydown(e){
-    if(e.key === 'Escape'){ close(); }
+    if(e.key === 'Escape'){ close('escape'); }
   }
 
   async function fetchAndRender(){
@@ -152,9 +160,9 @@
     const dialog = qs(document, SELECTORS.dialog);
     if(!dialog){ return; }
     const ids = Array.from(state.selected);
-    const evt = new CustomEvent('choose-bottles:selected', { detail: { ids } });
+    const evt = new CustomEvent('choose-bottles:selected', { detail: { ids }, bubbles: true });
     dialog.dispatchEvent(evt);
-    close();
+    close('selected');
   }
 
   function escapeHtml(s){
@@ -168,6 +176,7 @@
 
   // Public API: allow external triggers to open the modal
   window.ChooseBottlesModal = {
-    open
+    open,
+    close: reason => close(reason)
   };
 })();

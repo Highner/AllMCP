@@ -109,12 +109,13 @@
     document.addEventListener('keydown', onKeydown);
   }
 
-  function close(){
+  function close(reason = 'dismissed'){
     if(!state.overlay){ return; }
     state.overlay.setAttribute('aria-hidden', 'true');
     state.overlay.setAttribute('hidden', '');
     state.overlay.classList.remove('open');
     document.removeEventListener('keydown', onKeydown);
+    document.dispatchEvent(new CustomEvent('sisterhood-user-select:closed', { detail: { reason } }));
   }
 
   function resolveInitialFocusTarget(){
@@ -132,12 +133,12 @@
 
   function onCancelClick(event){
     event.preventDefault();
-    close();
+    close('cancel');
   }
 
   function onKeydown(event){
     if(event.key === 'Escape'){
-      close();
+      close('escape');
     }
   }
 
@@ -281,7 +282,7 @@
 
   window.SisterhoodUserSelectModal = {
     open,
-    close,
+    close: reason => close(reason),
     setSelections
   };
 })();

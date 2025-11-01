@@ -1,0 +1,11 @@
+@model AllMCPSolution.Models.WineWizardViewModel
+@using AllMCPSolution.Models
+@{
+    var inventoryModel = Model?.InventoryAddModal ?? new InventoryAddModalViewModel();
+    var sisterhoodModel = Model?.SisterhoodUserSelectModal ?? new SisterhoodUserSelectModalViewModel();
+}
+<div class="wine-wizard" data-wine-wizard-root hidden></div>
+@await Html.PartialAsync("_ChooseBottlesFromInventory")
+@await Html.PartialAsync("_InventoryAddModal", inventoryModel)
+@await Html.PartialAsync("_SisterhoodUserSelectModal", sisterhoodModel)
+<script src="/js/wine-wizard.js" defer></script>
