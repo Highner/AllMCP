@@ -13,35 +13,8 @@
         const clearFiltersButton = filtersForm?.querySelector('[data-clear-filters]');
         const headerFilterInput = document.querySelector('[data-inventory-header-filter-input]');
         const filtersSearchInput = filtersForm?.querySelector('input[name="search"]');
-        const inventoryView = document.getElementById('inventory-view');
         const headerFilterFocusStorageKey = 'wine-inventory:restore-header-focus';
         let headerFilterDebounceId = null;
-        let maintainHeaderFilterFocus = false;
-        let inlineDetailsAbortController = null;
-
-        function cancelInlineDetailsRequest() {
-            if (inlineDetailsAbortController) {
-                inlineDetailsAbortController.abort();
-                inlineDetailsAbortController = null;
-            }
-        }
-
-        function focusHeaderFilterInput() {
-            if (!headerFilterInput) {
-                return;
-            }
-
-            try {
-                headerFilterInput.focus({ preventScroll: true });
-            } catch (error) {
-                headerFilterInput.focus();
-            }
-
-            if (typeof headerFilterInput.setSelectionRange === 'function') {
-                const length = headerFilterInput.value.length;
-                headerFilterInput.setSelectionRange(length, length);
-            }
-        }
 
         function submitFiltersForm() {
             if (!filtersForm) {
@@ -52,22 +25,13 @@
                 try {
                     if (document.activeElement === headerFilterInput) {
                         sessionStorage.setItem(headerFilterFocusStorageKey, 'true');
-                        maintainHeaderFilterFocus = true;
                     } else {
                         sessionStorage.removeItem(headerFilterFocusStorageKey);
-                        maintainHeaderFilterFocus = false;
                     }
                 } catch (error) {
                     // Ignore storage failures (e.g., disabled cookies).
-                    maintainHeaderFilterFocus = document.activeElement === headerFilterInput;
                 }
             }
-
-            if (maintainHeaderFilterFocus) {
-                window.requestAnimationFrame(() => focusHeaderFilterInput());
-            }
-
-            cancelInlineDetailsRequest();
 
             if (typeof filtersForm.requestSubmit === 'function') {
                 filtersForm.requestSubmit();
@@ -86,10 +50,17 @@
             }
 
             if (shouldRestoreFocus) {
-                maintainHeaderFilterFocus = true;
                 window.requestAnimationFrame(() => {
-                    focusHeaderFilterInput();
-                    maintainHeaderFilterFocus = false;
+                    try {
+                        headerFilterInput.focus({ preventScroll: true });
+                    } catch (error) {
+                        headerFilterInput.focus();
+                    }
+
+                    if (typeof headerFilterInput.setSelectionRange === 'function') {
+                        const length = headerFilterInput.value.length;
+                        headerFilterInput.setSelectionRange(length, length);
+                    }
                 });
 
                 try {
@@ -105,8 +76,6 @@
                 } catch (error) {
                     // Ignore storage failures.
                 }
-
-                maintainHeaderFilterFocus = false;
             });
         }
 
@@ -139,8 +108,6 @@
                     headerFilterInput.value = filtersSearchInput.value;
                 }
 
-                maintainHeaderFilterFocus = true;
-                cancelInlineDetailsRequest();
                 submitFiltersForm();
             });
         }
@@ -165,8 +132,6 @@
                 }
 
                 headerFilterDebounceId = null;
-                maintainHeaderFilterFocus = true;
-                cancelInlineDetailsRequest();
 
                 const trimmed = headerFilterInput.value.trim();
 
@@ -192,8 +157,6 @@
                         headerFilterDebounceId = null;
                     }
 
-                    maintainHeaderFilterFocus = true;
-                    cancelInlineDetailsRequest();
                     filtersSearchInput.value = headerFilterInput.value;
                     submitFiltersForm();
                 }
@@ -204,27 +167,7 @@
                     window.clearTimeout(headerFilterDebounceId);
                     headerFilterDebounceId = null;
                 }
-
-                maintainHeaderFilterFocus = maintainHeaderFilterFocus
-                    || document.activeElement === headerFilterInput;
-                cancelInlineDetailsRequest();
             });
-        }
-
-        if (inventoryView && headerFilterInput && typeof MutationObserver === 'function') {
-            const observer = new MutationObserver(() => {
-                if (!maintainHeaderFilterFocus) {
-                    return;
-                }
-
-                if (document.activeElement !== headerFilterInput) {
-                    focusHeaderFilterInput();
-                }
-
-                maintainHeaderFilterFocus = false;
-            });
-
-            observer.observe(inventoryView, { childList: true, subtree: true });
         }
 
         const locationSection = document.getElementById('inventory-locations');
@@ -481,7 +424,6 @@
             }
 
             if (expandedInventoryRow === row) {
-                cancelInlineDetailsRequest();
                 expandedInventoryRow = null;
             }
         }
@@ -567,15 +509,8 @@
             showStatus('Loading vintages…');
             row.dataset.inlineLoading = 'true';
 
-            cancelInlineDetailsRequest();
-            inlineDetailsAbortController = new AbortController();
-            const abortController = inlineDetailsAbortController;
-
             try {
-                const response = await sendJson(`/wine-manager/wine/${encodeURIComponent(wineId)}/details`, {
-                    method: 'GET',
-                    signal: abortController.signal
-                });
+                const response = await sendJson(`/wine-manager/wine/${encodeURIComponent(wineId)}/details`, { method: 'GET' });
                 const details = Array.isArray(response?.details) ? response.details : [];
                 const aggregated = aggregateVintageCounts(details);
                 vintageSummaryCache.set(wineId, aggregated);
@@ -586,10 +521,6 @@
 
                 renderVintageView(aggregated);
             } catch (error) {
-                if (abortController.signal.aborted || error?.name === 'AbortError') {
-                    return;
-                }
-
                 if (!inlineRow.isConnected) {
                     return;
                 }
@@ -599,9 +530,6 @@
                     : 'Unable to load vintages.';
                 showStatus(message, true);
             } finally {
-                if (inlineDetailsAbortController === abortController) {
-                    inlineDetailsAbortController = null;
-                }
                 delete row.dataset.inlineLoading;
             }
         }
@@ -1684,15 +1612,14 @@
             }
         }
 
-        async function sendJson(url, options = {}) {
+        async function sendJson(url, options) {
             const requestInit = {
-                credentials: 'same-origin',
-                ...options,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    ...(options?.headers ?? {})
-                }
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin',
+                ...options
             };
 
             const response = await fetch(url, requestInit);
