@@ -507,15 +507,71 @@ a.wine-card:focus {
 }
 
 .choose-bottles-section {
+    --choose-bottles-toolbar-padding-top: 18px;
+    --choose-bottles-toolbar-padding-bottom: 16px;
+    --choose-bottles-toolbar-padding-inline: 24px;
+    --choose-bottles-toolbar-control-size: 44px;
+    --choose-bottles-toolbar-gap: 12px;
+    --choose-bottles-toolbar-height: calc(
+        var(--choose-bottles-toolbar-padding-top) +
+        var(--choose-bottles-toolbar-padding-bottom) +
+        var(--choose-bottles-toolbar-control-size)
+    );
+    --choose-bottles-table-header-offset: calc(
+        var(--choose-bottles-toolbar-height) +
+        var(--choose-bottles-toolbar-gap)
+    );
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
 }
 
+.choose-bottles-body {
+    padding: 0;
+    gap: 0;
+}
+
+.choose-bottles-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    padding: var(--choose-bottles-toolbar-padding-top)
+        var(--choose-bottles-toolbar-padding-inline)
+        var(--choose-bottles-toolbar-padding-bottom);
+    margin-bottom: var(--choose-bottles-toolbar-gap);
+    background: rgba(12, 12, 12, 0.96);
+    backdrop-filter: blur(2px);
+    border-bottom: 1px solid rgba(244, 241, 234, 0.12);
+    box-shadow: 0 12px 24px rgba(12, 12, 12, 0.55);
+}
+
+.choose-bottles-filter-label {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+}
+
+.choose-bottles-filter-input {
+    width: 100%;
+    height: var(--choose-bottles-toolbar-control-size);
+    min-width: 0;
+}
+
 .choose-bottles-list-container {
     flex: 1;
     min-height: 0;
+    padding: 0 var(--choose-bottles-toolbar-padding-inline)
+        var(--choose-bottles-toolbar-padding-bottom);
+}
+
+.choose-bottles-table thead {
+    position: sticky;
+    top: var(--choose-bottles-table-header-offset);
+    z-index: 2;
+    background: rgba(12, 12, 12, 0.96);
+    backdrop-filter: blur(2px);
+    box-shadow: 0 10px 22px rgba(12, 12, 12, 0.5);
 }
 
 .choose-bottles-footer {
