@@ -146,6 +146,9 @@ public sealed class BottleShareRepository : IBottleShareRepository
                 .ThenInclude(bottle => bottle.BottleLocation)
             .Include(share => share.Bottle)
                 .ThenInclude(bottle => bottle.User)
+            .Include(share => share.Bottle)
+                .ThenInclude(bottle => bottle.SipSessions)
+                    .ThenInclude(sessionBottle => sessionBottle.SipSession)
             .Include(share => share.SharedByUser)
             .Include(share => share.SharedWithUser);
     }
