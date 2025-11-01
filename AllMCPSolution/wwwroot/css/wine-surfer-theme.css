@@ -496,35 +496,6 @@ a.wine-card:focus {
     overflow-y: auto;
 }
 
-.choose-bottles-section {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-}
-
-.choose-bottles-list-container {
-    flex: 1;
-    min-height: 0;
-}
-
-.choose-bottles-actions {
-    position: sticky;
-    bottom: 0;
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    padding: 16px 0 0;
-    margin-top: 8px;
-    background: linear-gradient(180deg, rgba(12, 12, 12, 0) 0%, rgba(12, 12, 12, 0.96) 24%);
-    backdrop-filter: blur(2px);
-    border-top: 1px solid rgba(244, 241, 234, 0.12);
-}
-
-.choose-bottles-actions .crud-table__action-button {
-    min-width: 104px;
-}
-
 .sip-session-edit-modal__body {
     padding: 24px;
     overflow-y: auto;
