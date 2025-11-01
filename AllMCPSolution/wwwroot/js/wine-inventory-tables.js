@@ -11,6 +11,21 @@
 
         const filtersForm = document.querySelector('form.filters');
         const clearFiltersButton = filtersForm?.querySelector('[data-clear-filters]');
+        const headerFilterInput = document.querySelector('[data-inventory-header-filter-input]');
+        const filtersSearchInput = filtersForm?.querySelector('input[name="search"]');
+        let headerFilterDebounceId = null;
+
+        function submitFiltersForm() {
+            if (!filtersForm) {
+                return;
+            }
+
+            if (typeof filtersForm.requestSubmit === 'function') {
+                filtersForm.requestSubmit();
+            } else {
+                filtersForm.submit();
+            }
+        }
 
         if (filtersForm && clearFiltersButton) {
             clearFiltersButton.addEventListener('click', (event) => {
@@ -32,10 +47,73 @@
                     }
                 });
 
-                if (typeof filtersForm.requestSubmit === 'function') {
-                    filtersForm.requestSubmit();
-                } else {
-                    filtersForm.submit();
+                if (headerFilterDebounceId) {
+                    window.clearTimeout(headerFilterDebounceId);
+                    headerFilterDebounceId = null;
+                }
+
+                if (filtersSearchInput && headerFilterInput) {
+                    headerFilterInput.value = filtersSearchInput.value;
+                }
+
+                submitFiltersForm();
+            });
+        }
+
+        if (filtersForm && filtersSearchInput && headerFilterInput) {
+            headerFilterInput.value = filtersSearchInput.value;
+
+            const syncHeaderFilterWithSearch = () => {
+                if (document.activeElement !== headerFilterInput) {
+                    headerFilterInput.value = filtersSearchInput.value;
+                }
+            };
+
+            filtersSearchInput.addEventListener('input', syncHeaderFilterWithSearch);
+            filtersSearchInput.addEventListener('change', syncHeaderFilterWithSearch);
+
+            headerFilterInput.addEventListener('input', () => {
+                filtersSearchInput.value = headerFilterInput.value;
+
+                if (headerFilterDebounceId) {
+                    window.clearTimeout(headerFilterDebounceId);
+                }
+
+                headerFilterDebounceId = null;
+
+                const trimmed = headerFilterInput.value.trim();
+
+                if (trimmed.length >= 3 || trimmed.length === 0) {
+                    headerFilterDebounceId = window.setTimeout(() => {
+                        submitFiltersForm();
+                    }, 500);
+                }
+            });
+
+            headerFilterInput.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter') {
+                    return;
+                }
+
+                const trimmed = headerFilterInput.value.trim();
+
+                if (trimmed.length >= 3 || trimmed.length === 0) {
+                    event.preventDefault();
+
+                    if (headerFilterDebounceId) {
+                        window.clearTimeout(headerFilterDebounceId);
+                        headerFilterDebounceId = null;
+                    }
+
+                    filtersSearchInput.value = headerFilterInput.value;
+                    submitFiltersForm();
+                }
+            });
+
+            filtersForm.addEventListener('submit', () => {
+                if (headerFilterDebounceId) {
+                    window.clearTimeout(headerFilterDebounceId);
+                    headerFilterDebounceId = null;
                 }
             });
         }

@@ -6,6 +6,7 @@
 @using System.Collections.Generic
 @using System.Globalization
 @using System.Linq
+@using System.Text.Encodings.Web
 @{
     Layout = null;
     var currentPath = Context.Request.Path.Value ?? string.Empty;
@@ -50,13 +51,26 @@
     var bottleHeaderContent = await Html.PartialAsync("_BottleDetailsHeaderControls");
     ViewData["WineSurferPageTitle"] = "Wine Inventory";
 
+    var headerFilterValue = HtmlEncoder.Default.Encode(Model.Search ?? string.Empty);
     var yourCellarTable = new CrudTableTemplateModel
     {
         TitleContent = _ => Html.PartialAsync("_InventorySectionHeader", new InventorySectionHeaderModel
         {
             Title = "Your Cellar",
             AdditionalCssClass = "location-header--table",
-            Actions = _ => new HtmlString("<button type=\"button\" class=\"wine-surfer-button wine-surfer-button--orange inventory-add-trigger\" data-add-wine-trigger=\"inventory\">Add wine</button>")
+            Actions = _ => new HtmlString($@"
+                <div class=\"inventory-section-header__filter\">
+                    <label class=\"sr-only\" for=\"your-cellar-filter\">Filter your cellar</label>
+                    <input type=\"search\"
+                           id=\"your-cellar-filter\"
+                           class=\"input inventory-section-header__filter-input\"
+                           placeholder=\"Filter wines\"
+                           autocomplete=\"off\"
+                           value=\"{headerFilterValue}\"
+                           data-inventory-header-filter-input />
+                </div>
+                <button type=\"button\" class=\"wine-surfer-button wine-surfer-button--orange inventory-add-trigger\" data-add-wine-trigger=\"inventory\">Add wine</button>
+            ")
         }).GetAwaiter().GetResult(),
         DataTableKey = "summary",
         BackgroundCssClass = "crud-table crud-table--bare",
