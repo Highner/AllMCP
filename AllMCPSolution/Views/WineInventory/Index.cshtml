@@ -19,7 +19,6 @@
         var parameters = new Dictionary<string, string?>
         {
             ["status"] = string.Equals(Model.Status, "all", StringComparison.OrdinalIgnoreCase) ? null : Model.Status,
-            ["color"] = string.IsNullOrWhiteSpace(Model.Color) ? null : Model.Color,
             ["search"] = string.IsNullOrWhiteSpace(Model.Search) ? null : Model.Search,
             ["sortField"] = field,
             ["sortDir"] = nextDir
@@ -458,17 +457,6 @@
                                 {
                                     var isSelected = string.Equals(option.Value, Model.Status, StringComparison.OrdinalIgnoreCase) ||
                                                      (string.IsNullOrEmpty(option.Value) && string.Equals(Model.Status, "all", StringComparison.OrdinalIgnoreCase));
-                                    <option value="@option.Value" selected="@(isSelected ? "selected" : null)">@option.Label</option>
-                                }
-                            </select>
-                        </label>
-                        <label>
-                            Color
-                            <select name="color" data-default-value="">
-                                @foreach (var option in Model.ColorOptions)
-                                {
-                                    var currentColor = Model.Color ?? string.Empty;
-                                    var isSelected = string.Equals(option.Value, currentColor, StringComparison.OrdinalIgnoreCase);
                                     <option value="@option.Value" selected="@(isSelected ? "selected" : null)">@option.Label</option>
                                 }
                             </select>

@@ -68,7 +68,6 @@ public partial class WineInventoryController : Controller
     [HttpGet("")]
     public async Task<IActionResult> Index(
         [FromQuery] string? status,
-        [FromQuery] string? color,
         [FromQuery] string? search,
         [FromQuery] string? sortField,
         [FromQuery] string? sortDir,
@@ -109,17 +108,10 @@ public partial class WineInventoryController : Controller
                 : null;
 
         var normalizedStatus = string.IsNullOrWhiteSpace(status) ? "all" : status.Trim().ToLowerInvariant();
-        WineColor? filterColor = null;
-        if (!string.IsNullOrWhiteSpace(color) && Enum.TryParse<WineColor>(color, true, out var parsedColor))
-        {
-            filterColor = parsedColor;
-        }
-
         var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
         var normalizedSortField = string.IsNullOrWhiteSpace(sortField) ? "wine" : sortField.Trim().ToLowerInvariant();
         var normalizedSortDir = string.IsNullOrWhiteSpace(sortDir) ? "asc" : sortDir.Trim().ToLowerInvariant();
         var hasActiveFilters = !string.Equals(normalizedStatus, "all", StringComparison.Ordinal)
-                               || filterColor.HasValue
                                || !string.IsNullOrWhiteSpace(normalizedSearch);
 
         IEnumerable<Bottle> query = bottles;
@@ -130,11 +122,6 @@ public partial class WineInventoryController : Controller
             "cellared" or "undrunk" => query.Where(b => !b.IsDrunk),
             _ => query
         };
-
-        if (filterColor.HasValue)
-        {
-            query = query.Where(b => b.WineVintage.Wine.Color == filterColor.Value);
-        }
 
         if (!string.IsNullOrWhiteSpace(normalizedSearch))
         {
@@ -279,7 +266,6 @@ public partial class WineInventoryController : Controller
         var viewModel = new WineInventoryViewModel
         {
             Status = normalizedStatus,
-            Color = filterColor?.ToString(),
             Search = normalizedSearch,
             SortField = normalizedSortField,
             SortDirection = descending ? "desc" : "asc",
@@ -304,13 +290,6 @@ public partial class WineInventoryController : Controller
                 new("all", "All Bottles"),
                 new("cellared", "Cellared"),
                 new("drunk", "Drunk")
-            },
-            ColorOptions = new List<FilterOption>
-            {
-                new(string.Empty, "All Colors"),
-                new(WineColor.Red.ToString(), "Red"),
-                new(WineColor.White.ToString(), "White"),
-                new(WineColor.Rose.ToString(), "Rosé")
             }
         };
 
@@ -2858,27 +2837,25 @@ public class AvailableBottleOption
 }
 
 public class WineInventoryViewModel
-    {
-        public string Status { get; set; } = "all";
-        public string? Color { get; set; }
-        public string? Search { get; set; }
-        public string SortField { get; set; } = "wine";
-        public string SortDirection { get; set; } = "asc";
+{
+    public string Status { get; set; } = "all";
+    public string? Search { get; set; }
+    public string SortField { get; set; } = "wine";
+    public string SortDirection { get; set; } = "asc";
 
-        public IReadOnlyList<WineInventoryBottleViewModel> Bottles { get; set; } =
-            Array.Empty<WineInventoryBottleViewModel>();
+    public IReadOnlyList<WineInventoryBottleViewModel> Bottles { get; set; } =
+        Array.Empty<WineInventoryBottleViewModel>();
 
-        public Guid CurrentUserId { get; set; }
+    public Guid CurrentUserId { get; set; }
 
-        public IReadOnlyList<WineInventoryLocationViewModel> Locations { get; set; } =
-            Array.Empty<WineInventoryLocationViewModel>();
+    public IReadOnlyList<WineInventoryLocationViewModel> Locations { get; set; } =
+        Array.Empty<WineInventoryLocationViewModel>();
 
-        public InventoryAddModalViewModel InventoryAddModal { get; set; } = new();
-        public bool HasActiveFilters { get; set; }
-        public IReadOnlySet<Guid> HighlightedLocationIds { get; set; } = new HashSet<Guid>();
-        public IReadOnlyList<FilterOption> StatusOptions { get; set; } = Array.Empty<FilterOption>();
-        public IReadOnlyList<FilterOption> ColorOptions { get; set; } = Array.Empty<FilterOption>();
-    }
+    public InventoryAddModalViewModel InventoryAddModal { get; set; } = new();
+    public bool HasActiveFilters { get; set; }
+    public IReadOnlySet<Guid> HighlightedLocationIds { get; set; } = new HashSet<Guid>();
+    public IReadOnlyList<FilterOption> StatusOptions { get; set; } = Array.Empty<FilterOption>();
+}
 
     public class WineInventoryBottleViewModel
     {
