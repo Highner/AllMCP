@@ -12,7 +12,6 @@ public interface IBottleShareRepository
     Task AddAsync(BottleShare share, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task DeleteAsync(Guid bottleId, Guid sharedWithUserId, CancellationToken ct = default);
-    Task<int> DeleteForBottleOwnerAsync(Guid bottleId, Guid ownerUserId, CancellationToken ct = default);
 }
 
 public sealed class BottleShareRepository : IBottleShareRepository
@@ -131,27 +130,6 @@ public sealed class BottleShareRepository : IBottleShareRepository
 
         _dbContext.BottleShares.Remove(entity);
         await _dbContext.SaveChangesAsync(ct);
-    }
-
-    public async Task<int> DeleteForBottleOwnerAsync(Guid bottleId, Guid ownerUserId, CancellationToken ct = default)
-    {
-        if (bottleId == Guid.Empty || ownerUserId == Guid.Empty)
-        {
-            return 0;
-        }
-
-        var entities = await _dbContext.BottleShares
-            .Where(share => share.BottleId == bottleId && share.SharedByUserId == ownerUserId)
-            .ToListAsync(ct);
-
-        if (entities.Count == 0)
-        {
-            return 0;
-        }
-
-        _dbContext.BottleShares.RemoveRange(entities);
-        await _dbContext.SaveChangesAsync(ct);
-        return entities.Count;
     }
 
     private IQueryable<BottleShare> BuildShareQuery()
