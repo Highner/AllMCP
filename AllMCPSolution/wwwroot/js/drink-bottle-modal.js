@@ -1066,53 +1066,62 @@
             }
         });
 
-        const allCards = Array.from(document.querySelectorAll('[data-sip-session-bottle-card]'));
-        const revealButtons = Array.from(document.querySelectorAll('[data-sip-session-reveal-button]'));
-        const revealForms = Array.from(document.querySelectorAll('[data-sip-session-reveal-form]'));
-        const removeButtons = Array.from(document.querySelectorAll('[data-sip-session-remove-button]'));
-        const removeForms = Array.from(document.querySelectorAll('[data-sip-session-remove-form]'));
-        const interactiveCards = allCards.filter(card => card.dataset.bottleInteractive !== 'false');
+        const bottleActionSelector = [
+            '[data-sip-session-reveal-button]',
+            '[data-sip-session-reveal-form]',
+            '[data-sip-session-remove-button]',
+            '[data-sip-session-remove-form]'
+        ].join(', ');
 
-        const attachBottleActionGuards = (buttons, forms) => {
-            buttons.forEach(button => {
-                button.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                });
+        const resolveInteractiveCard = (source) => {
+            if (!(source instanceof Element)) {
+                return null;
+            }
 
-                button.addEventListener('keydown', (event) => {
-                    event.stopPropagation();
-                });
-            });
+            if (source.closest(bottleActionSelector)) {
+                return null;
+            }
 
-            forms.forEach(formElement => {
-                formElement.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                });
-            });
+            const card = source.closest('[data-sip-session-bottle-card]');
+            if (!card || card.dataset.bottleInteractive === 'false') {
+                return null;
+            }
+
+            return card;
         };
 
-        attachBottleActionGuards(revealButtons, revealForms);
-        attachBottleActionGuards(removeButtons, removeForms);
+        document.addEventListener('click', (event) => {
+            if (loading) {
+                return;
+            }
 
-        interactiveCards.forEach((card) => {
-            card.addEventListener('click', () => {
-                if (loading) {
-                    return;
-                }
+            const card = resolveInteractiveCard(event.target);
+            if (!card) {
+                return;
+            }
 
-                contextState.card = card;
-                handleOpenFromCard(card);
-            });
+            contextState.card = card;
+            handleOpenFromCard(card);
+        });
 
-            card.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    if (!loading) {
-                        contextState.card = card;
-                        handleOpenFromCard(card);
-                    }
-                }
-            });
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+            }
+
+            const card = resolveInteractiveCard(event.target);
+            if (!card) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (loading) {
+                return;
+            }
+
+            contextState.card = card;
+            handleOpenFromCard(card);
         });
     });
 })();
