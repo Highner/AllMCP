@@ -329,47 +329,9 @@
                                         <span data-location-bottle-count>@bottleLabel</span>
                                     </p>
                                 </div>
-                                @{
-                                    var actionMenuTriggerLabel = string.IsNullOrWhiteSpace(location.Name)
-                                        ? "Open storage location actions"
-                                        : $"Open actions for {location.Name}";
-                                    var actionMenuLabel = string.IsNullOrWhiteSpace(location.Name)
-                                        ? "Storage location actions"
-                                        : $"{location.Name} actions";
-                                    var actionMenuId = $"location-actions-menu-{location.Id}";
-                                    var editAttributes = new Dictionary<string, string>
-                                    {
-                                        ["data-location-edit"] = string.Empty
-                                    };
-                                    var deleteAttributes = new Dictionary<string, string>
-                                    {
-                                        ["data-location-delete"] = string.Empty
-                                    };
-                                    var editOption = new ActionMenuButtonEditOption("Edit", editAttributes);
-                                    var placeholderDeleteOption = new ActionMenuButtonDeleteOption(
-                                        Label: "Delete",
-                                        FormAction: "#",
-                                        HiddenFields: Array.Empty<KeyValuePair<string, string>>(),
-                                        ConfirmMessage: null,
-                                        ButtonCssClass: null,
-                                        FormCssClass: null,
-                                        IncludeAntiforgery: false);
-                                    var deleteItem = new ActionMenuButtonItem(
-                                        ActionMenuButtonItemKind.Button,
-                                        "Delete",
-                                        ButtonCssClass: "action-menu__button--danger",
-                                        Attributes: deleteAttributes);
-                                    var menuModel = new ActionMenuButtonModel(
-                                        MenuId: actionMenuId,
-                                        TriggerAriaLabel: actionMenuTriggerLabel,
-                                        MenuLabel: actionMenuLabel,
-                                        Edit: editOption,
-                                        Delete: placeholderDeleteOption,
-                                        AdditionalItems: new List<ActionMenuButtonItem> { deleteItem },
-                                        ShowDelete: false);
-                                }
                                 <div class="wine-card__actions location-card-actions">
-                                    @await Html.PartialAsync("_ActionMenuButton", menuModel)
+                                    <button type="button" class="wine-surfer-button" data-location-edit>Edit</button>
+                                    <button type="button" class="wine-surfer-button wine-surfer-button--red" data-location-delete>Delete</button>
                                 </div>
                             </div>
                             <div class="location-card-status">
@@ -437,43 +399,9 @@
                                     <span data-location-bottle-count></span>
                                 </p>
                             </div>
-                            @{
-                                var templateMenuTriggerLabel = "Open storage location actions";
-                                var templateMenuLabel = "Storage location actions";
-                                var templateMenuId = "location-actions-menu-template";
-                                var templateEditAttributes = new Dictionary<string, string>
-                                {
-                                    ["data-location-edit"] = string.Empty
-                                };
-                                var templateDeleteAttributes = new Dictionary<string, string>
-                                {
-                                    ["data-location-delete"] = string.Empty
-                                };
-                                var templateEditOption = new ActionMenuButtonEditOption("Edit", templateEditAttributes);
-                                var templateDeleteOption = new ActionMenuButtonDeleteOption(
-                                    Label: "Delete",
-                                    FormAction: "#",
-                                    HiddenFields: Array.Empty<KeyValuePair<string, string>>(),
-                                    ConfirmMessage: null,
-                                    ButtonCssClass: null,
-                                    FormCssClass: null,
-                                    IncludeAntiforgery: false);
-                                var templateDeleteItem = new ActionMenuButtonItem(
-                                    ActionMenuButtonItemKind.Button,
-                                    "Delete",
-                                    ButtonCssClass: "action-menu__button--danger",
-                                    Attributes: templateDeleteAttributes);
-                                var templateMenuModel = new ActionMenuButtonModel(
-                                    MenuId: templateMenuId,
-                                    TriggerAriaLabel: templateMenuTriggerLabel,
-                                    MenuLabel: templateMenuLabel,
-                                    Edit: templateEditOption,
-                                    Delete: templateDeleteOption,
-                                    AdditionalItems: new List<ActionMenuButtonItem> { templateDeleteItem },
-                                    ShowDelete: false);
-                            }
                             <div class="wine-card__actions location-card-actions">
-                                @await Html.PartialAsync("_ActionMenuButton", templateMenuModel)
+                                <button type="button" class="wine-surfer-button" data-location-edit>Edit</button>
+                                <button type="button" class="wine-surfer-button wine-surfer-button--red" data-location-delete>Delete</button>
                             </div>
                         </div>
                         <div class="location-card-status">
