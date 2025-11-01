@@ -338,18 +338,18 @@
             }
         }
 
-        const bindClose = (element) => {
+        const bindClose = (element, reason = 'dismissed') => {
             if (!element) {
                 return;
             }
 
             element.addEventListener('click', () => {
-                closeModal();
+                closeModal(reason);
             });
         };
 
-        bindClose(cancel);
-        bindClose(headerClose);
+        bindClose(cancel, 'cancel');
+        bindClose(headerClose, 'close');
 
         const bindWineSurferClose = (element) => {
             if (!element) {
@@ -365,7 +365,7 @@
 
         overlay.addEventListener('click', event => {
             if (event.target === overlay) {
-                closeModal();
+                closeModal('backdrop');
             }
         });
 
@@ -388,7 +388,7 @@
 
             if (!overlay.hidden) {
                 event.preventDefault();
-                closeModal();
+                closeModal('escape');
             }
         });
 
@@ -525,7 +525,7 @@
                 }
             } catch (error) {
                 showError(error?.message ?? 'Unable to load wines.');
-                closeModal();
+                closeModal('error');
                 throw error;
             } finally {
                 setModalLoading(false);
@@ -661,7 +661,8 @@
             return String(parsed);
         }
 
-        function closeModal() {
+        function closeModal(reason = 'dismissed') {
+            const closedContext = lastOpenContext;
             setModalLoading(false);
             closeWineSurferPopover({ restoreFocus: false });
             overlay.classList.remove('is-open');
@@ -680,6 +681,13 @@
             if (quantity) {
                 quantity.value = '1';
             }
+
+            document.dispatchEvent(new CustomEvent('inventoryAddModal:closed', {
+                detail: {
+                    reason,
+                    context: closedContext
+                }
+            }));
         }
 
         async function handleSubmit(event) {
@@ -715,6 +723,20 @@
 
             try {
                 setModalLoading(true);
+                if (lastOpenContext?.mode === 'wine-wizard') {
+                    const detail = {
+                        context: lastOpenContext,
+                        wineId,
+                        vintage: vintageValue,
+                        quantity: quantityValue,
+                        bottleLocationId: locationValue || null
+                    };
+
+                    document.dispatchEvent(new CustomEvent('inventoryAddModal:wizardSelection', { detail }));
+                    closeModal('wizard');
+                    return;
+                }
+
                 const result = await sendJson('/wine-manager/inventory', {
                     method: 'POST',
                     body: JSON.stringify({ wineId, vintage: vintageValue, quantity: quantityValue, bottleLocationId: locationValue || null })
@@ -747,12 +769,12 @@
                         }
                     }
 
-                    closeModal();
+                    closeModal('submit');
                     window.location.reload();
                     return;
                 }
 
-                closeModal();
+                closeModal('submit');
                 showStatus(message, 'success');
             } catch (error) {
                 showError(error?.message ?? 'Unable to add wine to your inventory.');
