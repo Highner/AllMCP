@@ -23,6 +23,8 @@
         TitleCssClass = "wine-surfer-modal__title choose-bottles-title",
         TitleElementId = "choose-bottles-title",
         BodyCssClass = "wine-surfer-modal__body choose-bottles-body",
+        RenderFooter = true,
+        FooterCssClass = "wine-surfer-modal__footer choose-bottles-footer",
         CloseButtonCssClass = "wine-surfer-modal__close choose-bottles-close",
         CloseButtonLabel = "Close choose bottles dialog",
         CloseButtonAttributes = new Dictionary<string, string?>
@@ -57,11 +59,11 @@
                     </tbody>
                 </table>
             </div>
-            <div class="choose-bottles-actions">
-                <button type="button" class="crud-table__action-button secondary choose-bottles-cancel">Cancel</button>
-                <button type="button" class="crud-table__action-button choose-bottles-select" disabled>Select</button>
-            </div>
-        </section>
+        </section>,
+        FooterContent = @<div class="choose-bottles-actions">
+            <button type="button" class="crud-table__action-button secondary choose-bottles-cancel">Cancel</button>
+            <button type="button" class="crud-table__action-button choose-bottles-select" disabled>Select</button>
+        </div>
     };
 }
 @await Html.PartialAsync("_WineSurferModalShell", modal)

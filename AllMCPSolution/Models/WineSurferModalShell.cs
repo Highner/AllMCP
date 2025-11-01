@@ -35,4 +35,9 @@ public record WineSurferModalShell
         = new Dictionary<string, string?>(System.StringComparer.OrdinalIgnoreCase);
     // Accept Razor inline templates: @<...> compiles to Func<object?, IHtmlContent>
     public Func<object?, IHtmlContent>? BodyContent { get; init; }
+    public bool RenderFooter { get; init; }
+    public string FooterCssClass { get; init; } = "wine-surfer-modal__footer";
+    public IDictionary<string, string?>? FooterAttributes { get; init; }
+        = new Dictionary<string, string?>(System.StringComparer.OrdinalIgnoreCase);
+    public Func<object?, IHtmlContent>? FooterContent { get; init; }
 }
