@@ -8,6 +8,7 @@
     var titleAttributes = NormalizeAttributes(Model.TitleAttributes);
     var bodyAttributes = NormalizeAttributes(Model.BodyAttributes);
     var closeAttributes = NormalizeAttributes(Model.CloseButtonAttributes);
+    var footerAttributes = NormalizeAttributes(Model.FooterAttributes);
 
     if (!string.IsNullOrEmpty(Model.BackdropId))
     {
@@ -46,6 +47,9 @@
     var bodyClasses = string.IsNullOrWhiteSpace(Model.BodyCssClass)
         ? "wine-surfer-modal__body"
         : Model.BodyCssClass;
+    var footerClasses = string.IsNullOrWhiteSpace(Model.FooterCssClass)
+        ? "wine-surfer-modal__footer"
+        : Model.FooterCssClass;
 
     var titleTagName = string.IsNullOrWhiteSpace(Model.TitleTagName)
         ? "h2"
@@ -80,6 +84,7 @@
     var headerAttributeString = BuildAttributeString(headerAttributes);
     var bodyAttributeString = BuildAttributeString(bodyAttributes);
     var closeAttributeString = BuildAttributeString(closeAttributes);
+    var footerAttributeString = BuildAttributeString(footerAttributes);
 }
 <div class="@backdropClasses"@Html.Raw(backdropAttributeString)>
     <div class="@dialogClasses" role="dialog" aria-modal="true"@Html.Raw(dialogAttributeString)>
@@ -104,6 +109,15 @@
                 @Model.BodyContent(null)
             }
         </div>
+        @if (ShouldRenderFooter(Model))
+        {
+            <footer class="@footerClasses"@Html.Raw(footerAttributeString)>
+                @if (Model.FooterContent is not null)
+                {
+                    @Model.FooterContent(null)
+                }
+            </footer>
+        }
     </div>
 </div>
 
@@ -157,5 +171,10 @@
 
             builder.Attributes[attribute.Key] = attribute.Value ?? string.Empty;
         }
+    }
+
+    private static bool ShouldRenderFooter(AllMCPSolution.Models.WineSurferModalShell model)
+    {
+        return model.RenderFooter || model.FooterContent is not null;
     }
 }
