@@ -1326,7 +1326,30 @@
     }
     var hasUpcomingSipSessionBottles = upcomingSipSessionBottles.Count > 0;
     var sharedBottleEntries = Model.SharedBottles ?? Array.Empty<WineSurferSharedBottle>();
-    var hasSharedBottles = sharedBottleEntries.Count > 0;
+    var sharedWithYouBottles = new List<WineSurferSharedBottle>();
+    var sharedByYouBottles = new List<WineSurferSharedBottle>();
+    if (sharedBottleEntries.Count > 0)
+    {
+        foreach (var sharedBottle in sharedBottleEntries)
+        {
+            if (sharedBottle is null)
+            {
+                continue;
+            }
+
+            if (sharedBottle.IsSharedByCurrentUser)
+            {
+                sharedByYouBottles.Add(sharedBottle);
+            }
+            else
+            {
+                sharedWithYouBottles.Add(sharedBottle);
+            }
+        }
+    }
+    var hasSharedWithYouBottles = sharedWithYouBottles.Count > 0;
+    var hasSharedByYouBottles = sharedByYouBottles.Count > 0;
+    var hasSharedBottles = hasSharedWithYouBottles || hasSharedByYouBottles;
     DrinkBottleModalViewModel? drinkBottleModalModel = null;
     if (isAuthenticated)
     {
@@ -1461,44 +1484,90 @@
                                         ? "shared-bottle-group shared-bottle-group--with-upcoming"
                                         : "shared-bottle-group";
                                 }
-                                <div class="@sharedGroupClass">
-                                    <h3 class="shared-bottle-heading">Shared with you</h3>
-                                    <div class="upcoming-session-bottle-list shared-bottle-list">
-                                        @foreach (var shared in sharedBottleEntries)
-                                        {
-                                            var sharedBottle = shared.Bottle;
-                                            if (sharedBottle is null)
+
+                                @if (hasSharedWithYouBottles)
+                                {
+                                    <div class="@sharedGroupClass">
+                                        <h3 class="shared-bottle-heading">Shared with you</h3>
+                                        <div class="upcoming-session-bottle-list shared-bottle-list">
+                                            @foreach (var shared in sharedWithYouBottles)
                                             {
-                                                continue;
-                                            }
-
-                                            var sharedByName = string.IsNullOrWhiteSpace(shared.SharedByDisplayName)
-                                                ? "A fellow surfer"
-                                                : shared.SharedByDisplayName.Trim();
-                                            var sharedAtLocal = NormalizeDateTime(shared.SharedAtUtc);
-                                            var sharedDateLabel = sharedAtLocal.ToString("MMMM d, yyyy");
-                                            var sharedTimeLabel = sharedAtLocal.ToString("t");
-
-                                            <div class="shared-bottle-entry">
-                                                <p class="shared-bottle-label">
-                                                    <span class="shared-bottle-label-prefix">Shared by</span>
-                                                    <span class="shared-bottle-label-name">@sharedByName</span>
-                                                    <span class="shared-bottle-label-date">on @sharedDateLabel at @sharedTimeLabel</span>
-                                                </p>
-                                                @{
-                                                    var bottleViewData = new ViewDataDictionary(ViewData);
-                                                    bottleViewData["IsAuthenticated"] = false;
-                                                    bottleViewData.Remove("BottleContextSisterhoodId");
-                                                    bottleViewData.Remove("BottleContextSipSessionId");
-                                                    bottleViewData.Remove("SisterhoodId");
-                                                    bottleViewData.Remove("SipSessionId");
-                                                    bottleViewData.Remove("ReturnUrl");
-                                                    @await Html.PartialAsync("_BottleCard", sharedBottle, bottleViewData);
+                                                var sharedBottle = shared.Bottle;
+                                                if (sharedBottle is null)
+                                                {
+                                                    continue;
                                                 }
-                                            </div>
-                                        }
+
+                                                var sharedByName = string.IsNullOrWhiteSpace(shared.SharedByDisplayName)
+                                                    ? "A fellow surfer"
+                                                    : shared.SharedByDisplayName.Trim();
+                                                var sharedAtLocal = NormalizeDateTime(shared.SharedAtUtc);
+                                                var sharedDateLabel = sharedAtLocal.ToString("MMMM d, yyyy");
+                                                var sharedTimeLabel = sharedAtLocal.ToString("t");
+
+                                                <div class="shared-bottle-entry">
+                                                    <p class="shared-bottle-label">
+                                                        <span class="shared-bottle-label-prefix">Shared by</span>
+                                                        <span class="shared-bottle-label-name">@sharedByName</span>
+                                                        <span class="shared-bottle-label-date">on @sharedDateLabel at @sharedTimeLabel</span>
+                                                    </p>
+                                                    @{
+                                                        var bottleViewData = new ViewDataDictionary(ViewData);
+                                                        bottleViewData["IsAuthenticated"] = false;
+                                                        bottleViewData.Remove("BottleContextSisterhoodId");
+                                                        bottleViewData.Remove("BottleContextSipSessionId");
+                                                        bottleViewData.Remove("SisterhoodId");
+                                                        bottleViewData.Remove("SipSessionId");
+                                                        bottleViewData.Remove("ReturnUrl");
+                                                        @await Html.PartialAsync("_BottleCard", sharedBottle, bottleViewData);
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
                                     </div>
-                                </div>
+                                }
+
+                                @if (hasSharedByYouBottles)
+                                {
+                                    <div class="@sharedGroupClass">
+                                        <h3 class="shared-bottle-heading">Shared by you</h3>
+                                        <div class="upcoming-session-bottle-list shared-bottle-list">
+                                            @foreach (var shared in sharedByYouBottles)
+                                            {
+                                                var sharedBottle = shared.Bottle;
+                                                if (sharedBottle is null)
+                                                {
+                                                    continue;
+                                                }
+
+                                                var sharedWithName = string.IsNullOrWhiteSpace(shared.SharedWithDisplayName)
+                                                    ? "A fellow surfer"
+                                                    : shared.SharedWithDisplayName.Trim();
+                                                var sharedAtLocal = NormalizeDateTime(shared.SharedAtUtc);
+                                                var sharedDateLabel = sharedAtLocal.ToString("MMMM d, yyyy");
+                                                var sharedTimeLabel = sharedAtLocal.ToString("t");
+
+                                                <div class="shared-bottle-entry">
+                                                    <p class="shared-bottle-label">
+                                                        <span class="shared-bottle-label-prefix">Shared with</span>
+                                                        <span class="shared-bottle-label-name">@sharedWithName</span>
+                                                        <span class="shared-bottle-label-date">on @sharedDateLabel at @sharedTimeLabel</span>
+                                                    </p>
+                                                    @{
+                                                        var bottleViewData = new ViewDataDictionary(ViewData);
+                                                        bottleViewData["IsAuthenticated"] = false;
+                                                        bottleViewData.Remove("BottleContextSisterhoodId");
+                                                        bottleViewData.Remove("BottleContextSipSessionId");
+                                                        bottleViewData.Remove("SisterhoodId");
+                                                        bottleViewData.Remove("SipSessionId");
+                                                        bottleViewData.Remove("ReturnUrl");
+                                                        @await Html.PartialAsync("_BottleCard", sharedBottle, bottleViewData);
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
                             }
                         }
                         else

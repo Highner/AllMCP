@@ -312,10 +312,39 @@ public class WineSurferController : WineSurferControllerBase
                     .ToList();
             }
 
+            var shareLookup = new Dictionary<Guid, BottleShare>();
+
             var receivedShares = await _bottleShareRepository.GetSharesForRecipientAsync(currentUserId.Value, cancellationToken);
             if (receivedShares.Count > 0)
             {
-                var shareSummaries = CreateSharedBottleSummaries(receivedShares, currentUserId);
+                foreach (var share in receivedShares)
+                {
+                    if (share is null)
+                    {
+                        continue;
+                    }
+
+                    shareLookup[share.Id] = share;
+                }
+            }
+
+            var grantedShares = await _bottleShareRepository.GetSharesGrantedByUserAsync(currentUserId.Value, cancellationToken);
+            if (grantedShares.Count > 0)
+            {
+                foreach (var share in grantedShares)
+                {
+                    if (share is null)
+                    {
+                        continue;
+                    }
+
+                    shareLookup[share.Id] = share;
+                }
+            }
+
+            if (shareLookup.Count > 0)
+            {
+                var shareSummaries = CreateSharedBottleSummaries(shareLookup.Values, currentUserId);
                 if (shareSummaries.Count > 0)
                 {
                     sharedBottles = shareSummaries;
@@ -3493,11 +3522,30 @@ private static IReadOnlyList<WineSurferSharedBottle> CreateSharedBottleSummaries
             sharedByUser?.UserName,
             sharedByUser?.Email);
 
+        var sharedWithUser = share.SharedWithUser;
+        var sharedWithDisplayName = StringUtilities.ResolveDisplayName(
+            sharedWithUser?.Name,
+            sharedWithUser?.UserName,
+            sharedWithUser?.Email);
+
+        var isSharedByCurrentUser = currentUserId.HasValue && share.SharedByUserId == currentUserId.Value;
+        if (isSharedByCurrentUser)
+        {
+            sharedByDisplayName = "You";
+        }
+
+        if (currentUserId.HasValue && share.SharedWithUserId == currentUserId.Value)
+        {
+            sharedWithDisplayName = "You";
+        }
+
         results.Add(new WineSurferSharedBottle(
             share.Id,
             summary,
             sharedByDisplayName,
-            share.SharedAt));
+            sharedWithDisplayName,
+            share.SharedAt,
+            isSharedByCurrentUser));
     }
 
     if (results.Count == 0)
@@ -4199,7 +4247,9 @@ public record WineSurferSharedBottle(
     Guid ShareId,
     WineSurferSipSessionBottle Bottle,
     string? SharedByDisplayName,
-    DateTime SharedAtUtc);
+    string? SharedWithDisplayName,
+    DateTime SharedAtUtc,
+    bool IsSharedByCurrentUser);
 
 public record WineSurferSisterhoodMember(Guid Id, string DisplayName, bool IsAdmin, bool IsCurrentUser, string AvatarLetter, string? ProfilePhotoUrl);
 
