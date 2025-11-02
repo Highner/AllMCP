@@ -1951,25 +1951,13 @@ table,
     margin-top: 16px;
 }
 
-.inventory-table thead {
-    position: sticky;
-    top: calc(var(--wine-surfer-top-bar-height, 0px));
-    z-index: 5;
-    background: linear-gradient(180deg, hsla(var(--accent) / 0.5), hsla(var(--accent) / 0.25));
-    backdrop-filter: blur(6px);
-    box-shadow: 0 16px 28px hsla(var(--background) / 0.45);
-    border-bottom: 1px solid hsla(var(--border) / 0.45);
-}
-
 .inventory-table thead .header-row {
-    background: transparent;
+    background: hsla(var(--accent) / 0.3);
 }
 
 .inventory-table thead th {
-    position: sticky;
-    top: calc(var(--wine-surfer-top-bar-height, 0px));
-    z-index: 6;
-    background: transparent;
+    position: static;
+    background: hsla(var(--accent) / 0.3);
 }
 
 table thead,
