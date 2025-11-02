@@ -1098,6 +1098,38 @@
             });
         }
 
+        const wireNotificationPanelButtons = (panel) => {
+            if (!panel) {
+                return;
+            }
+
+            panel.querySelectorAll('a, button:not(.notification-dismiss)').forEach(element => {
+                if (element.dataset.notificationWireBound === 'true') {
+                    return;
+                }
+
+                element.dataset.notificationWireBound = 'true';
+                element.addEventListener('click', () => {
+                    closeNotifications();
+                });
+            });
+
+            panel.querySelectorAll('.notification-dismiss').forEach(button => {
+                if (button.dataset.notificationWireBound === 'true') {
+                    return;
+                }
+
+                button.dataset.notificationWireBound = 'true';
+                button.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    (async () => {
+                        await dismissNotification(button);
+                    })();
+                });
+            });
+        };
+
         if (notificationToggle && notificationPanel) {
             notificationToggle.addEventListener('click', () => {
                 const isOpen = notificationToggle.classList.toggle('active');
@@ -1109,27 +1141,20 @@
                     closeMenu();
                 }
             });
-
-            notificationPanel.querySelectorAll('a, button:not(.notification-dismiss)').forEach(element => {
-                element.addEventListener('click', () => {
-                    closeNotifications();
-                });
-            });
-
-            notificationPanel.querySelectorAll('.notification-dismiss').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                    event.preventDefault();
-                    (async () => {
-                        await dismissNotification(button);
-                    })();
-                });
-            });
-
+            wireNotificationPanelButtons(notificationPanel);
             applyDismissedNotifications();
         } else {
             updateAvatarLabel(0);
         }
+
+        document.addEventListener('wine-surfer:notification-panel-refreshed', () => {
+            if (!notificationPanel) {
+                return;
+            }
+
+            wireNotificationPanelButtons(notificationPanel);
+            applyDismissedNotifications();
+        });
 
         if (editAccountTrigger && accountEditLayer && accountEditForm && accountEditInput) {
             editAccountTrigger.addEventListener('click', (event) => {

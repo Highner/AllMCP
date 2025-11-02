@@ -142,6 +142,7 @@
     <link rel="stylesheet" href="/css/wine-surfer-theme.css" />
     <script defer src="/js/pwa.js"></script>
     <script defer src="/js/sip-session-modal.js"></script>
+    <script defer src="/js/wine-surfer-notifications.js"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -1400,13 +1401,16 @@
     <div class="page-content">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main>
+            <p class="realtime-offline-banner" data-realtime-offline hidden role="status">
+                Real-time updates are paused. Refresh to catch up on the latest activity.
+            </p>
             @if (Model.CurrentUser is null)
             {
                 <p class="auth-callout" role="status">Sign in from the menu to view your tasting history and personalize region scores.</p>
             }
             <div class="dashboard-columns">
                 <div class="dashboard-column dashboard-column--left">
-                    <section class="upcoming-sessions" aria-label="Upcoming sip sessions">
+                    <section class="upcoming-sessions" id="upcomingSipSessionsSection" aria-label="Upcoming sip sessions">
                         <div class="upcoming-sessions-header section-header">
                             <h2 class="section-title">Upcoming sip sessions</h2>
                             @if (canCreateSipSession && sipSessionCreateTemplate is not null)
@@ -1457,7 +1461,7 @@
                             @await Html.PartialAsync("_SipSessionModalRegion", sipSessionCreateTemplate)
                         }
                     </section>
-                    <section class="upcoming-session-bottles" aria-label="Bottles from upcoming sip sessions">
+                    <section class="upcoming-session-bottles" id="sharedBottlesSection" aria-label="Bottles from upcoming sip sessions">
                         <div class="upcoming-session-bottles-header section-header">
                             <h2 class="section-title">Your drinks</h2>
                             @if (isAuthenticated)
@@ -1514,7 +1518,7 @@
                                                 var sharedDateLabel = sharedAtLocal.ToString("MMMM d, yyyy");
                                                 var sharedTimeLabel = sharedAtLocal.ToString("t");
 
-                                                <div class="shared-bottle-entry">
+                                                <div class="shared-bottle-entry" data-shared-bottle-entry data-share-id="@shared.ShareId" data-bottle-id="@sharedBottle.Id">
                                                     <p class="shared-bottle-label">
                                                         <span class="shared-bottle-label-prefix">Shared by</span>
                                                         <span class="shared-bottle-label-name">@sharedByName</span>
@@ -1566,7 +1570,7 @@
                                                 var sharedDateLabel = sharedAtLocal.ToString("MMMM d, yyyy");
                                                 var sharedTimeLabel = sharedAtLocal.ToString("t");
 
-                                                <div class="shared-bottle-entry">
+                                                <div class="shared-bottle-entry" data-shared-bottle-entry data-share-id="@shared.ShareId" data-bottle-id="@sharedBottle.Id">
                                                     <p class="shared-bottle-label">
                                                         <span class="shared-bottle-label-prefix">Shared with</span>
                                                         <span class="shared-bottle-label-name">@sharedWithName</span>
@@ -1801,53 +1805,74 @@
                 <script defer src="/js/sisterhood-user-select-modal.js"></script>
                 <script>
                     (function () {
-                        const shareButton = document.querySelector('[data-share-bottles-button]');
-                        if (!shareButton) {
-                            return;
-                        }
+                        const namespace = window.WineSurfer = window.WineSurfer || {};
+                        const BUTTON_SELECTOR = '[data-share-bottles-button]';
 
-                        const setBusy = (isBusy) => {
-                            if (isBusy) {
-                                shareButton.dataset.state = 'loading';
-                                shareButton.setAttribute('aria-busy', 'true');
-                                shareButton.setAttribute('disabled', 'disabled');
-                            } else {
-                                delete shareButton.dataset.state;
-                                shareButton.removeAttribute('aria-busy');
-                                shareButton.removeAttribute('disabled');
+                        const bindShareButton = (root) => {
+                            const context = root instanceof Element ? root : document;
+                            const shareButton = context.querySelector(BUTTON_SELECTOR);
+                            if (!shareButton || shareButton.dataset.shareHandlerBound === 'true') {
+                                return;
                             }
+
+                            const setBusy = (isBusy) => {
+                                if (isBusy) {
+                                    shareButton.dataset.state = 'loading';
+                                    shareButton.setAttribute('aria-busy', 'true');
+                                    shareButton.setAttribute('disabled', 'disabled');
+                                } else {
+                                    delete shareButton.dataset.state;
+                                    shareButton.removeAttribute('aria-busy');
+                                    shareButton.removeAttribute('disabled');
+                                }
+                            };
+
+                            const handleClick = (event) => {
+                                event.preventDefault();
+
+                                if (!window.WineWizard || typeof window.WineWizard.start !== 'function') {
+                                    window.alert('Sharing bottles is unavailable right now.');
+                                    return;
+                                }
+
+                                if (shareButton.dataset.state === 'loading') {
+                                    return;
+                                }
+
+                                setBusy(true);
+
+                                Promise.resolve(window.WineWizard.start())
+                                    .catch((error) => {
+                                        const message = (error && typeof error.message === 'string')
+                                            ? error.message
+                                            : 'Sharing bottles is unavailable right now.';
+                                        const normalized = message.toLowerCase();
+                                        if (normalized.includes('cancelled') || normalized.includes('already running')) {
+                                            return;
+                                        }
+
+                                        console.error(error);
+                                        window.alert(message);
+                                    })
+                                    .finally(() => {
+                                        setBusy(false);
+                                    });
+                            };
+
+                            shareButton.dataset.shareHandlerBound = 'true';
+                            shareButton.addEventListener('click', handleClick);
                         };
 
-                        shareButton.addEventListener('click', (event) => {
-                            event.preventDefault();
+                        namespace.bindShareButtonForRealtime = bindShareButton;
+                        bindShareButton(document);
 
-                            if (!window.WineWizard || typeof window.WineWizard.start !== 'function') {
-                                window.alert('Sharing bottles is unavailable right now.');
+                        document.addEventListener('wine-surfer:section-refreshed', (event) => {
+                            const section = event?.detail?.section;
+                            if (!section) {
                                 return;
                             }
 
-                            if (shareButton.dataset.state === 'loading') {
-                                return;
-                            }
-
-                            setBusy(true);
-
-                            Promise.resolve(window.WineWizard.start())
-                                .catch((error) => {
-                                    const message = (error && typeof error.message === 'string')
-                                        ? error.message
-                                        : 'Sharing bottles is unavailable right now.';
-                                    const normalized = message.toLowerCase();
-                                    if (normalized.includes('cancelled') || normalized.includes('already running')) {
-                                        return;
-                                    }
-
-                                    console.error(error);
-                                    window.alert(message);
-                                })
-                                .finally(() => {
-                                    setBusy(false);
-                                });
+                            bindShareButton(section);
                         });
                     })();
                 </script>
@@ -2715,41 +2740,257 @@
 </body>
 </html>
 
+<script>
+    (function () {
+        document.addEventListener('wine-surfer:section-refreshed', (event) => {
+            const section = event?.detail?.section;
+            if (!section) {
+                return;
+            }
+
+            if (window.WineSurfer && window.WineSurfer.SipSessionModal) {
+                try {
+                    window.WineSurfer.SipSessionModal.ensureCloseHandlers();
+                    window.WineSurfer.SipSessionModal.wireCreateButtons(section);
+                } catch (error) {
+                    console.error('Failed to rewire sip session modal', error);
+                }
+            }
+        });
+    })();
+</script>
 
 <!-- Real-time notifications via SignalR -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.5/signalr.min.js" crossorigin="anonymous"></script>
 <script>
     (function () {
+        const realtime = window.WineSurferRealtime || null;
+
+        const markUnavailable = (message) => {
+            if (realtime && typeof realtime.markUnavailable === 'function') {
+                realtime.markUnavailable(message);
+            }
+        };
+
+        const markAvailable = () => {
+            if (realtime && typeof realtime.markAvailable === 'function') {
+                realtime.markAvailable();
+            }
+        };
+
+        const showToast = (options) => {
+            if (!realtime || typeof realtime.showToast !== 'function') {
+                return;
+            }
+
+            try {
+                realtime.showToast(options);
+            } catch (error) {
+                console.error('Failed to display toast', error);
+            }
+        };
+
+        const smoothScrollIntoView = (element) => {
+            if (!element) {
+                return;
+            }
+
+            try {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch {
+                element.scrollIntoView();
+            }
+        };
+
+        const refreshSharedBottles = (bottleId) => {
+            if (!realtime || typeof realtime.refreshSection !== 'function') {
+                return;
+            }
+
+            realtime.refreshSection('#sharedBottlesSection', {
+                findHighlight: (root) => {
+                    if (!bottleId) {
+                        return null;
+                    }
+
+                    const card = root.querySelector(`[data-bottle-id="${bottleId}"]`);
+                    return card ? (card.closest('[data-shared-bottle-entry]') || card) : null;
+                }
+            }).catch((error) => {
+                console.error('Failed to refresh shared bottles', error);
+            });
+        };
+
+        const refreshUpcomingSessions = (sessionId) => {
+            if (!realtime || typeof realtime.refreshSection !== 'function') {
+                return;
+            }
+
+            realtime.refreshSection('#upcomingSipSessionsSection', {
+                findHighlight: (root) => {
+                    if (!sessionId) {
+                        return null;
+                    }
+
+                    return root.querySelector(`[data-sip-session-id="${sessionId}"]`);
+                }
+            }).catch((error) => {
+                console.error('Failed to refresh upcoming sip sessions', error);
+            });
+        };
+
+        const refreshSisterhoodInvitations = () => {
+            if (!realtime || typeof realtime.refreshSisterhoodInvitations !== 'function') {
+                return;
+            }
+
+            realtime.refreshSisterhoodInvitations().catch((error) => {
+                console.error('Failed to refresh sisterhood invitations', error);
+            });
+        };
+
+        const openNotificationsPanel = () => {
+            const toggle = document.getElementById('notificationToggle');
+            const panel = document.getElementById('notificationPanel');
+            if (!toggle || !panel) {
+                return;
+            }
+
+            if (!toggle.classList.contains('active')) {
+                toggle.click();
+            }
+
+            window.requestAnimationFrame(() => {
+                if (typeof panel.focus === 'function') {
+                    panel.focus();
+                }
+            });
+        };
+
+        const formatSchedule = (payload) => {
+            if (!payload) {
+                return '';
+            }
+
+            const { scheduledAtUtc, date } = payload;
+            if (scheduledAtUtc) {
+                const scheduledDate = new Date(scheduledAtUtc);
+                if (!Number.isNaN(scheduledDate.valueOf())) {
+                    return scheduledDate.toLocaleString(undefined, {
+                        dateStyle: 'long',
+                        timeStyle: 'short'
+                    });
+                }
+            }
+
+            if (date) {
+                const sessionDate = new Date(date);
+                if (!Number.isNaN(sessionDate.valueOf())) {
+                    return sessionDate.toLocaleDateString(undefined, { dateStyle: 'long' });
+                }
+            }
+
+            return '';
+        };
+
         if (!window.signalR) {
-            console.warn("SignalR client not found. Skipping real-time notifications.");
+            console.warn('SignalR client not found. Skipping real-time notifications.');
+            markUnavailable();
             return;
         }
+
         const connection = new signalR.HubConnectionBuilder()
-            .withUrl("/hubs/notifications")
+            .withUrl('/hubs/notifications')
             .withAutomaticReconnect()
             .build();
 
-        function start() {
-            connection.start().catch(function (err) {
-                console.error("SignalR connect failed", err);
-                setTimeout(start, 3000);
+        connection.onclose(() => {
+            markUnavailable();
+        });
+
+        connection.onreconnecting(() => {
+            markUnavailable('Attempting to reconnect to live updates…');
+        });
+
+        connection.onreconnected(() => {
+            markAvailable();
+        });
+
+        connection.on('BottleShareCreated', (payload) => {
+            const bottleId = payload && payload.bottleId ? String(payload.bottleId) : null;
+
+            showToast({
+                title: 'Bottle shared with you',
+                description: 'A fellow surfer just shared a bottle with you.',
+                action: {
+                    label: 'View bottles',
+                    handler: () => {
+                        const section = document.getElementById('sharedBottlesSection');
+                        if (section) {
+                            smoothScrollIntoView(section);
+                        }
+                    }
+                }
             });
-        }
 
-        connection.on("BottleShareCreated", function (payload) {
-            try { console.log("BottleShareCreated", payload); } catch (_) {}
-            // TODO: integrate with shadcn toast and/or update relevant UI partial
+            refreshSharedBottles(bottleId);
         });
 
-        connection.on("SisterhoodInvitationReceived", function (payload) {
-            try { console.log("SisterhoodInvitationReceived", payload); } catch (_) {}
-            // TODO: integrate with shadcn toast and/or update relevant UI partial
+        connection.on('SisterhoodInvitationReceived', (payload) => {
+            const rawName = payload && typeof payload.sisterhoodName === 'string' ? payload.sisterhoodName.trim() : '';
+            const sisterhoodName = rawName.length > 0 ? rawName : 'a sisterhood';
+
+            showToast({
+                title: 'New sisterhood invitation',
+                description: `You were invited to join ${sisterhoodName}.`,
+                action: {
+                    label: 'Review invitations',
+                    handler: () => {
+                        openNotificationsPanel();
+                    }
+                }
+            });
+
+            refreshSisterhoodInvitations();
         });
 
-        connection.on("SipSessionCreated", function (payload) {
-            try { console.log("SipSessionCreated", payload); } catch (_) {}
-            // TODO: integrate with shadcn toast and/or update relevant UI elements for upcoming sessions
+        connection.on('SipSessionCreated', (payload) => {
+            const sessionId = payload && payload.id ? String(payload.id) : null;
+            const rawTitle = payload && typeof payload.title === 'string' ? payload.title.trim() : '';
+            const scheduleLabel = formatSchedule(payload);
+
+            const description = scheduleLabel
+                ? (rawTitle ? `${rawTitle} is scheduled for ${scheduleLabel}.` : `A sip session is scheduled for ${scheduleLabel}.`)
+                : (rawTitle ? `${rawTitle} was added to your calendar.` : 'A new sip session was added to your calendar.');
+
+            showToast({
+                title: rawTitle ? `Sip session: ${rawTitle}` : 'New sip session added',
+                description,
+                action: {
+                    label: 'View sessions',
+                    handler: () => {
+                        const section = document.getElementById('upcomingSipSessionsSection');
+                        if (section) {
+                            smoothScrollIntoView(section);
+                        }
+                    }
+                }
+            });
+
+            refreshUpcomingSessions(sessionId);
         });
+
+        const start = () => {
+            connection.start()
+                .then(() => {
+                    markAvailable();
+                })
+                .catch((error) => {
+                    console.error('SignalR connect failed', error);
+                    markUnavailable('Live updates will resume once we reconnect.');
+                    window.setTimeout(start, 3000);
+                });
+        };
 
         start();
     })();

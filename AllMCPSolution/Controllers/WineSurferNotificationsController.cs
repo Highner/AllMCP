@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using System.Net.Mail;
 using System.Security.Claims;
 using System.Threading;
@@ -100,6 +101,69 @@ public class WineSurferNotificationsController : Controller
             cancellationToken);
 
         return Ok(new DismissNotificationResponse(updatedDismissals));
+    }
+
+    [HttpGet("sisterhoods/pending")]
+    public async Task<IActionResult> GetPendingSisterhoodInvitations(CancellationToken cancellationToken)
+    {
+        var (userId, normalizedEmail) = await ResolveUserContextAsync(User, cancellationToken);
+
+        if (!userId.HasValue && string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            return Unauthorized();
+        }
+
+        var invitations = await _sisterhoodInvitationRepository.GetForInviteeAsync(userId, normalizedEmail, cancellationToken);
+
+        var pending = invitations
+            .Where(invitation => invitation is not null && invitation.Status == SisterhoodInvitationStatus.Pending)
+            .Select(invitation =>
+            {
+                var matchesUserId = userId.HasValue && invitation.InviteeUserId == userId.Value;
+                var matchesEmail = !string.IsNullOrWhiteSpace(normalizedEmail)
+                    && string.Equals(invitation.InviteeEmail, normalizedEmail, StringComparison.Ordinal);
+
+                return new
+                {
+                    Invitation = invitation,
+                    MatchesUserId = matchesUserId,
+                    MatchesEmail = matchesEmail
+                };
+            })
+            .Where(entry => entry.MatchesUserId || entry.MatchesEmail)
+            .Select(entry => new WineSurferIncomingSisterhoodInvitation(
+                entry.Invitation.Id,
+                entry.Invitation.SisterhoodId,
+                entry.Invitation.Sisterhood?.Name ?? "Sisterhood",
+                entry.Invitation.Sisterhood?.Description,
+                entry.Invitation.InviteeEmail,
+                entry.Invitation.Status,
+                entry.Invitation.CreatedAt,
+                entry.Invitation.UpdatedAt,
+                entry.Invitation.InviteeUserId,
+                entry.MatchesUserId,
+                entry.MatchesEmail))
+            .ToList();
+
+        if (pending.Count == 0)
+        {
+            return Ok(new
+            {
+                success = true,
+                sections = Array.Empty<WineSurferTopBarNotificationSection>()
+            });
+        }
+
+        var sections = WineSurferTopBarModel.BuildSections(
+            pending,
+            Array.Empty<WineSurferSentInvitationNotification>(),
+            WineSurferTopBarModel.SisterhoodNotificationsUrl);
+
+        return Ok(new
+        {
+            success = true,
+            sections
+        });
     }
 
     private async Task<IActionResult?> ValidatePendingInvitationAsync(
