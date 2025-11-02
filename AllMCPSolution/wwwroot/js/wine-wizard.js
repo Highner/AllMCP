@@ -1,6 +1,13 @@
 (function(){
   'use strict';
 
+  const START_SELECTORS = {
+    overlay: '[data-wine-wizard-overlay]',
+    dialog: '[data-wine-wizard-modal]',
+    close: '[data-wine-wizard-close]',
+    action: '[data-wine-wizard-action]'
+  };
+
   const state = {
     active: false,
     mounted: false,
@@ -12,7 +19,10 @@
     reject: null,
     options: {},
     submitting: false,
-    expectingInventoryReopen: false
+    expectingInventoryReopen: false,
+    startOverlay: null,
+    startDialog: null,
+    startInitialized: false
   };
 
   function start(options = {}){
@@ -23,7 +33,7 @@
     mount();
 
     state.active = true;
-    state.step = 'choose';
+    state.step = 'start';
     state.selectedBottleIds = [];
     state.pendingCreations = [];
     state.recipientIds = [];
@@ -36,7 +46,7 @@
     return new Promise((resolve, reject) => {
       state.resolve = resolve;
       state.reject = reject;
-      openChooseStep();
+      openStartStep();
     });
   }
 
@@ -48,6 +58,7 @@
     if(typeof state.options.onCancel === 'function'){
       try { state.options.onCancel(message); } catch (error) { console.error(error); }
     }
+    closeStartModal();
     document.dispatchEvent(new CustomEvent('wineWizard:cancelled', { detail: { reason: message } }));
     if(typeof state.reject === 'function'){
       state.reject(new Error(message));
@@ -73,12 +84,112 @@
       return;
     }
     state.mounted = true;
+    initializeStartModal();
     document.addEventListener('choose-bottles:selected', handleChooseSelected);
     document.addEventListener('choose-bottles:closed', handleChooseClosed);
     document.addEventListener('inventoryAddModal:wizardSelection', handleInventorySelection);
     document.addEventListener('inventoryAddModal:closed', handleInventoryClosed);
     document.addEventListener('sisterhood-user-select:submit', handleSisterhoodSubmit);
     document.addEventListener('sisterhood-user-select:closed', handleSisterhoodClosed);
+  }
+
+  function initializeStartModal(){
+    if(state.startInitialized){
+      return;
+    }
+    state.startOverlay = getStartOverlay();
+    state.startDialog = getStartDialog();
+    const dialog = state.startDialog;
+    if(dialog){
+      const actionButtons = dialog.querySelectorAll(START_SELECTORS.action);
+      actionButtons.forEach(button => {
+        if(button instanceof HTMLElement){
+          button.addEventListener('click', handleStartAction);
+        }
+      });
+      const closeButton = dialog.querySelector(START_SELECTORS.close);
+      if(closeButton instanceof HTMLElement){
+        closeButton.addEventListener('click', handleStartClose);
+      }
+      state.startInitialized = true;
+    }
+  }
+
+  function getStartOverlay(){
+    if(state.startOverlay instanceof HTMLElement){
+      return state.startOverlay;
+    }
+    const overlay = document.querySelector(START_SELECTORS.overlay);
+    state.startOverlay = overlay instanceof HTMLElement ? overlay : null;
+    return state.startOverlay;
+  }
+
+  function getStartDialog(){
+    if(state.startDialog instanceof HTMLElement){
+      return state.startDialog;
+    }
+    const dialog = document.querySelector(START_SELECTORS.dialog);
+    state.startDialog = dialog instanceof HTMLElement ? dialog : null;
+    return state.startDialog;
+  }
+
+  function openStartStep(){
+    initializeStartModal();
+    const overlay = getStartOverlay();
+    const dialog = getStartDialog();
+    if(!overlay || !dialog){
+      openChooseStep();
+      return;
+    }
+    state.step = 'start';
+    overlay.removeAttribute('hidden');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.addEventListener('keydown', handleStartKeydown);
+    const firstAction = dialog.querySelector(START_SELECTORS.action);
+    if(firstAction instanceof HTMLElement){
+      firstAction.focus();
+    }
+  }
+
+  function closeStartModal(){
+    const overlay = getStartOverlay();
+    if(!overlay){
+      return;
+    }
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.setAttribute('hidden', '');
+    document.removeEventListener('keydown', handleStartKeydown);
+  }
+
+  function handleStartAction(event){
+    const button = event?.currentTarget;
+    const action = button?.getAttribute?.('data-wine-wizard-action');
+    closeStartModal();
+    if(action === 'cellar'){
+      openChooseStep();
+      return;
+    }
+    if(action === 'new'){
+      openInventoryStep();
+      return;
+    }
+    openChooseStep();
+  }
+
+  function handleStartClose(){
+    closeStartModal();
+    cancel('Wine share was cancelled.');
+  }
+
+  function handleStartKeydown(event){
+    if(!state.active || state.step !== 'start'){
+      return;
+    }
+    if(event.key === 'Escape'){
+      event.preventDefault();
+      closeStartModal();
+      cancel('Wine share was cancelled.');
+    }
   }
 
   function handleChooseSelected(event){
@@ -101,10 +212,12 @@
       return;
     }
     state.selectedBottleIds = [];
-    openInventoryStep();
+    openStartStep();
   }
 
   function openChooseStep(){
+    closeStartModal();
+    state.step = 'choose';
     if(!window.ChooseBottlesModal || typeof window.ChooseBottlesModal.open !== 'function'){
       cancel('Choose bottles modal is unavailable.');
       return;
@@ -169,7 +282,7 @@
     if(hasBottlesToShare()){
       openUserSelectionStep();
     } else {
-      cancel('No bottles selected or created.');
+      openStartStep();
     }
   }
 
@@ -287,6 +400,7 @@
     if(!state.options.silent && message){
       window.alert(message);
     }
+    closeStartModal();
     resetState();
   }
 

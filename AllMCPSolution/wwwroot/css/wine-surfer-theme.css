@@ -584,6 +584,46 @@ a.wine-card:focus {
     min-width: 104px;
 }
 
+.wine-wizard-start-body {
+    padding: 32px 28px;
+    text-align: center;
+}
+
+.wine-wizard-start-section {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-items: center;
+}
+
+.wine-wizard-start-intro {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.wine-wizard-start-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    max-width: 360px;
+}
+
+.wine-wizard-start-button {
+    width: 100%;
+}
+
+@media (min-width: 600px) {
+    .wine-wizard-start-actions {
+        flex-direction: row;
+    }
+
+    .wine-wizard-start-button {
+        width: auto;
+        flex: 1 1 auto;
+    }
+}
+
 .sip-session-edit-modal__body {
     padding: 24px;
     overflow-y: auto;

@@ -1,9 +1,47 @@
 @model AllMCPSolution.Models.WineWizardViewModel
+@using System.Collections.Generic
 @using AllMCPSolution.Models
 @{
     var inventoryModel = Model?.InventoryAddModal ?? new InventoryAddModalViewModel();
     var sisterhoodModel = Model?.SisterhoodUserSelectModal ?? new SisterhoodUserSelectModalViewModel();
+    var wizardStartModal = new WineSurferModalShell
+    {
+        BackdropId = "wine-wizard-start-overlay",
+        BackdropCssClass = "wine-surfer-modal-backdrop wine-wizard-start-overlay",
+        BackdropAttributes = new Dictionary<string, string?>
+        {
+            ["hidden"] = null,
+            ["aria-hidden"] = "true",
+            ["data-wine-wizard-overlay"] = "true"
+        },
+        DialogId = "wine-wizard-start-dialog",
+        DialogCssClass = "wine-surfer-modal wine-wizard-start-dialog",
+        DialogAttributes = new Dictionary<string, string?>
+        {
+            ["aria-labelledby"] = "wine-wizard-start-title",
+            ["data-wine-wizard-modal"] = "true"
+        },
+        HeaderCssClass = "wine-surfer-modal__header wine-wizard-start-header",
+        Title = "Share Wine",
+        TitleCssClass = "wine-surfer-modal__title wine-wizard-start-title",
+        TitleElementId = "wine-wizard-start-title",
+        CloseButtonCssClass = "wine-surfer-modal__close wine-wizard-start-close",
+        CloseButtonLabel = "Cancel wine sharing",
+        CloseButtonAttributes = new Dictionary<string, string?>
+        {
+            ["data-wine-wizard-close"] = null
+        },
+        BodyCssClass = "wine-surfer-modal__body wine-wizard-start-body",
+        BodyContent = @<section class="wine-wizard-start-section">
+            <p class="wine-wizard-start-intro">How would you like to share wine?</p>
+            <div class="wine-wizard-start-actions">
+                <button type="button" class="crud-table__action-button secondary wine-wizard-start-button" data-wine-wizard-action="cellar">Share from cellar</button>
+                <button type="button" class="crud-table__action-button wine-wizard-start-button" data-wine-wizard-action="new">Share new bottle</button>
+            </div>
+        </section>
+    };
 }
+@await Html.PartialAsync("_WineSurferModalShell", wizardStartModal)
 <div class="wine-wizard" data-wine-wizard-root hidden></div>
 @await Html.PartialAsync("_ChooseBottlesFromInventory")
 @await Html.PartialAsync("_InventoryAddModal", inventoryModel)
