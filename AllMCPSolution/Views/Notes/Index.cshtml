@@ -1,5 +1,7 @@
 @model AllMCPSolution.Controllers.NotesController.NotesViewModel
 @using AllMCPSolution.Controllers
+@using AllMCPSolution.Models
+@using System.Globalization
 @{
     Layout = null;
     var currentPath = Context?.Request?.Path.Value ?? string.Empty;
@@ -8,6 +10,14 @@
     ViewData["WineSurferPageTitle"] = "Notes";
     var entries = Model?.Entries ?? Array.Empty<NotesController.NoteEntryViewModel>();
     var entryCount = entries.Count;
+    var drinkBottleModalOptions = new DrinkBottleModalViewModel
+    {
+        Title = "Update tasting note",
+        SubmitLabel = "Update note",
+        ShowDate = false,
+        RequireDate = false,
+        FormMethod = "post"
+    };
 }
 
 @functions {
@@ -117,6 +127,23 @@
             color: hsla(var(--foreground) / 0.6);
         }
 
+        .notes-table__row {
+            cursor: pointer;
+        }
+
+        .notes-table__row:hover {
+            background: hsla(var(--foreground) / 0.08);
+        }
+
+        .notes-table__row:focus {
+            outline: none;
+        }
+
+        .notes-table__row:focus-visible {
+            outline: 2px solid hsl(var(--foreground));
+            outline-offset: -2px;
+        }
+
         .summary-cell--note {
             width: 40%;
         }
@@ -156,10 +183,38 @@
                         foreach (var entry in entries)
                         {
                             var location = FormatLocation(entry.Appellation, entry.Region);
-                            var noteText = string.IsNullOrWhiteSpace(entry.Note)
-                                ? "No tasting note recorded yet."
-                                : entry.Note;
-                            <tr class="crud-table__row">
+                            var noteRaw = entry.Note ?? string.Empty;
+                            var isNotTasted = entry.NotTasted;
+                            var noteText = isNotTasted
+                                ? "You marked this bottle as not tasted."
+                                : (string.IsNullOrWhiteSpace(noteRaw)
+                                    ? "No tasting note recorded yet."
+                                    : noteRaw);
+                            var scoreAttribute = entry.Score.HasValue
+                                ? entry.Score.Value.ToString("0.0", CultureInfo.InvariantCulture)
+                                : string.Empty;
+                            var normalizedDate = NormalizeDateTime(entry.DrunkAt)?.ToString("yyyy-MM-dd") ?? string.Empty;
+                            var label = string.IsNullOrWhiteSpace(entry.WineName)
+                                ? "Bottle"
+                                : entry.WineName.Trim();
+                            if (entry.Vintage.HasValue && entry.Vintage.Value > 0)
+                            {
+                                label = string.IsNullOrWhiteSpace(label)
+                                    ? entry.Vintage.Value.ToString(CultureInfo.InvariantCulture)
+                                    : $"{label} {entry.Vintage.Value.ToString(CultureInfo.InvariantCulture)}";
+                            }
+                            <tr class="crud-table__row notes-table__row"
+                                data-note-row
+                                data-bottle-id="@entry.BottleId"
+                                data-note-id="@entry.NoteId"
+                                data-note-label="@label"
+                                data-note-text="@noteRaw"
+                                data-note-score="@scoreAttribute"
+                                data-note-date="@normalizedDate"
+                                data-note-not-tasted="@(isNotTasted ? "true" : "false")"
+                                tabindex="0"
+                                role="button"
+                                aria-label="Edit tasting note for @label">
                                 <td class="summary-cell summary-cell--wine">
                                     @if (entry.WineId != Guid.Empty)
                                     {
@@ -202,6 +257,9 @@
             </div>
         </main>
     </div>
+    @await Html.PartialAsync("_DrinkBottleModal", drinkBottleModalOptions)
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
+    <script defer src="/js/drink-bottle-modal.js"></script>
+    <script defer src="/js/notes.js"></script>
 </body>
 </html>

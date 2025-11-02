@@ -25,6 +25,7 @@ public sealed class NotesController : WineSurferControllerBase
     public sealed class NoteEntryViewModel
     {
         public Guid BottleId { get; init; }
+        public Guid NoteId { get; init; }
         public Guid WineId { get; init; }
         public string WineName { get; init; } = string.Empty;
         public int? Vintage { get; init; }
@@ -33,6 +34,7 @@ public sealed class NotesController : WineSurferControllerBase
         public DateTime? DrunkAt { get; init; }
         public string Note { get; init; } = string.Empty;
         public decimal? Score { get; init; }
+        public bool NotTasted { get; init; }
     }
 
     private readonly IBottleRepository _bottleRepository;
@@ -72,17 +74,24 @@ public sealed class NotesController : WineSurferControllerBase
                     .FirstOrDefault(note => note.UserId == currentUserId.Value)
             })
             .Where(pair => pair.Note is not null)
-            .Select(pair => new NoteEntryViewModel
+            .Select(pair =>
+            {
+                var note = pair.Note!;
+
+                return new NoteEntryViewModel
             {
                 BottleId = pair.Bottle.Id,
+                NoteId = note.Id,
                 WineId = pair.Bottle.WineVintage?.Wine?.Id ?? Guid.Empty,
                 WineName = pair.Bottle.WineVintage?.Wine?.Name ?? string.Empty,
                 Vintage = pair.Bottle.WineVintage?.Vintage,
                 Appellation = pair.Bottle.WineVintage?.Wine?.SubAppellation?.Appellation?.Name ?? string.Empty,
                 Region = pair.Bottle.WineVintage?.Wine?.SubAppellation?.Appellation?.Region?.Name ?? string.Empty,
                 DrunkAt = pair.Bottle.DrunkAt,
-                Note = (pair.Note!.Note ?? string.Empty).Trim(),
-                Score = pair.Note.Score
+                Note = (note.Note ?? string.Empty).Trim(),
+                Score = note.Score,
+                NotTasted = note.NotTasted
+            };
             })
             .OrderByDescending(entry => entry.DrunkAt ?? DateTime.MinValue)
             .ThenBy(entry => entry.WineName, StringComparer.OrdinalIgnoreCase)
