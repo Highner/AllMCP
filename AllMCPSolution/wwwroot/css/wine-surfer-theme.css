@@ -8,6 +8,7 @@
     --wine-surface-highlight: radial-gradient(circle at top right, rgba(244, 241, 234, 0.12), transparent 55%);
     --wine-surface-highlight-strong: radial-gradient(circle at top right, rgba(244, 241, 234, 0.18), transparent 55%);
     --wine-surfer-card-max-width: 960px;
+    --wine-surfer-top-bar-height: 0px;
 }
 
 body.wine-app {
