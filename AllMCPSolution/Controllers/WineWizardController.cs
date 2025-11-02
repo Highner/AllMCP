@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using AllMCPSolution.Services;
 
 namespace AllMCPSolution.Controllers;
 
@@ -15,6 +16,8 @@ public sealed class WineWizardController : WineSurferControllerBase
     private readonly IWineVintageRepository _wineVintageRepository;
     private readonly IBottleLocationRepository _bottleLocationRepository;
 
+    private readonly IUserNotificationService _notifications;
+
     public WineWizardController(
         UserManager<ApplicationUser> userManager,
         IUserRepository userRepository,
@@ -22,7 +25,8 @@ public sealed class WineWizardController : WineSurferControllerBase
         IBottleShareRepository bottleShareRepository,
         IWineRepository wineRepository,
         IWineVintageRepository wineVintageRepository,
-        IBottleLocationRepository bottleLocationRepository)
+        IBottleLocationRepository bottleLocationRepository,
+        IUserNotificationService notifications)
         : base(userManager, userRepository)
     {
         _bottleRepository = bottleRepository;
@@ -30,6 +34,7 @@ public sealed class WineWizardController : WineSurferControllerBase
         _wineRepository = wineRepository;
         _wineVintageRepository = wineVintageRepository;
         _bottleLocationRepository = bottleLocationRepository;
+        _notifications = notifications;
     }
 
     [HttpPost("share")]
@@ -288,6 +293,9 @@ public sealed class WineWizardController : WineSurferControllerBase
                 await _bottleShareRepository.AddAsync(share, cancellationToken);
                 existingRecipients.Add(recipientId);
                 sharedBottleIds.Add(bottleId);
+
+                // Notify recipient of new bottle share
+                await _notifications.NotifyBottleShareCreatedAsync(recipientId, bottleId, currentUserId);
             }
         }
 

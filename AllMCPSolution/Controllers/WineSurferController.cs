@@ -69,6 +69,7 @@ public class WineSurferController : WineSurferControllerBase
     private readonly IWineSurferTopBarService _topBarService;
     private readonly ISuggestedAppellationService _suggestedAppellationService;
     private readonly ILogger<WineSurferController> _logger;
+    private readonly IUserNotificationService _notifications;
 
     public WineSurferController(
         IWineRepository wineRepository,
@@ -87,6 +88,7 @@ public class WineSurferController : WineSurferControllerBase
         ISuggestedAppellationService suggestedAppellationService,
         ISisterhoodConnectionService connectionService,
         ILogger<WineSurferController> logger,
+        IUserNotificationService notifications,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _wineRepository = wineRepository;
@@ -104,6 +106,7 @@ public class WineSurferController : WineSurferControllerBase
         _suggestedAppellationService = suggestedAppellationService;
         _connectionService = connectionService;
         _logger = logger;
+        _notifications = notifications;
     }
 
     [HttpGet("")]
@@ -1542,6 +1545,12 @@ public class WineSurferController : WineSurferControllerBase
                 inviteeEmail,
                 invitee?.Id,
                 cancellationToken);
+
+            // Notify invitee in real-time if they are a registered user
+            if (invitee?.Id is Guid inviteeId)
+            {
+                await _notifications.NotifySisterhoodInvitationReceivedAsync(inviteeId, request.SisterhoodId, sisterhood.Name);
+            }
         }
         catch (ArgumentException)
         {
@@ -2113,6 +2122,30 @@ public class WineSurferController : WineSurferControllerBase
         try
         {
             await _sipSessionRepository.AddAsync(sipSession, cancellationToken);
+
+            // After successful creation, notify all sisterhood members (including the creator)
+            var targetUserIds = new List<Guid>();
+            if (sisterhood.Memberships is not null && sisterhood.Memberships.Count > 0)
+            {
+                targetUserIds.AddRange(sisterhood.Memberships.Select(m => m.UserId));
+            }
+            // Ensure the creator also receives the notification
+            if (currentUserId.HasValue)
+            {
+                targetUserIds.Add(currentUserId.Value);
+            }
+
+            // De-duplicate and publish real-time event
+            var distinctTargets = targetUserIds.Distinct().ToList();
+            if (distinctTargets.Count > 0)
+            {
+                await _notifications.NotifySipSessionCreatedAsync(
+                    distinctTargets,
+                    sipSession.Id,
+                    sipSession.Name,
+                    sipSession.ScheduledAt,
+                    sipSession.Date);
+            }
 
             var scheduledDisplay = scheduledAtLocal?.ToString("f") ?? scheduledDateLocal?.ToString("D");
             TempData["SisterhoodStatus"] = scheduledDisplay is null

@@ -3031,3 +3031,43 @@
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
 </body>
 </html>
+
+
+<!-- Real-time notifications via SignalR -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.5/signalr.min.js" crossorigin="anonymous"></script>
+<script>
+    (function () {
+        if (!window.signalR) {
+            console.warn("SignalR client not found. Skipping real-time notifications.");
+            return;
+        }
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/hubs/notifications")
+            .withAutomaticReconnect()
+            .build();
+
+        function start() {
+            connection.start().catch(function (err) {
+                console.error("SignalR connect failed", err);
+                setTimeout(start, 3000);
+            });
+        }
+
+        connection.on("BottleShareCreated", function (payload) {
+            try { console.log("BottleShareCreated", payload); } catch (_) {}
+            // TODO: integrate with shadcn toast and/or update relevant UI partial
+        });
+
+        connection.on("SisterhoodInvitationReceived", function (payload) {
+            try { console.log("SisterhoodInvitationReceived", payload); } catch (_) {}
+            // TODO: integrate with shadcn toast and/or update relevant UI partial
+        });
+
+        connection.on("SipSessionCreated", function (payload) {
+            try { console.log("SipSessionCreated", payload); } catch (_) {}
+            // TODO: integrate with shadcn toast and/or update relevant UI elements for upcoming sessions
+        });
+
+        start();
+    })();
+</script>

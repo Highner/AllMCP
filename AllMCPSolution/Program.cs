@@ -1,11 +1,14 @@
 using System.Text.Json.Serialization;
 using AllMCPSolution.Models;
 using AllMCPSolution.Services;
+using AllMCPSolution.Hubs;
+using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,6 +50,11 @@ builder.Services.AddRazorPages();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
+
+// SignalR for real-time notifications
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IUserIdProvider, NameIdentifierUserIdProvider>();
+
 builder.Services.Configure<ChatGptOptions>(
     builder.Configuration.GetSection(ChatGptOptions.ConfigurationSectionName));
 
@@ -83,6 +91,9 @@ builder.Services.AddScoped<IWineCatalogService, WineCatalogService>();
 builder.Services.AddScoped<ISuggestedAppellationService, SuggestedAppellationService>();
 
 builder.Services.AddScoped<IOcrService, AzureVisionOcrService>();
+
+// Notifications
+builder.Services.AddScoped<IUserNotificationService, UserNotificationService>();
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
@@ -141,6 +152,9 @@ app.MapControllerRoute(
     pattern: "{controller=WineSurfer}/{action=Index}/{id?}");
 app.MapRazorPages();
 app.MapControllers();
+
+// Map SignalR hubs
+app.MapHub<NotificationsHub>("/hubs/notifications");
 
 app.MapGet("/", () => Results.Redirect("/wine-surfer"));
 
