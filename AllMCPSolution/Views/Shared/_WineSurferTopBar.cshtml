@@ -479,7 +479,6 @@
         const notificationToggle = document.getElementById('notificationToggle');
         const notificationPanel = document.getElementById('notificationPanel');
         const notificationBadge = document.querySelector('.notification-badge');
-        const topBar = document.querySelector('.top-bar');
         const editAccountTrigger = panel?.querySelector('[data-edit-account-trigger]') ?? null;
         const accountEditLayer = document.querySelector('[data-account-edit-layer]');
         const accountEditForm = document.getElementById('accountEditForm');
@@ -495,61 +494,6 @@
         const accountPhotoPlaceholder = accountEditForm?.querySelector('[data-account-photo-placeholder]') ?? null;
         const initialAccountPhotoUrl = accountEditLayer?.getAttribute('data-account-photo-url') ?? '';
         let accountPhotoObjectUrl = null;
-
-        const setTopBarHeightProperty = () => {
-            if (!topBar) {
-                return;
-            }
-
-            const rect = topBar.getBoundingClientRect();
-            const height = Math.max(0, Math.round(rect.height));
-            document.documentElement.style.setProperty('--wine-surfer-top-bar-height', `${height}px`);
-        };
-
-        let topBarResizeObserver = null;
-        let hasWindowResizeListener = false;
-
-        if (topBar) {
-            const scheduleHeightUpdate = () => {
-                if (typeof window.requestAnimationFrame === 'function') {
-                    window.requestAnimationFrame(() => setTopBarHeightProperty());
-                } else {
-                    setTopBarHeightProperty();
-                }
-            };
-
-            scheduleHeightUpdate();
-
-            if (typeof ResizeObserver === 'function') {
-                topBarResizeObserver = new ResizeObserver(() => scheduleHeightUpdate());
-                topBarResizeObserver.observe(topBar);
-            }
-
-            window.addEventListener('resize', scheduleHeightUpdate);
-            hasWindowResizeListener = true;
-
-            if (document.readyState === 'complete') {
-                scheduleHeightUpdate();
-            } else {
-                window.addEventListener('load', scheduleHeightUpdate, { once: true });
-            }
-
-            window.addEventListener('orientationchange', scheduleHeightUpdate);
-            window.addEventListener('beforeunload', () => {
-                if (topBarResizeObserver) {
-                    topBarResizeObserver.disconnect();
-                    topBarResizeObserver = null;
-                }
-
-                if (hasWindowResizeListener) {
-                    window.removeEventListener('resize', scheduleHeightUpdate);
-                }
-
-                window.removeEventListener('orientationchange', scheduleHeightUpdate);
-            }, { once: true });
-        } else {
-            document.documentElement.style.setProperty('--wine-surfer-top-bar-height', '0px');
-        }
 
         const normalizeCategoryKey = (value) => {
             if (typeof value !== 'string') {
