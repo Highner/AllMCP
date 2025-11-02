@@ -152,8 +152,9 @@
 
             row.addEventListener('click', (event) => {
                 if (event.target instanceof Element) {
-                    if (event.target.closest(INTERACTIVE_SELECTOR)) {
-                        return;
+                    const interactiveAncestor = event.target.closest(INTERACTIVE_SELECTOR);
+                    if (interactiveAncestor && interactiveAncestor !== row) {
+                        return; // Allow inner links/buttons to handle the click, but not the row itself
                     }
                 }
 
@@ -255,5 +256,128 @@
         if (typeof detail.setSubmitPromise === 'function') {
             detail.setSubmitPromise(submitPromise);
         }
+    });
+    // --- Sorting ---
+    const SORTABLE_TABLE_SELECTOR = '[data-crud-table="notes-table"]';
+
+    const getCellText = (row, selector) => {
+        const cell = row.querySelector(selector);
+        if (!cell) return '';
+        return (cell.textContent || '').trim();
+    };
+
+    const parseNumber = (value) => {
+        if (value == null || value === '') return NaN;
+        const n = Number(String(value).replace(/[^\d.\-]/g, ''));
+        return Number.isFinite(n) ? n : NaN;
+    };
+
+    const parseDate = (row) => {
+        // Prefer machine-friendly dataset value when available
+        const iso = row.dataset.noteDate || '';
+        if (iso) {
+            const t = Date.parse(iso);
+            if (!Number.isNaN(t)) return t;
+        }
+        // Fallback to visible cell content
+        const text = getCellText(row, '.summary-cell--date');
+        const t2 = Date.parse(text);
+        return Number.isNaN(t2) ? NaN : t2;
+    };
+
+    const getSortValue = (row, key) => {
+        switch (key) {
+            case 'wine':
+                return getCellText(row, '.summary-cell--wine').toLowerCase();
+            case 'origin':
+                return getCellText(row, '.summary-cell--appellation').toLowerCase();
+            case 'vintage': {
+                const text = getCellText(row, '.summary-cell--vintage');
+                const n = parseNumber(text);
+                return Number.isNaN(n) ? -Infinity : n;
+            }
+            case 'date': {
+                const t = parseDate(row);
+                return Number.isNaN(t) ? -Infinity : t;
+            }
+            case 'score': {
+                const scoreAttr = row.dataset.noteScore || '';
+                const n = parseNumber(scoreAttr);
+                return Number.isNaN(n) ? -Infinity : n;
+            }
+            case 'note':
+                return getCellText(row, '.summary-cell--note').toLowerCase();
+            default:
+                return '';
+        }
+    };
+
+    const compareValues = (a, b) => {
+        if (a === b) return 0;
+        if (a === '' || a === -Infinity) return 1; // empty goes last
+        if (b === '' || b === -Infinity) return -1;
+        if (typeof a === 'number' && typeof b === 'number') return a < b ? -1 : 1;
+        return a < b ? -1 : 1;
+    };
+
+    const applyAriaSort = (headers, active, dir) => {
+        headers.forEach(h => {
+            const sortHeader = h.querySelector('.sort-header');
+            if (h === active) {
+                h.setAttribute('aria-sort', dir === 'asc' ? 'ascending' : 'descending');
+                if (sortHeader) {
+                    sortHeader.classList.remove('sorted-asc', 'sorted-desc');
+                    sortHeader.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                }
+            } else {
+                h.setAttribute('aria-sort', 'none');
+                if (sortHeader) {
+                    sortHeader.classList.remove('sorted-asc', 'sorted-desc');
+                }
+            }
+        });
+    };
+
+    const sortTable = (table, key, direction) => {
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+        const rows = Array.from(tbody.querySelectorAll(NOTE_ROW_SELECTOR));
+        const dir = direction === 'desc' ? -1 : 1;
+        rows.sort((r1, r2) => compareValues(getSortValue(r1, key), getSortValue(r2, key)) * dir);
+        rows.forEach(r => tbody.appendChild(r));
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const table = document.querySelector(SORTABLE_TABLE_SELECTOR);
+        if (!table) return;
+        const headers = Array.from(table.querySelectorAll('thead th[data-sort-key]'));
+        let currentKey = null;
+        let currentDir = 'asc';
+
+        const handleActivate = (th) => {
+            const key = th.getAttribute('data-sort-key');
+            if (!key) return;
+            if (currentKey === key) {
+                currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentKey = key;
+                currentDir = key === 'date' ? 'desc' : 'asc'; // default newest first for date
+            }
+            applyAriaSort(headers, th, currentDir);
+            sortTable(table, currentKey, currentDir);
+        };
+
+        headers.forEach(th => {
+            th.addEventListener('click', (e) => {
+                e.preventDefault();
+                handleActivate(th);
+            });
+            th.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleActivate(th);
+                }
+            });
+        });
     });
 })();
