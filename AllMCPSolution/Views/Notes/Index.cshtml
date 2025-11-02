@@ -1,6 +1,5 @@
 @model AllMCPSolution.Controllers.NotesController.NotesViewModel
 @using AllMCPSolution.Controllers
-@using AllMCPSolution.Models
 @{
     Layout = null;
     var currentPath = Context?.Request?.Path.Value ?? string.Empty;
@@ -9,80 +8,6 @@
     ViewData["WineSurferPageTitle"] = "Notes";
     var entries = Model?.Entries ?? Array.Empty<NotesController.NoteEntryViewModel>();
     var entryCount = entries.Count;
-    var description = entryCount switch
-    {
-        0 => "You haven't recorded any tasting notes for your bottles yet.",
-        1 => "Showing 1 tasting note.",
-        _ => $"Showing {entryCount} tasting notes."
-    };
-    var tableModel = new CrudTableTemplateModel
-    {
-        Title = "Tasting notes",
-        Description = description,
-        DataTableKey = "notes-table",
-        BodyContent = @<text>
-            <table class="crud-table__table notes-table">
-                <thead>
-                    <tr class="crud-table__header-row">
-                        <th class="summary-header summary-header--wine"><span class="header-text">Wine</span></th>
-                        <th class="summary-header summary-header--appellation"><span class="header-text">Origin</span></th>
-                        <th class="summary-header summary-header--vintage"><span class="header-text">Vintage</span></th>
-                        <th class="summary-header summary-header--date"><span class="header-text">Drank</span></th>
-                        <th class="summary-header summary-header--score"><span class="header-text">Score</span></th>
-                        <th class="summary-header summary-header--note"><span class="header-text">Note</span></th>
-                    </tr>
-                </thead>
-                <tbody>
-                @if (entryCount > 0)
-                {
-                    foreach (var entry in entries)
-                    {
-                        var location = FormatLocation(entry.Appellation, entry.Region);
-                        var noteText = string.IsNullOrWhiteSpace(entry.Note)
-                            ? "No tasting note recorded yet."
-                            : entry.Note;
-                        <tr class="crud-table__row">
-                            <td class="summary-cell summary-cell--wine">
-                                @if (entry.WineId != Guid.Empty)
-                                {
-                                    <a class="link" href="/wine/@entry.WineId">@entry.WineName</a>
-                                }
-                                else
-                                {
-                                    <span>@entry.WineName</span>
-                                }
-                            </td>
-                            <td class="summary-cell summary-cell--appellation">
-                                @if (string.IsNullOrWhiteSpace(location))
-                                {
-                                    <span class="notes-table__muted">—</span>
-                                }
-                                else
-                                {
-                                    <span>@location</span>
-                                }
-                            </td>
-                            <td class="summary-cell summary-cell--vintage">
-                                @(entry.Vintage?.ToString() ?? "—")
-                            </td>
-                            <td class="summary-cell summary-cell--date">@FormatDrunkDate(entry.DrunkAt)</td>
-                            <td class="summary-cell summary-cell--score">@FormatScore(entry.Score)</td>
-                            <td class="summary-cell summary-cell--note">
-                                <p class="notes-table__note">@noteText</p>
-                            </td>
-                        </tr>
-                    }
-                }
-                else
-                {
-                    <tr>
-                        <td colspan="6" class="notes-table__empty">Start tracking your tasting impressions by marking bottles as drunk from your inventory.</td>
-                    </tr>
-                }
-                </tbody>
-            </table>
-        </text>
-    };
 }
 
 @functions {
@@ -169,21 +94,10 @@
             gap: 16px;
         }
 
-        .notes-summary {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .notes-summary__title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin: 0;
-        }
-
-        .notes-summary__description {
-            margin: 0;
-            color: hsla(var(--foreground) / 0.7);
+        .notes-table-wrapper {
+            overflow-x: auto;
+            border-radius: 12px;
+            background: transparent;
         }
 
         .notes-table__empty {
@@ -224,11 +138,68 @@
     <div class="notes-page">
         @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
         <main class="notes-page__content">
-            <section class="notes-summary">
-                <h1 class="notes-summary__title">Your tasting notes</h1>
-                <p class="notes-summary__description">@description</p>
-            </section>
-            @await Html.PartialAsync("_CrudTableTemplate", tableModel)
+            <div class="notes-table-wrapper">
+                <table class="crud-table__table notes-table" data-crud-table="notes-table">
+                    <thead>
+                        <tr class="crud-table__header-row">
+                            <th class="summary-header summary-header--wine"><span class="header-text">Wine</span></th>
+                            <th class="summary-header summary-header--appellation"><span class="header-text">Origin</span></th>
+                            <th class="summary-header summary-header--vintage"><span class="header-text">Vintage</span></th>
+                            <th class="summary-header summary-header--date"><span class="header-text">Drank</span></th>
+                            <th class="summary-header summary-header--score"><span class="header-text">Score</span></th>
+                            <th class="summary-header summary-header--note"><span class="header-text">Note</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @if (entryCount > 0)
+                    {
+                        foreach (var entry in entries)
+                        {
+                            var location = FormatLocation(entry.Appellation, entry.Region);
+                            var noteText = string.IsNullOrWhiteSpace(entry.Note)
+                                ? "No tasting note recorded yet."
+                                : entry.Note;
+                            <tr class="crud-table__row">
+                                <td class="summary-cell summary-cell--wine">
+                                    @if (entry.WineId != Guid.Empty)
+                                    {
+                                        <a class="link" href="/wine/@entry.WineId">@entry.WineName</a>
+                                    }
+                                    else
+                                    {
+                                        <span>@entry.WineName</span>
+                                    }
+                                </td>
+                                <td class="summary-cell summary-cell--appellation">
+                                    @if (string.IsNullOrWhiteSpace(location))
+                                    {
+                                        <span class="notes-table__muted">—</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@location</span>
+                                    }
+                                </td>
+                                <td class="summary-cell summary-cell--vintage">
+                                    @(entry.Vintage?.ToString() ?? "—")
+                                </td>
+                                <td class="summary-cell summary-cell--date">@FormatDrunkDate(entry.DrunkAt)</td>
+                                <td class="summary-cell summary-cell--score">@FormatScore(entry.Score)</td>
+                                <td class="summary-cell summary-cell--note">
+                                    <p class="notes-table__note">@noteText</p>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="notes-table__empty">Start tracking your tasting impressions by marking bottles as drunk from your inventory.</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
         </main>
     </div>
     @await Html.PartialAsync("_WineSurferBottomNav", Context?.Request?.Path.Value)
