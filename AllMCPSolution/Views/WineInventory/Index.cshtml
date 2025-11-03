@@ -52,16 +52,6 @@
     ViewData["WineSurferPageTitle"] = "Wine Inventory";
 
     var headerFilterValue = HtmlEncoder.Default.Encode(Model.Search ?? string.Empty);
-    var isAvailableOnly = string.Equals(Model.Status, "cellared", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(Model.Status, "undrunk", StringComparison.OrdinalIgnoreCase);
-    var availabilityToggleAriaLabel = HtmlEncoder.Default.Encode(
-        isAvailableOnly
-            ? "Showing only wines with available bottles. Activate to show all wines."
-            : "Showing all wines, including those without available bottles. Activate to show only available wines.");
-    var availabilityToggleStatusText = HtmlEncoder.Default.Encode(
-        isAvailableOnly
-            ? "Showing only wines with available bottles."
-            : "Showing all wines, including those without available bottles.");
     var yourCellarTable = new CrudTableTemplateModel
     {
         TitleContent = _ => Html.PartialAsync("_InventorySectionHeader", new InventorySectionHeaderModel
@@ -69,32 +59,17 @@
             Title = "Your Cellar",
             AdditionalCssClass = "location-header--table",
             Actions = _ => new HtmlString($@"
-                <div class=""inventory-availability-toggle"">
-                    <button type=""button""
-                            class=""inventory-availability-toggle__button""
-                            data-inventory-availability-toggle
-                            role=""switch""
-                            aria-checked=""{(isAvailableOnly ? "true" : "false")}""
-                            aria-label=""{availabilityToggleAriaLabel}"">
-                        <span class=""inventory-availability-toggle__indicator"" aria-hidden=""true""></span>
-                        <span class=""inventory-availability-toggle__label inventory-availability-toggle__label--available"">Available only</span>
-                        <span class=""inventory-availability-toggle__label inventory-availability-toggle__label--all"">All wines</span>
-                        <span class=""sr-only"" data-availability-toggle-status>{availabilityToggleStatusText}</span>
-                    </button>
+                <div class=""inventory-section-header__filter"">
+                    <label class=""sr-only"" for=""your-cellar-filter"">Filter your cellar</label>
+                    <input type=""search""
+                           id=""your-cellar-filter""
+                           class=""input inventory-section-header__filter-input""
+                           placeholder=""Filter wines""
+                           autocomplete=""off""
+                           value=""{headerFilterValue}""
+                           data-inventory-header-filter-input />
                 </div>
-                <div class=""inventory-section-header__filter-group"">
-                    <div class=""inventory-section-header__filter"">
-                        <label class=""sr-only"" for=""your-cellar-filter"">Filter your cellar</label>
-                        <input type=""search""
-                               id=""your-cellar-filter""
-                               class=""input inventory-section-header__filter-input""
-                               placeholder=""Filter wines""
-                               autocomplete=""off""
-                               value=""{headerFilterValue}""
-                               data-inventory-header-filter-input />
-                    </div>
-                    <button type=""button"" class=""wine-surfer-button wine-surfer-button--orange inventory-add-trigger"" data-add-wine-trigger=""inventory"">Add wine</button>
-                </div>
+                <button type=""button"" class=""wine-surfer-button wine-surfer-button--orange inventory-add-trigger"" data-add-wine-trigger=""inventory"">Add wine</button>
             ")
         }).GetAwaiter().GetResult(),
         DataTableKey = "summary",
