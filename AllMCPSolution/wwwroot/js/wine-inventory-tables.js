@@ -13,6 +13,9 @@
         const clearFiltersButton = filtersForm?.querySelector('[data-clear-filters]');
         const headerFilterInput = document.querySelector('[data-inventory-header-filter-input]');
         const filtersSearchInput = filtersForm?.querySelector('input[name="search"]');
+        const statusInput = filtersForm?.querySelector('input[name="status"]');
+        const availabilityToggleButton = document.querySelector('[data-inventory-availability-toggle]');
+        const availabilityToggleStatus = availabilityToggleButton?.querySelector('[data-availability-toggle-status]');
         const inventoryView = document.getElementById('inventory-view');
         const headerFilterFocusStorageKey = 'wine-inventory:restore-header-focus';
         let headerFilterDebounceId = null;
@@ -40,6 +43,36 @@
             if (typeof headerFilterInput.setSelectionRange === 'function') {
                 const length = headerFilterInput.value.length;
                 headerFilterInput.setSelectionRange(length, length);
+            }
+        }
+
+        function isAvailableOnlyStatus(value) {
+            if (typeof value !== 'string') {
+                return false;
+            }
+
+            const normalized = value.trim().toLowerCase();
+            return normalized === 'cellared' || normalized === 'undrunk';
+        }
+
+        function updateAvailabilityToggleState() {
+            if (!availabilityToggleButton || !statusInput) {
+                return;
+            }
+
+            const availableOnly = isAvailableOnlyStatus(statusInput.value);
+            availabilityToggleButton.setAttribute('aria-checked', availableOnly ? 'true' : 'false');
+
+            const ariaLabel = availableOnly
+                ? 'Showing only wines with available bottles. Activate to show all wines.'
+                : 'Showing all wines, including those without available bottles. Activate to show only available wines.';
+
+            availabilityToggleButton.setAttribute('aria-label', ariaLabel);
+
+            if (availabilityToggleStatus) {
+                availabilityToggleStatus.textContent = availableOnly
+                    ? 'Showing only wines with available bottles.'
+                    : 'Showing all wines, including those without available bottles.';
             }
         }
 
@@ -74,6 +107,22 @@
             } else {
                 filtersForm.submit();
             }
+        }
+
+        if (availabilityToggleButton instanceof HTMLButtonElement && statusInput instanceof HTMLInputElement) {
+            updateAvailabilityToggleState();
+
+            availabilityToggleButton.addEventListener('click', (event) => {
+                event.preventDefault();
+
+                const availableOnly = isAvailableOnlyStatus(statusInput.value);
+                statusInput.value = availableOnly ? 'all' : 'cellared';
+
+                updateAvailabilityToggleState();
+                maintainHeaderFilterFocus = false;
+                cancelInlineDetailsRequest();
+                submitFiltersForm();
+            });
         }
 
         if (headerFilterInput) {
