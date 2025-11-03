@@ -10,8 +10,7 @@
 
 <a class="sip-session-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card"
    href="@Model.SessionUrl"
-   aria-label="@Model.AriaLabel"
-   data-sip-session-id="@session.Id">
+   aria-label="@Model.AriaLabel">
     <div class="sip-session-header wine-card__header">
         <h3 class="sip-session-name wine-card__title">@session.Name</h3>
         @if (!string.IsNullOrWhiteSpace(hostLabel))
