@@ -2676,10 +2676,46 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     gap: 8px;
 }
 
-.inventory-section-header__filter-input {
+.inventory-section-header__filter-input-wrapper {
+    position: relative;
     flex: 1 1 200px;
     min-width: 200px;
     width: min(280px, 100%);
+}
+
+.inventory-section-header__filter-input {
+    width: 100%;
+    padding-right: 32px;
+}
+
+.inventory-section-header__filter-clear {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 9999px;
+    background: transparent;
+    color: hsla(var(--muted-foreground) / 0.9);
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.inventory-section-header__filter-clear:hover,
+.inventory-section-header__filter-clear:focus-visible {
+    background-color: hsla(var(--muted) / 0.16);
+    color: hsl(var(--foreground));
+}
+
+.inventory-section-header__filter-clear:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px hsla(var(--ring) / 0.35);
 }
 
 .location-header {
