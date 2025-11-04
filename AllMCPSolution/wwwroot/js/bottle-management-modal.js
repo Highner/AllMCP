@@ -65,9 +65,22 @@
         return integral;
     };
 
-    const normalizeDateValue = (value) => {
-        if (value instanceof Date) {
-            return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+    const normalizeYearValue = (value) => {
+        const coerceYear = (input) => {
+            if (!Number.isFinite(input)) {
+                return null;
+            }
+
+            const year = Math.trunc(input);
+            if (!Number.isFinite(year)) {
+                return null;
+            }
+
+            return year >= 1900 && year <= 2200 ? year : null;
+        };
+
+        if (typeof value === 'number') {
+            return coerceYear(value);
         }
 
         if (typeof value === 'string') {
@@ -76,14 +89,9 @@
                 return null;
             }
 
-            const isoMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
-            if (isoMatch && isoMatch[1]) {
-                return isoMatch[1];
-            }
-
-            const parsed = new Date(trimmed);
-            if (!Number.isNaN(parsed.getTime())) {
-                return parsed.toISOString().slice(0, 10);
+            const numeric = Number.parseInt(trimmed, 10);
+            if (Number.isFinite(numeric)) {
+                return coerceYear(numeric);
             }
 
             return null;
@@ -92,42 +100,25 @@
         return null;
     };
 
-    const formatDisplayDate = (isoDate) => {
-        if (typeof isoDate !== 'string' || isoDate.length < 10) {
+    const formatDisplayYear = (year) => {
+        if (!Number.isFinite(year)) {
             return null;
         }
 
-        const [yearStr, monthStr, dayStr] = isoDate.split('-');
-        const year = Number.parseInt(yearStr, 10);
-        const month = Number.parseInt(monthStr, 10);
-        const day = Number.parseInt(dayStr, 10);
-
-        if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+        const integral = Math.trunc(year);
+        if (!Number.isFinite(integral)) {
             return null;
         }
 
-        if (month < 1 || month > 12 || day < 1 || day > 31) {
-            return null;
-        }
-
-        const date = new Date(year, month - 1, day);
-        if (Number.isNaN(date.getTime())) {
-            return null;
-        }
-
-        return date.toLocaleDateString(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
+        return String(integral);
     };
 
     const getDrinkingWindowDraft = () => {
         const startInput = qs(SELECTORS.drinkingWindowStartInput);
         const endInput = qs(SELECTORS.drinkingWindowEndInput);
 
-        const start = startInput ? normalizeDateValue(startInput.value) : null;
-        const end = endInput ? normalizeDateValue(endInput.value) : null;
+        const start = startInput ? normalizeYearValue(startInput.value) : null;
+        const end = endInput ? normalizeYearValue(endInput.value) : null;
 
         return { start, end };
     };
@@ -173,9 +164,13 @@
         const { start, end } = getDrinkingWindowDraft();
         const hasGroup = state.hasGroup;
         const isSaving = state.isSavingDrinkingWindow;
-        const bothEmpty = !start && !end;
-        const hasAny = Boolean(start || end);
-        const isValid = bothEmpty || (start && end && end >= start);
+        const startHasValue = Boolean(startInput && startInput.value && startInput.value.trim());
+        const endHasValue = Boolean(endInput && endInput.value && endInput.value.trim());
+        const bothEmpty = !startHasValue && !endHasValue;
+        const hasAny = startHasValue || endHasValue;
+        const hasValidStart = Number.isFinite(start);
+        const hasValidEnd = Number.isFinite(end);
+        const isValid = bothEmpty || (hasValidStart && hasValidEnd && end >= start);
         const startChanged = start !== state.drinkingWindowStart;
         const endChanged = end !== state.drinkingWindowEnd;
         const hasChanges = startChanged || endChanged;
@@ -187,7 +182,7 @@
                 startInput.removeAttribute('disabled');
             }
 
-            if (!isValid && hasAny && startInput.value) {
+            if (!isValid && hasAny && startHasValue) {
                 startInput.setAttribute('aria-invalid', 'true');
             } else {
                 startInput.removeAttribute('aria-invalid');
@@ -201,7 +196,7 @@
                 endInput.removeAttribute('disabled');
             }
 
-            if (!isValid && hasAny && endInput.value) {
+            if (!isValid && hasAny && endHasValue) {
                 endInput.setAttribute('aria-invalid', 'true');
             } else {
                 endInput.removeAttribute('aria-invalid');
@@ -576,30 +571,30 @@
             averageEl.textContent = `Avg. score: ${score}`;
         }
 
-        const rawStart = group.UserDrinkingWindowStart ?? group.userDrinkingWindowStart ?? null;
-        const rawEnd = group.UserDrinkingWindowEnd ?? group.userDrinkingWindowEnd ?? null;
-        const normalizedStart = normalizeDateValue(rawStart);
-        const normalizedEnd = normalizeDateValue(rawEnd);
+        const rawStart = group.UserDrinkingWindowStartYear ?? group.userDrinkingWindowStartYear ?? null;
+        const rawEnd = group.UserDrinkingWindowEndYear ?? group.userDrinkingWindowEndYear ?? null;
+        const normalizedStart = normalizeYearValue(rawStart);
+        const normalizedEnd = normalizeYearValue(rawEnd);
 
         state.drinkingWindowStart = normalizedStart;
         state.drinkingWindowEnd = normalizedEnd;
 
         if (drinkingWindowStartInput) {
-            drinkingWindowStartInput.value = normalizedStart ?? '';
+            drinkingWindowStartInput.value = normalizedStart != null ? String(normalizedStart) : '';
         }
 
         if (drinkingWindowEndInput) {
-            drinkingWindowEndInput.value = normalizedEnd ?? '';
+            drinkingWindowEndInput.value = normalizedEnd != null ? String(normalizedEnd) : '';
         }
 
         if (drinkingWindowDisplay) {
-            const formattedStart = formatDisplayDate(normalizedStart);
-            const formattedEnd = formatDisplayDate(normalizedEnd);
+            const formattedStart = formatDisplayYear(normalizedStart);
+            const formattedEnd = formatDisplayYear(normalizedEnd);
             let label = 'Drinking window: —';
 
             if (formattedStart && formattedEnd) {
                 label = `Drinking window: ${formattedStart} – ${formattedEnd}`;
-            } else if (!normalizedStart && !normalizedEnd) {
+            } else if (normalizedStart == null && normalizedEnd == null) {
                 label = 'Drinking window: —';
             } else if (formattedStart && !formattedEnd) {
                 label = `Drinking window: ${formattedStart}`;
@@ -1607,16 +1602,16 @@
         }
 
         const { start, end } = getDrinkingWindowDraft();
-        const bothEmpty = !start && !end;
-        const hasBoth = Boolean(start && end);
+        const bothEmpty = start == null && end == null;
+        const hasBoth = start != null && end != null;
 
         if (!bothEmpty && !hasBoth) {
-            showError('Enter both a start and end date for the drinking window.');
+            showError('Enter both a start and end year for the drinking window.');
             return;
         }
 
-        if (start && end && end < start) {
-            showError('Drinking window end must be on or after the start date.');
+        if (start != null && end != null && end < start) {
+            showError('Drinking window end year must be on or after the start year.');
             return;
         }
 
@@ -1631,8 +1626,8 @@
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    startDate: start ?? null,
-                    endDate: end ?? null
+                    startYear: start ?? null,
+                    endYear: end ?? null
                 })
             });
 

@@ -145,8 +145,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
         modelBuilder.Entity<WineVintageUserDrinkingWindow>(entity =>
         {
-            entity.Property(window => window.StartingDate).IsRequired();
-            entity.Property(window => window.EndDate).IsRequired();
+            entity.Property(window => window.StartingYear).IsRequired();
+            entity.Property(window => window.EndingYear).IsRequired();
 
             entity.HasOne(window => window.User)
                 .WithMany(user => user.WineVintageDrinkingWindows)

@@ -2174,37 +2174,37 @@ public partial class WineInventoryController : Controller
             return NotFound();
         }
 
-        var startDate = request.StartDate?.Date;
-        var endDate = request.EndDate?.Date;
+        var startYear = request.StartYear;
+        var endYear = request.EndYear;
 
-        var hasStartOnly = startDate.HasValue && !endDate.HasValue;
-        var hasEndOnly = endDate.HasValue && !startDate.HasValue;
+        var hasStartOnly = startYear.HasValue && !endYear.HasValue;
+        var hasEndOnly = endYear.HasValue && !startYear.HasValue;
 
         if (hasStartOnly || hasEndOnly)
         {
-            const string message = "Please provide both a start and end date.";
-            ModelState.AddModelError(nameof(request.StartDate), message);
-            ModelState.AddModelError(nameof(request.EndDate), message);
+            const string message = "Please provide both a start and end year.";
+            ModelState.AddModelError(nameof(request.StartYear), message);
+            ModelState.AddModelError(nameof(request.EndYear), message);
             return ValidationProblem(ModelState);
         }
 
-        if (startDate.HasValue && endDate.HasValue && endDate.Value < startDate.Value)
+        if (startYear.HasValue && endYear.HasValue && endYear.Value < startYear.Value)
         {
-            ModelState.AddModelError(nameof(request.EndDate),
-                "The drinking window end date must be on or after the start date.");
+            ModelState.AddModelError(nameof(request.EndYear),
+                "The drinking window end year must be on or after the start year.");
             return ValidationProblem(ModelState);
         }
 
         var existingWindow = await _drinkingWindowRepository.FindAsync(currentUserId, wineVintageId, cancellationToken);
 
-        if (!startDate.HasValue && !endDate.HasValue)
+        if (!startYear.HasValue && !endYear.HasValue)
         {
             if (existingWindow is not null)
             {
                 await _drinkingWindowRepository.DeleteAsync(existingWindow.Id, cancellationToken);
             }
         }
-        else if (startDate.HasValue && endDate.HasValue)
+        else if (startYear.HasValue && endYear.HasValue)
         {
             if (existingWindow is null)
             {
@@ -2213,16 +2213,16 @@ public partial class WineInventoryController : Controller
                     Id = Guid.NewGuid(),
                     UserId = currentUserId,
                     WineVintageId = wineVintageId,
-                    StartingDate = startDate.Value,
-                    EndDate = endDate.Value
+                    StartingYear = startYear.Value,
+                    EndingYear = endYear.Value
                 };
 
                 await _drinkingWindowRepository.AddAsync(newWindow, cancellationToken);
             }
             else
             {
-                existingWindow.StartingDate = startDate.Value;
-                existingWindow.EndDate = endDate.Value;
+                existingWindow.StartingYear = startYear.Value;
+                existingWindow.EndingYear = endYear.Value;
                 await _drinkingWindowRepository.UpdateAsync(existingWindow, cancellationToken);
             }
         }
@@ -2764,8 +2764,8 @@ public partial class WineInventoryController : Controller
             StatusLabel = statusLabel,
             StatusCssClass = statusClass,
             AverageScore = averageScore,
-            UserDrinkingWindowStart = drinkingWindow?.StartingDate.Date,
-            UserDrinkingWindowEnd = drinkingWindow?.EndDate.Date
+            UserDrinkingWindowStartYear = drinkingWindow?.StartingYear,
+            UserDrinkingWindowEndYear = drinkingWindow?.EndingYear
         };
     }
 
@@ -2963,8 +2963,8 @@ public class WineInventoryViewModel
         public string StatusLabel { get; set; } = string.Empty;
         public string StatusCssClass { get; set; } = string.Empty;
         public decimal? AverageScore { get; set; }
-        public DateTime? UserDrinkingWindowStart { get; set; }
-        public DateTime? UserDrinkingWindowEnd { get; set; }
+        public int? UserDrinkingWindowStartYear { get; set; }
+        public int? UserDrinkingWindowEndYear { get; set; }
     }
 
     public class WineInventoryBottleDetailViewModel
@@ -3030,11 +3030,11 @@ public class WineInventoryViewModel
 
     public class DrinkingWindowRequest
     {
-        [DataType(DataType.Date)]
-        public DateTime? StartDate { get; set; }
+        [Range(1900, 2200)]
+        public int? StartYear { get; set; }
 
-        [DataType(DataType.Date)]
-        public DateTime? EndDate { get; set; }
+        [Range(1900, 2200)]
+        public int? EndYear { get; set; }
     }
 
     public record FilterOption(string Value, string Label);
