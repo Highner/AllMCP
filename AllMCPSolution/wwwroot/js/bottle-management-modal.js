@@ -11,6 +11,10 @@
         countLabel: '[data-bottle-management-count]',
         statusLabel: '[data-bottle-management-status]',
         averageLabel: '[data-bottle-management-average]',
+        drinkingWindowDisplay: '[data-bottle-management-drinking-window-display]',
+        drinkingWindowStartInput: '[data-bottle-management-drinking-window-start]',
+        drinkingWindowEndInput: '[data-bottle-management-drinking-window-end]',
+        drinkingWindowSaveButton: '[data-bottle-management-save-drinking-window]',
         error: '[data-bottle-management-error]',
         tableBody: '[data-bottle-management-rows]',
         metaSeparators: '.bottle-management-meta-separator',
@@ -28,7 +32,10 @@
         hasGroup: false,
         locations: [],
         selectedLocationId: null,
-        quantity: 1
+        quantity: 1,
+        drinkingWindowStart: null,
+        drinkingWindowEnd: null,
+        isSavingDrinkingWindow: false
     };
 
     const bottleDetailMap = new Map();
@@ -56,6 +63,166 @@
         }
 
         return integral;
+    };
+
+    const normalizeDateValue = (value) => {
+        if (value instanceof Date) {
+            return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+        }
+
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (!trimmed) {
+                return null;
+            }
+
+            const isoMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+            if (isoMatch && isoMatch[1]) {
+                return isoMatch[1];
+            }
+
+            const parsed = new Date(trimmed);
+            if (!Number.isNaN(parsed.getTime())) {
+                return parsed.toISOString().slice(0, 10);
+            }
+
+            return null;
+        }
+
+        return null;
+    };
+
+    const formatDisplayDate = (isoDate) => {
+        if (typeof isoDate !== 'string' || isoDate.length < 10) {
+            return null;
+        }
+
+        const [yearStr, monthStr, dayStr] = isoDate.split('-');
+        const year = Number.parseInt(yearStr, 10);
+        const month = Number.parseInt(monthStr, 10);
+        const day = Number.parseInt(dayStr, 10);
+
+        if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+            return null;
+        }
+
+        if (month < 1 || month > 12 || day < 1 || day > 31) {
+            return null;
+        }
+
+        const date = new Date(year, month - 1, day);
+        if (Number.isNaN(date.getTime())) {
+            return null;
+        }
+
+        return date.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
+    const getDrinkingWindowDraft = () => {
+        const startInput = qs(SELECTORS.drinkingWindowStartInput);
+        const endInput = qs(SELECTORS.drinkingWindowEndInput);
+
+        const start = startInput ? normalizeDateValue(startInput.value) : null;
+        const end = endInput ? normalizeDateValue(endInput.value) : null;
+
+        return { start, end };
+    };
+
+    const resetDrinkingWindowControls = (root) => {
+        const scope = root || qs(SELECTORS.dialog) || document;
+        const startInput = qs(SELECTORS.drinkingWindowStartInput, scope);
+        const endInput = qs(SELECTORS.drinkingWindowEndInput, scope);
+        const display = qs(SELECTORS.drinkingWindowDisplay, scope);
+        const saveButton = qs(SELECTORS.drinkingWindowSaveButton, scope);
+
+        state.drinkingWindowStart = null;
+        state.drinkingWindowEnd = null;
+        state.isSavingDrinkingWindow = false;
+
+        if (startInput) {
+            startInput.value = '';
+            startInput.setAttribute('disabled', '');
+            startInput.removeAttribute('aria-invalid');
+        }
+
+        if (endInput) {
+            endInput.value = '';
+            endInput.setAttribute('disabled', '');
+            endInput.removeAttribute('aria-invalid');
+        }
+
+        if (display) {
+            display.textContent = 'Drinking window: —';
+        }
+
+        if (saveButton) {
+            saveButton.setAttribute('disabled', '');
+            saveButton.setAttribute('aria-disabled', 'true');
+        }
+    };
+
+    const refreshDrinkingWindowControls = () => {
+        const startInput = qs(SELECTORS.drinkingWindowStartInput);
+        const endInput = qs(SELECTORS.drinkingWindowEndInput);
+        const saveButton = qs(SELECTORS.drinkingWindowSaveButton);
+
+        const { start, end } = getDrinkingWindowDraft();
+        const hasGroup = state.hasGroup;
+        const isSaving = state.isSavingDrinkingWindow;
+        const bothEmpty = !start && !end;
+        const hasAny = Boolean(start || end);
+        const isValid = bothEmpty || (start && end && end >= start);
+        const startChanged = start !== state.drinkingWindowStart;
+        const endChanged = end !== state.drinkingWindowEnd;
+        const hasChanges = startChanged || endChanged;
+
+        if (startInput) {
+            if (!hasGroup || isSaving) {
+                startInput.setAttribute('disabled', '');
+            } else {
+                startInput.removeAttribute('disabled');
+            }
+
+            if (!isValid && hasAny && startInput.value) {
+                startInput.setAttribute('aria-invalid', 'true');
+            } else {
+                startInput.removeAttribute('aria-invalid');
+            }
+        }
+
+        if (endInput) {
+            if (!hasGroup || isSaving) {
+                endInput.setAttribute('disabled', '');
+            } else {
+                endInput.removeAttribute('disabled');
+            }
+
+            if (!isValid && hasAny && endInput.value) {
+                endInput.setAttribute('aria-invalid', 'true');
+            } else {
+                endInput.removeAttribute('aria-invalid');
+            }
+        }
+
+        if (saveButton) {
+            const shouldDisable = !hasGroup || isSaving || !isValid || !hasChanges;
+
+            if (shouldDisable) {
+                saveButton.setAttribute('disabled', '');
+                saveButton.setAttribute('aria-disabled', 'true');
+            } else {
+                saveButton.removeAttribute('disabled');
+                saveButton.removeAttribute('aria-disabled');
+            }
+        }
+    };
+
+    const handleDrinkingWindowInputChange = () => {
+        refreshDrinkingWindowControls();
     };
 
     const buildLocationLabel = (location) => {
@@ -89,6 +256,9 @@
             const defaultQuantity = normalizeQuantity(1);
             quantitySelect.value = String(defaultQuantity);
         }
+
+        resetDrinkingWindowControls(root);
+        refreshDrinkingWindowControls();
     };
 
     const updateLocationOptions = (locations) => {
@@ -268,6 +438,7 @@
 
         state.hasGroup = false;
         updateAddButtonState();
+        refreshDrinkingWindowControls();
         setLoadingState();
 
         try {
@@ -318,10 +489,11 @@
                 console.error('[BottleManagementModal] Failed to sync location summaries', error);
             }
         }
+        state.hasGroup = Boolean(group);
         updateSummary(group, details);
         renderRows(details);
-        state.hasGroup = Boolean(group);
         updateAddButtonState();
+        refreshDrinkingWindowControls();
     };
 
     const updateSummary = (group, details) => {
@@ -330,6 +502,9 @@
         const countEl = qs(SELECTORS.countLabel);
         const statusEl = qs(SELECTORS.statusLabel);
         const averageEl = qs(SELECTORS.averageLabel);
+        const drinkingWindowDisplay = qs(SELECTORS.drinkingWindowDisplay);
+        const drinkingWindowStartInput = qs(SELECTORS.drinkingWindowStartInput);
+        const drinkingWindowEndInput = qs(SELECTORS.drinkingWindowEndInput);
         const separators = qsa(SELECTORS.metaSeparators);
 
         if (!group) {
@@ -348,9 +523,22 @@
             if (averageEl) {
                 averageEl.textContent = 'Avg. score: —';
             }
+            if (drinkingWindowDisplay) {
+                drinkingWindowDisplay.textContent = 'Drinking window: —';
+            }
+            if (drinkingWindowStartInput) {
+                drinkingWindowStartInput.value = '';
+            }
+            if (drinkingWindowEndInput) {
+                drinkingWindowEndInput.value = '';
+            }
+            state.drinkingWindowStart = null;
+            state.drinkingWindowEnd = null;
+            state.isSavingDrinkingWindow = false;
             separators.forEach((separator) => {
                 separator.hidden = true;
             });
+            refreshDrinkingWindowControls();
             return;
         }
 
@@ -388,9 +576,45 @@
             averageEl.textContent = `Avg. score: ${score}`;
         }
 
+        const rawStart = group.UserDrinkingWindowStart ?? group.userDrinkingWindowStart ?? null;
+        const rawEnd = group.UserDrinkingWindowEnd ?? group.userDrinkingWindowEnd ?? null;
+        const normalizedStart = normalizeDateValue(rawStart);
+        const normalizedEnd = normalizeDateValue(rawEnd);
+
+        state.drinkingWindowStart = normalizedStart;
+        state.drinkingWindowEnd = normalizedEnd;
+
+        if (drinkingWindowStartInput) {
+            drinkingWindowStartInput.value = normalizedStart ?? '';
+        }
+
+        if (drinkingWindowEndInput) {
+            drinkingWindowEndInput.value = normalizedEnd ?? '';
+        }
+
+        if (drinkingWindowDisplay) {
+            const formattedStart = formatDisplayDate(normalizedStart);
+            const formattedEnd = formatDisplayDate(normalizedEnd);
+            let label = 'Drinking window: —';
+
+            if (formattedStart && formattedEnd) {
+                label = `Drinking window: ${formattedStart} – ${formattedEnd}`;
+            } else if (!normalizedStart && !normalizedEnd) {
+                label = 'Drinking window: —';
+            } else if (formattedStart && !formattedEnd) {
+                label = `Drinking window: ${formattedStart}`;
+            } else if (!formattedStart && formattedEnd) {
+                label = `Drinking window: ${formattedEnd}`;
+            }
+
+            drinkingWindowDisplay.textContent = label;
+        }
+
         separators.forEach((separator) => {
             separator.hidden = false;
         });
+
+        refreshDrinkingWindowControls();
     };
 
     const parseNumeric = (value) => {
@@ -1377,12 +1601,109 @@
         return fallbackMessage;
     };
 
+    const saveDrinkingWindow = async () => {
+        if (!state.isOpen || state.isSavingDrinkingWindow || !state.wineVintageId) {
+            return;
+        }
+
+        const { start, end } = getDrinkingWindowDraft();
+        const bothEmpty = !start && !end;
+        const hasBoth = Boolean(start && end);
+
+        if (!bothEmpty && !hasBoth) {
+            showError('Enter both a start and end date for the drinking window.');
+            return;
+        }
+
+        if (start && end && end < start) {
+            showError('Drinking window end must be on or after the start date.');
+            return;
+        }
+
+        state.isSavingDrinkingWindow = true;
+        refreshDrinkingWindowControls();
+
+        try {
+            const response = await fetch(`/wine-manager/bottles/${state.wineVintageId}/drinking-window`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    startDate: start ?? null,
+                    endDate: end ?? null
+                })
+            });
+
+            const raw = await response.text();
+            const contentType = response.headers.get('Content-Type') ?? '';
+            const isJson = raw && contentType.toLowerCase().includes('application/json');
+            let data = null;
+
+            if (raw && isJson) {
+                try {
+                    data = JSON.parse(raw);
+                } catch (parseError) {
+                    console.error('Unable to parse drinking window response', parseError);
+                }
+            }
+
+            if (!response.ok) {
+                const fallback = raw?.trim() ? raw.trim() : 'We could not save your drinking window. Please try again.';
+                const message = extractProblemMessage(data, fallback);
+                showError(message);
+                return;
+            }
+
+            clearError();
+
+            if (data) {
+                renderDetails(data);
+            } else if (state.wineVintageId) {
+                await fetchBottles(state.wineVintageId);
+            }
+        } catch (error) {
+            console.error('Failed to save drinking window', error);
+            showError('We could not save your drinking window. Please try again.');
+        } finally {
+            state.isSavingDrinkingWindow = false;
+            refreshDrinkingWindowControls();
+        }
+    };
+
+    const wireDrinkingWindowControls = () => {
+        const startInput = qs(SELECTORS.drinkingWindowStartInput);
+        const endInput = qs(SELECTORS.drinkingWindowEndInput);
+        const saveButton = qs(SELECTORS.drinkingWindowSaveButton);
+
+        if (startInput) {
+            startInput.addEventListener('input', handleDrinkingWindowInputChange);
+            startInput.addEventListener('change', handleDrinkingWindowInputChange);
+        }
+
+        if (endInput) {
+            endInput.addEventListener('input', handleDrinkingWindowInputChange);
+            endInput.addEventListener('change', handleDrinkingWindowInputChange);
+        }
+
+        if (saveButton) {
+            saveButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                saveDrinkingWindow();
+            });
+        }
+
+        refreshDrinkingWindowControls();
+    };
+
     document.addEventListener('DOMContentLoaded', () => {
         wireCloseButtons();
         wireTriggers();
         wireLocationSelect();
         wireQuantitySelect();
         wireAddButton();
+        wireDrinkingWindowControls();
         wireTableBodyActions();
         wireDrinkModalSubmit();
         syncControlState();
