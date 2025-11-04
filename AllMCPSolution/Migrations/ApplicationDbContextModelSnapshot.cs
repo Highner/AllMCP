@@ -675,6 +675,34 @@ namespace AllMCPSolution.Migrations
                     b.ToTable("WineVintageEvolutionScores");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.WineVintageUserDrinkingWindow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("StartingDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("WineVintageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WineVintageId");
+
+                    b.HasIndex("UserId", "WineVintageId")
+                        .IsUnique();
+
+                    b.ToTable("WineVintageUserDrinkingWindows");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.WineVintageWish", b =>
                 {
                     b.Property<Guid>("Id")
@@ -914,7 +942,7 @@ namespace AllMCPSolution.Migrations
                     b.HasOne("AllMCPSolution.Models.ApplicationUser", "SharedWithUser")
                         .WithMany("ReceivedBottleShares")
                         .HasForeignKey("SharedWithUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Bottle");
@@ -1133,6 +1161,25 @@ namespace AllMCPSolution.Migrations
                     b.Navigation("WineVintage");
                 });
 
+            modelBuilder.Entity("AllMCPSolution.Models.WineVintageUserDrinkingWindow", b =>
+                {
+                    b.HasOne("AllMCPSolution.Models.ApplicationUser", "User")
+                        .WithMany("WineVintageDrinkingWindows")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AllMCPSolution.Models.WineVintage", "WineVintage")
+                        .WithMany("DrinkingWindows")
+                        .HasForeignKey("WineVintageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("WineVintage");
+                });
+
             modelBuilder.Entity("AllMCPSolution.Models.WineVintageWish", b =>
                 {
                     b.HasOne("AllMCPSolution.Models.WineVintage", "WineVintage")
@@ -1239,6 +1286,8 @@ namespace AllMCPSolution.Migrations
 
                     b.Navigation("TastingNotes");
 
+                    b.Navigation("WineVintageDrinkingWindows");
+
                     b.Navigation("WineVintageEvolutionScores");
 
                     b.Navigation("Wishlists");
@@ -1309,6 +1358,8 @@ namespace AllMCPSolution.Migrations
             modelBuilder.Entity("AllMCPSolution.Models.WineVintage", b =>
                 {
                     b.Navigation("Bottles");
+
+                    b.Navigation("DrinkingWindows");
 
                     b.Navigation("EvolutionScores");
 
