@@ -681,11 +681,11 @@ namespace AllMCPSolution.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("datetime2");
+                    b.Property<int>("EndingYear")
+                        .HasColumnType("int");
 
-                    b.Property<DateTime>("StartingDate")
-                        .HasColumnType("datetime2");
+                    b.Property<int>("StartingYear")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
