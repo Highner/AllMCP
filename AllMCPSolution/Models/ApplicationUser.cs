@@ -21,6 +21,7 @@ public class ApplicationUser : IdentityUser<Guid>
     public ICollection<SisterhoodInvitation> SisterhoodInvitations { get; set; } = [];
     public ICollection<WineSurferNotificationDismissal> NotificationDismissals { get; set; } = [];
     public ICollection<WineVintageEvolutionScore> WineVintageEvolutionScores { get; set; } = [];
+    public ICollection<WineVintageUserDrinkingWindow> WineVintageDrinkingWindows { get; set; } = [];
     public ICollection<TasteProfile> TasteProfiles { get; set; } = [];
     public ICollection<Wishlist> Wishlists { get; set; } = [];
     public ICollection<BottleShare> GrantedBottleShares { get; set; } = [];

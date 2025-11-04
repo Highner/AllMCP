@@ -21,6 +21,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Wine> Wines { get; set; }
     public DbSet<WineVintage> WineVintages { get; set; }
     public DbSet<WineVintageEvolutionScore> WineVintageEvolutionScores { get; set; }
+    public DbSet<WineVintageUserDrinkingWindow> WineVintageUserDrinkingWindows { get; set; }
     public DbSet<Bottle> Bottles { get; set; }
     public DbSet<BottleLocation> BottleLocations { get; set; }
     public DbSet<TastingNote> TastingNotes { get; set; }
@@ -139,6 +140,25 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Cascade);
 
             e.HasIndex(ev => new { ev.UserId, ev.WineVintageId, ev.Year })
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<WineVintageUserDrinkingWindow>(entity =>
+        {
+            entity.Property(window => window.StartingDate).IsRequired();
+            entity.Property(window => window.EndDate).IsRequired();
+
+            entity.HasOne(window => window.User)
+                .WithMany(user => user.WineVintageDrinkingWindows)
+                .HasForeignKey(window => window.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(window => window.WineVintage)
+                .WithMany(wineVintage => wineVintage.DrinkingWindows)
+                .HasForeignKey(window => window.WineVintageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(window => new { window.UserId, window.WineVintageId })
                 .IsUnique();
         });
 

@@ -13,4 +13,5 @@ public class WineVintage
 
     public ICollection<WineVintageEvolutionScore> EvolutionScores { get; set; } = [];
     public ICollection<WineVintageWish> Wishes { get; set; } = [];
+    public ICollection<WineVintageUserDrinkingWindow> DrinkingWindows { get; set; } = [];
 }
