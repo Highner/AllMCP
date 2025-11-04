@@ -12,12 +12,22 @@
         const filtersForm = document.querySelector('form.filters');
         const clearFiltersButton = filtersForm?.querySelector('[data-clear-filters]');
         const headerFilterInput = document.querySelector('[data-inventory-header-filter-input]');
+        const headerFilterClearButton = document.querySelector('[data-inventory-header-filter-clear]');
         const filtersSearchInput = filtersForm?.querySelector('input[name="search"]');
         const inventoryView = document.getElementById('inventory-view');
         const headerFilterFocusStorageKey = 'wine-inventory:restore-header-focus';
         let headerFilterDebounceId = null;
         let maintainHeaderFilterFocus = false;
         let inlineDetailsAbortController = null;
+
+        function updateHeaderFilterClearButtonVisibility() {
+            if (!headerFilterInput || !headerFilterClearButton) {
+                return;
+            }
+
+            const hasValue = headerFilterInput.value.trim().length > 0;
+            headerFilterClearButton.hidden = !hasValue;
+        }
 
         function cancelInlineDetailsRequest() {
             if (inlineDetailsAbortController) {
@@ -114,6 +124,29 @@
             });
         }
 
+        if (headerFilterInput && headerFilterClearButton) {
+            updateHeaderFilterClearButtonVisibility();
+
+            headerFilterClearButton.addEventListener('click', (event) => {
+                event.preventDefault();
+
+                if (headerFilterInput.value.length === 0) {
+                    focusHeaderFilterInput();
+                    return;
+                }
+
+                if (headerFilterDebounceId) {
+                    window.clearTimeout(headerFilterDebounceId);
+                    headerFilterDebounceId = null;
+                }
+
+                headerFilterInput.value = '';
+                updateHeaderFilterClearButtonVisibility();
+                headerFilterInput.dispatchEvent(new Event('input', { bubbles: true }));
+                focusHeaderFilterInput();
+            });
+        }
+
         if (filtersForm && clearFiltersButton) {
             clearFiltersButton.addEventListener('click', (event) => {
                 event.preventDefault();
@@ -141,6 +174,7 @@
 
                 if (filtersSearchInput && headerFilterInput) {
                     headerFilterInput.value = filtersSearchInput.value;
+                    updateHeaderFilterClearButtonVisibility();
                 }
 
                 maintainHeaderFilterFocus = true;
@@ -151,10 +185,12 @@
 
         if (filtersForm && filtersSearchInput && headerFilterInput) {
             headerFilterInput.value = filtersSearchInput.value;
+            updateHeaderFilterClearButtonVisibility();
 
             const syncHeaderFilterWithSearch = () => {
                 if (document.activeElement !== headerFilterInput) {
                     headerFilterInput.value = filtersSearchInput.value;
+                    updateHeaderFilterClearButtonVisibility();
                 }
             };
 
@@ -162,6 +198,7 @@
             filtersSearchInput.addEventListener('change', syncHeaderFilterWithSearch);
 
             headerFilterInput.addEventListener('input', () => {
+                updateHeaderFilterClearButtonVisibility();
                 filtersSearchInput.value = headerFilterInput.value;
 
                 if (headerFilterDebounceId) {
