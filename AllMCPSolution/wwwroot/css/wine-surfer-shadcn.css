@@ -943,7 +943,7 @@ body.account-edit-open {
 
 @media (min-width: 1280px) {
     .inventory-layout {
-        grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
         align-items: flex-start;
     }
 }

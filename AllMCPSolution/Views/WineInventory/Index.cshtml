@@ -216,6 +216,37 @@
     <main class="inventory-shell">
         <div class="inventory-layout">
             <div class="inventory-left">
+                @if (!hasBottles)
+                {
+                    <div class="no-results wine-card-hover wine-card-hover--prominent">No bottles match the current filters.</div>
+                }
+
+                <div id="inventory-view" class="inventory-view" aria-hidden="false">
+                    @await Html.PartialAsync("_CrudTableTemplate", yourCellarTable)
+                </div>
+            </div>
+
+            <form method="get" class="filters" hidden>
+                <input type="hidden"
+                       name="status"
+                       value="@(string.IsNullOrWhiteSpace(Model.Status) ? "all" : Model.Status)"
+                       data-default-value="all" />
+                <input type="hidden"
+                       name="search"
+                       value="@(Model.Search ?? string.Empty)"
+                       data-default-value="" />
+                <input type="hidden"
+                       name="sortField"
+                       value="@(Model.SortField ?? "wine")"
+                       data-default-value="wine" />
+                <input type="hidden"
+                       name="sortDir"
+                       value="@(Model.SortDirection ?? "asc")"
+                       data-default-value="asc" />
+            </form>
+
+
+            <div class="inventory-right">
                 <section id="inventory-locations"
                          class="inventory-locations"
                          data-current-user-id="@Model.CurrentUserId">
@@ -540,36 +571,8 @@
 
             </div>
 
-            <form method="get" class="filters" hidden>
-                <input type="hidden"
-                       name="status"
-                       value="@(string.IsNullOrWhiteSpace(Model.Status) ? "all" : Model.Status)"
-                       data-default-value="all" />
-                <input type="hidden"
-                       name="search"
-                       value="@(Model.Search ?? string.Empty)"
-                       data-default-value="" />
-                <input type="hidden"
-                       name="sortField"
-                       value="@(Model.SortField ?? "wine")"
-                       data-default-value="wine" />
-                <input type="hidden"
-                       name="sortDir"
-                       value="@(Model.SortDirection ?? "asc")"
-                       data-default-value="asc" />
-            </form>
-
-            <div class="inventory-right">
-                @if (!hasBottles)
-                {
-                    <div class="no-results wine-card-hover wine-card-hover--prominent">No bottles match the current filters.</div>
-                }
-
-                <div id="inventory-view" class="inventory-view" aria-hidden="false">
-                    @await Html.PartialAsync("_CrudTableTemplate", yourCellarTable)
-                </div>
-            </div>
         </div>
+
 
 
 
