@@ -803,6 +803,63 @@ a.wine-card:focus {
     gap: 24px;
 }
 
+.bottle-management-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bottle-management-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    color: rgba(244, 241, 234, 0.85);
+    font-size: 0.875rem;
+}
+
+.bottle-management-meta-separator {
+    color: rgba(244, 241, 234, 0.6);
+}
+
+.bottle-management-drinking-window {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.bottle-management-drinking-window-display {
+    font-weight: 600;
+}
+
+.bottle-management-drinking-window-input {
+    appearance: none;
+    background-color: rgba(16, 16, 20, 0.6);
+    border: 1px solid rgba(244, 241, 234, 0.16);
+    border-radius: 10px;
+    color: #f4f1ea;
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.bottle-management-drinking-window-input:focus {
+    outline: none;
+    border-color: rgba(244, 241, 234, 0.32);
+    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.14);
+}
+
+.bottle-management-drinking-window-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.bottle-management-save-window-button[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .bottle-management-table-section {
     display: flex;
     flex-direction: column;

@@ -22,6 +22,7 @@ public partial class WineInventoryController : Controller
     private readonly ICountryRepository _countryRepository;
     private readonly IUserRepository _userRepository;
     private readonly ITastingNoteRepository _tastingNoteRepository;
+    private readonly IWineVintageUserDrinkingWindowRepository _drinkingWindowRepository;
     private readonly IWineCatalogService _wineCatalogService;
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IWineImportService _wineImportService;
@@ -39,6 +40,7 @@ public partial class WineInventoryController : Controller
         IRegionRepository regionRepository,
         ICountryRepository countryRepository,
         IUserRepository userRepository,
+        IWineVintageUserDrinkingWindowRepository drinkingWindowRepository,
         ITastingNoteRepository tastingNoteRepository,
         IWineCatalogService wineCatalogService,
         IWineSurferTopBarService topBarService,
@@ -56,6 +58,7 @@ public partial class WineInventoryController : Controller
         _regionRepository = regionRepository;
         _countryRepository = countryRepository;
         _userRepository = userRepository;
+        _drinkingWindowRepository = drinkingWindowRepository;
         _tastingNoteRepository = tastingNoteRepository;
         _wineCatalogService = wineCatalogService;
         _topBarService = topBarService;
@@ -2146,6 +2149,88 @@ public partial class WineInventoryController : Controller
             : Json(response);
     }
 
+    [HttpPost("bottles/{wineVintageId:guid}/drinking-window")]
+    public async Task<IActionResult> SaveDrinkingWindow(Guid wineVintageId,
+        [FromBody] DrinkingWindowRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var bottles = await _bottleRepository.GetByWineVintageIdAsync(wineVintageId, cancellationToken);
+        var ownedBottles = bottles
+            .Where(bottle => bottle.UserId == currentUserId)
+            .ToList();
+
+        if (!ownedBottles.Any())
+        {
+            return NotFound();
+        }
+
+        var startDate = request.StartDate?.Date;
+        var endDate = request.EndDate?.Date;
+
+        var hasStartOnly = startDate.HasValue && !endDate.HasValue;
+        var hasEndOnly = endDate.HasValue && !startDate.HasValue;
+
+        if (hasStartOnly || hasEndOnly)
+        {
+            const string message = "Please provide both a start and end date.";
+            ModelState.AddModelError(nameof(request.StartDate), message);
+            ModelState.AddModelError(nameof(request.EndDate), message);
+            return ValidationProblem(ModelState);
+        }
+
+        if (startDate.HasValue && endDate.HasValue && endDate.Value < startDate.Value)
+        {
+            ModelState.AddModelError(nameof(request.EndDate),
+                "The drinking window end date must be on or after the start date.");
+            return ValidationProblem(ModelState);
+        }
+
+        var existingWindow = await _drinkingWindowRepository.FindAsync(currentUserId, wineVintageId, cancellationToken);
+
+        if (!startDate.HasValue && !endDate.HasValue)
+        {
+            if (existingWindow is not null)
+            {
+                await _drinkingWindowRepository.DeleteAsync(existingWindow.Id, cancellationToken);
+            }
+        }
+        else if (startDate.HasValue && endDate.HasValue)
+        {
+            if (existingWindow is null)
+            {
+                var newWindow = new WineVintageUserDrinkingWindow
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = currentUserId,
+                    WineVintageId = wineVintageId,
+                    StartingDate = startDate.Value,
+                    EndDate = endDate.Value
+                };
+
+                await _drinkingWindowRepository.AddAsync(newWindow, cancellationToken);
+            }
+            else
+            {
+                existingWindow.StartingDate = startDate.Value;
+                existingWindow.EndDate = endDate.Value;
+                await _drinkingWindowRepository.UpdateAsync(existingWindow, cancellationToken);
+            }
+        }
+
+        var response = await BuildBottleGroupResponseAsync(wineVintageId, currentUserId, cancellationToken);
+        return Json(response);
+    }
+
     [HttpPut("bottles/{id:guid}")]
     public async Task<IActionResult> UpdateBottle(Guid id, [FromBody] BottleMutationRequest request,
         CancellationToken cancellationToken)
@@ -2471,7 +2556,8 @@ public partial class WineInventoryController : Controller
         }
 
         var averageScore = CalculateAverageScore(ownedBottles);
-        var summary = CreateBottleGroupViewModel(wineVintageId, ownedBottles, averageScore);
+        var drinkingWindow = await _drinkingWindowRepository.FindAsync(userId, wineVintageId, cancellationToken);
+        var summary = CreateBottleGroupViewModel(wineVintageId, ownedBottles, averageScore, drinkingWindow);
         var details = ownedBottles
             .OrderBy(b => b.IsDrunk)
             .ThenBy(b => b.DrunkAt ?? DateTime.MaxValue)
@@ -2646,7 +2732,8 @@ public partial class WineInventoryController : Controller
     }
 
     private static WineInventoryBottleViewModel CreateBottleGroupViewModel(Guid groupId,
-        IReadOnlyCollection<Bottle> bottles, decimal? averageScore)
+        IReadOnlyCollection<Bottle> bottles, decimal? averageScore,
+        WineVintageUserDrinkingWindow? drinkingWindow)
     {
         var firstBottle = bottles.First();
         var totalCount = bottles.Count;
@@ -2676,7 +2763,9 @@ public partial class WineInventoryController : Controller
             AvailableBottleCount = availableCount,
             StatusLabel = statusLabel,
             StatusCssClass = statusClass,
-            AverageScore = averageScore
+            AverageScore = averageScore,
+            UserDrinkingWindowStart = drinkingWindow?.StartingDate.Date,
+            UserDrinkingWindowEnd = drinkingWindow?.EndDate.Date
         };
     }
 
@@ -2874,6 +2963,8 @@ public class WineInventoryViewModel
         public string StatusLabel { get; set; } = string.Empty;
         public string StatusCssClass { get; set; } = string.Empty;
         public decimal? AverageScore { get; set; }
+        public DateTime? UserDrinkingWindowStart { get; set; }
+        public DateTime? UserDrinkingWindowEnd { get; set; }
     }
 
     public class WineInventoryBottleDetailViewModel
@@ -2935,6 +3026,15 @@ public class WineInventoryViewModel
         public Guid? UserId { get; set; }
 
         [Range(1, 12)] public int Quantity { get; set; } = 1;
+    }
+
+    public class DrinkingWindowRequest
+    {
+        [DataType(DataType.Date)]
+        public DateTime? StartDate { get; set; }
+
+        [DataType(DataType.Date)]
+        public DateTime? EndDate { get; set; }
     }
 
     public record FilterOption(string Value, string Label);
