@@ -44,7 +44,7 @@ public class ChatGptPromptService : IChatGptPromptService
     private const string DrinkingWindowSystemPromptText =
         "Respond ONLY with minified JSON matching {\\\"startYear\\\":2000,\\\"endYear\\\":2010,\\\"explanation\\\":\\\"Reason\\\"}. " +
         "Both startYear and endYear must be integers representing the inclusive start and end of the optimal drinking window. " +
-        "The explanation must be a single string of 512 characters or fewer justifying the recommendation. Do not include any commentary or code fences.";
+        "The explanation must be a single string of 128 characters or fewer justifying the recommendation. Do not include any commentary or code fences.";
     
     private const string TasteProfileSystemPromptText =
         "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\\\"summary\\\":\\\"...\\\",\\\"profile\\\":\\\"...\\\",\\\"suggestedAppellations\\\":[{\\\"country\\\":\\\"...\\\",\\\"region\\\":\\\"...\\\",\\\"appellation\\\":\\\"...\\\",\\\"subAppellation\\\":null,\\\"reason\\\":\\\"...\\\",\\\"wines\\\":[{\\\"name\\\":\\\"...\\\",\\\"color\\\":\\\"Red\\\",\\\"variety\\\":\\\"...\\\",\\\"subAppellation\\\":null,\\\"vintage\\\":\\\"2019\\\"},{\\\"name\\\":\\\"...\\\",\\\"color\\\":\\\"White\\\",\\\"variety\\\":null,\\\"subAppellation\\\":null,\\\"vintage\\\":\\\"NV\\\"}]}]}. " +
@@ -499,9 +499,9 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
             : wineDescription.Trim();
 
         var builder = new StringBuilder();
-        builder.AppendLine("You are a expert sommellier. Help the user find the perfect drinking window for a wine based on the user's taste profile.");
-        builder.AppendLine("Consult professional wine critics and wine tasting notes to determine the wine's aging profile and how it aligns with the user's taste profile. Check for plausibility (e.g. drinking window cannot start before the vintage) and provide a detailed explanation in second person if necessary.");
-        builder.AppendLine("Provide a drinking window that is at least 10 years long and no longer than 30 years.");
+        builder.AppendLine("You are a expert sommellier. Help the user find the perfect drinking window for a wine based on the user's taste profile. Pay special attention to any keywords or phrases that might indicate the user's preferences to age or ageworthy wines.");
+        builder.AppendLine("Consult professional wine critics and wine tasting notes to determine the wine's aging profile and how it aligns with the user's taste profile. Check for plausibility (e.g. drinking window cannot start before the vintage) and provide a very short one sentence explanation. Do not include the wine name or vintage in the explanation.");
+        builder.AppendLine("Provide a drinking window that is at least 10 years long and no longer than 30 years. Ageworthy wines can last until well into the future from now. In case the window has ended in the past, include the reason in the explanation.");
         builder.AppendLine();
         builder.AppendLine("This is the user's taste profile:");
         builder.AppendLine();
