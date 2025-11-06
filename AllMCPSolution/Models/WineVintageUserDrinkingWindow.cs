@@ -14,5 +14,7 @@ public class WineVintageUserDrinkingWindow
 
     public int EndingYear { get; set; }
 
+    public decimal AlignmentScore { get; set; }
+
     public string? Explanation { get; set; }
 }
