@@ -2678,9 +2678,9 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 }
 
 .inventory-locations {
-    margin: 36px auto 48px;
+    margin: 36px 0 48px;
     padding: 0 0 8px;
-    width: min(1080px, 100%);
+    width: 100%;
     display: grid;
     gap: 24px;
 }
