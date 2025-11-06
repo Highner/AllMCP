@@ -13,4 +13,6 @@ public class WineVintageUserDrinkingWindow
     public int StartingYear { get; set; }
 
     public int EndingYear { get; set; }
+
+    public string? Explanation { get; set; }
 }

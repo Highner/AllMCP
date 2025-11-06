@@ -62,6 +62,15 @@ public partial class WineInventoryController : Controller
         "finish"
     };
 
+    private static readonly string[] DrinkingWindowExplanationPropertyCandidates =
+    {
+        "explanation",
+        "reason",
+        "notes"
+    };
+
+    private const int DrinkingWindowExplanationMaxLength = 1024;
+
     public WineInventoryController(
         IBottleRepository bottleRepository,
         IBottleLocationRepository bottleLocationRepository,
@@ -277,7 +286,8 @@ public partial class WineInventoryController : Controller
                     StatusCssClass = statusClass,
                     AverageScore = CalculateAverageScore(bottlesInWine),
                     UserDrinkingWindowStartYear = aggregatedWindowStart,
-                    UserDrinkingWindowEndYear = aggregatedWindowEnd
+                    UserDrinkingWindowEndYear = aggregatedWindowEnd,
+                    UserDrinkingWindowExplanation = null
                 };
             })
             .ToList();
@@ -1474,10 +1484,12 @@ public partial class WineInventoryController : Controller
                     ct: cancellationToken);
 
                 var content = completion.GetOutputText();// StringUtilities.ExtractCompletionText(completion);
-                if (!TryParseDrinkingWindowYears(content, out var startYear, out var endYear))
+                if (!TryParseDrinkingWindowYears(content, out var startYear, out var endYear, out var explanation))
                 {
                     throw new JsonException("Unable to parse the drinking window response.");
                 }
+
+                var normalizedExplanation = NormalizeExplanation(explanation);
 
                 var existingWindow = await _drinkingWindowRepository.FindAsync(currentUserId, vintage.Id, cancellationToken);
                 if (existingWindow is null)
@@ -1488,7 +1500,8 @@ public partial class WineInventoryController : Controller
                         UserId = currentUserId,
                         WineVintageId = vintage.Id,
                         StartingYear = startYear,
-                        EndingYear = endYear
+                        EndingYear = endYear,
+                        Explanation = normalizedExplanation
                     };
 
                     await _drinkingWindowRepository.AddAsync(newWindow, cancellationToken);
@@ -1497,6 +1510,7 @@ public partial class WineInventoryController : Controller
                 {
                     existingWindow.StartingYear = startYear;
                     existingWindow.EndingYear = endYear;
+                    existingWindow.Explanation = normalizedExplanation;
                     await _drinkingWindowRepository.UpdateAsync(existingWindow, cancellationToken);
                 }
             }
@@ -2285,6 +2299,7 @@ public partial class WineInventoryController : Controller
 
         var startYear = request.StartYear;
         var endYear = request.EndYear;
+        var explanation = NormalizeExplanation(request.Explanation);
 
         var hasStartOnly = startYear.HasValue && !endYear.HasValue;
         var hasEndOnly = endYear.HasValue && !startYear.HasValue;
@@ -2323,7 +2338,8 @@ public partial class WineInventoryController : Controller
                     UserId = currentUserId,
                     WineVintageId = wineVintageId,
                     StartingYear = startYear.Value,
-                    EndingYear = endYear.Value
+                    EndingYear = endYear.Value,
+                    Explanation = explanation
                 };
 
                 await _drinkingWindowRepository.AddAsync(newWindow, cancellationToken);
@@ -2332,6 +2348,7 @@ public partial class WineInventoryController : Controller
             {
                 existingWindow.StartingYear = startYear.Value;
                 existingWindow.EndingYear = endYear.Value;
+                existingWindow.Explanation = explanation;
                 await _drinkingWindowRepository.UpdateAsync(existingWindow, cancellationToken);
             }
         }
@@ -2713,7 +2730,8 @@ public partial class WineInventoryController : Controller
             StatusCssClass = statusClass,
             AverageScore = CalculateAverageScore(ownedBottles),
             UserDrinkingWindowStartYear = aggregatedWindowStart,
-            UserDrinkingWindowEndYear = aggregatedWindowEnd
+            UserDrinkingWindowEndYear = aggregatedWindowEnd,
+            UserDrinkingWindowExplanation = null
         };
 
         var details = ownedBottles
@@ -2749,6 +2767,9 @@ public partial class WineInventoryController : Controller
                         : null,
                     UserDrinkingWindowEndYear = drinkingWindowsByVintageId.TryGetValue(b.WineVintageId, out window)
                         ? window.EndingYear
+                        : null,
+                    UserDrinkingWindowExplanation = drinkingWindowsByVintageId.TryGetValue(b.WineVintageId, out window)
+                        ? NormalizeExplanation(window.Explanation)
                         : null
                 };
             })
@@ -2814,7 +2835,8 @@ public partial class WineInventoryController : Controller
                     CurrentUserScore = userNote?.Score,
                     WineVintageId = b.WineVintageId,
                     UserDrinkingWindowStartYear = drinkingWindow?.StartingYear,
-                    UserDrinkingWindowEndYear = drinkingWindow?.EndingYear
+                    UserDrinkingWindowEndYear = drinkingWindow?.EndingYear,
+                    UserDrinkingWindowExplanation = NormalizeExplanation(drinkingWindow?.Explanation)
                 };
             })
             .ToList();
@@ -2894,10 +2916,12 @@ public partial class WineInventoryController : Controller
         return builder.ToString();
     }
 
-    private static bool TryParseDrinkingWindowYears(string? content, out int startYear, out int endYear)
+    private static bool TryParseDrinkingWindowYears(string? content, out int startYear, out int endYear,
+        out string? explanation)
     {
         startYear = 0;
         endYear = 0;
+        explanation = null;
 
         if (string.IsNullOrWhiteSpace(content))
         {
@@ -2911,6 +2935,7 @@ public partial class WineInventoryController : Controller
 
         if (root.ValueKind == JsonValueKind.Object)
         {
+            var explanationCandidate = TryGetStringFromObject(root, DrinkingWindowExplanationPropertyCandidates);
             var startCandidate = TryGetYearFromObject(root, DrinkingWindowStartPropertyCandidates);
             var endCandidate = TryGetYearFromObject(root, DrinkingWindowEndPropertyCandidates);
 
@@ -2918,6 +2943,7 @@ public partial class WineInventoryController : Controller
             {
                 startYear = startCandidate.Value;
                 endYear = endCandidate.Value;
+                explanation = explanationCandidate;
                 return NormalizeDrinkingWindowYears(ref startYear, ref endYear);
             }
 
@@ -2930,6 +2956,7 @@ public partial class WineInventoryController : Controller
 
                 if (TryParseYearsFromArray(property.Value, out startYear, out endYear))
                 {
+                    explanation = explanationCandidate;
                     return NormalizeDrinkingWindowYears(ref startYear, ref endYear);
                 }
             }
@@ -2939,6 +2966,7 @@ public partial class WineInventoryController : Controller
 
         if (TryParseYearsFromArray(root, out startYear, out endYear))
         {
+            explanation = null;
             return NormalizeDrinkingWindowYears(ref startYear, ref endYear);
         }
 
@@ -2955,6 +2983,23 @@ public partial class WineInventoryController : Controller
                     && TryConvertToYear(property.Value, out var year))
                 {
                     return year;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static string? TryGetStringFromObject(JsonElement element, IReadOnlyList<string> propertyNames)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            foreach (var candidate in propertyNames)
+            {
+                if (string.Equals(property.Name, candidate, StringComparison.OrdinalIgnoreCase)
+                    && property.Value.ValueKind == JsonValueKind.String)
+                {
+                    return property.Value.GetString();
                 }
             }
         }
@@ -3191,6 +3236,8 @@ public partial class WineInventoryController : Controller
             _ => ("Mixed", "mixed")
         };
 
+        var explanation = NormalizeExplanation(drinkingWindow?.Explanation);
+
         return new WineInventoryBottleViewModel
         {
             WineVintageId = groupId,
@@ -3209,7 +3256,8 @@ public partial class WineInventoryController : Controller
             StatusCssClass = statusClass,
             AverageScore = averageScore,
             UserDrinkingWindowStartYear = drinkingWindow?.StartingYear,
-            UserDrinkingWindowEndYear = drinkingWindow?.EndingYear
+            UserDrinkingWindowEndYear = drinkingWindow?.EndingYear,
+            UserDrinkingWindowExplanation = explanation
         };
     }
 
@@ -3333,6 +3381,22 @@ public partial class WineInventoryController : Controller
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
+    private static string? NormalizeExplanation(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.Length > DrinkingWindowExplanationMaxLength)
+        {
+            return trimmed.Substring(0, DrinkingWindowExplanationMaxLength);
+        }
+
+        return trimmed;
+    }
+
     [HttpGet("available-bottles")]
     public async Task<IActionResult> GetAvailableBottles(CancellationToken cancellationToken)
     {
@@ -3409,6 +3473,7 @@ public class WineInventoryViewModel
         public decimal? AverageScore { get; set; }
         public int? UserDrinkingWindowStartYear { get; set; }
         public int? UserDrinkingWindowEndYear { get; set; }
+        public string? UserDrinkingWindowExplanation { get; set; }
     }
 
     public class WineInventoryBottleDetailViewModel
@@ -3433,6 +3498,7 @@ public class WineInventoryViewModel
         public Guid WineVintageId { get; set; }
         public int? UserDrinkingWindowStartYear { get; set; }
         public int? UserDrinkingWindowEndYear { get; set; }
+        public string? UserDrinkingWindowExplanation { get; set; }
     }
 
     public class WineInventoryLocationViewModel
@@ -3481,6 +3547,9 @@ public class WineInventoryViewModel
 
         [Range(1900, 2200)]
         public int? EndYear { get; set; }
+
+        [StringLength(1024)]
+        public string? Explanation { get; set; }
     }
 
     public record FilterOption(string Value, string Label);

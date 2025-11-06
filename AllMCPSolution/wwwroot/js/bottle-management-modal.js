@@ -12,6 +12,7 @@
         statusLabel: '[data-bottle-management-status]',
         averageLabel: '[data-bottle-management-average]',
         drinkingWindowDisplay: '[data-bottle-management-drinking-window-display]',
+        drinkingWindowExplanation: '[data-bottle-management-drinking-window-explanation]',
         drinkingWindowStartInput: '[data-bottle-management-drinking-window-start]',
         drinkingWindowEndInput: '[data-bottle-management-drinking-window-end]',
         drinkingWindowSaveButton: '[data-bottle-management-save-drinking-window]',
@@ -35,6 +36,7 @@
         quantity: 1,
         drinkingWindowStart: null,
         drinkingWindowEnd: null,
+        drinkingWindowExplanation: null,
         isSavingDrinkingWindow: false
     };
 
@@ -128,10 +130,12 @@
         const startInput = qs(SELECTORS.drinkingWindowStartInput, scope);
         const endInput = qs(SELECTORS.drinkingWindowEndInput, scope);
         const display = qs(SELECTORS.drinkingWindowDisplay, scope);
+        const explanationEl = qs(SELECTORS.drinkingWindowExplanation, scope);
         const saveButton = qs(SELECTORS.drinkingWindowSaveButton, scope);
 
         state.drinkingWindowStart = null;
         state.drinkingWindowEnd = null;
+        state.drinkingWindowExplanation = null;
         state.isSavingDrinkingWindow = false;
 
         if (startInput) {
@@ -148,6 +152,12 @@
 
         if (display) {
             display.textContent = 'Drinking window: —';
+            display.removeAttribute('title');
+        }
+
+        if (explanationEl) {
+            explanationEl.textContent = '';
+            explanationEl.setAttribute('hidden', '');
         }
 
         if (saveButton) {
@@ -498,6 +508,7 @@
         const statusEl = qs(SELECTORS.statusLabel);
         const averageEl = qs(SELECTORS.averageLabel);
         const drinkingWindowDisplay = qs(SELECTORS.drinkingWindowDisplay);
+        const drinkingWindowExplanation = qs(SELECTORS.drinkingWindowExplanation);
         const drinkingWindowStartInput = qs(SELECTORS.drinkingWindowStartInput);
         const drinkingWindowEndInput = qs(SELECTORS.drinkingWindowEndInput);
         const separators = qsa(SELECTORS.metaSeparators);
@@ -520,6 +531,11 @@
             }
             if (drinkingWindowDisplay) {
                 drinkingWindowDisplay.textContent = 'Drinking window: —';
+                drinkingWindowDisplay.removeAttribute('title');
+            }
+            if (drinkingWindowExplanation) {
+                drinkingWindowExplanation.textContent = '';
+                drinkingWindowExplanation.setAttribute('hidden', '');
             }
             if (drinkingWindowStartInput) {
                 drinkingWindowStartInput.value = '';
@@ -529,6 +545,7 @@
             }
             state.drinkingWindowStart = null;
             state.drinkingWindowEnd = null;
+            state.drinkingWindowExplanation = null;
             state.isSavingDrinkingWindow = false;
             separators.forEach((separator) => {
                 separator.hidden = true;
@@ -575,9 +592,17 @@
         const rawEnd = group.UserDrinkingWindowEndYear ?? group.userDrinkingWindowEndYear ?? null;
         const normalizedStart = normalizeYearValue(rawStart);
         const normalizedEnd = normalizeYearValue(rawEnd);
+        const rawExplanation = typeof group?.UserDrinkingWindowExplanation === 'string'
+            ? group.UserDrinkingWindowExplanation
+            : (typeof group?.userDrinkingWindowExplanation === 'string'
+                ? group.userDrinkingWindowExplanation
+                : '');
+        const explanation = rawExplanation.trim();
+        const hasExplanation = explanation.length > 0;
 
         state.drinkingWindowStart = normalizedStart;
         state.drinkingWindowEnd = normalizedEnd;
+        state.drinkingWindowExplanation = hasExplanation ? explanation : null;
 
         if (drinkingWindowStartInput) {
             drinkingWindowStartInput.value = normalizedStart != null ? String(normalizedStart) : '';
@@ -603,6 +628,21 @@
             }
 
             drinkingWindowDisplay.textContent = label;
+            if (hasExplanation) {
+                drinkingWindowDisplay.title = explanation;
+            } else {
+                drinkingWindowDisplay.removeAttribute('title');
+            }
+        }
+
+        if (drinkingWindowExplanation) {
+            if (hasExplanation) {
+                drinkingWindowExplanation.textContent = `Why: ${explanation}`;
+                drinkingWindowExplanation.removeAttribute('hidden');
+            } else {
+                drinkingWindowExplanation.textContent = '';
+                drinkingWindowExplanation.setAttribute('hidden', '');
+            }
         }
 
         separators.forEach((separator) => {
@@ -1604,6 +1644,10 @@
         const { start, end } = getDrinkingWindowDraft();
         const bothEmpty = start == null && end == null;
         const hasBoth = start != null && end != null;
+        const existingExplanation = typeof state.drinkingWindowExplanation === 'string'
+            ? state.drinkingWindowExplanation.trim()
+            : '';
+        const trimmedExplanation = existingExplanation.length > 0 ? existingExplanation : null;
 
         if (!bothEmpty && !hasBoth) {
             showError('Enter both a start and end year for the drinking window.');
@@ -1627,7 +1671,8 @@
                 },
                 body: JSON.stringify({
                     startYear: start ?? null,
-                    endYear: end ?? null
+                    endYear: end ?? null,
+                    explanation: bothEmpty ? null : trimmedExplanation
                 })
             });
 
