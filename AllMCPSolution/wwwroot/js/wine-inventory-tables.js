@@ -900,6 +900,7 @@
                 const bottleDisplay = templateRow.querySelector('[data-bottle-count-display]');
                 const bottleAccessible = templateRow.querySelector('[data-bottle-count-accessible]');
                 const drinkingWindowCell = templateRow.querySelector('[data-drinking-window]');
+                const drinkingWindowExplanationCell = templateRow.querySelector('[data-drinking-window-explanation]');
                 const noteCell = templateRow.querySelector('[data-note]');
 
                 if (vintageCell) {
@@ -910,20 +911,25 @@
                     scoreCell.textContent = formatAverageScore(vintage?.averageScore);
                 }
 
+                const drinkingWindowExplanation = typeof vintage?.userDrinkingWindowExplanation === 'string'
+                    ? vintage.userDrinkingWindowExplanation.trim()
+                    : '';
+
                 if (drinkingWindowCell) {
                     const startYear = vintage?.userDrinkingWindowStartYear ?? vintage?.drinkingWindowStartYear;
                     const endYear = vintage?.userDrinkingWindowEndYear ?? vintage?.drinkingWindowEndYear;
-                    const explanation = typeof vintage?.userDrinkingWindowExplanation === 'string'
-                        ? vintage.userDrinkingWindowExplanation.trim()
-                        : '';
                     drinkingWindowCell.textContent = formatDrinkingWindowRange(startYear, endYear);
-                    if (explanation) {
-                        drinkingWindowCell.title = explanation;
-                        drinkingWindowCell.dataset.explanation = explanation;
+                    if (drinkingWindowExplanation) {
+                        drinkingWindowCell.title = drinkingWindowExplanation;
+                        drinkingWindowCell.dataset.explanation = drinkingWindowExplanation;
                     } else {
                         drinkingWindowCell.removeAttribute('title');
                         delete drinkingWindowCell.dataset.explanation;
                     }
+                }
+
+                if (drinkingWindowExplanationCell) {
+                    drinkingWindowExplanationCell.textContent = drinkingWindowExplanation;
                 }
 
                 const availableCount = typeof vintage?.availableCount === 'number'
