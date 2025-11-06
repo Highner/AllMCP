@@ -125,10 +125,16 @@
                             </a>
                         </th>
                         <th class="summary-header summary-header--drinking-window-start">
-                            <span class="header-text">Drink from</span>
+                            <a class="sort-header @SortStateClass("drinking-window-start")" href="@BuildSortUrl("drinking-window-start")">
+                                <span class="header-text">Drink from</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
                         </th>
                         <th class="summary-header summary-header--drinking-window-end">
-                            <span class="header-text">Until</span>
+                            <a class="sort-header @SortStateClass("drinking-window-end")" href="@BuildSortUrl("drinking-window-end")">
+                                <span class="header-text">Until</span>
+                                <span class="sort-icon" aria-hidden="true"></span>
+                            </a>
                         </th>
                         <th class="summary-header summary-header--score">
                             <a class="sort-header @SortStateClass("score")" href="@BuildSortUrl("score")">

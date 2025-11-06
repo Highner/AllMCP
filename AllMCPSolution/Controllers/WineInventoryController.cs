@@ -162,6 +162,16 @@ public partial class WineInventoryController : Controller
                 ? avg
                 : null;
 
+        int? GetDrinkingWindowStart(Bottle bottle) =>
+            drinkingWindowsByVintageId.TryGetValue(bottle.WineVintageId, out var window)
+                ? window.StartingYear
+                : (int?)null;
+
+        int? GetDrinkingWindowEnd(Bottle bottle) =>
+            drinkingWindowsByVintageId.TryGetValue(bottle.WineVintageId, out var window)
+                ? window.EndingYear
+                : (int?)null;
+
         var normalizedStatus = string.IsNullOrWhiteSpace(status) ? "all" : status.Trim().ToLowerInvariant();
         var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
         var normalizedSortField = string.IsNullOrWhiteSpace(sortField) ? "wine" : sortField.Trim().ToLowerInvariant();
@@ -221,6 +231,12 @@ public partial class WineInventoryController : Controller
             "score" => descending
                 ? sortSource.OrderByDescending(b => GetAverageScore(b.WineVintageId))
                 : sortSource.OrderBy(b => GetAverageScore(b.WineVintageId)),
+            "drinking-window-start" => descending
+                ? sortSource.OrderByDescending(GetDrinkingWindowStart)
+                : sortSource.OrderBy(GetDrinkingWindowStart),
+            "drinking-window-end" => descending
+                ? sortSource.OrderByDescending(GetDrinkingWindowEnd)
+                : sortSource.OrderBy(GetDrinkingWindowEnd),
             _ => descending
                 ? sortSource.OrderByDescending(b => b.WineVintage.Wine.Name)
                 : sortSource.OrderBy(b => b.WineVintage.Wine.Name)
@@ -316,6 +332,12 @@ public partial class WineInventoryController : Controller
             "score" => descending
                 ? groupedBottles.OrderByDescending(b => b.AverageScore)
                 : groupedBottles.OrderBy(b => b.AverageScore),
+            "drinking-window-start" => descending
+                ? groupedBottles.OrderByDescending(b => b.UserDrinkingWindowStartYear)
+                : groupedBottles.OrderBy(b => b.UserDrinkingWindowStartYear),
+            "drinking-window-end" => descending
+                ? groupedBottles.OrderByDescending(b => b.UserDrinkingWindowEndYear)
+                : groupedBottles.OrderBy(b => b.UserDrinkingWindowEndYear),
             _ => descending
                 ? groupedBottles.OrderByDescending(b => b.WineName)
                 : groupedBottles.OrderBy(b => b.WineName)
