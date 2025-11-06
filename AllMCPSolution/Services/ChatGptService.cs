@@ -55,7 +55,6 @@ public sealed class ChatGptService : IChatGptService
     private readonly string _apiKey;
     private readonly string? _drinkingWindowWorkflowId;
     private readonly bool _isConfigured;
-    private readonly string? _drinkingWindowWorkflowKey;
 
     public ChatGptService(
         IConfiguration configuration,
@@ -82,7 +81,6 @@ public sealed class ChatGptService : IChatGptService
             : options!.DefaultModel!;
 
         _drinkingWindowWorkflowId = options?.DrinkingWindowWorkflowId;
-        _drinkingWindowWorkflowKey = options?.DrinkingWindowWorkflowKey;
 
         if (string.IsNullOrWhiteSpace(options?.ApiKey))
         {
@@ -213,12 +211,6 @@ public sealed class ChatGptService : IChatGptService
         {
             throw new InvalidOperationException(
                 "The drinking window workflow identifier is not configured.");
-        }
-
-        if (string.IsNullOrWhiteSpace(_drinkingWindowWorkflowKey))
-        {
-            throw new InvalidOperationException(
-                "The drinking window workflow key is not configured.");
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, ResponsesEndpoint)
@@ -593,11 +585,7 @@ public sealed class ChatGptService : IChatGptService
     {
         return new
         {
-            workflow = new
-            {
-                id = _drinkingWindowWorkflowId,
-                key = _drinkingWindowWorkflowKey
-            },
+            workflow = _drinkingWindowWorkflowId,
             input = new[]
             {
                 new
@@ -747,7 +735,6 @@ public sealed record ChatGptOptions
     public string? SurfEyeAnalysisModel { get; init; }
     public string? TasteProfileModel { get; init; }
     public string? DrinkingWindowWorkflowId { get; init; }
-    public string? DrinkingWindowWorkflowKey { get; init; }
 }
 
 public sealed class ChatGptServiceNotConfiguredException : InvalidOperationException
