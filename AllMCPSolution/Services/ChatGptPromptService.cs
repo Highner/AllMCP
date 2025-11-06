@@ -499,7 +499,9 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
             : wineDescription.Trim();
 
         var builder = new StringBuilder();
-        builder.AppendLine("You are a expert sommellier. Help the user find the perfect drinking window for a wine based on the user's taste profile. Consult professional wine critics and wine tasting notes to determine the wine's aging profile and how it aligns with the user's taste profile. Check for plausibility (e.g. drinking window cannot start before the vintage) and provide a detailed explanation if necessary.");
+        builder.AppendLine("You are a expert sommellier. Help the user find the perfect drinking window for a wine based on the user's taste profile.");
+        builder.AppendLine("Consult professional wine critics and wine tasting notes to determine the wine's aging profile and how it aligns with the user's taste profile. Check for plausibility (e.g. drinking window cannot start before the vintage) and provide a detailed explanation in second person if necessary.");
+        builder.AppendLine("Provide a drinking window that is at least 10 years long and no longer than 30 years.");
         builder.AppendLine();
         builder.AppendLine("This is the user's taste profile:");
         builder.AppendLine();

@@ -684,6 +684,10 @@ namespace AllMCPSolution.Migrations
                     b.Property<int>("EndingYear")
                         .HasColumnType("int");
 
+                    b.Property<string>("Explanation")
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
+
                     b.Property<int>("StartingYear")
                         .HasColumnType("int");
 
