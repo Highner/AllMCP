@@ -1435,8 +1435,9 @@ public partial class WineInventoryController : Controller
                     continue;
                 }
 
-                var prediction = await _chatGptService.GetDrinkingWindowAsync(prompt, cancellationToken);
-                var (startYear, endYear) = NormalizePrediction(prediction);
+                //here you need to implement the chatgpt call
+                int startYear = 0;
+                int endYear = 0;
 
                 var existingWindow = await _drinkingWindowRepository.FindAsync(currentUserId, vintage.Id, cancellationToken);
                 if (existingWindow is null)
@@ -2863,22 +2864,6 @@ public partial class WineInventoryController : Controller
 
         builder.Append('.');
         return builder.ToString();
-    }
-
-    private static (int Start, int End) NormalizePrediction(DrinkingWindowPrediction prediction)
-    {
-        const int MinYear = 1900;
-        const int MaxYear = 2200;
-
-        var start = Math.Clamp(prediction.Start, MinYear, MaxYear);
-        var end = Math.Clamp(prediction.End, MinYear, MaxYear);
-
-        if (end < start)
-        {
-            (start, end) = (Math.Min(start, end), Math.Max(start, end));
-        }
-
-        return (start, end);
     }
 
     private async Task SetInventoryAddModalViewDataAsync(Guid currentUserId, CancellationToken cancellationToken)

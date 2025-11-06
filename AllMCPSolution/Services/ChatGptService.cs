@@ -31,10 +31,6 @@ public interface IChatGptService
         double? temperature = null,
         bool useWebSearch = false,
         CancellationToken ct = default);
-
-    Task<DrinkingWindowPrediction> GetDrinkingWindowAsync(
-        string wineContext,
-        CancellationToken ct = default);
 }
 
 public sealed class ChatGptService : IChatGptService
@@ -53,9 +49,7 @@ public sealed class ChatGptService : IChatGptService
     private readonly ILogger<ChatGptService> _logger;
     private readonly string _defaultModel;
     private readonly string _apiKey;
-    private readonly string? _drinkingWindowWorkflowId;
     private readonly bool _isConfigured;
-    private readonly string? _drinkingWindowWorkflowKey;
 
     public ChatGptService(
         IConfiguration configuration,
@@ -80,9 +74,6 @@ public sealed class ChatGptService : IChatGptService
         _defaultModel = string.IsNullOrWhiteSpace(options?.DefaultModel)
             ? ChatGptOptions.FallbackModel
             : options!.DefaultModel!;
-
-        _drinkingWindowWorkflowId = options?.DrinkingWindowWorkflowId;
-        _drinkingWindowWorkflowKey = options?.DrinkingWindowWorkflowKey;
 
         if (string.IsNullOrWhiteSpace(options?.ApiKey))
         {
@@ -198,12 +189,6 @@ public sealed class ChatGptService : IChatGptService
         //}
     }
 
-    public async Task<DrinkingWindowPrediction> GetDrinkingWindowAsync(
-        string wineContext,
-        CancellationToken ct = default)
-    {
-        return null;
-    }
 
     private void LogToolCallsFromCompletion(ChatCompletion completion)
     {
@@ -557,5 +542,3 @@ public sealed class ChatGptServiceNotConfiguredException : InvalidOperationExcep
     {
     }
 }
-
-public sealed record DrinkingWindowPrediction(int Start, int End);
