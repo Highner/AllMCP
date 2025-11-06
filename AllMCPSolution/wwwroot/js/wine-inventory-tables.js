@@ -685,8 +685,30 @@
 
             const endCell = row.querySelector('[data-field="drinking-window-end"]');
             if (endCell) {
-                endCell.textContent = formatDrinkingWindowValue(group?.userDrinkingWindowEndYear);
-                endCell.removeAttribute('title');
+                const endValue = group?.userDrinkingWindowEndYear;
+                const formattedEnd = formatDrinkingWindowValue(endValue);
+                const urgency = getDrinkingWindowUrgency(endValue);
+
+                let urgencyIndicator = endCell.querySelector('.drinking-window-urgency');
+                if (!urgencyIndicator) {
+                    urgencyIndicator = document.createElement('span');
+                }
+
+                urgencyIndicator.textContent = formattedEnd;
+                urgencyIndicator.setAttribute('aria-label', urgency.label);
+                urgencyIndicator.className = urgency.cssClass
+                    ? `drinking-window-urgency ${urgency.cssClass}`
+                    : 'drinking-window-urgency';
+
+                endCell.textContent = '';
+                endCell.appendChild(urgencyIndicator);
+
+                if (urgency.label) {
+                    endCell.setAttribute('title', urgency.label);
+                } else {
+                    endCell.removeAttribute('title');
+                }
+
                 delete endCell.dataset.explanation;
             }
 
@@ -1198,6 +1220,65 @@
             }
 
             return '—';
+        }
+
+        function parseYearValue(value) {
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                return Math.trunc(value);
+            }
+
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (trimmed) {
+                    const parsed = Number.parseInt(trimmed, 10);
+                    if (Number.isFinite(parsed)) {
+                        return parsed;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        function getDrinkingWindowUrgency(endValue) {
+            const numericYear = parseYearValue(endValue);
+            const defaultState = {
+                cssClass: 'drinking-window-urgency--unknown',
+                label: 'No suggested end to the drinking window.'
+            };
+
+            if (typeof numericYear !== 'number' || !Number.isFinite(numericYear) || numericYear <= 0) {
+                return defaultState;
+            }
+
+            const currentYear = new Date().getUTCFullYear();
+            const yearValue = String(numericYear);
+
+            if (numericYear < currentYear) {
+                return {
+                    cssClass: 'drinking-window-urgency--overdue',
+                    label: `Past recommended drinking window (best by ${yearValue}).`
+                };
+            }
+
+            if (numericYear === currentYear) {
+                return {
+                    cssClass: 'drinking-window-urgency--now',
+                    label: `Drink this year (best by ${yearValue}).`
+                };
+            }
+
+            if (numericYear - currentYear <= 2) {
+                return {
+                    cssClass: 'drinking-window-urgency--soon',
+                    label: `Approaching the end of the drinking window (best by ${yearValue}).`
+                };
+            }
+
+            return {
+                cssClass: 'drinking-window-urgency--relaxed',
+                label: `Comfortable window until ${yearValue}.`
+            };
         }
 
         function formatDrinkingWindowRange(startValue, endValue) {
