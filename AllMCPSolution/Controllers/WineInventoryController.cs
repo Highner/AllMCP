@@ -2,11 +2,13 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using AllMCPSolution.Utilities;
+using OpenAI.Chat;
 
 namespace AllMCPSolution.Controllers;
 
@@ -33,6 +35,34 @@ public partial class WineInventoryController : Controller
     private readonly IChatGptService _chatGptService;
     private readonly IChatGptPromptService _chatGptPromptService;
     private readonly UserManager<ApplicationUser> _userManager;
+
+    private const string DrinkingWindowSystemPrompt =
+        "You are an expert sommelier assistant. Respond ONLY with minified JSON matching {\\\"startYear\\\":2000,\\\"endYear\\\":2010}. " +
+        "Both startYear and endYear must be integers representing the inclusive start and end of the optimal drinking window. Do not include any commentary or code fences.";
+
+    private static readonly JsonDocumentOptions DrinkingWindowJsonDocumentOptions = new()
+    {
+        AllowTrailingCommas = true,
+        CommentHandling = JsonCommentHandling.Skip
+    };
+
+    private static readonly string[] DrinkingWindowStartPropertyCandidates =
+    {
+        "startYear",
+        "start",
+        "start_year",
+        "from",
+        "begin"
+    };
+
+    private static readonly string[] DrinkingWindowEndPropertyCandidates =
+    {
+        "endYear",
+        "end",
+        "end_year",
+        "to",
+        "finish"
+    };
 
     public WineInventoryController(
         IBottleRepository bottleRepository,
@@ -1435,9 +1465,19 @@ public partial class WineInventoryController : Controller
                     continue;
                 }
 
-                //here you need to implement the chatgpt call
-                int startYear = 0;
-                int endYear = 0;
+                ChatCompletion completion = await _chatGptService.GetChatCompletionAsync(
+                    new ChatMessage[]
+                    {
+                        new SystemChatMessage(DrinkingWindowSystemPrompt),
+                        new UserChatMessage(prompt)
+                    },
+                    ct: cancellationToken);
+
+                var content = StringUtilities.ExtractCompletionText(completion);
+                if (!TryParseDrinkingWindowYears(content, out var startYear, out var endYear))
+                {
+                    throw new JsonException("Unable to parse the drinking window response.");
+                }
 
                 var existingWindow = await _drinkingWindowRepository.FindAsync(currentUserId, vintage.Id, cancellationToken);
                 if (existingWindow is null)
@@ -1465,6 +1505,11 @@ public partial class WineInventoryController : Controller
         {
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
                 "Drinking window generation is not configured.");
+        }
+        catch (System.ClientModel.ClientResultException)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway,
+                "We couldn't reach the drinking window assistant. Please try again.");
         }
         catch (HttpRequestException)
         {
@@ -2864,6 +2909,153 @@ public partial class WineInventoryController : Controller
 
         builder.Append('.');
         return builder.ToString();
+    }
+
+    private static bool TryParseDrinkingWindowYears(string? content, out int startYear, out int endYear)
+    {
+        startYear = 0;
+        endYear = 0;
+
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return false;
+        }
+
+        var segment = StringUtilities.ExtractJsonSegment(content);
+
+        using var document = JsonDocument.Parse(segment, DrinkingWindowJsonDocumentOptions);
+        var root = document.RootElement;
+
+        if (root.ValueKind == JsonValueKind.Object)
+        {
+            var startCandidate = TryGetYearFromObject(root, DrinkingWindowStartPropertyCandidates);
+            var endCandidate = TryGetYearFromObject(root, DrinkingWindowEndPropertyCandidates);
+
+            if (startCandidate.HasValue && endCandidate.HasValue)
+            {
+                startYear = startCandidate.Value;
+                endYear = endCandidate.Value;
+                return NormalizeDrinkingWindowYears(ref startYear, ref endYear);
+            }
+
+            foreach (var property in root.EnumerateObject())
+            {
+                if (property.Value.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                if (TryParseYearsFromArray(property.Value, out startYear, out endYear))
+                {
+                    return NormalizeDrinkingWindowYears(ref startYear, ref endYear);
+                }
+            }
+
+            return false;
+        }
+
+        if (TryParseYearsFromArray(root, out startYear, out endYear))
+        {
+            return NormalizeDrinkingWindowYears(ref startYear, ref endYear);
+        }
+
+        return false;
+    }
+
+    private static int? TryGetYearFromObject(JsonElement element, IReadOnlyList<string> propertyNames)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            foreach (var candidate in propertyNames)
+            {
+                if (string.Equals(property.Name, candidate, StringComparison.OrdinalIgnoreCase)
+                    && TryConvertToYear(property.Value, out var year))
+                {
+                    return year;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool TryParseYearsFromArray(JsonElement element, out int startYear, out int endYear)
+    {
+        startYear = 0;
+        endYear = 0;
+
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        int? first = null;
+        int? second = null;
+
+        foreach (var item in element.EnumerateArray())
+        {
+            if (!first.HasValue && TryConvertToYear(item, out var firstYear))
+            {
+                first = firstYear;
+            }
+            else if (first.HasValue && !second.HasValue && TryConvertToYear(item, out var secondYear))
+            {
+                second = secondYear;
+            }
+
+            if (first.HasValue && second.HasValue)
+            {
+                break;
+            }
+        }
+
+        if (!first.HasValue || !second.HasValue)
+        {
+            return false;
+        }
+
+        startYear = first.Value;
+        endYear = second.Value;
+        return true;
+    }
+
+    private static bool TryConvertToYear(JsonElement element, out int year)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Number when element.TryGetInt32(out var numeric):
+                year = numeric;
+                return true;
+            case JsonValueKind.String:
+                var text = element.GetString();
+                if (!string.IsNullOrWhiteSpace(text)
+                    && int.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+                {
+                    year = parsed;
+                    return true;
+                }
+                break;
+        }
+
+        year = 0;
+        return false;
+    }
+
+    private static bool NormalizeDrinkingWindowYears(ref int startYear, ref int endYear)
+    {
+        if (startYear <= 0 || endYear <= 0)
+        {
+            return false;
+        }
+
+        if (startYear > endYear)
+        {
+            var temp = startYear;
+            startYear = endYear;
+            endYear = temp;
+        }
+
+        return true;
     }
 
     private async Task SetInventoryAddModalViewDataAsync(Guid currentUserId, CancellationToken cancellationToken)
