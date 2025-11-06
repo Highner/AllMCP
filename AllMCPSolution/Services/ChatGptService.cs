@@ -2,8 +2,14 @@ using System;
 using System.Collections;
 using System.ClientModel;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using OpenAI;
 using OpenAI.Chat;
 using OpenAI.Responses;
@@ -25,14 +31,29 @@ public interface IChatGptService
         double? temperature = null,
         bool useWebSearch = false,
         CancellationToken ct = default);
+
+    Task<DrinkingWindowPrediction> GetDrinkingWindowAsync(
+        string wineContext,
+        CancellationToken ct = default);
 }
 
 public sealed class ChatGptService : IChatGptService
 {
+    private const string ResponsesBetaHeaderValue = "responses=v1";
+    private static readonly Uri OpenAiBaseUri = new("https://api.openai.com/");
+    private static readonly Uri ResponsesEndpoint = new("https://api.openai.com/v1/responses");
+    private static readonly JsonSerializerOptions WorkflowSerializerOptions = new()
+    {
+        PropertyNamingPolicy = null,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     private readonly ChatClient? _chatClient;
+    private readonly HttpClient _httpClient;
     private readonly ILogger<ChatGptService> _logger;
     private readonly string _defaultModel;
     private readonly string _apiKey;
+    private readonly string? _drinkingWindowWorkflowId;
     private readonly bool _isConfigured;
 
     public ChatGptService(
@@ -46,6 +67,11 @@ public sealed class ChatGptService : IChatGptService
 
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
+        _httpClient = new HttpClient
+        {
+            BaseAddress = OpenAiBaseUri
+        };
+
         var options = configuration
             .GetSection(ChatGptOptions.ConfigurationSectionName)
             .Get<ChatGptOptions>();
@@ -53,6 +79,8 @@ public sealed class ChatGptService : IChatGptService
         _defaultModel = string.IsNullOrWhiteSpace(options?.DefaultModel)
             ? ChatGptOptions.FallbackModel
             : options!.DefaultModel!;
+
+        _drinkingWindowWorkflowId = options?.DrinkingWindowWorkflowId;
 
         if (string.IsNullOrWhiteSpace(options?.ApiKey))
         {
@@ -67,6 +95,7 @@ public sealed class ChatGptService : IChatGptService
         _isConfigured = true;
         _apiKey = options.ApiKey!;
         _chatClient = new ChatClient(_defaultModel, _apiKey);
+        ConfigureHttpClient();
     }
 
     public async Task<ChatCompletion> GetChatCompletionAsync(
@@ -165,6 +194,69 @@ public sealed class ChatGptService : IChatGptService
          //       ex.Message);
          //   throw;
         //}
+    }
+
+    public async Task<DrinkingWindowPrediction> GetDrinkingWindowAsync(
+        string wineContext,
+        CancellationToken ct = default)
+    {
+        EnsureConfigured();
+
+        if (string.IsNullOrWhiteSpace(wineContext))
+        {
+            throw new ArgumentException("A wine description is required.", nameof(wineContext));
+        }
+
+        if (string.IsNullOrWhiteSpace(_drinkingWindowWorkflowId))
+        {
+            throw new InvalidOperationException(
+                "The drinking window workflow identifier is not configured.");
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, ResponsesEndpoint)
+        {
+            Content = new StringContent(
+                JsonSerializer.Serialize(CreateDrinkingWindowWorkflowPayload(wineContext), WorkflowSerializerOptions),
+                Encoding.UTF8,
+                "application/json")
+        };
+
+        using var response = await _httpClient
+            .SendAsync(request, HttpCompletionOption.ResponseContentRead, ct)
+            .ConfigureAwait(false);
+
+        var rawContent = await response
+            .Content
+            .ReadAsStringAsync(ct)
+            .ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError(
+                "OpenAI drinking window workflow request failed with status {StatusCode}: {Body}",
+                (int)response.StatusCode,
+                rawContent);
+
+            throw new HttpRequestException(
+                $"OpenAI drinking window workflow request failed with status code {(int)response.StatusCode}.");
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawContent);
+            if (TryFindDrinkingWindow(document.RootElement, out var window))
+            {
+                return window;
+            }
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Failed to parse the drinking window workflow response: {Body}", rawContent);
+            throw;
+        }
+
+        _logger.LogError("The drinking window workflow response did not include the expected Start and End values. Body: {Body}", rawContent);
+        throw new InvalidOperationException("The drinking window workflow response did not include Start and End values.");
     }
 
     private void LogToolCallsFromCompletion(ChatCompletion completion)
@@ -468,6 +560,167 @@ public sealed class ChatGptService : IChatGptService
 
         throw new ChatGptServiceNotConfiguredException();
     }
+
+    private void ConfigureHttpClient()
+    {
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+
+        if (!_httpClient.DefaultRequestHeaders.Contains("OpenAI-Beta"))
+        {
+            _httpClient.DefaultRequestHeaders.Add("OpenAI-Beta", ResponsesBetaHeaderValue);
+        }
+
+        if (!_httpClient.DefaultRequestHeaders.Accept.Any(h => string.Equals(h.MediaType, "application/json", StringComparison.OrdinalIgnoreCase)))
+        {
+            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        }
+
+        if (_httpClient.DefaultRequestHeaders.UserAgent.Count == 0)
+        {
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("AllMCPSolution/1.0");
+        }
+    }
+
+    private object CreateDrinkingWindowWorkflowPayload(string wineContext)
+    {
+        return new
+        {
+            workflow = _drinkingWindowWorkflowId,
+            input = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content = new[]
+                    {
+                        new
+                        {
+                            type = "input_text",
+                            text = wineContext
+                        }
+                    }
+                }
+            },
+            response_format = new
+            {
+                type = "json_schema",
+                json_schema = new
+                {
+                    name = "response_schema",
+                    schema = new
+                    {
+                        type = "object",
+                        properties = new Dictionary<string, object>
+                        {
+                            ["Start"] = new
+                            {
+                                type = "integer",
+                                description = "first year of the drinking window"
+                            },
+                            ["End"] = new
+                            {
+                                type = "integer",
+                                description = "last year of the drinking window"
+                            }
+                        },
+                        additionalProperties = false,
+                        required = new[] { "Start", "End" },
+                        title = "response_schema"
+                    }
+                }
+            }
+        };
+    }
+
+    private static bool TryFindDrinkingWindow(JsonElement element, out DrinkingWindowPrediction result)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            if (TryExtractDrinkingWindow(element, out result))
+            {
+                return true;
+            }
+
+            foreach (var property in element.EnumerateObject())
+            {
+                if (TryFindDrinkingWindow(property.Value, out result))
+                {
+                    return true;
+                }
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                if (TryFindDrinkingWindow(item, out result))
+                {
+                    return true;
+                }
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.String)
+        {
+            var text = element.GetString();
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                try
+                {
+                    using var nestedDocument = JsonDocument.Parse(text);
+                    if (TryFindDrinkingWindow(nestedDocument.RootElement, out result))
+                    {
+                        return true;
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Ignore malformed JSON fragments and continue searching.
+                }
+            }
+        }
+
+        result = default!;
+        return false;
+    }
+
+    private static bool TryExtractDrinkingWindow(JsonElement element, out DrinkingWindowPrediction result)
+    {
+        if (element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty("Start", out var startProperty)
+            && element.TryGetProperty("End", out var endProperty)
+            && TryReadYear(startProperty, out var start)
+            && TryReadYear(endProperty, out var end))
+        {
+            result = new DrinkingWindowPrediction(start, end);
+            return true;
+        }
+
+        result = default!;
+        return false;
+    }
+
+    private static bool TryReadYear(JsonElement element, out int value)
+    {
+        if (element.ValueKind == JsonValueKind.Number)
+        {
+            if (element.TryGetInt32(out value))
+            {
+                return true;
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.String)
+        {
+            var raw = element.GetString();
+            if (!string.IsNullOrWhiteSpace(raw)
+                && int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+            {
+                return true;
+            }
+        }
+
+        value = 0;
+        return false;
+    }
 }
 
 public sealed record ChatGptOptions
@@ -481,6 +734,7 @@ public sealed record ChatGptOptions
     public string? WebSearchModel { get; init; }
     public string? SurfEyeAnalysisModel { get; init; }
     public string? TasteProfileModel { get; init; }
+    public string? DrinkingWindowWorkflowId { get; init; }
 }
 
 public sealed class ChatGptServiceNotConfiguredException : InvalidOperationException
@@ -490,3 +744,5 @@ public sealed class ChatGptServiceNotConfiguredException : InvalidOperationExcep
     {
     }
 }
+
+public sealed record DrinkingWindowPrediction(int Start, int End);
