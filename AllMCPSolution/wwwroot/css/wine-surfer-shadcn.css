@@ -939,12 +939,19 @@ body.account-edit-open {
     display: flex;
     flex-direction: column;
     gap: 24px;
+    min-width: 0;
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 768px) {
     .inventory-layout {
         grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
         align-items: flex-start;
+    }
+}
+
+@media (min-width: 1440px) {
+    .inventory-layout {
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 420px);
     }
 }
 
