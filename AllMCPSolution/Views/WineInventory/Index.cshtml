@@ -47,6 +47,74 @@
     string FormatDrinkingWindowValue(int? year) =>
         year.HasValue ? year.Value.ToString(CultureInfo.InvariantCulture) : "—";
 
+    string DrinkingWindowUrgencyClass(int? endYear)
+    {
+        if (!endYear.HasValue)
+        {
+            return "drinking-window-urgency--unknown";
+        }
+
+        var currentYear = DateTime.UtcNow.Year;
+
+        if (endYear.Value < currentYear)
+        {
+            return "drinking-window-urgency--overdue";
+        }
+
+        if (endYear.Value == currentYear)
+        {
+            return "drinking-window-urgency--now";
+        }
+
+        if (endYear.Value - currentYear <= 2)
+        {
+            return "drinking-window-urgency--soon";
+        }
+
+        return "drinking-window-urgency--relaxed";
+    }
+
+    string DrinkingWindowUrgencyLabel(int? endYear)
+    {
+        if (!endYear.HasValue)
+        {
+            return "No suggested end to the drinking window.";
+        }
+
+        var yearValue = endYear.Value.ToString(CultureInfo.InvariantCulture);
+        var currentYear = DateTime.UtcNow.Year;
+
+        if (endYear.Value < currentYear)
+        {
+            return $"Past recommended drinking window (best by {yearValue}).";
+        }
+
+        if (endYear.Value == currentYear)
+        {
+            return $"Drink this year (best by {yearValue}).";
+        }
+
+        if (endYear.Value - currentYear <= 2)
+        {
+            return $"Approaching the end of the drinking window (best by {yearValue}).";
+        }
+
+        return $"Comfortable window until {yearValue}.";
+    }
+
+    string BuildDrinkingWindowTooltip(string? explanation, string urgencyLabel)
+    {
+        if (string.IsNullOrWhiteSpace(explanation))
+        {
+            return urgencyLabel;
+        }
+
+        var trimmedExplanation = explanation.Trim();
+        return string.IsNullOrWhiteSpace(urgencyLabel)
+            ? trimmedExplanation
+            : $"{trimmedExplanation} · {urgencyLabel}";
+    }
+
     var hasBottles = Model.Bottles.Any();
     var hasLocations = Model.Locations.Any();
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
@@ -158,6 +226,9 @@
                             var explanation = string.IsNullOrWhiteSpace(bottle.UserDrinkingWindowExplanation)
                                 ? null
                                 : bottle.UserDrinkingWindowExplanation;
+                            var drinkingWindowUrgencyClass = DrinkingWindowUrgencyClass(bottle.UserDrinkingWindowEndYear);
+                            var drinkingWindowUrgencyLabel = DrinkingWindowUrgencyLabel(bottle.UserDrinkingWindowEndYear);
+                            var drinkingWindowTooltip = BuildDrinkingWindowTooltip(explanation, drinkingWindowUrgencyLabel);
                             var display = "—";
                             var regionDisplay = region ?? "—";
                             var groupingAppellation = string.Empty;
@@ -209,10 +280,19 @@
                                         <text> title="@explanation" data-explanation="@explanation"</text>;
                                     }>@FormatDrinkingWindowValue(bottle.UserDrinkingWindowStartYear)</td>
                                 <td class="summary-drinking-window-end" data-field="drinking-window-end"
+                                    @if (!string.IsNullOrEmpty(drinkingWindowTooltip))
+                                    {
+                                        <text> title="@drinkingWindowTooltip"</text>;
+                                    }
                                     @if (!string.IsNullOrEmpty(explanation))
                                     {
-                                        <text> title="@explanation" data-explanation="@explanation"</text>;
-                                    }>@FormatDrinkingWindowValue(bottle.UserDrinkingWindowEndYear)</td>
+                                        <text> data-explanation="@explanation"</text>;
+                                    }>
+                                    <span class="drinking-window-urgency @drinkingWindowUrgencyClass"
+                                          aria-label="@drinkingWindowUrgencyLabel">
+                                        @FormatDrinkingWindowValue(bottle.UserDrinkingWindowEndYear)
+                                    </span>
+                                </td>
                                 <td class="summary-score" data-field="score">@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
                                 <td class="summary-actions">
                                     <button type="button"
