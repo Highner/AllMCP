@@ -55,7 +55,6 @@ public sealed class ChatGptService : IChatGptService
     private readonly string _apiKey;
     private readonly string? _drinkingWindowWorkflowId;
     private readonly bool _isConfigured;
-    private readonly string? _drinkingWindowWorkflowKey;
 
     public ChatGptService(
         IConfiguration configuration,
@@ -82,7 +81,6 @@ public sealed class ChatGptService : IChatGptService
             : options!.DefaultModel!;
 
         _drinkingWindowWorkflowId = options?.DrinkingWindowWorkflowId;
-        _drinkingWindowWorkflowKey = options?.DrinkingWindowWorkflowKey;
 
         if (string.IsNullOrWhiteSpace(options?.ApiKey))
         {
@@ -215,13 +213,16 @@ public sealed class ChatGptService : IChatGptService
                 "The drinking window workflow identifier is not configured.");
         }
 
-        using var content = new StringContent(
-            JsonSerializer.Serialize(CreateDrinkingWindowWorkflowPayload(wineContext), WorkflowSerializerOptions),
-            Encoding.UTF8,
-            "application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Post, ResponsesEndpoint)
+        {
+            Content = new StringContent(
+                JsonSerializer.Serialize(CreateDrinkingWindowWorkflowPayload(wineContext), WorkflowSerializerOptions),
+                Encoding.UTF8,
+                "application/json")
+        };
 
         using var response = await _httpClient
-            .PostAsync(ResponsesEndpoint, content, ct)
+            .SendAsync(request, HttpCompletionOption.ResponseContentRead, ct)
             .ConfigureAwait(false);
 
         var rawContent = await response
@@ -582,20 +583,9 @@ public sealed class ChatGptService : IChatGptService
 
     private object CreateDrinkingWindowWorkflowPayload(string wineContext)
     {
-        var workflow = new Dictionary<string, object?>
-        {
-            ["id"] = _drinkingWindowWorkflowId
-        };
-
-        if (!string.IsNullOrWhiteSpace(_drinkingWindowWorkflowKey))
-        {
-            workflow["key"] = _drinkingWindowWorkflowKey;
-        }
-
         return new
         {
-            model = _defaultModel,
-            workflow,
+            workflow = _drinkingWindowWorkflowId,
             input = new[]
             {
                 new
@@ -745,7 +735,6 @@ public sealed record ChatGptOptions
     public string? SurfEyeAnalysisModel { get; init; }
     public string? TasteProfileModel { get; init; }
     public string? DrinkingWindowWorkflowId { get; init; }
-    public string? DrinkingWindowWorkflowKey { get; init; }
 }
 
 public sealed class ChatGptServiceNotConfiguredException : InvalidOperationException
