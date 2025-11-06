@@ -16,10 +16,18 @@ using OpenAI.Responses;
 
 namespace AllMCPSolution.Services;
 
+#pragma warning disable OPENAI001
 public interface IChatGptService
 {
     Task<ChatCompletion> GetChatCompletionAsync(
         IEnumerable<ChatMessage> messages,
+        string? model = null,
+        double? temperature = null,
+        bool useWebSearch = false,
+        CancellationToken ct = default);
+    
+    Task<OpenAIResponse> GetChatResponseAsync(
+        string messages,
         string? model = null,
         double? temperature = null,
         bool useWebSearch = false,
@@ -45,6 +53,7 @@ public sealed class ChatGptService : IChatGptService
     };
 
     private readonly ChatClient? _chatClient;
+    private readonly OpenAIResponseClient? _responsesClient;
     private readonly HttpClient _httpClient;
     private readonly ILogger<ChatGptService> _logger;
     private readonly string _defaultModel;
@@ -88,6 +97,7 @@ public sealed class ChatGptService : IChatGptService
         _isConfigured = true;
         _apiKey = options.ApiKey!;
         _chatClient = new ChatClient(_defaultModel, _apiKey);
+        _responsesClient = new OpenAIResponseClient(_defaultModel, _apiKey);
         ConfigureHttpClient();
     }
 
@@ -112,6 +122,41 @@ public sealed class ChatGptService : IChatGptService
 
             // Log any tool calls returned in the response
             LogToolCallsFromCompletion(result);
+
+            return result;
+        }
+        catch (ClientResultException ex)
+        {
+            _logger.LogError(
+                ex,
+                "ChatGPT API request failed with status {StatusCode}: {Message}",
+                ex.Status,
+                ex.Message);
+            throw;
+        }
+    }
+    
+    public async Task<OpenAIResponse> GetChatResponseAsync(
+        string messages,
+        string? model = null,
+        double? temperature = null,
+        bool useWebSearch = false,
+        CancellationToken ct = default)
+    {
+        EnsureConfigured();
+
+        //var materializedMessages = MaterializeMessages(messages);
+        var completionOptions = CreateResponseOptions(temperature, useWebSearch);
+        var client = ResolveResponsesClient(model);
+
+        try
+        {
+            var result = await client
+                .CreateResponseAsync(messages, completionOptions, ct)
+                .ConfigureAwait(false);
+
+            // Log any tool calls returned in the response
+            //LogToolCallsFromCompletion(result);
 
             return result;
         }
@@ -387,6 +432,25 @@ public sealed class ChatGptService : IChatGptService
 
         return options;
     }
+    
+    private ResponseCreationOptions CreateResponseOptions(double? temperature, bool useWebSearch)
+    {
+        var options = new ResponseCreationOptions
+        {
+
+        };
+
+        // Suppress unused parameter warning for temperature in SDK versions without a Temperature option
+        _ = temperature;
+
+        // Try to add WebSearchTool if available in the referenced OpenAI SDK
+        if (useWebSearch)
+        {
+            TryAddWebSearchTool(options);
+        }
+
+        return options;
+    }
 
     private void TryAddWebSearchTool(ChatCompletionOptions options)
     {
@@ -397,52 +461,26 @@ public sealed class ChatGptService : IChatGptService
 
         try
         {
-            ChatTool searchTool = ChatTool.CreateFunctionTool("web_search_preview");
-            options.Tools.Add(searchTool);
             
-            /*var possibleTypeNames = new[]
-            {
-                "OpenAI.Chat.Tools.WebSearchTool, OpenAI",
-                "OpenAI.Chat.WebSearchTool, OpenAI"
-            };
+           //currently not available for completions
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to attach WebSearchTool. Continuing without it.");
+        }
+    }
+    
+    private void TryAddWebSearchTool(ResponseCreationOptions options)
+    {
+        if (options is null)
+        {
+            return;
+        }
 
-            Type? toolType = null;
-            foreach (var name in possibleTypeNames)
-            {
-                toolType = Type.GetType(name, throwOnError: false);
-                if (toolType != null)
-                {
-                    break;
-                }
-            }
+        try
+        {
+            options.Tools.Add(ResponseTool.CreateWebSearchTool());
 
-            if (toolType is null)
-            {
-                // Last resort: search loaded assemblies
-                toolType = AppDomain.CurrentDomain
-                    .GetAssemblies()
-                    .Select(a => a.GetType("OpenAI.Chat.Tools.WebSearchTool") ?? a.GetType("OpenAI.Chat.WebSearchTool"))
-                    .FirstOrDefault(t => t is not null);
-            }
-
-            if (toolType is null)
-            {
-                _logger.LogInformation("WebSearchTool type not found in current OpenAI SDK. Continuing without it.");
-                return;
-            }
-
-            var instance = Activator.CreateInstance(toolType);
-
-            if (instance is ChatTool tool)
-            {
-                options.Tools.Add(tool);
- 
-                options.ToolChoice = ChatToolChoice.CreateRequiredChoice();
-            }
-            else
-            {
-                _logger.LogInformation("WebSearchTool type does not inherit from ChatTool in this SDK version. Skipping.");
-            }*/
         }
         catch (Exception ex)
         {
@@ -486,6 +524,18 @@ public sealed class ChatGptService : IChatGptService
 
         return _chatClient!;
     }
+    
+    private OpenAIResponseClient ResolveResponsesClient(string? model)
+    {
+        EnsureConfigured();
+
+        if (!string.IsNullOrWhiteSpace(model) && !string.Equals(model, _defaultModel, StringComparison.Ordinal))
+        {
+            return new OpenAIResponseClient(model!, _apiKey);
+        }
+
+        return _responsesClient!;
+    }
 
     private void EnsureConfigured()
     {
@@ -517,7 +567,7 @@ public sealed class ChatGptService : IChatGptService
         }
     }
 
-   
+#pragma warning restore OPENAI001 // Type or member is obsolete
 }
 
 public sealed record ChatGptOptions

@@ -16,6 +16,8 @@ public interface IChatGptPromptService
     string SipSessionFoodSuggestionSystemPrompt { get; }
 
     string WineWavesSystemPrompt { get; }
+    
+    string DrinkingWindowSystemPrompt { get; }
 
     string BuildTasteProfilePrompt(
         IReadOnlyList<(Bottle Bottle, TastingNote Note)> scoredBottles,
@@ -39,6 +41,10 @@ public interface IChatGptPromptService
 
 public class ChatGptPromptService : IChatGptPromptService
 {
+    private const string DrinkingWindowSystemPromptText =
+        "YRespond ONLY with minified JSON matching {\\\"startYear\\\":2000,\\\"endYear\\\":2010}. " +
+        "Both startYear and endYear must be integers representing the inclusive start and end of the optimal drinking window. Do not include any commentary or code fences.";
+    
     private const string TasteProfileSystemPromptText =
         "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\\\"summary\\\":\\\"...\\\",\\\"profile\\\":\\\"...\\\",\\\"suggestedAppellations\\\":[{\\\"country\\\":\\\"...\\\",\\\"region\\\":\\\"...\\\",\\\"appellation\\\":\\\"...\\\",\\\"subAppellation\\\":null,\\\"reason\\\":\\\"...\\\",\\\"wines\\\":[{\\\"name\\\":\\\"...\\\",\\\"color\\\":\\\"Red\\\",\\\"variety\\\":\\\"...\\\",\\\"subAppellation\\\":null,\\\"vintage\\\":\\\"2019\\\"},{\\\"name\\\":\\\"...\\\",\\\"color\\\":\\\"White\\\",\\\"variety\\\":null,\\\"subAppellation\\\":null,\\\"vintage\\\":\\\"NV\\\"}]}]}. " +
         "The summary must be 200 characters or fewer and offer a concise descriptor of the user's palate. " +
@@ -86,6 +92,8 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
     public string SipSessionFoodSuggestionSystemPrompt => SipSessionFoodSuggestionSystemPromptText;
 
     public string WineWavesSystemPrompt => WineWavesSystemPromptText;
+
+    public string DrinkingWindowSystemPrompt => DrinkingWindowSystemPromptText;
 
     public string BuildTasteProfilePrompt(
         IReadOnlyList<(Bottle Bottle, TastingNote Note)> scoredBottles,
@@ -490,6 +498,8 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
             : wineDescription.Trim();
 
         var builder = new StringBuilder();
+        builder.AppendLine("You are a expert sommellier. Help the user find the perfect drinking window for a wine based on the user's taste profile. Consult professional wine critics and wine tasting notes to determine the wine's aging profile.");
+        builder.AppendLine();
         builder.AppendLine("This is the user's taste profile:");
         builder.AppendLine();
         builder.AppendLine(normalizedProfile);

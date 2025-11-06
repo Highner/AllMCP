@@ -36,9 +36,7 @@ public partial class WineInventoryController : Controller
     private readonly IChatGptPromptService _chatGptPromptService;
     private readonly UserManager<ApplicationUser> _userManager;
 
-    private const string DrinkingWindowSystemPrompt =
-        "You are an expert sommelier assistant. Respond ONLY with minified JSON matching {\\\"startYear\\\":2000,\\\"endYear\\\":2010}. " +
-        "Both startYear and endYear must be integers representing the inclusive start and end of the optimal drinking window. Do not include any commentary or code fences.";
+
 
     private static readonly JsonDocumentOptions DrinkingWindowJsonDocumentOptions = new()
     {
@@ -1465,15 +1463,17 @@ public partial class WineInventoryController : Controller
                     continue;
                 }
 
-                ChatCompletion completion = await _chatGptService.GetChatCompletionAsync(
-                    new ChatMessage[]
-                    {
-                        new SystemChatMessage(DrinkingWindowSystemPrompt),
-                        new UserChatMessage(prompt)
-                    },
+                var builder = new StringBuilder();
+                builder.AppendLine(_chatGptPromptService.DrinkingWindowSystemPrompt);
+                builder.AppendLine(prompt);
+                
+                var completion = await _chatGptService.GetChatResponseAsync(
+                    builder.ToString(),
+                    model: "gpt-4.1-mini",
+                    useWebSearch: true,
                     ct: cancellationToken);
 
-                var content = StringUtilities.ExtractCompletionText(completion);
+                var content = completion.GetOutputText();// StringUtilities.ExtractCompletionText(completion);
                 if (!TryParseDrinkingWindowYears(content, out var startYear, out var endYear))
                 {
                     throw new JsonException("Unable to parse the drinking window response.");
