@@ -479,7 +479,13 @@
             const generateButton = row.querySelector('[data-generate-drinking-windows]');
             if (generateButton instanceof HTMLButtonElement) {
                 if (!generateButton.dataset.originalLabel) {
-                    generateButton.dataset.originalLabel = generateButton.textContent ?? '';
+                    const ariaLabel = generateButton.getAttribute('aria-label');
+                    const textLabel = (generateButton.textContent || '').trim();
+                    generateButton.dataset.originalLabel = ariaLabel || textLabel || 'Generate drinking windows';
+                }
+
+                if (!generateButton.dataset.originalContent) {
+                    generateButton.dataset.originalContent = generateButton.innerHTML;
                 }
 
                 generateButton.addEventListener('click', (event) => {
@@ -516,7 +522,11 @@
                 return;
             }
 
-            const originalLabel = actionableButton?.dataset?.originalLabel ?? actionableButton?.textContent ?? '';
+            const originalLabel = actionableButton?.dataset?.originalLabel
+                ?? actionableButton?.getAttribute('aria-label')
+                ?? actionableButton?.textContent
+                ?? '';
+            const originalContent = actionableButton?.dataset?.originalContent ?? '';
 
             if (actionableButton) {
                 actionableButton.dataset.loading = 'true';
@@ -537,7 +547,16 @@
                     actionableButton.title = 'Drinking windows updated.';
                     actionableButton.textContent = 'Generated!';
                     window.setTimeout(() => {
-                        actionableButton.textContent = originalLabel || 'Generate drinking windows';
+                        if (!actionableButton.isConnected) {
+                            return;
+                        }
+
+                        if (originalContent) {
+                            actionableButton.innerHTML = originalContent;
+                        } else {
+                            actionableButton.textContent = originalLabel || 'Generate drinking windows';
+                        }
+
                         actionableButton.title = '';
                     }, 2000);
                 }
@@ -862,8 +881,7 @@
                 const bottleCell = templateRow.querySelector('[data-bottle-count]');
                 const bottleDisplay = templateRow.querySelector('[data-bottle-count-display]');
                 const bottleAccessible = templateRow.querySelector('[data-bottle-count-accessible]');
-                const drinkingWindowStartCell = templateRow.querySelector('[data-drinking-window-start]');
-                const drinkingWindowEndCell = templateRow.querySelector('[data-drinking-window-end]');
+                const drinkingWindowCell = templateRow.querySelector('[data-drinking-window]');
                 const noteCell = templateRow.querySelector('[data-note]');
 
                 if (vintageCell) {
@@ -874,16 +892,10 @@
                     scoreCell.textContent = formatAverageScore(vintage?.averageScore);
                 }
 
-                if (drinkingWindowStartCell) {
-                    drinkingWindowStartCell.textContent = formatDrinkingWindowValue(
-                        vintage?.userDrinkingWindowStartYear ?? vintage?.drinkingWindowStartYear
-                    );
-                }
-
-                if (drinkingWindowEndCell) {
-                    drinkingWindowEndCell.textContent = formatDrinkingWindowValue(
-                        vintage?.userDrinkingWindowEndYear ?? vintage?.drinkingWindowEndYear
-                    );
+                if (drinkingWindowCell) {
+                    const startYear = vintage?.userDrinkingWindowStartYear ?? vintage?.drinkingWindowStartYear;
+                    const endYear = vintage?.userDrinkingWindowEndYear ?? vintage?.drinkingWindowEndYear;
+                    drinkingWindowCell.textContent = formatDrinkingWindowRange(startYear, endYear);
                 }
 
                 const availableCount = typeof vintage?.availableCount === 'number'
@@ -1149,6 +1161,25 @@
             }
 
             return '—';
+        }
+
+        function formatDrinkingWindowRange(startValue, endValue) {
+            const formattedStart = formatDrinkingWindowValue(startValue);
+            const formattedEnd = formatDrinkingWindowValue(endValue);
+
+            if (formattedStart === '—' && formattedEnd === '—') {
+                return '—';
+            }
+
+            if (formattedStart === '—') {
+                return `—-${formattedEnd}`;
+            }
+
+            if (formattedEnd === '—') {
+                return `${formattedStart}-—`;
+            }
+
+            return `${formattedStart}-${formattedEnd}`;
         }
 
         if (!locationSection || !locationList) {
