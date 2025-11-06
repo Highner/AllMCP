@@ -33,6 +33,8 @@ public interface IChatGptPromptService
         IReadOnlyList<WineWavesPromptItem> vintages,
         string? tasteProfileSummary,
         string? tasteProfile);
+
+    string BuildDrinkingWindowPrompt(string tasteProfile, string wineDescription);
 }
 
 public class ChatGptPromptService : IChatGptPromptService
@@ -473,6 +475,28 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
 
 
 
+
+        return builder.ToString();
+    }
+
+    public string BuildDrinkingWindowPrompt(string tasteProfile, string wineDescription)
+    {
+        var normalizedProfile = string.IsNullOrWhiteSpace(tasteProfile)
+            ? "No taste profile is available."
+            : tasteProfile.Trim();
+
+        var normalizedWine = string.IsNullOrWhiteSpace(wineDescription)
+            ? "Unknown wine."
+            : wineDescription.Trim();
+
+        var builder = new StringBuilder();
+        builder.AppendLine("This is the user's taste profile:");
+        builder.AppendLine();
+        builder.AppendLine(normalizedProfile);
+        builder.AppendLine();
+        builder.AppendLine("This is the wine:");
+        builder.AppendLine();
+        builder.AppendLine(normalizedWine);
 
         return builder.ToString();
     }

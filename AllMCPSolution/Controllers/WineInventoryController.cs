@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.Net.Http;
+using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -28,6 +30,8 @@ public partial class WineInventoryController : Controller
     private readonly IWineImportService _wineImportService;
     private readonly IStarWineListImportService _starWineListImportService;
     private readonly ICellarTrackerImportService _cellarTrackerImportService;
+    private readonly IChatGptService _chatGptService;
+    private readonly IChatGptPromptService _chatGptPromptService;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public WineInventoryController(
@@ -47,6 +51,8 @@ public partial class WineInventoryController : Controller
         IWineImportService wineImportService,
         IStarWineListImportService starWineListImportService,
         ICellarTrackerImportService cellarTrackerImportService,
+        IChatGptService chatGptService,
+        IChatGptPromptService chatGptPromptService,
         UserManager<ApplicationUser> userManager)
     {
         _bottleRepository = bottleRepository;
@@ -65,6 +71,8 @@ public partial class WineInventoryController : Controller
         _wineImportService = wineImportService;
         _starWineListImportService = starWineListImportService;
         _cellarTrackerImportService = cellarTrackerImportService;
+        _chatGptService = chatGptService;
+        _chatGptPromptService = chatGptPromptService;
         _userManager = userManager;
     }
 
@@ -1370,121 +1378,114 @@ public partial class WineInventoryController : Controller
             return Challenge();
         }
 
-        var userBottles = await _bottleRepository.GetForUserAsync(currentUserId, cancellationToken);
-        var userDrinkingWindows = await _drinkingWindowRepository.GetForUserAsync(currentUserId, cancellationToken);
-        var drinkingWindowsByVintageId = userDrinkingWindows
-            .GroupBy(window => window.WineVintageId)
-            .ToDictionary(group => group.Key, group => group.First());
-        var userLocations = await GetUserLocationsAsync(currentUserId, cancellationToken);
-        var locationSummaries = BuildLocationSummaries(userBottles, userLocations);
-
-        var ownedBottles = userBottles
-            .Where(b => b.WineVintage.Wine.Id == wineId)
-            .ToList();
-
-        if (!ownedBottles.Any())
+        var response = await BuildWineDetailsResponseAsync(wineId, currentUserId, cancellationToken);
+        if (response is null)
         {
             return NotFound();
         }
 
-        var totalCount = ownedBottles.Count;
-        var drunkCount = ownedBottles.Count(b => b.IsDrunk);
-        var availableCount = Math.Max(totalCount - drunkCount, 0);
-        var (statusLabel, statusClass) = drunkCount switch
+        return Json(response);
+    }
+
+    [HttpPost("wines/{wineId:guid}/drinking-windows")]
+    public async Task<IActionResult> GenerateDrinkingWindows(Guid wineId, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var currentUserId))
         {
-            var d when d == 0 => ("Cellared", "cellared"),
-            var d when d == totalCount => ("Drunk", "drunk"),
-            _ => ("Mixed", "mixed")
-        };
-
-        var first = ownedBottles.First();
-
-        var summaryWindowStartYears = new List<int>();
-        var summaryWindowEndYears = new List<int>();
-
-        foreach (var bottle in ownedBottles)
-        {
-            if (drinkingWindowsByVintageId.TryGetValue(bottle.WineVintageId, out var window))
-            {
-                summaryWindowStartYears.Add(window.StartingYear);
-                summaryWindowEndYears.Add(window.EndingYear);
-            }
+            return Challenge();
         }
 
-        int? aggregatedWindowStart = summaryWindowStartYears.Count > 0
-            ? summaryWindowStartYears.Min()
-            : null;
-
-        int? aggregatedWindowEnd = summaryWindowEndYears.Count > 0
-            ? summaryWindowEndYears.Max()
-            : null;
-
-        var summary = new WineInventoryBottleViewModel
+        var user = await _userRepository.GetByIdAsync(currentUserId, cancellationToken);
+        if (user is null)
         {
-            WineVintageId = Guid.Empty,
-            WineId = wineId,
-            WineName = first.WineVintage.Wine.Name,
-            Region = first.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name,
-            SubAppellation = first.WineVintage.Wine.SubAppellation?.Name,
-            Appellation = first.WineVintage.Wine.SubAppellation?.Appellation?.Name,
-            SubAppellationId = first.WineVintage.Wine.SubAppellation?.Id,
-            AppellationId = first.WineVintage.Wine.SubAppellation?.Appellation?.Id,
-            Vintage = 0,
-            Color = first.WineVintage.Wine.Color.ToString(),
-            BottleCount = totalCount,
-            AvailableBottleCount = availableCount,
-            StatusLabel = statusLabel,
-            StatusCssClass = statusClass,
-            AverageScore = CalculateAverageScore(ownedBottles),
-            UserDrinkingWindowStartYear = aggregatedWindowStart,
-            UserDrinkingWindowEndYear = aggregatedWindowEnd
-        };
+            return NotFound();
+        }
 
-        var details = ownedBottles
-            // Order inline table entries by vintage (newest first), then by status/date for stable grouping
-            .OrderByDescending(b => b.WineVintage.Vintage)
-            .ThenBy(b => b.IsDrunk)
-            .ThenBy(b => b.DrunkAt ?? DateTime.MaxValue)
-            .Select(b =>
+        var wine = await _wineRepository.GetByIdAsync(wineId, cancellationToken);
+        if (wine is null)
+        {
+            return NotFound();
+        }
+
+        var ownedVintages = wine.WineVintages?
+            .Where(vintage => vintage is not null && vintage.Bottles.Any(bottle => bottle.UserId == currentUserId))
+            .ToList() ?? new List<WineVintage>();
+
+        if (ownedVintages.Count == 0)
+        {
+            return NotFound();
+        }
+
+        var (tasteProfileSummary, tasteProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(user);
+        var tasteProfileText = BuildTasteProfileText(tasteProfileSummary, tasteProfile);
+
+        try
+        {
+            foreach (var vintage in ownedVintages)
             {
-                var userNote = b.TastingNotes
-                    .Where(note => note.UserId == currentUserId)
-                    .OrderBy(note => note.Id)
-                    .LastOrDefault();
-
-                return new WineInventoryBottleDetailViewModel
+                if (vintage is null)
                 {
-                    BottleId = b.Id,
-                    Price = b.Price,
-                    IsDrunk = b.IsDrunk,
-                    DrunkAt = b.DrunkAt,
-                    BottleLocationId = b.BottleLocationId,
-                    BottleLocation = b.BottleLocation?.Name ?? "—",
-                    UserId = b.UserId,
-                    UserName = b.User?.Name ?? string.Empty,
-                    Vintage = b.WineVintage.Vintage,
-                    WineName = b.WineVintage.Wine.Name,
-                    AverageScore = CalculateAverageScore(b),
-                    CurrentUserNoteId = userNote?.Id,
-                    CurrentUserNote = userNote?.Note,
-                    CurrentUserScore = userNote?.Score,
-                    WineVintageId = b.WineVintageId,
-                    UserDrinkingWindowStartYear = drinkingWindowsByVintageId.TryGetValue(b.WineVintageId, out var window)
-                        ? window.StartingYear
-                        : null,
-                    UserDrinkingWindowEndYear = drinkingWindowsByVintageId.TryGetValue(b.WineVintageId, out window)
-                        ? window.EndingYear
-                        : null
-                };
-            })
-            .ToList();
+                    continue;
+                }
 
-        var response = new BottleGroupDetailsResponse
+                var wineDescription = BuildWineDescription(wine, vintage);
+                var prompt = _chatGptPromptService.BuildDrinkingWindowPrompt(tasteProfileText, wineDescription);
+                if (string.IsNullOrWhiteSpace(prompt))
+                {
+                    continue;
+                }
+
+                var prediction = await _chatGptService.GetDrinkingWindowAsync(prompt, cancellationToken);
+                var (startYear, endYear) = NormalizePrediction(prediction);
+
+                var existingWindow = await _drinkingWindowRepository.FindAsync(currentUserId, vintage.Id, cancellationToken);
+                if (existingWindow is null)
+                {
+                    var newWindow = new WineVintageUserDrinkingWindow
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = currentUserId,
+                        WineVintageId = vintage.Id,
+                        StartingYear = startYear,
+                        EndingYear = endYear
+                    };
+
+                    await _drinkingWindowRepository.AddAsync(newWindow, cancellationToken);
+                }
+                else
+                {
+                    existingWindow.StartingYear = startYear;
+                    existingWindow.EndingYear = endYear;
+                    await _drinkingWindowRepository.UpdateAsync(existingWindow, cancellationToken);
+                }
+            }
+        }
+        catch (ChatGptServiceNotConfiguredException)
         {
-            Group = summary,
-            Details = details,
-            Locations = locationSummaries
-        };
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                "Drinking window generation is not configured.");
+        }
+        catch (HttpRequestException)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway,
+                "We couldn't reach the drinking window assistant. Please try again.");
+        }
+        catch (JsonException)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway,
+                "The drinking window assistant returned an unexpected response.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, ex.Message);
+        }
+
+        var response = await BuildWineDetailsResponseAsync(wineId, currentUserId, cancellationToken);
+        if (response is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                "We updated your drinking windows, but could not refresh the inventory view.");
+        }
 
         return Json(response);
     }
@@ -2596,6 +2597,125 @@ public partial class WineInventoryController : Controller
         return Json(response);
     }
 
+    private async Task<BottleGroupDetailsResponse?> BuildWineDetailsResponseAsync(Guid wineId, Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var userBottles = await _bottleRepository.GetForUserAsync(userId, cancellationToken);
+        var userDrinkingWindows = await _drinkingWindowRepository.GetForUserAsync(userId, cancellationToken);
+        var drinkingWindowsByVintageId = userDrinkingWindows
+            .GroupBy(window => window.WineVintageId)
+            .ToDictionary(group => group.Key, group => group.First());
+        var userLocations = await GetUserLocationsAsync(userId, cancellationToken);
+        var locationSummaries = BuildLocationSummaries(userBottles, userLocations);
+
+        var ownedBottles = userBottles
+            .Where(b => b.WineVintage.Wine.Id == wineId)
+            .ToList();
+
+        if (ownedBottles.Count == 0)
+        {
+            return null;
+        }
+
+        var totalCount = ownedBottles.Count;
+        var drunkCount = ownedBottles.Count(b => b.IsDrunk);
+        var availableCount = Math.Max(totalCount - drunkCount, 0);
+        var (statusLabel, statusClass) = drunkCount switch
+        {
+            var d when d == 0 => ("Cellared", "cellared"),
+            var d when d == totalCount => ("Drunk", "drunk"),
+            _ => ("Mixed", "mixed")
+        };
+
+        var first = ownedBottles.First();
+
+        var summaryWindowStartYears = new List<int>();
+        var summaryWindowEndYears = new List<int>();
+
+        foreach (var bottle in ownedBottles)
+        {
+            if (drinkingWindowsByVintageId.TryGetValue(bottle.WineVintageId, out var window))
+            {
+                summaryWindowStartYears.Add(window.StartingYear);
+                summaryWindowEndYears.Add(window.EndingYear);
+            }
+        }
+
+        int? aggregatedWindowStart = summaryWindowStartYears.Count > 0
+            ? summaryWindowStartYears.Min()
+            : null;
+
+        int? aggregatedWindowEnd = summaryWindowEndYears.Count > 0
+            ? summaryWindowEndYears.Max()
+            : null;
+
+        var summary = new WineInventoryBottleViewModel
+        {
+            WineVintageId = Guid.Empty,
+            WineId = wineId,
+            WineName = first.WineVintage.Wine.Name,
+            Region = first.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name,
+            SubAppellation = first.WineVintage.Wine.SubAppellation?.Name,
+            Appellation = first.WineVintage.Wine.SubAppellation?.Appellation?.Name,
+            SubAppellationId = first.WineVintage.Wine.SubAppellation?.Id,
+            AppellationId = first.WineVintage.Wine.SubAppellation?.Appellation?.Id,
+            Vintage = 0,
+            Color = first.WineVintage.Wine.Color.ToString(),
+            BottleCount = totalCount,
+            AvailableBottleCount = availableCount,
+            StatusLabel = statusLabel,
+            StatusCssClass = statusClass,
+            AverageScore = CalculateAverageScore(ownedBottles),
+            UserDrinkingWindowStartYear = aggregatedWindowStart,
+            UserDrinkingWindowEndYear = aggregatedWindowEnd
+        };
+
+        var details = ownedBottles
+            .OrderByDescending(b => b.WineVintage.Vintage)
+            .ThenBy(b => b.IsDrunk)
+            .ThenBy(b => b.DrunkAt ?? DateTime.MaxValue)
+            .Select(b =>
+            {
+                var userNote = b.TastingNotes
+                    .Where(note => note.UserId == userId)
+                    .OrderBy(note => note.Id)
+                    .LastOrDefault();
+
+                return new WineInventoryBottleDetailViewModel
+                {
+                    BottleId = b.Id,
+                    Price = b.Price,
+                    IsDrunk = b.IsDrunk,
+                    DrunkAt = b.DrunkAt,
+                    BottleLocationId = b.BottleLocationId,
+                    BottleLocation = b.BottleLocation?.Name ?? "—",
+                    UserId = b.UserId,
+                    UserName = b.User?.Name ?? string.Empty,
+                    Vintage = b.WineVintage.Vintage,
+                    WineName = b.WineVintage.Wine.Name,
+                    AverageScore = CalculateAverageScore(b),
+                    CurrentUserNoteId = userNote?.Id,
+                    CurrentUserNote = userNote?.Note,
+                    CurrentUserScore = userNote?.Score,
+                    WineVintageId = b.WineVintageId,
+                    UserDrinkingWindowStartYear = drinkingWindowsByVintageId.TryGetValue(b.WineVintageId, out var window)
+                        ? window.StartingYear
+                        : null,
+                    UserDrinkingWindowEndYear = drinkingWindowsByVintageId.TryGetValue(b.WineVintageId, out window)
+                        ? window.EndingYear
+                        : null
+                };
+            })
+            .ToList();
+
+        return new BottleGroupDetailsResponse
+        {
+            Group = summary,
+            Details = details,
+            Locations = locationSummaries
+        };
+    }
+
     private async Task<BottleGroupDetailsResponse> BuildBottleGroupResponseAsync(Guid wineVintageId, Guid userId,
         CancellationToken cancellationToken)
     {
@@ -2659,6 +2779,106 @@ public partial class WineInventoryController : Controller
             Details = details,
             Locations = locationSummaries
         };
+    }
+
+    private static string BuildTasteProfileText(string summary, string profile)
+    {
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(summary))
+        {
+            parts.Add(summary.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile))
+        {
+            parts.Add(profile.Trim());
+        }
+
+        if (parts.Count == 0)
+        {
+            return "No taste profile is available.";
+        }
+
+        return string.Join($"{Environment.NewLine}{Environment.NewLine}", parts);
+    }
+
+    private static string BuildWineDescription(Wine wine, WineVintage vintage)
+    {
+        if (wine is null || vintage is null)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        var wineName = string.IsNullOrWhiteSpace(wine.Name) ? "Unknown wine" : wine.Name.Trim();
+        builder.Append(wineName);
+
+        if (vintage.Vintage > 0)
+        {
+            builder.Append(' ');
+            builder.Append(vintage.Vintage.ToString(CultureInfo.InvariantCulture));
+        }
+        else
+        {
+            builder.Append(" NV");
+        }
+
+        var originParts = new List<string>();
+        var subAppellation = wine.SubAppellation?.Name;
+        if (!string.IsNullOrWhiteSpace(subAppellation))
+        {
+            originParts.Add(subAppellation.Trim());
+        }
+
+        var appellation = wine.SubAppellation?.Appellation?.Name;
+        if (!string.IsNullOrWhiteSpace(appellation))
+        {
+            originParts.Add(appellation.Trim());
+        }
+
+        var region = wine.SubAppellation?.Appellation?.Region?.Name;
+        if (!string.IsNullOrWhiteSpace(region))
+        {
+            originParts.Add(region.Trim());
+        }
+
+        var country = wine.SubAppellation?.Appellation?.Region?.Country?.Name;
+        if (!string.IsNullOrWhiteSpace(country))
+        {
+            originParts.Add(country.Trim());
+        }
+
+        if (originParts.Count > 0)
+        {
+            builder.Append(" from ");
+            builder.Append(string.Join(", ", originParts));
+        }
+
+        if (!string.IsNullOrWhiteSpace(wine.GrapeVariety))
+        {
+            builder.Append(". Variety: ");
+            builder.Append(wine.GrapeVariety.Trim());
+        }
+
+        builder.Append('.');
+        return builder.ToString();
+    }
+
+    private static (int Start, int End) NormalizePrediction(DrinkingWindowPrediction prediction)
+    {
+        const int MinYear = 1900;
+        const int MaxYear = 2200;
+
+        var start = Math.Clamp(prediction.Start, MinYear, MaxYear);
+        var end = Math.Clamp(prediction.End, MinYear, MaxYear);
+
+        if (end < start)
+        {
+            (start, end) = (Math.Min(start, end), Math.Max(start, end));
+        }
+
+        return (start, end);
     }
 
     private async Task SetInventoryAddModalViewDataAsync(Guid currentUserId, CancellationToken cancellationToken)
