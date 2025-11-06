@@ -2048,45 +2048,6 @@ th a:hover {
     content: "▼";
 }
 
-.inventory-table .drinking-window-urgency {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.4px;
-    font-variant-numeric: tabular-nums;
-    background: hsla(var(--muted) / 0.18);
-    color: hsla(var(--muted-foreground) / 0.85);
-}
-
-.inventory-table .drinking-window-urgency--relaxed {
-    background: hsla(var(--ring) / 0.18);
-    color: hsla(var(--ring) / 0.9);
-}
-
-.inventory-table .drinking-window-urgency--soon {
-    background: hsla(var(--accent) / 0.25);
-    color: hsla(var(--accent-foreground) / 0.95);
-}
-
-.inventory-table .drinking-window-urgency--now {
-    background: hsla(var(--primary) / 0.25);
-    color: hsla(var(--primary-foreground) / 0.9);
-}
-
-.inventory-table .drinking-window-urgency--overdue {
-    background: hsla(var(--destructive) / 0.28);
-    color: hsla(var(--destructive-foreground) / 0.95);
-}
-
-.inventory-table .drinking-window-urgency--unknown {
-    background: hsla(var(--muted) / 0.12);
-    color: hsla(var(--muted-foreground) / 0.75);
-}
-
 /* Limit generic hover highlight to normal data rows, not group headers or subtables */
 tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     background: hsla(var(--accent) / 0.3);
