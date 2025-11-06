@@ -267,9 +267,14 @@ public partial class WineInventoryController : Controller
                 var windowStartYears = new List<int>();
                 var windowEndYears = new List<int>();
 
-                foreach (var bottle in bottlesInWine)
+                var undrunkVintageIds = bottlesInWine
+                    .Where(bottle => !bottle.IsDrunk)
+                    .Select(bottle => bottle.WineVintageId)
+                    .Distinct();
+
+                foreach (var vintageId in undrunkVintageIds)
                 {
-                    if (drinkingWindowsByVintageId.TryGetValue(bottle.WineVintageId, out var window))
+                    if (drinkingWindowsByVintageId.TryGetValue(vintageId, out var window))
                     {
                         windowStartYears.Add(window.StartingYear);
                         windowEndYears.Add(window.EndingYear);
@@ -281,7 +286,7 @@ public partial class WineInventoryController : Controller
                     : null;
 
                 int? aggregatedWindowEnd = windowEndYears.Count > 0
-                    ? windowEndYears.Max()
+                    ? windowEndYears.Min()
                     : null;
 
                 return new WineInventoryBottleViewModel
@@ -2731,7 +2736,7 @@ public partial class WineInventoryController : Controller
             : null;
 
         int? aggregatedWindowEnd = summaryWindowEndYears.Count > 0
-            ? summaryWindowEndYears.Max()
+            ? summaryWindowEndYears.Min()
             : null;
 
         var summary = new WineInventoryBottleViewModel
