@@ -2871,28 +2871,11 @@ public partial class WineInventoryController : Controller
         }
 
         var originParts = new List<string>();
-        var subAppellation = wine.SubAppellation?.Name;
-        if (!string.IsNullOrWhiteSpace(subAppellation))
-        {
-            originParts.Add(subAppellation.Trim());
-        }
-
-        var appellation = wine.SubAppellation?.Appellation?.Name;
-        if (!string.IsNullOrWhiteSpace(appellation))
-        {
-            originParts.Add(appellation.Trim());
-        }
-
+  
         var region = wine.SubAppellation?.Appellation?.Region?.Name;
         if (!string.IsNullOrWhiteSpace(region))
         {
             originParts.Add(region.Trim());
-        }
-
-        var country = wine.SubAppellation?.Appellation?.Region?.Country?.Name;
-        if (!string.IsNullOrWhiteSpace(country))
-        {
-            originParts.Add(country.Trim());
         }
 
         if (originParts.Count > 0)
