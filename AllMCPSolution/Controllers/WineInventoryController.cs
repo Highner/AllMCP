@@ -281,7 +281,7 @@ public partial class WineInventoryController : Controller
                     : null;
 
                 int? aggregatedWindowEnd = windowEndYears.Count > 0
-                    ? windowEndYears.Min()
+                    ? windowEndYears.Max()
                     : null;
 
                 return new WineInventoryBottleViewModel
@@ -2731,7 +2731,7 @@ public partial class WineInventoryController : Controller
             : null;
 
         int? aggregatedWindowEnd = summaryWindowEndYears.Count > 0
-            ? summaryWindowEndYears.Min()
+            ? summaryWindowEndYears.Max()
             : null;
 
         var summary = new WineInventoryBottleViewModel
