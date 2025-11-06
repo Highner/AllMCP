@@ -2175,10 +2175,8 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 .inventory-inline-score-header,
 .inventory-inline-count,
 .inventory-inline-count-header,
-.inventory-inline-drinking-window-start,
-.inventory-inline-drinking-window-start-header,
-.inventory-inline-drinking-window-end,
-.inventory-inline-drinking-window-end-header {
+.inventory-inline-drinking-window,
+.inventory-inline-drinking-window-header {
     text-align: left;
     font-variant-numeric: tabular-nums;
 }
@@ -2187,8 +2185,7 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     color: hsla(var(--foreground) / 0.9);
 }
 
-.inventory-inline-drinking-window-start,
-.inventory-inline-drinking-window-end {
+.inventory-inline-drinking-window {
     color: hsla(var(--foreground) / 0.92);
     white-space: nowrap;
 }
@@ -2443,6 +2440,15 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     cursor: pointer;
     text-transform: none;
     letter-spacing: normal;
+}
+
+.inventory-generate-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.inventory-generate-icon path {
+    vector-effect: non-scaling-stroke;
 }
 
 .details-table tbody .actions button:hover,
