@@ -2167,13 +2167,23 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 .inventory-inline-score,
 .inventory-inline-score-header,
 .inventory-inline-count,
-.inventory-inline-count-header {
+.inventory-inline-count-header,
+.inventory-inline-drinking-window-start,
+.inventory-inline-drinking-window-start-header,
+.inventory-inline-drinking-window-end,
+.inventory-inline-drinking-window-end-header {
     text-align: left;
     font-variant-numeric: tabular-nums;
 }
 
 .inventory-inline-score {
     color: hsla(var(--foreground) / 0.9);
+}
+
+.inventory-inline-drinking-window-start,
+.inventory-inline-drinking-window-end {
+    color: hsla(var(--foreground) / 0.92);
+    white-space: nowrap;
 }
 
 .inventory-inline-status,
