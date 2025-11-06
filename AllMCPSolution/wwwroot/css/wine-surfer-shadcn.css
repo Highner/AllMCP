@@ -923,7 +923,7 @@ body.account-edit-open {
 }
 
 .inventory-shell {
-    max-width: 1200px;
+    max-width: 1440px;
     margin: 0 auto;
     width: 100%;
     padding: 40px 24px 80px;
@@ -944,14 +944,22 @@ body.account-edit-open {
 
 @media (min-width: 768px) {
     .inventory-layout {
-        grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+        grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
         align-items: flex-start;
+    }
+
+    .inventory-right .location-grid {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
 @media (min-width: 1440px) {
     .inventory-layout {
         grid-template-columns: minmax(0, 1.1fr) minmax(320px, 420px);
+    }
+
+    .inventory-locations {
+        width: min(420px, 100%);
     }
 }
 
@@ -975,6 +983,13 @@ body.account-edit-open {
 .inventory-filters {
     display: grid;
     gap: 16px;
+}
+
+.inventory-view .crud-table__body--bare {
+    overflow-x: auto;
+    overflow-y: visible;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
 }
 
 .location-header--table {
@@ -2678,9 +2693,9 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 }
 
 .inventory-locations {
-    margin: 36px auto 48px;
+    margin: 36px 0 48px;
     padding: 0 0 8px;
-    width: min(1080px, 100%);
+    width: min(360px, 100%);
     display: grid;
     gap: 24px;
 }
