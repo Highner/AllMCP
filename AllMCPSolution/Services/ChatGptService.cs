@@ -465,7 +465,10 @@ public sealed class ChatGptService : IChatGptService
 
         try
         {
-            var possibleTypeNames = new[]
+            ChatTool searchTool = ChatTool.CreateFunctionTool("web_search_preview");
+            options.Tools.Add(searchTool);
+            
+            /*var possibleTypeNames = new[]
             {
                 "OpenAI.Chat.Tools.WebSearchTool, OpenAI",
                 "OpenAI.Chat.WebSearchTool, OpenAI"
@@ -497,15 +500,17 @@ public sealed class ChatGptService : IChatGptService
             }
 
             var instance = Activator.CreateInstance(toolType);
+
             if (instance is ChatTool tool)
             {
                 options.Tools.Add(tool);
+ 
                 options.ToolChoice = ChatToolChoice.CreateRequiredChoice();
             }
             else
             {
                 _logger.LogInformation("WebSearchTool type does not inherit from ChatTool in this SDK version. Skipping.");
-            }
+            }*/
         }
         catch (Exception ex)
         {
