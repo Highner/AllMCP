@@ -2176,7 +2176,9 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 .inventory-inline-count,
 .inventory-inline-count-header,
 .inventory-inline-drinking-window,
-.inventory-inline-drinking-window-header {
+.inventory-inline-drinking-window-header,
+.inventory-inline-drinking-window-explanation,
+.inventory-inline-drinking-window-explanation-header {
     text-align: left;
     font-variant-numeric: tabular-nums;
 }
@@ -2188,6 +2190,11 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 .inventory-inline-drinking-window {
     color: hsla(var(--foreground) / 0.92);
     white-space: nowrap;
+}
+
+.inventory-inline-drinking-window-explanation {
+    color: hsla(var(--foreground) / 0.85);
+    white-space: normal;
 }
 
 .inventory-inline-status,
