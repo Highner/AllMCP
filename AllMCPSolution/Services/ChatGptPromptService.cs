@@ -499,9 +499,10 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
             : wineDescription.Trim();
 
         var builder = new StringBuilder();
-        builder.AppendLine("You are a expert sommellier. Help the user find the perfect drinking window for a wine based on the user's taste profile. Pay special attention to any keywords or phrases that might indicate the user's preferences to age or ageworthy wines.");
+        builder.AppendLine("You are a expert sommellier. Help the user find the perfect drinking window for a wine based on the user's taste profile. Pay special attention to any keywords or phrases that might indicate the user's preferences to age or ageworthy wines and adjust the drinking window accordingly.");
+        builder.AppendLine("For example if the taste profile mentions preferences for tertiary or aged flavours the you might want to adjust the drinking window to include the tertiary flavours -> later drinking window. Vice versa if the taste profile mentions a dislike for aged wines or tertiary notes.");
         builder.AppendLine("Consult professional wine critics and wine tasting notes to determine the wine's aging profile and how it aligns with the user's taste profile. Check for plausibility (e.g. drinking window cannot start before the vintage) and provide a very short one sentence explanation. Do not include the wine name or vintage in the explanation.");
-        builder.AppendLine("Provide a drinking window that is at least 10 years long and no longer than 30 years. Ageworthy wines can last until well into the future from now. In case the window has ended in the past, include the reason in the explanation.");
+        builder.AppendLine("Provide a drinking window that is at least 10 years long. Ageworthy wines can last until well into the future from now. In case the window has ended in the past, include the reason in the explanation.");
         builder.AppendLine();
         builder.AppendLine("This is the user's taste profile:");
         builder.AppendLine();
@@ -510,9 +511,7 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
         builder.AppendLine("This is the wine:");
         builder.AppendLine();
         builder.AppendLine(normalizedWine);
-        builder.AppendLine();
-        builder.AppendLine("Return an explanation that clearly justifies why the recommended window fits the user's preferences and the wine's profile.");
-        builder.AppendLine("Keep the explanation concise (280 characters or fewer).");
+
 
         return builder.ToString();
     }

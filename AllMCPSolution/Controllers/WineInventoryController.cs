@@ -1501,7 +1501,7 @@ public partial class WineInventoryController : Controller
                 
                 var completion = await _chatGptService.GetChatResponseAsync(
                     builder.ToString(),
-                    model: "gpt-4.1-mini",
+                    model: "gpt-4.1",
                     useWebSearch: true,
                     ct: cancellationToken);
 
