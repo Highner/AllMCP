@@ -670,6 +670,8 @@
                 const bottleCell = templateRow.querySelector('[data-bottle-count]');
                 const bottleDisplay = templateRow.querySelector('[data-bottle-count-display]');
                 const bottleAccessible = templateRow.querySelector('[data-bottle-count-accessible]');
+                const drinkingWindowStartCell = templateRow.querySelector('[data-drinking-window-start]');
+                const drinkingWindowEndCell = templateRow.querySelector('[data-drinking-window-end]');
                 const noteCell = templateRow.querySelector('[data-note]');
 
                 if (vintageCell) {
@@ -678,6 +680,18 @@
 
                 if (scoreCell) {
                     scoreCell.textContent = formatAverageScore(vintage?.averageScore);
+                }
+
+                if (drinkingWindowStartCell) {
+                    drinkingWindowStartCell.textContent = formatDrinkingWindowValue(
+                        vintage?.userDrinkingWindowStartYear ?? vintage?.drinkingWindowStartYear
+                    );
+                }
+
+                if (drinkingWindowEndCell) {
+                    drinkingWindowEndCell.textContent = formatDrinkingWindowValue(
+                        vintage?.userDrinkingWindowEndYear ?? vintage?.drinkingWindowEndYear
+                    );
                 }
 
                 const availableCount = typeof vintage?.availableCount === 'number'
@@ -807,6 +821,12 @@
                     && Number.isFinite(detail.currentUserScore);
                 const scoreValue = hasScore ? detail.currentUserScore : 0;
                 const noteText = typeof detail?.currentUserNote === 'string' ? detail.currentUserNote.trim() : '';
+                const startYear = normalizeDrinkingWindowYear(
+                    detail?.userDrinkingWindowStartYear ?? detail?.drinkingWindowStartYear
+                );
+                const endYear = normalizeDrinkingWindowYear(
+                    detail?.userDrinkingWindowEndYear ?? detail?.drinkingWindowEndYear
+                );
 
                 const isDrunk = Boolean(detail?.isDrunk);
 
@@ -824,6 +844,12 @@
                     if (!existing.note && noteText) {
                         existing.note = noteText;
                     }
+                    if (existing.userDrinkingWindowStartYear == null && startYear != null) {
+                        existing.userDrinkingWindowStartYear = startYear;
+                    }
+                    if (existing.userDrinkingWindowEndYear == null && endYear != null) {
+                        existing.userDrinkingWindowEndYear = endYear;
+                    }
                 } else {
                     results.set(vintageId, {
                         wineVintageId: vintageId,
@@ -833,7 +859,9 @@
                         drunkCount: isDrunk ? 1 : 0,
                         scoreTotal: scoreValue,
                         scoreCount: hasScore ? 1 : 0,
-                        note: noteText
+                        note: noteText,
+                        userDrinkingWindowStartYear: startYear,
+                        userDrinkingWindowEndYear: endYear
                     });
                 }
             });
@@ -851,7 +879,9 @@
                     drunkCount: entry.drunkCount,
                     totalCount: entry.totalCount,
                     averageScore,
-                    note: entry.note
+                    note: entry.note,
+                    userDrinkingWindowStartYear: entry.userDrinkingWindowStartYear,
+                    userDrinkingWindowEndYear: entry.userDrinkingWindowEndYear
                 };
             });
             aggregated.sort((a, b) => {
@@ -861,6 +891,21 @@
             });
 
             return aggregated;
+        }
+
+        function normalizeDrinkingWindowYear(value) {
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                return value;
+            }
+
+            if (typeof value === 'string') {
+                const parsed = Number.parseInt(value, 10);
+                if (Number.isFinite(parsed)) {
+                    return parsed;
+                }
+            }
+
+            return null;
         }
 
         function formatVintageLabel(value) {
@@ -874,6 +919,14 @@
         function formatAverageScore(value) {
             if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
                 return value.toFixed(1);
+            }
+
+            return '—';
+        }
+
+        function formatDrinkingWindowValue(value) {
+            if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+                return String(value);
             }
 
             return '—';

@@ -90,6 +90,13 @@ public partial class WineInventoryController : Controller
             .Where(bottle => bottle.UserId == currentUserId)
             .ToList();
 
+        var userDrinkingWindows = await _drinkingWindowRepository
+            .GetForUserAsync(currentUserId, cancellationToken);
+
+        var drinkingWindowsByVintageId = userDrinkingWindows
+            .GroupBy(window => window.WineVintageId)
+            .ToDictionary(group => group.Key, group => group.First());
+
         var bottleGroups = bottles
             .GroupBy(b => b.WineVintageId)
             .ToList();
@@ -196,6 +203,26 @@ public partial class WineInventoryController : Controller
                     _ => ("Mixed", "mixed")
                 };
 
+                var windowStartYears = new List<int>();
+                var windowEndYears = new List<int>();
+
+                foreach (var bottle in bottlesInWine)
+                {
+                    if (drinkingWindowsByVintageId.TryGetValue(bottle.WineVintageId, out var window))
+                    {
+                        windowStartYears.Add(window.StartingYear);
+                        windowEndYears.Add(window.EndingYear);
+                    }
+                }
+
+                int? aggregatedWindowStart = windowStartYears.Count > 0
+                    ? windowStartYears.Min()
+                    : null;
+
+                int? aggregatedWindowEnd = windowEndYears.Count > 0
+                    ? windowEndYears.Max()
+                    : null;
+
                 return new WineInventoryBottleViewModel
                 {
                     WineVintageId = Guid.Empty, // no single vintage represents the wine-level row
@@ -212,7 +239,9 @@ public partial class WineInventoryController : Controller
                     AvailableBottleCount = availableCount,
                     StatusLabel = statusLabel,
                     StatusCssClass = statusClass,
-                    AverageScore = CalculateAverageScore(bottlesInWine)
+                    AverageScore = CalculateAverageScore(bottlesInWine),
+                    UserDrinkingWindowStartYear = aggregatedWindowStart,
+                    UserDrinkingWindowEndYear = aggregatedWindowEnd
                 };
             })
             .ToList();
@@ -1342,6 +1371,10 @@ public partial class WineInventoryController : Controller
         }
 
         var userBottles = await _bottleRepository.GetForUserAsync(currentUserId, cancellationToken);
+        var userDrinkingWindows = await _drinkingWindowRepository.GetForUserAsync(currentUserId, cancellationToken);
+        var drinkingWindowsByVintageId = userDrinkingWindows
+            .GroupBy(window => window.WineVintageId)
+            .ToDictionary(group => group.Key, group => group.First());
         var userLocations = await GetUserLocationsAsync(currentUserId, cancellationToken);
         var locationSummaries = BuildLocationSummaries(userBottles, userLocations);
 
@@ -1365,6 +1398,27 @@ public partial class WineInventoryController : Controller
         };
 
         var first = ownedBottles.First();
+
+        var summaryWindowStartYears = new List<int>();
+        var summaryWindowEndYears = new List<int>();
+
+        foreach (var bottle in ownedBottles)
+        {
+            if (drinkingWindowsByVintageId.TryGetValue(bottle.WineVintageId, out var window))
+            {
+                summaryWindowStartYears.Add(window.StartingYear);
+                summaryWindowEndYears.Add(window.EndingYear);
+            }
+        }
+
+        int? aggregatedWindowStart = summaryWindowStartYears.Count > 0
+            ? summaryWindowStartYears.Min()
+            : null;
+
+        int? aggregatedWindowEnd = summaryWindowEndYears.Count > 0
+            ? summaryWindowEndYears.Max()
+            : null;
+
         var summary = new WineInventoryBottleViewModel
         {
             WineVintageId = Guid.Empty,
@@ -1381,7 +1435,9 @@ public partial class WineInventoryController : Controller
             AvailableBottleCount = availableCount,
             StatusLabel = statusLabel,
             StatusCssClass = statusClass,
-            AverageScore = CalculateAverageScore(ownedBottles)
+            AverageScore = CalculateAverageScore(ownedBottles),
+            UserDrinkingWindowStartYear = aggregatedWindowStart,
+            UserDrinkingWindowEndYear = aggregatedWindowEnd
         };
 
         var details = ownedBottles
@@ -1412,7 +1468,13 @@ public partial class WineInventoryController : Controller
                     CurrentUserNoteId = userNote?.Id,
                     CurrentUserNote = userNote?.Note,
                     CurrentUserScore = userNote?.Score,
-                    WineVintageId = b.WineVintageId
+                    WineVintageId = b.WineVintageId,
+                    UserDrinkingWindowStartYear = drinkingWindowsByVintageId.TryGetValue(b.WineVintageId, out var window)
+                        ? window.StartingYear
+                        : null,
+                    UserDrinkingWindowEndYear = drinkingWindowsByVintageId.TryGetValue(b.WineVintageId, out window)
+                        ? window.EndingYear
+                        : null
                 };
             })
             .ToList();
@@ -2584,7 +2646,9 @@ public partial class WineInventoryController : Controller
                     CurrentUserNoteId = userNote?.Id,
                     CurrentUserNote = userNote?.Note,
                     CurrentUserScore = userNote?.Score,
-                    WineVintageId = b.WineVintageId
+                    WineVintageId = b.WineVintageId,
+                    UserDrinkingWindowStartYear = drinkingWindow?.StartingYear,
+                    UserDrinkingWindowEndYear = drinkingWindow?.EndingYear
                 };
             })
             .ToList();
@@ -2987,6 +3051,8 @@ public class WineInventoryViewModel
 
         // Added to allow client to open a specific vintage group from wine-level view
         public Guid WineVintageId { get; set; }
+        public int? UserDrinkingWindowStartYear { get; set; }
+        public int? UserDrinkingWindowEndYear { get; set; }
     }
 
     public class WineInventoryLocationViewModel

@@ -1,7 +1,7 @@
 @* Template for displaying wine vintage counts inline within the inventory table. *@
 <template id="inventory-wine-vintages-template">
     <tr class="group-row group-row--child inventory-inline-parent" data-inline-row>
-        <td colspan="7" class="inventory-inline-cell">
+        <td colspan="9" class="inventory-inline-cell">
             <div class="inventory-inline-container">
                 <div class="inventory-inline-status" data-inline-status>Loading vintages&hellip;</div>
                 <div class="inventory-inline-empty" data-inline-empty hidden>No bottles for this wine are currently in your inventory.</div>
@@ -11,6 +11,8 @@
                             <th scope="col" class="inventory-inline-vintage-header">Vintage</th>
                             <th scope="col" class="inventory-inline-score-header">Score</th>
                             <th scope="col" class="inventory-inline-count-header inventory-inline-bottles-header">Bottles</th>
+                            <th scope="col" class="inventory-inline-drinking-window-start-header">Drinking window start</th>
+                            <th scope="col" class="inventory-inline-drinking-window-end-header">Drinking window end</th>
                             <th scope="col" class="inventory-inline-note-header">Your note</th>
                         </tr>
                     </thead>
@@ -29,6 +31,8 @@
             <span aria-hidden="true" data-bottle-count-display></span>
             <span class="sr-only" data-bottle-count-accessible></span>
         </td>
+        <td class="inventory-inline-drinking-window-start" data-drinking-window-start></td>
+        <td class="inventory-inline-drinking-window-end" data-drinking-window-end></td>
         <td class="inventory-inline-note" data-note></td>
     </tr>
 </template>
