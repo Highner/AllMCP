@@ -3091,11 +3091,15 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     .inventory-table .summary-header--region,
     .inventory-table .summary-header--appellation,
     .inventory-table .summary-header--color,
+    .inventory-table .summary-header--drinking-window-start,
+    .inventory-table .summary-header--drinking-window-end,
     .inventory-table .summary-header--status,
     .inventory-table .summary-header--score,
     .inventory-table .summary-region,
     .inventory-table .summary-appellation,
     .inventory-table .summary-color,
+    .inventory-table .summary-drinking-window-start,
+    .inventory-table .summary-drinking-window-end,
     .inventory-table .summary-status,
     .inventory-table .summary-score {
         display: none;
@@ -3114,6 +3118,15 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     .inventory-table .summary-header--bottles,
     .inventory-table .summary-bottles {
         text-align: right;
+    }
+}
+
+@media (max-width: 768px) {
+    .inventory-inline-table .inventory-inline-drinking-window-header,
+    .inventory-inline-table .inventory-inline-drinking-window-explanation-header,
+    .inventory-inline-table .inventory-inline-drinking-window,
+    .inventory-inline-table .inventory-inline-drinking-window-explanation {
+        display: none;
     }
 }
 
