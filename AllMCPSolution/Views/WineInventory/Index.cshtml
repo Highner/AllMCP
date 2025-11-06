@@ -102,19 +102,6 @@
         return $"Comfortable window until {yearValue}.";
     }
 
-    string BuildDrinkingWindowTooltip(string? explanation, string urgencyLabel)
-    {
-        if (string.IsNullOrWhiteSpace(explanation))
-        {
-            return urgencyLabel;
-        }
-
-        var trimmedExplanation = explanation.Trim();
-        return string.IsNullOrWhiteSpace(urgencyLabel)
-            ? trimmedExplanation
-            : $"{trimmedExplanation} · {urgencyLabel}";
-    }
-
     var hasBottles = Model.Bottles.Any();
     var hasLocations = Model.Locations.Any();
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
@@ -223,12 +210,8 @@
                             var subAppellation = string.IsNullOrWhiteSpace(bottle.SubAppellation) ? null : bottle.SubAppellation;
                             var appellation = string.IsNullOrWhiteSpace(bottle.Appellation) ? null : bottle.Appellation;
                             var region = string.IsNullOrWhiteSpace(bottle.Region) ? null : bottle.Region;
-                            var explanation = string.IsNullOrWhiteSpace(bottle.UserDrinkingWindowExplanation)
-                                ? null
-                                : bottle.UserDrinkingWindowExplanation;
                             var drinkingWindowUrgencyClass = DrinkingWindowUrgencyClass(bottle.UserDrinkingWindowEndYear);
                             var drinkingWindowUrgencyLabel = DrinkingWindowUrgencyLabel(bottle.UserDrinkingWindowEndYear);
-                            var drinkingWindowTooltip = BuildDrinkingWindowTooltip(explanation, drinkingWindowUrgencyLabel);
                             var display = "—";
                             var regionDisplay = region ?? "—";
                             var groupingAppellation = string.Empty;
@@ -261,7 +244,6 @@
                                 data-summary-appellation="@groupingAppellation"
                                 data-summary-color="@groupingColor"
                                 data-summary-status="@groupingStatus"
-                                data-summary-drinking-window-explanation="@(explanation ?? string.Empty)"
                                 tabindex="0"
                                 role="button"
                                 aria-expanded="false">
@@ -274,19 +256,13 @@
                                 </td>
                                 <td class="summary-color">@bottle.Color</td>
                                 <td class="summary-status"><span class="status-pill @bottle.StatusCssClass" data-field="status">@bottle.StatusLabel</span></td>
-                                <td class="summary-drinking-window-start" data-field="drinking-window-start"
-                                    @if (!string.IsNullOrEmpty(explanation))
-                                    {
-                                        <text> title="@explanation" data-explanation="@explanation"</text>;
-                                    }>@FormatDrinkingWindowValue(bottle.UserDrinkingWindowStartYear)</td>
+                                <td class="summary-drinking-window-start" data-field="drinking-window-start">
+                                    @FormatDrinkingWindowValue(bottle.UserDrinkingWindowStartYear)
+                                </td>
                                 <td class="summary-drinking-window-end" data-field="drinking-window-end"
-                                    @if (!string.IsNullOrEmpty(drinkingWindowTooltip))
+                                    @if (!string.IsNullOrEmpty(drinkingWindowUrgencyLabel))
                                     {
-                                        <text> title="@drinkingWindowTooltip"</text>;
-                                    }
-                                    @if (!string.IsNullOrEmpty(explanation))
-                                    {
-                                        <text> data-explanation="@explanation"</text>;
+                                        <text> title="@drinkingWindowUrgencyLabel"</text>;
                                     }>
                                     <span class="drinking-window-urgency @drinkingWindowUrgencyClass"
                                           aria-label="@drinkingWindowUrgencyLabel">

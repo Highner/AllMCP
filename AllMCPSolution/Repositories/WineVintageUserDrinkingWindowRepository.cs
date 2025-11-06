@@ -81,7 +81,6 @@ public sealed class WineVintageUserDrinkingWindowRepository : IWineVintageUserDr
         existing.StartingYear = drinkingWindow.StartingYear;
         existing.EndingYear = drinkingWindow.EndingYear;
         existing.AlignmentScore = drinkingWindow.AlignmentScore;
-        existing.Explanation = drinkingWindow.Explanation;
 
         await _dbContext.SaveChangesAsync(ct);
     }
