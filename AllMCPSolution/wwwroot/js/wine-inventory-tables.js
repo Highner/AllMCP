@@ -885,6 +885,7 @@
                 const bottleDisplay = templateRow.querySelector('[data-bottle-count-display]');
                 const bottleAccessible = templateRow.querySelector('[data-bottle-count-accessible]');
                 const drinkingWindowCell = templateRow.querySelector('[data-drinking-window]');
+                const surfScoreCell = templateRow.querySelector('[data-surf-score]');
                 const noteCell = templateRow.querySelector('[data-note]');
 
                 if (vintageCell) {
@@ -901,6 +902,10 @@
                     drinkingWindowCell.textContent = formatDrinkingWindowRange(startYear, endYear);
                     drinkingWindowCell.removeAttribute('title');
                     delete drinkingWindowCell.dataset.explanation;
+                }
+
+                if (surfScoreCell) {
+                    surfScoreCell.textContent = formatAlignmentScore(vintage?.alignmentScore);
                 }
 
                 const availableCount = typeof vintage?.availableCount === 'number'
@@ -1036,6 +1041,21 @@
                 const endYear = normalizeDrinkingWindowYear(
                     detail?.userDrinkingWindowEndYear ?? detail?.drinkingWindowEndYear
                 );
+                const alignmentScore = (() => {
+                    const raw = detail?.userDrinkingWindowAlignmentScore;
+                    if (typeof raw === 'number' && Number.isFinite(raw)) {
+                        return raw;
+                    }
+
+                    if (typeof raw === 'string') {
+                        const parsed = Number.parseFloat(raw);
+                        if (Number.isFinite(parsed)) {
+                            return parsed;
+                        }
+                    }
+
+                    return null;
+                })();
                 const isDrunk = Boolean(detail?.isDrunk);
 
                 if (existing) {
@@ -1048,6 +1068,9 @@
                     if (hasScore) {
                         existing.scoreTotal += scoreValue;
                         existing.scoreCount += 1;
+                    }
+                    if (existing.alignmentScore == null && alignmentScore != null) {
+                        existing.alignmentScore = alignmentScore;
                     }
                     if (!existing.note && noteText) {
                         existing.note = noteText;
@@ -1067,6 +1090,7 @@
                         drunkCount: isDrunk ? 1 : 0,
                         scoreTotal: scoreValue,
                         scoreCount: hasScore ? 1 : 0,
+                        alignmentScore,
                         note: noteText,
                         userDrinkingWindowStartYear: startYear,
                         userDrinkingWindowEndYear: endYear
@@ -1087,6 +1111,7 @@
                     drunkCount: entry.drunkCount,
                     totalCount: entry.totalCount,
                     averageScore,
+                    alignmentScore: entry.alignmentScore,
                     note: entry.note,
                     userDrinkingWindowStartYear: entry.userDrinkingWindowStartYear,
                     userDrinkingWindowEndYear: entry.userDrinkingWindowEndYear
@@ -1153,6 +1178,14 @@
 
         function formatAverageScore(value) {
             if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+                return value.toFixed(1);
+            }
+
+            return '—';
+        }
+
+        function formatAlignmentScore(value) {
+            if (typeof value === 'number' && Number.isFinite(value)) {
                 return value.toFixed(1);
             }
 
