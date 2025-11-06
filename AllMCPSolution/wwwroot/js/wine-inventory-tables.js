@@ -617,6 +617,9 @@
             const statusClasses = typeof group?.statusCssClass === 'string'
                 ? group.statusCssClass.split(/\s+/).filter(Boolean)
                 : [];
+            const explanation = typeof group?.userDrinkingWindowExplanation === 'string'
+                ? group.userDrinkingWindowExplanation.trim()
+                : '';
 
             const summaryWineCell = row.querySelector('.summary-wine');
             if (summaryWineCell) {
@@ -680,11 +683,25 @@
             const startCell = row.querySelector('[data-field="drinking-window-start"]');
             if (startCell) {
                 startCell.textContent = formatDrinkingWindowValue(group?.userDrinkingWindowStartYear);
+                if (explanation) {
+                    startCell.title = explanation;
+                    startCell.dataset.explanation = explanation;
+                } else {
+                    startCell.removeAttribute('title');
+                    delete startCell.dataset.explanation;
+                }
             }
 
             const endCell = row.querySelector('[data-field="drinking-window-end"]');
             if (endCell) {
                 endCell.textContent = formatDrinkingWindowValue(group?.userDrinkingWindowEndYear);
+                if (explanation) {
+                    endCell.title = explanation;
+                    endCell.dataset.explanation = explanation;
+                } else {
+                    endCell.removeAttribute('title');
+                    delete endCell.dataset.explanation;
+                }
             }
 
             const scoreCell = row.querySelector('[data-field="score"]');
@@ -697,6 +714,7 @@
             row.dataset.summaryAppellation = appellationDisplay && appellationDisplay !== '—' ? appellationDisplay : '';
             row.dataset.summaryColor = colorName || '';
             row.dataset.summaryStatus = statusLabel || '';
+            row.dataset.summaryDrinkingWindowExplanation = explanation;
         }
 
         function toggleInventorySummaryRow(row) {
@@ -895,7 +913,17 @@
                 if (drinkingWindowCell) {
                     const startYear = vintage?.userDrinkingWindowStartYear ?? vintage?.drinkingWindowStartYear;
                     const endYear = vintage?.userDrinkingWindowEndYear ?? vintage?.drinkingWindowEndYear;
+                    const explanation = typeof vintage?.userDrinkingWindowExplanation === 'string'
+                        ? vintage.userDrinkingWindowExplanation.trim()
+                        : '';
                     drinkingWindowCell.textContent = formatDrinkingWindowRange(startYear, endYear);
+                    if (explanation) {
+                        drinkingWindowCell.title = explanation;
+                        drinkingWindowCell.dataset.explanation = explanation;
+                    } else {
+                        drinkingWindowCell.removeAttribute('title');
+                        delete drinkingWindowCell.dataset.explanation;
+                    }
                 }
 
                 const availableCount = typeof vintage?.availableCount === 'number'
@@ -1031,6 +1059,9 @@
                 const endYear = normalizeDrinkingWindowYear(
                     detail?.userDrinkingWindowEndYear ?? detail?.drinkingWindowEndYear
                 );
+                const explanationText = typeof detail?.userDrinkingWindowExplanation === 'string'
+                    ? detail.userDrinkingWindowExplanation.trim()
+                    : '';
 
                 const isDrunk = Boolean(detail?.isDrunk);
 
@@ -1054,6 +1085,9 @@
                     if (existing.userDrinkingWindowEndYear == null && endYear != null) {
                         existing.userDrinkingWindowEndYear = endYear;
                     }
+                    if (!existing.userDrinkingWindowExplanation && explanationText) {
+                        existing.userDrinkingWindowExplanation = explanationText;
+                    }
                 } else {
                     results.set(vintageId, {
                         wineVintageId: vintageId,
@@ -1065,7 +1099,8 @@
                         scoreCount: hasScore ? 1 : 0,
                         note: noteText,
                         userDrinkingWindowStartYear: startYear,
-                        userDrinkingWindowEndYear: endYear
+                        userDrinkingWindowEndYear: endYear,
+                        userDrinkingWindowExplanation: explanationText
                     });
                 }
             });
@@ -1085,7 +1120,8 @@
                     averageScore,
                     note: entry.note,
                     userDrinkingWindowStartYear: entry.userDrinkingWindowStartYear,
-                    userDrinkingWindowEndYear: entry.userDrinkingWindowEndYear
+                    userDrinkingWindowEndYear: entry.userDrinkingWindowEndYear,
+                    userDrinkingWindowExplanation: entry.userDrinkingWindowExplanation
                 };
             });
             aggregated.sort((a, b) => {

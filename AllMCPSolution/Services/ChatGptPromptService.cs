@@ -42,8 +42,9 @@ public interface IChatGptPromptService
 public class ChatGptPromptService : IChatGptPromptService
 {
     private const string DrinkingWindowSystemPromptText =
-        "YRespond ONLY with minified JSON matching {\\\"startYear\\\":2000,\\\"endYear\\\":2010}. " +
-        "Both startYear and endYear must be integers representing the inclusive start and end of the optimal drinking window. Do not include any commentary or code fences.";
+        "Respond ONLY with minified JSON matching {\\\"startYear\\\":2000,\\\"endYear\\\":2010,\\\"explanation\\\":\\\"Reason\\\"}. " +
+        "Both startYear and endYear must be integers representing the inclusive start and end of the optimal drinking window. " +
+        "The explanation must be a single string of 512 characters or fewer justifying the recommendation. Do not include any commentary or code fences.";
     
     private const string TasteProfileSystemPromptText =
         "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\\\"summary\\\":\\\"...\\\",\\\"profile\\\":\\\"...\\\",\\\"suggestedAppellations\\\":[{\\\"country\\\":\\\"...\\\",\\\"region\\\":\\\"...\\\",\\\"appellation\\\":\\\"...\\\",\\\"subAppellation\\\":null,\\\"reason\\\":\\\"...\\\",\\\"wines\\\":[{\\\"name\\\":\\\"...\\\",\\\"color\\\":\\\"Red\\\",\\\"variety\\\":\\\"...\\\",\\\"subAppellation\\\":null,\\\"vintage\\\":\\\"2019\\\"},{\\\"name\\\":\\\"...\\\",\\\"color\\\":\\\"White\\\",\\\"variety\\\":null,\\\"subAppellation\\\":null,\\\"vintage\\\":\\\"NV\\\"}]}]}. " +
@@ -507,6 +508,9 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
         builder.AppendLine("This is the wine:");
         builder.AppendLine();
         builder.AppendLine(normalizedWine);
+        builder.AppendLine();
+        builder.AppendLine("Return an explanation that clearly justifies why the recommended window fits the user's preferences and the wine's profile.");
+        builder.AppendLine("Keep the explanation concise (280 characters or fewer).");
 
         return builder.ToString();
     }

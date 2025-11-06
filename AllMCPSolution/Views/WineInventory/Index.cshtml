@@ -149,6 +149,9 @@
                             var subAppellation = string.IsNullOrWhiteSpace(bottle.SubAppellation) ? null : bottle.SubAppellation;
                             var appellation = string.IsNullOrWhiteSpace(bottle.Appellation) ? null : bottle.Appellation;
                             var region = string.IsNullOrWhiteSpace(bottle.Region) ? null : bottle.Region;
+                            var explanation = string.IsNullOrWhiteSpace(bottle.UserDrinkingWindowExplanation)
+                                ? null
+                                : bottle.UserDrinkingWindowExplanation;
                             var display = "—";
                             var regionDisplay = region ?? "—";
                             var groupingAppellation = string.Empty;
@@ -181,6 +184,7 @@
                                 data-summary-appellation="@groupingAppellation"
                                 data-summary-color="@groupingColor"
                                 data-summary-status="@groupingStatus"
+                                data-summary-drinking-window-explanation="@(explanation ?? string.Empty)"
                                 tabindex="0"
                                 role="button"
                                 aria-expanded="false">
@@ -193,8 +197,16 @@
                                 </td>
                                 <td class="summary-color">@bottle.Color</td>
                                 <td class="summary-status"><span class="status-pill @bottle.StatusCssClass" data-field="status">@bottle.StatusLabel</span></td>
-                                <td class="summary-drinking-window-start" data-field="drinking-window-start">@FormatDrinkingWindowValue(bottle.UserDrinkingWindowStartYear)</td>
-                                <td class="summary-drinking-window-end" data-field="drinking-window-end">@FormatDrinkingWindowValue(bottle.UserDrinkingWindowEndYear)</td>
+                                <td class="summary-drinking-window-start" data-field="drinking-window-start"
+                                    @if (!string.IsNullOrEmpty(explanation))
+                                    {
+                                        <text> title="@explanation" data-explanation="@explanation"</text>;
+                                    }>@FormatDrinkingWindowValue(bottle.UserDrinkingWindowStartYear)</td>
+                                <td class="summary-drinking-window-end" data-field="drinking-window-end"
+                                    @if (!string.IsNullOrEmpty(explanation))
+                                    {
+                                        <text> title="@explanation" data-explanation="@explanation"</text>;
+                                    }>@FormatDrinkingWindowValue(bottle.UserDrinkingWindowEndYear)</td>
                                 <td class="summary-score" data-field="score">@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
                                 <td class="summary-actions">
                                     <button type="button"
