@@ -65,7 +65,22 @@ public sealed class WineVintageUserDrinkingWindowRepository : IWineVintageUserDr
 
     public async Task UpdateAsync(WineVintageUserDrinkingWindow drinkingWindow, CancellationToken ct = default)
     {
-        _dbContext.WineVintageUserDrinkingWindows.Update(drinkingWindow);
+        if (drinkingWindow is null)
+        {
+            throw new ArgumentNullException(nameof(drinkingWindow));
+        }
+
+        var existing = await _dbContext.WineVintageUserDrinkingWindows
+            .FirstOrDefaultAsync(window => window.Id == drinkingWindow.Id, ct);
+
+        if (existing is null)
+        {
+            return;
+        }
+
+        existing.StartingYear = drinkingWindow.StartingYear;
+        existing.EndingYear = drinkingWindow.EndingYear;
+
         await _dbContext.SaveChangesAsync(ct);
     }
 
