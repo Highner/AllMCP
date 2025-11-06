@@ -681,6 +681,10 @@ namespace AllMCPSolution.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("AlignmentScore")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("decimal(4,2)");
+
                     b.Property<int>("EndingYear")
                         .HasColumnType("int");
 

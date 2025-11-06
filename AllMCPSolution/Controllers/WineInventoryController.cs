@@ -3682,7 +3682,7 @@ public class WineInventoryViewModel
         [StringLength(1024)]
         public string? Explanation { get; set; }
 
-        [Range((double)AlignmentScoreMinimum, (double)AlignmentScoreMaximum)]
+        [Range((double)0, (double)10)]
         public decimal? AlignmentScore { get; set; }
     }
 
