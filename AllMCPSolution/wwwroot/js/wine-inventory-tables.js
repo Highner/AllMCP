@@ -781,9 +781,19 @@
 
                 urgencyIndicator.textContent = formattedEnd;
                 urgencyIndicator.setAttribute('aria-label', urgency.label);
-                urgencyIndicator.className = urgency.cssClass
-                    ? `drinking-window-urgency ${urgency.cssClass}`
-                    : 'drinking-window-urgency';
+
+                const urgencyClasses = ['status-pill', 'drinking-window-urgency'];
+                statusClasses.forEach((cls) => {
+                    if (cls) {
+                        urgencyClasses.push(cls);
+                    }
+                });
+
+                if (urgency.cssClass) {
+                    urgencyClasses.push(urgency.cssClass);
+                }
+
+                urgencyIndicator.className = urgencyClasses.join(' ');
 
                 endCell.textContent = '';
                 endCell.appendChild(urgencyIndicator);
