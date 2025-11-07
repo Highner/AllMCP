@@ -40,10 +40,8 @@
                 {
                     foreach (var item in Model.Items)
                     {
-                        var addButtonLabel = item.IsInInventory ? "In Inventory" : "add";
-                        var addButtonAriaLabel = item.IsInInventory
-                            ? $"{item.WineName} is already in your inventory"
-                            : $"Add {item.WineName} to your inventory";
+                        var addButtonLabel = "add";
+                        var addButtonAriaLabel = $"Add {item.WineName} to your inventory";
                         var buyUrl = string.IsNullOrWhiteSpace(item.WineSearcherUrl)
                             ? "https://www.wine-searcher.com/"
                             : item.WineSearcherUrl;
@@ -73,8 +71,7 @@
                                             data-wine-color="@item.Color"
                                             data-wine-variety="@item.Variety"
                                             data-wine-vintage="@item.Vintage"
-                                            aria-label="@addButtonAriaLabel"
-                                            @(item.IsInInventory ? "disabled" : null)>
+                                            aria-label="@addButtonAriaLabel">
                                         @addButtonLabel
                                     </button>
                                     <a class="sisterhood-button wishlist-actions__button"
