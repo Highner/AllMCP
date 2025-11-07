@@ -13,8 +13,6 @@
     --popover-foreground: 60 9.1% 97.8%;
     --primary: 24 94% 62%;
     --primary-foreground: 60 9.1% 9.8%;
-    --warning: 37 92% 58%;
-    --warning-foreground: 45 100% 10%;
     --secondary: 20 14.3% 10.1%;
     --secondary-foreground: 60 9.1% 97.8%;
     --destructive: 0 62.8% 45.6%;
@@ -2066,17 +2064,14 @@ th a:hover {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 14px;
+    padding: 4px 10px;
     border-radius: 999px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    line-height: 1;
-    font-family: var(--font-sans);
+    letter-spacing: 0.4px;
     font-variant-numeric: tabular-nums;
-    background: hsla(var(--accent) / 0.25);
-    color: hsl(var(--accent-foreground));
+    background: hsla(var(--muted) / 0.18);
+    color: hsla(var(--muted-foreground) / 0.85);
 }
 
 .inventory-table .drinking-window-urgency--relaxed {
@@ -2335,18 +2330,12 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 
 
 .status-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.25em;
-    padding: 6px 14px;
+    display: inline-block;
+    padding: 6px 12px;
     border-radius: 999px;
     font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 1.2px;
+    letter-spacing: 1px;
     text-transform: uppercase;
-    line-height: 1;
-    font-family: var(--font-sans);
     background: hsla(var(--accent) / 0.25);
     color: hsl(var(--accent-foreground));
 }
@@ -2362,18 +2351,13 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 }
 
 .status-pill.pending {
-    background: hsla(var(--warning) / 0.25);
-    color: hsla(var(--warning-foreground) / 0.92);
+    background: hsla(var(--muted) / 0.25);
+    color: hsla(var(--muted-foreground) / 0.9);
 }
 
 .status-pill.mixed {
     background: hsla(var(--primary) / 0.25);
     color: hsla(var(--primary) / 0.9);
-}
-
-.status-pill.drinking-window-urgency--unknown {
-    background: hsla(var(--muted) / 0.12);
-    color: hsla(var(--muted-foreground) / 0.75);
 }
 
 .details-header {
