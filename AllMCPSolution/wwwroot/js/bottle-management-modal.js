@@ -24,7 +24,8 @@
         quantitySelect: '[data-bottle-management-quantity]',
         pendingCheckbox: '[data-bottle-management-pending]',
         rowLocationSelect: '[data-bottle-management-location-field]',
-        rowPriceInput: '[data-bottle-management-price-input]'
+        rowPriceInput: '[data-bottle-management-price-input]',
+        rowPendingCheckbox: '[data-bottle-management-pending-field]'
     };
 
     const state = {
@@ -707,7 +708,7 @@
         bottleDetailMap.clear();
 
         if (!Array.isArray(details) || details.length === 0) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="5">You do not have bottles for this vintage yet.</td></tr>';
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="6">You do not have bottles for this vintage yet.</td></tr>';
             return;
         }
 
@@ -783,11 +784,20 @@
                 )
                 : escapeHtml(priceInputValue || '—');
 
+            const pendingField = bottleId
+                ? (
+                    `<div class="bottle-management-pending-toggle">` +
+                        `<input type="checkbox" id="bottle-pending-${safeBottleId}" class="bottle-management-pending-checkbox" data-bottle-management-pending-field data-bottle-id="${safeBottleId}" aria-label="Pending delivery"${isPending ? ' checked' : ''} />` +
+                    '</div>'
+                )
+                : (isPending ? 'Yes' : 'No');
+
             return (
                 `<tr data-bottle-management-row${safeBottleId ? ` data-bottle-id="${safeBottleId}"` : ''}>` +
                     `<td class="bottle-management-col-location">${locationField}</td>` +
                     `<td class="bottle-management-col-price">${priceField}</td>` +
                     `<td class="bottle-management-col-score">${score}</td>` +
+                    `<td class="bottle-management-col-pending">${pendingField}</td>` +
                     `<td class="bottle-management-col-status">${status}</td>` +
                     `<td class="bottle-management-col-actions">${actions}</td>` +
                 '</tr>'
@@ -1427,6 +1437,51 @@
         }
     };
 
+    const handlePendingFieldChange = async (input) => {
+        if (!(input instanceof HTMLInputElement)) {
+            return;
+        }
+
+        const bottleId = input.getAttribute('data-bottle-id')
+            || input.dataset?.bottleId
+            || '';
+        if (!bottleId) {
+            return;
+        }
+
+        const record = getBottleRecord(bottleId);
+        if (!record) {
+            showError('We could not find that bottle in your inventory.');
+            input.checked = false;
+            return;
+        }
+
+        const desiredState = input.checked === true;
+        const currentState = Boolean(record.pendingDelivery);
+        if (desiredState === currentState) {
+            input.checked = currentState;
+            return;
+        }
+
+        input.setAttribute('disabled', '');
+        input.dataset.state = 'saving';
+
+        let success = false;
+        try {
+            success = await updateBottle(bottleId, { pendingDelivery: desiredState });
+        } catch (error) {
+            console.error('Failed to update pending delivery state', error);
+            showError('We could not update that bottle right now. Please try again.');
+        } finally {
+            if (!success) {
+                input.checked = currentState;
+            }
+
+            input.removeAttribute('disabled');
+            delete input.dataset.state;
+        }
+    };
+
     const wireTableBodyActions = () => {
         const tbody = qs(SELECTORS.tableBody);
         if (!tbody) {
@@ -1488,6 +1543,12 @@
             if (element.matches(SELECTORS.rowPriceInput)) {
                 event.preventDefault();
                 void handlePriceInputChange(element);
+                return;
+            }
+
+            if (element.matches(SELECTORS.rowPendingCheckbox)) {
+                event.preventDefault();
+                void handlePendingFieldChange(element);
             }
         });
     };
@@ -1711,7 +1772,7 @@
         }
 
         const safeMessage = escapeHtml(message ?? '');
-        tbody.innerHTML = `<tr class="empty-row"><td colspan="5">${safeMessage}</td></tr>`;
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="6">${safeMessage}</td></tr>`;
     };
 
     const showError = (message) => {
