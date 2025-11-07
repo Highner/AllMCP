@@ -256,7 +256,8 @@
       return;
     }
 
-    state.pendingCreations.push({ wineId, vintage, quantity, bottleLocationId });
+    const pendingDelivery = detail.pendingDelivery === true;
+    state.pendingCreations.push({ wineId, vintage, quantity, bottleLocationId, pendingDelivery });
     state.expectingInventoryReopen = true;
   }
 
@@ -361,7 +362,8 @@
         wineId: entry.wineId,
         vintage: entry.vintage,
         quantity: entry.quantity,
-        bottleLocationId: entry.bottleLocationId
+        bottleLocationId: entry.bottleLocationId,
+        pendingDelivery: entry.pendingDelivery === true
       })),
       recipientUserIds: state.recipientIds
     };

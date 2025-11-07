@@ -892,6 +892,12 @@ a.wine-card:focus {
     color: rgba(244, 241, 234, 0.85);
 }
 
+.bottle-management-control--checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
 .bottle-management-control-label {
     font-weight: 600;
 }
