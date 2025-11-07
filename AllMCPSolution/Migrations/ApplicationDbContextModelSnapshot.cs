@@ -147,6 +147,11 @@ namespace AllMCPSolution.Migrations
                     b.Property<bool>("IsDrunk")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("PendingDelivery")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<decimal?>("Price")
                         .HasColumnType("decimal(18,2)");
 
@@ -687,10 +692,6 @@ namespace AllMCPSolution.Migrations
 
                     b.Property<int>("EndingYear")
                         .HasColumnType("int");
-
-                    b.Property<string>("Explanation")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
 
                     b.Property<int>("StartingYear")
                         .HasColumnType("int");

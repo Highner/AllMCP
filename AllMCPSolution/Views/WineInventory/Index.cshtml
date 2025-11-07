@@ -155,7 +155,7 @@
                                 class=""wine-surfer-button wine-surfer-button--ghost inventory-status-toggle__button""
                                 data-inventory-status-toggle
                                 data-state=""{statusToggleState}""
-                                aria-pressed=""{(isCellaredOnly ? "true" : "false")}""
+                                aria-pressed=""{isCellaredOnly.ToString().ToLowerInvariant()}""
                                 aria-label=""{statusToggleAnnouncement}"">
                             <span class=""inventory-status-toggle__state"" data-inventory-status-toggle-label>{statusToggleLabel}</span>
                             <span class=""inventory-status-toggle__hint"" data-inventory-status-toggle-hint>{statusToggleHint}</span>
@@ -178,10 +178,10 @@
             <table id="inventory-table" class="inventory-table inventory-table--grouped crud-table__table">
                 <thead>
                     <tr class="header-row crud-table__header-row">
-                        <th class="summary-header summary-header--wine">
-                            <a class="sort-header @SortStateClass("wine")" href="@BuildSortUrl("wine")">
-                                <span class="header-text">Wine</span>
-                                <span class="sort-icon" aria-hidden="true"></span>
+                        <th class='summary-header summary-header--wine'>
+                            <a class='sort-header @SortStateClass("wine")' href='@BuildSortUrl("wine")'>
+                                <span class='header-text'>Wine</span>
+                                <span class='sort-icon' aria-hidden='true'></span>
                             </a>
                         </th>
                         <th class="summary-header summary-header--region">
