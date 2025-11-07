@@ -14,11 +14,63 @@
         const headerFilterInput = document.querySelector('[data-inventory-header-filter-input]');
         const headerFilterClearButton = document.querySelector('[data-inventory-header-filter-clear]');
         const filtersSearchInput = filtersForm?.querySelector('input[name="search"]');
+        const filtersStatusInput = filtersForm?.querySelector('input[name="status"]');
         const inventoryView = document.getElementById('inventory-view');
+        const statusToggleButton = document.querySelector('[data-inventory-status-toggle]');
+        const statusToggleLabel = statusToggleButton?.querySelector('[data-inventory-status-toggle-label]');
+        const statusToggleHint = statusToggleButton?.querySelector('[data-inventory-status-toggle-hint]');
+        const statusToggleSr = statusToggleButton?.querySelector('[data-inventory-status-toggle-sr]');
         const headerFilterFocusStorageKey = 'wine-inventory:restore-header-focus';
         let headerFilterDebounceId = null;
         let maintainHeaderFilterFocus = false;
         let inlineDetailsAbortController = null;
+
+        const STATUS_TOGGLE_COPY = {
+            all: {
+                label: 'All bottles',
+                hint: 'Tap to show cellared only',
+                announcement: 'Showing all bottles. Activate to show only cellared bottles.',
+            },
+            cellared: {
+                label: 'Cellared only',
+                hint: 'Tap to show all bottles',
+                announcement: 'Showing only cellared bottles. Activate to show all bottles.',
+            },
+        };
+
+        function normalizeStatusValue(value) {
+            if (typeof value !== 'string') {
+                return 'all';
+            }
+
+            const normalized = value.trim().toLowerCase();
+            return normalized === 'cellared' ? 'cellared' : 'all';
+        }
+
+        function updateStatusToggleUI(status) {
+            if (!statusToggleButton) {
+                return;
+            }
+
+            const normalized = normalizeStatusValue(status);
+            const copy = STATUS_TOGGLE_COPY[normalized] ?? STATUS_TOGGLE_COPY.all;
+
+            statusToggleButton.dataset.state = normalized;
+            statusToggleButton.setAttribute('aria-pressed', normalized === 'cellared' ? 'true' : 'false');
+            statusToggleButton.setAttribute('aria-label', copy.announcement);
+
+            if (statusToggleLabel) {
+                statusToggleLabel.textContent = copy.label;
+            }
+
+            if (statusToggleHint) {
+                statusToggleHint.textContent = copy.hint;
+            }
+
+            if (statusToggleSr) {
+                statusToggleSr.textContent = copy.announcement;
+            }
+        }
 
         function updateHeaderFilterClearButtonVisibility() {
             if (!headerFilterInput || !headerFilterClearButton) {
@@ -84,6 +136,26 @@
             } else {
                 filtersForm.submit();
             }
+        }
+
+        updateStatusToggleUI(filtersStatusInput?.value ?? statusToggleButton?.dataset.state ?? 'all');
+
+        if (statusToggleButton && filtersForm && filtersStatusInput) {
+            statusToggleButton.addEventListener('click', (event) => {
+                event.preventDefault();
+
+                const current = normalizeStatusValue(
+                    filtersStatusInput.value || statusToggleButton.dataset.state,
+                );
+                const next = current === 'cellared' ? 'all' : 'cellared';
+
+                filtersStatusInput.value = next;
+                updateStatusToggleUI(next);
+
+                maintainHeaderFilterFocus = false;
+                cancelInlineDetailsRequest();
+                submitFiltersForm();
+            });
         }
 
         if (headerFilterInput) {
@@ -166,6 +238,8 @@
                         control.value = defaultValue;
                     }
                 });
+
+                updateStatusToggleUI(filtersStatusInput?.value ?? 'all');
 
                 if (headerFilterDebounceId) {
                     window.clearTimeout(headerFilterDebounceId);
