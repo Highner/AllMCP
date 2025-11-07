@@ -55,23 +55,19 @@
         }
 
         var currentYear = DateTime.UtcNow.Year;
+        var year = endYear.Value;
 
-        if (endYear.Value < currentYear)
+        if (year <= currentYear - 1)
         {
-            return "drinking-window-urgency--overdue";
+            return "drinking-window-urgency--overdue drunk";
         }
 
-        if (endYear.Value == currentYear)
+        if (year >= currentYear + 2)
         {
-            return "drinking-window-urgency--now";
+            return "drinking-window-urgency--future cellared";
         }
 
-        if (endYear.Value - currentYear <= 2)
-        {
-            return "drinking-window-urgency--soon";
-        }
-
-        return "drinking-window-urgency--relaxed";
+        return "drinking-window-urgency--approaching pending";
     }
 
     string DrinkingWindowUrgencyLabel(int? endYear)
@@ -84,22 +80,17 @@
         var yearValue = endYear.Value.ToString(CultureInfo.InvariantCulture);
         var currentYear = DateTime.UtcNow.Year;
 
-        if (endYear.Value < currentYear)
+        if (endYear.Value <= currentYear - 1)
         {
             return $"Past recommended drinking window (best by {yearValue}).";
         }
 
-        if (endYear.Value == currentYear)
+        if (endYear.Value >= currentYear + 2)
         {
-            return $"Drink this year (best by {yearValue}).";
+            return $"Comfortable window until {yearValue}.";
         }
 
-        if (endYear.Value - currentYear <= 2)
-        {
-            return $"Approaching the end of the drinking window (best by {yearValue}).";
-        }
-
-        return $"Comfortable window until {yearValue}.";
+        return $"Approaching the end of the drinking window (best by {yearValue}).";
     }
 
     var hasBottles = Model.Bottles.Any();
@@ -296,7 +287,7 @@
                                     {
                                         <text> title="@drinkingWindowUrgencyLabel"</text>;
                                     }>
-                                    <span class="drinking-window-urgency @drinkingWindowUrgencyClass"
+                                    <span class="status-pill drinking-window-urgency @drinkingWindowUrgencyClass"
                                           aria-label="@drinkingWindowUrgencyLabel">
                                         @FormatDrinkingWindowValue(bottle.UserDrinkingWindowEndYear)
                                     </span>
