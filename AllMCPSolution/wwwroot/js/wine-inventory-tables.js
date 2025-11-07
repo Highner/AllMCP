@@ -781,9 +781,18 @@
 
                 urgencyIndicator.textContent = formattedEnd;
                 urgencyIndicator.setAttribute('aria-label', urgency.label);
-                urgencyIndicator.className = urgency.cssClass
-                    ? `drinking-window-urgency ${urgency.cssClass}`
-                    : 'drinking-window-urgency';
+
+                const urgencyClasses = ['status-pill', 'drinking-window-urgency'];
+
+                if (urgency.cssClass) {
+                    urgency.cssClass.split(/\s+/).forEach((cls) => {
+                        if (cls) {
+                            urgencyClasses.push(cls);
+                        }
+                    });
+                }
+
+                urgencyIndicator.className = urgencyClasses.join(' ');
 
                 endCell.textContent = '';
                 endCell.appendChild(urgencyIndicator);
@@ -1358,30 +1367,23 @@
             const currentYear = new Date().getUTCFullYear();
             const yearValue = String(numericYear);
 
-            if (numericYear < currentYear) {
+            if (numericYear <= currentYear - 1) {
                 return {
-                    cssClass: 'drinking-window-urgency--overdue',
+                    cssClass: 'drinking-window-urgency--overdue drunk',
                     label: `Past recommended drinking window (best by ${yearValue}).`
                 };
             }
 
-            if (numericYear === currentYear) {
+            if (numericYear >= currentYear + 2) {
                 return {
-                    cssClass: 'drinking-window-urgency--now',
-                    label: `Drink this year (best by ${yearValue}).`
-                };
-            }
-
-            if (numericYear - currentYear <= 2) {
-                return {
-                    cssClass: 'drinking-window-urgency--soon',
-                    label: `Approaching the end of the drinking window (best by ${yearValue}).`
+                    cssClass: 'drinking-window-urgency--future cellared',
+                    label: `Comfortable window until ${yearValue}.`
                 };
             }
 
             return {
-                cssClass: 'drinking-window-urgency--relaxed',
-                label: `Comfortable window until ${yearValue}.`
+                cssClass: 'drinking-window-urgency--approaching pending',
+                label: `Approaching the end of the drinking window (best by ${yearValue}).`
             };
         }
 
