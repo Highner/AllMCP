@@ -81,6 +81,14 @@
                                        aria-label="Buy @item.WineName on Wine-Searcher">
                                         buy
                                     </a>
+                                    <button type="button"
+                                            class="sisterhood-button wishlist-actions__button"
+                                            data-wishlist-remove-button
+                                            data-wish-id="@item.WishId"
+                                            data-wine-name="@item.WineName"
+                                            aria-label="Remove @item.WineName from this wishlist">
+                                        remove
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -122,7 +130,7 @@
         .wishlist-select-group label { font-size: 0.95rem; letter-spacing: 0.04em; text-transform: uppercase; color: hsla(var(--muted-foreground) / 0.85); }
         .wishlist-select-group select { padding: 10px 14px; border-radius: 12px; background: var(--wine-surface); color: hsl(var(--foreground)); border: 1px solid var(--wine-surface-border); min-width: min(280px, 100%); flex: 1 1 220px; }
         .wishlist-select-group button { flex: 0 0 auto; }
-        .summary-cell--actions { width: 220px; }
+        .summary-cell--actions { width: 320px; }
         .wishlist-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
         .wishlist-actions__button { padding: 10px 16px; min-width: 0; }
         .wishlist-actions-message { margin: 12px 0 0; font-size: 0.875rem; color: hsla(var(--muted-foreground) / 0.9); }

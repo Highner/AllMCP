@@ -329,6 +329,30 @@ public sealed class WishlistsController : WineSurferControllerBase
         return Json(response);
     }
 
+    [HttpDelete("/wine-manager/wishlists/{wishlistId:guid}/wishes/{wishId:guid}")]
+    public async Task<IActionResult> DeleteWish(Guid wishlistId, Guid wishId, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        var wishlist = await _wishlistRepository.GetByIdAsync(wishlistId, cancellationToken);
+        if (wishlist is null || wishlist.UserId != currentUserId)
+        {
+            return NotFound();
+        }
+
+        var wish = await _wishRepository.GetByIdAsync(wishId, cancellationToken);
+        if (wish is null || wish.WishlistId != wishlist.Id)
+        {
+            return NotFound();
+        }
+
+        await _wishRepository.DeleteAsync(wish.Id, cancellationToken);
+        return NoContent();
+    }
+
     [HttpPut("/wine-manager/wishlists/{id:guid}")]
     public async Task<IActionResult> Rename(Guid id, [FromBody] CreateWishlistRequest? request, CancellationToken cancellationToken)
     {

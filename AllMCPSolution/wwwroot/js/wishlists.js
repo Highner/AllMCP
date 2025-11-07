@@ -10,6 +10,7 @@
   const selectEl = qs('#wishlistSelect');
   const addWineTrigger = qs('[data-wishlist-add-trigger]');
   const addButtonSelector = '[data-wishlist-add-button]';
+  const removeButtonSelector = '[data-wishlist-remove-button]';
   const messageSelector = '[data-wishlist-message]';
 
   // Create modal elements
@@ -270,6 +271,19 @@
       buyLink.setAttribute('aria-label', `Buy ${wineName} on Wine-Searcher`);
       actionsWrapper.appendChild(buyLink);
 
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'sisterhood-button wishlist-actions__button';
+      removeButton.dataset.wishlistRemoveButton = '';
+      const wishId = item?.wishId ? String(item.wishId) : '';
+      if (wishId) {
+        removeButton.dataset.wishId = wishId;
+      }
+      removeButton.dataset.wineName = wineName;
+      removeButton.textContent = 'remove';
+      removeButton.setAttribute('aria-label', `Remove ${wineName} from this wishlist`);
+      actionsWrapper.appendChild(removeButton);
+
       actionsCell.appendChild(actionsWrapper);
       row.appendChild(actionsCell);
 
@@ -335,6 +349,48 @@
     } catch (error) {
       const message = error?.message || 'Unable to open the inventory import modal.';
       showWishlistStatus(message, 'error');
+    } finally {
+      if (button.dataset) {
+        delete button.dataset.loading;
+      }
+    }
+  }
+
+  async function handleWishlistRemove(button){
+    if (!button || button.dataset?.loading === 'true') {
+      return;
+    }
+
+    const dataset = button.dataset ?? {};
+    const wishId = toTrimmedString(dataset.wishId);
+    const wishlistId = currentWishlistId();
+    if (!wishId || !wishlistId) {
+      showWishlistStatus('Unable to remove this wine right now. Please refresh and try again.', 'error');
+      return;
+    }
+
+    const wineName = toTrimmedString(dataset.wineName) || 'Wine';
+
+    button.dataset.loading = 'true';
+    showWishlistStatus('Removing wine from wishlist…', '');
+
+    try {
+      const response = await fetch(`/wine-manager/wishlists/${encodeURIComponent(wishlistId)}/wishes/${encodeURIComponent(wishId)}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok && response.status !== 204) {
+        const message = await handleFetchError(response);
+        throw new Error(message || 'Unable to remove this wine right now.');
+      }
+
+      await refreshWishlistItems(wishlistId);
+      await refreshWishlistOptions(wishlistId);
+      showWishlistStatus(`${wineName} removed from wishlist.`, 'success');
+      updateWishlistTitle();
+    } catch (error) {
+      console.error('Unable to remove wishlist item', error);
+      showWishlistStatus(error?.message || 'Unable to remove this wine right now.', 'error');
     } finally {
       if (button.dataset) {
         delete button.dataset.loading;
@@ -487,6 +543,15 @@
   document.addEventListener('click', (event) => {
     const button = event.target.closest(addButtonSelector);
     if (!button) {
+      const removeButton = event.target.closest(removeButtonSelector);
+      if (!removeButton) {
+        return;
+      }
+
+      event.preventDefault();
+      handleWishlistRemove(removeButton).catch(() => {
+        // feedback handled via showWishlistStatus
+      });
       return;
     }
 
