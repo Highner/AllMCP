@@ -35,6 +35,7 @@ public sealed class NotesController : WineSurferControllerBase
         public string Note { get; init; } = string.Empty;
         public decimal? Score { get; init; }
         public bool NotTasted { get; init; }
+        public int UndrunkBottleCount { get; init; }
     }
 
     private readonly IBottleRepository _bottleRepository;
@@ -65,6 +66,11 @@ public sealed class NotesController : WineSurferControllerBase
 
         var bottles = await _bottleRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
 
+        var undrunkBottleCountsByVintageId = bottles
+            .Where(bottle => !bottle.IsDrunk)
+            .GroupBy(bottle => bottle.WineVintageId)
+            .ToDictionary(group => group.Key, group => group.Count());
+
         var entries = bottles
             .Where(bottle => bottle.IsDrunk)
             .Select(bottle => new
@@ -79,19 +85,22 @@ public sealed class NotesController : WineSurferControllerBase
                 var note = pair.Note!;
 
                 return new NoteEntryViewModel
-            {
-                BottleId = pair.Bottle.Id,
-                NoteId = note.Id,
-                WineId = pair.Bottle.WineVintage?.Wine?.Id ?? Guid.Empty,
-                WineName = pair.Bottle.WineVintage?.Wine?.Name ?? string.Empty,
-                Vintage = pair.Bottle.WineVintage?.Vintage,
-                Appellation = pair.Bottle.WineVintage?.Wine?.SubAppellation?.Appellation?.Name ?? string.Empty,
-                Region = pair.Bottle.WineVintage?.Wine?.SubAppellation?.Appellation?.Region?.Name ?? string.Empty,
-                DrunkAt = pair.Bottle.DrunkAt,
-                Note = (note.Note ?? string.Empty).Trim(),
-                Score = note.Score,
-                NotTasted = note.NotTasted
-            };
+                {
+                    BottleId = pair.Bottle.Id,
+                    NoteId = note.Id,
+                    WineId = pair.Bottle.WineVintage?.Wine?.Id ?? Guid.Empty,
+                    WineName = pair.Bottle.WineVintage?.Wine?.Name ?? string.Empty,
+                    Vintage = pair.Bottle.WineVintage?.Vintage,
+                    Appellation = pair.Bottle.WineVintage?.Wine?.SubAppellation?.Appellation?.Name ?? string.Empty,
+                    Region = pair.Bottle.WineVintage?.Wine?.SubAppellation?.Appellation?.Region?.Name ?? string.Empty,
+                    DrunkAt = pair.Bottle.DrunkAt,
+                    Note = (note.Note ?? string.Empty).Trim(),
+                    Score = note.Score,
+                    NotTasted = note.NotTasted,
+                    UndrunkBottleCount = undrunkBottleCountsByVintageId.TryGetValue(pair.Bottle.WineVintageId, out var count)
+                        ? count
+                        : 0
+                };
             })
             .OrderByDescending(entry => entry.DrunkAt ?? DateTime.MinValue)
             .ThenBy(entry => entry.WineName, StringComparer.OrdinalIgnoreCase)
