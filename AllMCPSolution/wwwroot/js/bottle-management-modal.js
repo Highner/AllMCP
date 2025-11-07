@@ -1931,9 +1931,11 @@
 
             state.quantity = payload.quantity;
 
-            if (state.selectedLocationId) {
-                payload.bottleLocationId = state.selectedLocationId;
-            }
+            const normalizedLocationId = typeof state.selectedLocationId === 'string'
+                ? state.selectedLocationId.trim()
+                : '';
+
+            payload.bottleLocationId = normalizedLocationId ? normalizedLocationId : null;
 
             const response = await fetch('/wine-manager/bottles', {
                 method: 'POST',
