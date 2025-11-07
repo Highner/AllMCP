@@ -11,8 +11,6 @@
   const addWineTrigger = qs('[data-wishlist-add-trigger]');
   const addButtonSelector = '[data-wishlist-add-button]';
   const messageSelector = '[data-wishlist-message]';
-  const minVintage = 1900;
-  const maxVintage = 2100;
 
   // Create modal elements
   const createOverlay = qs('#create-wishlist-overlay');
@@ -82,20 +80,6 @@
     return String(value).trim();
   }
 
-  function parseVintage(value){
-    const text = toTrimmedString(value);
-    if (!text) {
-      return null;
-    }
-
-    const parsed = Number.parseInt(text, 10);
-    if (!Number.isInteger(parsed) || parsed < minVintage || parsed > maxVintage) {
-      return null;
-    }
-
-    return parsed;
-  }
-
   function showWishlistStatus(text, state){
     const element = qs(messageSelector);
     if (!element) return;
@@ -117,71 +101,6 @@
     }
   }
 
-  function escapeSelectorValue(value){
-    const text = toTrimmedString(value);
-    if (!text) {
-      return '';
-    }
-
-    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-      return CSS.escape(text);
-    }
-
-    return text.replace(/["'\\]/g, '\\$&');
-  }
-
-  async function sendJson(url, options){
-    const requestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      credentials: 'same-origin',
-      ...options
-    };
-
-    const response = await fetch(url, requestInit);
-    if (!response.ok) {
-      let message = `${response.status} ${response.statusText}`;
-      try {
-        const problem = await response.json();
-        if (typeof problem === 'string') {
-          message = problem;
-        } else if (problem?.title) {
-          message = problem.title;
-        } else if (problem?.message) {
-          message = problem.message;
-        } else if (problem?.errors) {
-          const firstError = Object.values(problem.errors)[0];
-          if (Array.isArray(firstError) && firstError.length > 0) {
-            message = firstError[0];
-          }
-        }
-      } catch {
-        try {
-          const text = await response.text();
-          if (text) {
-            message = text;
-          }
-        } catch {
-          // ignore
-        }
-      }
-
-      throw new Error(message);
-    }
-
-    if (response.status === 204) {
-      return {};
-    }
-
-    try {
-      return await response.json();
-    } catch {
-      return {};
-    }
-  }
-
   function showError(el, msg){
     if (!el) return;
     el.textContent = msg || '';
@@ -194,6 +113,19 @@
 
   function jsonHeaders(){
     return { 'Content-Type': 'application/json' };
+  }
+
+  function escapeSelectorValue(value){
+    const text = toTrimmedString(value);
+    if (!text) {
+      return '';
+    }
+
+    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+      return CSS.escape(text);
+    }
+
+    return text.replace(/["'\\]/g, '\\$&');
   }
 
   function handleFetchError(res){
@@ -320,15 +252,12 @@
       addButton.dataset.wineVariety = toTrimmedString(item?.variety);
       addButton.dataset.wineVintage = Number.isFinite(vintage) ? String(vintage) : '';
       const isInInventory = Boolean(item?.isInInventory);
-      const addLabel = isInInventory ? 'In Inventory' : 'add';
-      addButton.textContent = addLabel;
+      addButton.dataset.wineIsInInventory = isInInventory ? 'true' : 'false';
+      addButton.textContent = 'add';
       const ariaLabel = isInInventory
-        ? `${wineName} is already in your inventory`
+        ? `Add another bottle of ${wineName} to your inventory`
         : `Add ${wineName} to your inventory`;
       addButton.setAttribute('aria-label', ariaLabel);
-      if (isInInventory) {
-        addButton.disabled = true;
-      }
       actionsWrapper.appendChild(addButton);
 
       const buyLink = document.createElement('a');
@@ -351,7 +280,7 @@
   }
 
   async function handleWishlistAdd(button){
-    if (!button || button.disabled || button.dataset?.loading === 'true') {
+    if (!button || button.dataset?.loading === 'true') {
       return;
     }
 
@@ -362,74 +291,50 @@
       return;
     }
 
-    const wineName = toTrimmedString(dataset.wineName) || 'Wine';
-    const vintageValue = parseVintage(dataset.wineVintage);
-    if (vintageValue === null) {
-      const openAddWineModal = window.wineSurferFavorites?.openAddWineModal;
-      if (typeof openAddWineModal === 'function') {
-        openAddWineModal({
-          source: 'wishlist',
-          id: wineId,
-          name: dataset.wineName,
-          country: dataset.wineCountry,
-          region: dataset.wineRegion,
-          appellation: dataset.wineAppellation,
-          subAppellation: dataset.wineSubAppellation,
-          color: dataset.wineColor,
-          variety: dataset.wineVariety,
-          vintage: dataset.wineVintage
-        }).catch(() => {
-          // errors handled within modal
-        });
+    const openImportModal = (() => {
+      const modal = window.inventoryImportModal;
+      if (modal && typeof modal.open === 'function') {
+        return modal.open.bind(modal);
       }
 
-      showWishlistStatus('Select a vintage in the add wine dialog to add this wine to your inventory.', 'error');
+      const legacyModal = window.InventoryImportModal;
+      if (legacyModal && typeof legacyModal.open === 'function') {
+        return legacyModal.open.bind(legacyModal);
+      }
+
+      return null;
+    })();
+
+    if (!openImportModal) {
+      showWishlistStatus('Inventory import is unavailable right now. Please try again later.', 'error');
       return;
     }
 
-    const originalLabel = button.textContent;
-    const originalAriaLabel = button.getAttribute('aria-label') || '';
-    const successAriaLabel = `${wineName} is already in your inventory`;
+    const baseContext = buildWishlistContext();
+    const context = {
+      ...baseContext,
+      source: 'wishlist',
+      wineId,
+      name: toTrimmedString(dataset.wineName),
+      wineName: toTrimmedString(dataset.wineName),
+      country: toTrimmedString(dataset.wineCountry),
+      region: toTrimmedString(dataset.wineRegion),
+      appellation: toTrimmedString(dataset.wineAppellation),
+      subAppellation: toTrimmedString(dataset.wineSubAppellation),
+      color: toTrimmedString(dataset.wineColor),
+      variety: toTrimmedString(dataset.wineVariety),
+      vintage: toTrimmedString(dataset.wineVintage),
+      isInInventory: dataset.wineIsInInventory === 'true'
+    };
 
     showWishlistStatus('', '');
-    button.disabled = true;
     button.dataset.loading = 'true';
-    button.textContent = 'Adding…';
 
     try {
-      await sendJson('/wine-manager/inventory', {
-        method: 'POST',
-        body: JSON.stringify({
-          wineId,
-          vintage: vintageValue,
-          quantity: 1,
-          bottleLocationId: null
-        })
-      });
-
-      showWishlistStatus(`${wineName} added to your inventory.`, 'success');
-      const selectorId = escapeSelectorValue(wineId);
-      const matchingSelector = selectorId
-        ? `${addButtonSelector}[data-wine-id="${selectorId}"]`
-        : addButtonSelector;
-      qsa(matchingSelector).forEach(element => {
-        element.disabled = true;
-        element.textContent = 'In Inventory';
-        element.setAttribute('aria-label', successAriaLabel);
-        if (element.dataset) {
-          delete element.dataset.loading;
-        }
-      });
+      await Promise.resolve(openImportModal(context));
     } catch (error) {
-      const message = error?.message || 'Unable to add this wine to your inventory.';
+      const message = error?.message || 'Unable to open the inventory import modal.';
       showWishlistStatus(message, 'error');
-      button.disabled = false;
-      button.textContent = originalLabel;
-      if (originalAriaLabel) {
-        button.setAttribute('aria-label', originalAriaLabel);
-      } else {
-        button.removeAttribute('aria-label');
-      }
     } finally {
       if (button.dataset) {
         delete button.dataset.loading;
