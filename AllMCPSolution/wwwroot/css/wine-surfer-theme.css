@@ -961,6 +961,27 @@ a.wine-card:focus {
     cursor: not-allowed;
 }
 
+.bottle-management-table .bottle-management-col-pending {
+    text-align: center;
+    width: 120px;
+}
+
+.bottle-management-pending-toggle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.bottle-management-pending-checkbox {
+    width: 18px;
+    height: 18px;
+}
+
+.bottle-management-pending-checkbox[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .bottle-management-table-title {
     margin: 0;
     font-size: 1.125rem;
@@ -988,7 +1009,8 @@ a.wine-card:focus {
     }
 
     .bottle-management-table .bottle-management-col-price,
-.bottle-management-table .bottle-management-col-status {
+    .bottle-management-table .bottle-management-col-pending,
+    .bottle-management-table .bottle-management-col-status {
         display: none;
     }
 }
