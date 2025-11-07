@@ -32,6 +32,7 @@
                         <th class="summary-header summary-header--wine"><span class="header-text">Wine</span></th>
                         <th class="summary-header summary-header--appellation"><span class="header-text">Appellation</span></th>
                         <th class="summary-header summary-header--vintage"><span class="header-text">Vintage</span></th>
+                        <th class="summary-header summary-header--actions"><span class="sr-only">Actions</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -39,6 +40,13 @@
                 {
                     foreach (var item in Model.Items)
                     {
+                        var addButtonLabel = item.IsInInventory ? "In Inventory" : "add";
+                        var addButtonAriaLabel = item.IsInInventory
+                            ? $"{item.WineName} is already in your inventory"
+                            : $"Add {item.WineName} to your inventory";
+                        var buyUrl = string.IsNullOrWhiteSpace(item.WineSearcherUrl)
+                            ? "https://www.wine-searcher.com/"
+                            : item.WineSearcherUrl;
                         <tr class="crud-table__row">
                             <td class="summary-cell summary-cell--wine">
                                 <a class="link" href="/wine/@item.WineId">@item.WineName</a>
@@ -51,17 +59,45 @@
                                 }
                             </td>
                             <td class="summary-cell summary-cell--vintage">@item.Vintage</td>
+                            <td class="summary-cell summary-cell--actions">
+                                <div class="wishlist-actions">
+                                    <button type="button"
+                                            class="sisterhood-button wishlist-actions__button"
+                                            data-wishlist-add-button
+                                            data-wine-id="@item.WineId"
+                                            data-wine-name="@item.WineName"
+                                            data-wine-country="@item.Country"
+                                            data-wine-region="@item.Region"
+                                            data-wine-appellation="@item.Appellation"
+                                            data-wine-sub-appellation="@item.SubAppellation"
+                                            data-wine-color="@item.Color"
+                                            data-wine-variety="@item.Variety"
+                                            data-wine-vintage="@item.Vintage"
+                                            aria-label="@addButtonAriaLabel"
+                                            @(item.IsInInventory ? "disabled" : null)>
+                                        @addButtonLabel
+                                    </button>
+                                    <a class="sisterhood-button wishlist-actions__button"
+                                       href="@buyUrl"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       aria-label="Buy @item.WineName on Wine-Searcher">
+                                        buy
+                                    </a>
+                                </div>
+                            </td>
                         </tr>
                     }
                 }
                 else
                 {
                     <tr>
-                        <td colspan="3" class="empty-state">No wines in this wishlist yet.</td>
+                        <td colspan="4" class="empty-state">No wines in this wishlist yet.</td>
                     </tr>
                 }
                 </tbody>
             </table>
+            <p class="wishlist-actions-message" data-wishlist-message hidden role="status"></p>
         </text>
     };
 }
@@ -84,6 +120,13 @@
         .wishlists-page { min-height: 100vh; }
         .wishlist-select-group { padding: 16px; display: flex; gap: 12px; align-items: center; }
         .wishlist-select-group select { padding: 8px 10px; border-radius: 8px; background: var(--wine-surface-gradient); color: hsl(var(--foreground)); border: 1px solid var(--wine-surface-border); }
+        .summary-cell--actions { width: 220px; }
+        .wishlist-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+        .wishlist-actions__button { padding: 10px 16px; min-width: 0; }
+        .wishlist-actions-message { margin: 12px 0 0; font-size: 0.875rem; color: hsla(var(--muted-foreground) / 0.9); }
+        .wishlist-actions-message[hidden] { display: none; }
+        .wishlist-actions-message[data-state="success"] { color: hsla(var(--ring) / 0.85); }
+        .wishlist-actions-message[data-state="error"] { color: hsla(var(--destructive) / 0.9); }
     </style>
 </head>
 <body class="wine-app wine-app--with-bottom-nav">

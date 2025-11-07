@@ -9,6 +9,10 @@
   const deleteBtn = qs('#deleteWishlistBtn');
   const selectEl = qs('#wishlistSelect');
   const addWineTrigger = qs('[data-wishlist-add-trigger]');
+  const addButtonSelector = '[data-wishlist-add-button]';
+  const messageSelector = '[data-wishlist-message]';
+  const minVintage = 1900;
+  const maxVintage = 2100;
 
   // Create modal elements
   const createOverlay = qs('#create-wishlist-overlay');
@@ -64,6 +68,118 @@
     }
 
     return context;
+  }
+
+  function toTrimmedString(value){
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+
+    if (value === null || value === undefined) {
+      return '';
+    }
+
+    return String(value).trim();
+  }
+
+  function parseVintage(value){
+    const text = toTrimmedString(value);
+    if (!text) {
+      return null;
+    }
+
+    const parsed = Number.parseInt(text, 10);
+    if (!Number.isInteger(parsed) || parsed < minVintage || parsed > maxVintage) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  function showWishlistStatus(text, state){
+    const element = qs(messageSelector);
+    if (!element) return;
+
+    const message = toTrimmedString(text);
+    if (!message) {
+      element.textContent = '';
+      element.hidden = true;
+      element.removeAttribute('data-state');
+      return;
+    }
+
+    element.textContent = message;
+    element.hidden = false;
+    if (state) {
+      element.setAttribute('data-state', state);
+    } else {
+      element.removeAttribute('data-state');
+    }
+  }
+
+  function escapeSelectorValue(value){
+    const text = toTrimmedString(value);
+    if (!text) {
+      return '';
+    }
+
+    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+      return CSS.escape(text);
+    }
+
+    return text.replace(/["'\\]/g, '\\$&');
+  }
+
+  async function sendJson(url, options){
+    const requestInit = {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      credentials: 'same-origin',
+      ...options
+    };
+
+    const response = await fetch(url, requestInit);
+    if (!response.ok) {
+      let message = `${response.status} ${response.statusText}`;
+      try {
+        const problem = await response.json();
+        if (typeof problem === 'string') {
+          message = problem;
+        } else if (problem?.title) {
+          message = problem.title;
+        } else if (problem?.message) {
+          message = problem.message;
+        } else if (problem?.errors) {
+          const firstError = Object.values(problem.errors)[0];
+          if (Array.isArray(firstError) && firstError.length > 0) {
+            message = firstError[0];
+          }
+        }
+      } catch {
+        try {
+          const text = await response.text();
+          if (text) {
+            message = text;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      throw new Error(message);
+    }
+
+    if (response.status === 204) {
+      return {};
+    }
+
+    try {
+      return await response.json();
+    } catch {
+      return {};
+    }
   }
 
   function showError(el, msg){
@@ -124,10 +240,11 @@
   function renderWishlistMessage(message){
     const tbody = wishlistTableBody();
     if (!tbody) return;
+    showWishlistStatus('', '');
     tbody.innerHTML = '';
     const row = document.createElement('tr');
     const cell = document.createElement('td');
-    cell.colSpan = 3;
+    cell.colSpan = 4;
     cell.className = 'empty-state';
     cell.textContent = message;
     row.appendChild(cell);
@@ -138,6 +255,7 @@
     const tbody = wishlistTableBody();
     if (!tbody) return;
 
+    showWishlistStatus('', '');
     tbody.innerHTML = '';
     if (!Array.isArray(items) || items.length === 0) {
       renderWishlistMessage('No wines in this wishlist yet.');
@@ -154,8 +272,9 @@
       const wineLink = document.createElement('a');
       wineLink.className = 'link';
       const wineId = item?.wineId ? String(item.wineId) : '';
+      const wineName = toTrimmedString(item?.name) || 'Wine';
       wineLink.href = wineId ? `/wine/${wineId}` : '#';
-      wineLink.textContent = (item?.name ?? '').trim() || 'Wine';
+      wineLink.textContent = wineName;
       wineCell.appendChild(wineLink);
       row.appendChild(wineCell);
 
@@ -180,10 +299,142 @@
       vintageCell.textContent = Number.isFinite(vintage) ? String(vintage) : '';
       row.appendChild(vintageCell);
 
+      const actionsCell = document.createElement('td');
+      actionsCell.className = 'summary-cell summary-cell--actions';
+      const actionsWrapper = document.createElement('div');
+      actionsWrapper.className = 'wishlist-actions';
+
+      const addButton = document.createElement('button');
+      addButton.type = 'button';
+      addButton.className = 'sisterhood-button wishlist-actions__button';
+      addButton.dataset.wishlistAddButton = '';
+      if (wineId) {
+        addButton.dataset.wineId = wineId;
+      }
+      addButton.dataset.wineName = wineName;
+      addButton.dataset.wineCountry = toTrimmedString(item?.country);
+      addButton.dataset.wineRegion = regionText;
+      addButton.dataset.wineAppellation = toTrimmedString(item?.appellation);
+      addButton.dataset.wineSubAppellation = toTrimmedString(item?.subAppellation);
+      addButton.dataset.wineColor = toTrimmedString(item?.color);
+      addButton.dataset.wineVariety = toTrimmedString(item?.variety);
+      addButton.dataset.wineVintage = Number.isFinite(vintage) ? String(vintage) : '';
+      const isInInventory = Boolean(item?.isInInventory);
+      const addLabel = isInInventory ? 'In Inventory' : 'add';
+      addButton.textContent = addLabel;
+      const ariaLabel = isInInventory
+        ? `${wineName} is already in your inventory`
+        : `Add ${wineName} to your inventory`;
+      addButton.setAttribute('aria-label', ariaLabel);
+      if (isInInventory) {
+        addButton.disabled = true;
+      }
+      actionsWrapper.appendChild(addButton);
+
+      const buyLink = document.createElement('a');
+      buyLink.className = 'sisterhood-button wishlist-actions__button';
+      const rawUrl = toTrimmedString(item?.wineSearcherUrl);
+      buyLink.href = rawUrl || 'https://www.wine-searcher.com/';
+      buyLink.target = '_blank';
+      buyLink.rel = 'noopener noreferrer';
+      buyLink.textContent = 'buy';
+      buyLink.setAttribute('aria-label', `Buy ${wineName} on Wine-Searcher`);
+      actionsWrapper.appendChild(buyLink);
+
+      actionsCell.appendChild(actionsWrapper);
+      row.appendChild(actionsCell);
+
       fragment.appendChild(row);
     });
 
     tbody.appendChild(fragment);
+  }
+
+  async function handleWishlistAdd(button){
+    if (!button || button.disabled || button.dataset?.loading === 'true') {
+      return;
+    }
+
+    const dataset = button.dataset ?? {};
+    const wineId = toTrimmedString(dataset.wineId);
+    if (!wineId) {
+      showWishlistStatus('Wine information is missing. Please refresh and try again.', 'error');
+      return;
+    }
+
+    const wineName = toTrimmedString(dataset.wineName) || 'Wine';
+    const vintageValue = parseVintage(dataset.wineVintage);
+    if (vintageValue === null) {
+      const openAddWineModal = window.wineSurferFavorites?.openAddWineModal;
+      if (typeof openAddWineModal === 'function') {
+        openAddWineModal({
+          source: 'wishlist',
+          id: wineId,
+          name: dataset.wineName,
+          country: dataset.wineCountry,
+          region: dataset.wineRegion,
+          appellation: dataset.wineAppellation,
+          subAppellation: dataset.wineSubAppellation,
+          color: dataset.wineColor,
+          variety: dataset.wineVariety,
+          vintage: dataset.wineVintage
+        }).catch(() => {
+          // errors handled within modal
+        });
+      }
+
+      showWishlistStatus('Select a vintage in the add wine dialog to add this wine to your inventory.', 'error');
+      return;
+    }
+
+    const originalLabel = button.textContent;
+    const originalAriaLabel = button.getAttribute('aria-label') || '';
+    const successAriaLabel = `${wineName} is already in your inventory`;
+
+    showWishlistStatus('', '');
+    button.disabled = true;
+    button.dataset.loading = 'true';
+    button.textContent = 'Adding…';
+
+    try {
+      await sendJson('/wine-manager/inventory', {
+        method: 'POST',
+        body: JSON.stringify({
+          wineId,
+          vintage: vintageValue,
+          quantity: 1,
+          bottleLocationId: null
+        })
+      });
+
+      showWishlistStatus(`${wineName} added to your inventory.`, 'success');
+      const selectorId = escapeSelectorValue(wineId);
+      const matchingSelector = selectorId
+        ? `${addButtonSelector}[data-wine-id="${selectorId}"]`
+        : addButtonSelector;
+      qsa(matchingSelector).forEach(element => {
+        element.disabled = true;
+        element.textContent = 'In Inventory';
+        element.setAttribute('aria-label', successAriaLabel);
+        if (element.dataset) {
+          delete element.dataset.loading;
+        }
+      });
+    } catch (error) {
+      const message = error?.message || 'Unable to add this wine to your inventory.';
+      showWishlistStatus(message, 'error');
+      button.disabled = false;
+      button.textContent = originalLabel;
+      if (originalAriaLabel) {
+        button.setAttribute('aria-label', originalAriaLabel);
+      } else {
+        button.removeAttribute('aria-label');
+      }
+    } finally {
+      if (button.dataset) {
+        delete button.dataset.loading;
+      }
+    }
   }
 
   async function fetchWishlistSummaries(){
@@ -327,6 +578,18 @@
       });
     });
   }
+
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest(addButtonSelector);
+    if (!button) {
+      return;
+    }
+
+    event.preventDefault();
+    handleWishlistAdd(button).catch(() => {
+      // feedback handled via showWishlistStatus
+    });
+  });
 
   // Create wishlist
   if (createBtn && createOverlay && createForm) {

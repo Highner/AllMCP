@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using AllMCPSolution.Models;
@@ -39,7 +41,13 @@ public sealed class WishlistsController : WineSurferControllerBase
         public string WineName { get; set; } = string.Empty;
         public string Region { get; set; } = string.Empty;
         public string Appellation { get; set; } = string.Empty;
+        public string SubAppellation { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string Variety { get; set; } = string.Empty;
+        public string Color { get; set; } = string.Empty;
+        public string WineSearcherUrl { get; set; } = string.Empty;
         public int Vintage { get; set; }
+        public bool IsInInventory { get; set; }
     }
 
 
@@ -79,7 +87,13 @@ public sealed class WishlistsController : WineSurferControllerBase
         string Name,
         string Region,
         string Appellation,
-        int Vintage);
+        string SubAppellation,
+        string Country,
+        string Variety,
+        string Color,
+        string WineSearcherUrl,
+        int Vintage,
+        bool IsInInventory);
 
     private readonly IWishlistRepository _wishlistRepository;
     private readonly IWineVintageWishRepository _wishRepository;
@@ -87,6 +101,7 @@ public sealed class WishlistsController : WineSurferControllerBase
     private readonly IWineRepository _wineRepository;
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IBottleLocationRepository _bottleLocationRepository;
+    private readonly IBottleRepository _bottleRepository;
 
     public WishlistsController(
         IWishlistRepository wishlistRepository,
@@ -96,6 +111,7 @@ public sealed class WishlistsController : WineSurferControllerBase
         IUserRepository userRepository,
         IWineSurferTopBarService topBarService,
         IBottleLocationRepository bottleLocationRepository,
+        IBottleRepository bottleRepository,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _wishlistRepository = wishlistRepository;
@@ -104,6 +120,7 @@ public sealed class WishlistsController : WineSurferControllerBase
         _wineRepository = wineRepository;
         _topBarService = topBarService;
         _bottleLocationRepository = bottleLocationRepository;
+        _bottleRepository = bottleRepository;
     }
 
     [HttpGet("/wine-manager/wishlists")]
@@ -210,15 +227,37 @@ public sealed class WishlistsController : WineSurferControllerBase
         }
 
         var wishes = await _wishRepository.GetForWishlistAsync(wishlist.Id, cancellationToken);
-        var items = wishes.Select(w => new WishlistWishListItem(
-            w.Id,
-            w.WineVintage.Wine.Id,
-            w.WineVintage.Id,
-            w.WineVintage.Wine.Name ?? string.Empty,
-            w.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name ?? string.Empty,
-            w.WineVintage.Wine.SubAppellation?.Appellation?.Name ?? string.Empty,
-            w.WineVintage.Vintage
-        ));
+        var inventoryLookup = await BuildInventoryVintageLookupAsync(currentUserId, cancellationToken);
+
+        var items = wishes.Select(w =>
+        {
+            var wine = w.WineVintage?.Wine;
+            var wineId = wine?.Id ?? Guid.Empty;
+            var vintage = w.WineVintage?.Vintage ?? 0;
+            var subAppellation = wine?.SubAppellation?.Name ?? string.Empty;
+            var appellation = wine?.SubAppellation?.Appellation?.Name ?? string.Empty;
+            var region = wine?.SubAppellation?.Appellation?.Region?.Name ?? string.Empty;
+            var country = wine?.SubAppellation?.Appellation?.Region?.Country?.Name ?? string.Empty;
+            var variety = wine?.GrapeVariety ?? string.Empty;
+            var color = wine?.Color.ToString() ?? string.Empty;
+            var searchUrl = CreateWineSearcherUrl(w);
+            var isInInventory = wineId != Guid.Empty && inventoryLookup.Contains((wineId, vintage));
+
+            return new WishlistWishListItem(
+                w.Id,
+                wineId,
+                w.WineVintage?.Id ?? Guid.Empty,
+                wine?.Name ?? string.Empty,
+                region,
+                appellation,
+                subAppellation,
+                country,
+                variety,
+                color,
+                searchUrl,
+                vintage,
+                isInInventory);
+        });
 
         return Json(items);
     }
@@ -379,6 +418,8 @@ public sealed class WishlistsController : WineSurferControllerBase
             selectedId = wishlists[0].Id;
         }
 
+        var inventoryLookup = await BuildInventoryVintageLookupAsync(currentUserId, cancellationToken);
+
         var items = new List<WishlistItemViewModel>();
         string selectedName = string.Empty;
         if (selectedId.HasValue)
@@ -394,7 +435,14 @@ public sealed class WishlistsController : WineSurferControllerBase
                 WineName = w.WineVintage.Wine.Name ?? string.Empty,
                 Region = w.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name ?? string.Empty,
                 Appellation = w.WineVintage.Wine.SubAppellation?.Appellation?.Name ?? string.Empty,
-                Vintage = w.WineVintage.Vintage
+                SubAppellation = w.WineVintage.Wine.SubAppellation?.Name ?? string.Empty,
+                Country = w.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Country?.Name ?? string.Empty,
+                Variety = w.WineVintage.Wine.GrapeVariety ?? string.Empty,
+                Color = w.WineVintage.Wine.Color.ToString(),
+                WineSearcherUrl = CreateWineSearcherUrl(w),
+                Vintage = w.WineVintage.Vintage,
+                IsInInventory = w.WineVintage.Wine.Id != Guid.Empty &&
+                    inventoryLookup.Contains((w.WineVintage.Wine.Id, w.WineVintage.Vintage))
             }).ToList();
         }
 
@@ -453,5 +501,101 @@ public sealed class WishlistsController : WineSurferControllerBase
         }
 
         ViewData["InventoryAddModal"] = viewModel;
+    }
+
+    private async Task<HashSet<(Guid WineId, int Vintage)>> BuildInventoryVintageLookupAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var result = new HashSet<(Guid, int)>();
+
+        if (userId == Guid.Empty)
+        {
+            return result;
+        }
+
+        var bottles = await _bottleRepository.GetForUserAsync(userId, cancellationToken);
+        foreach (var bottle in bottles)
+        {
+            var wineId = bottle.WineVintage?.Wine?.Id ?? Guid.Empty;
+            var vintage = bottle.WineVintage?.Vintage;
+
+            if (wineId == Guid.Empty || !vintage.HasValue)
+            {
+                continue;
+            }
+
+            result.Add((wineId, vintage.Value));
+        }
+
+        return result;
+    }
+
+    private static string CreateWineSearcherUrl(WineVintageWish wish)
+    {
+        if (wish?.WineVintage?.Wine is null)
+        {
+            return "https://www.wine-searcher.com/";
+        }
+
+        var wine = wish.WineVintage.Wine;
+        var segments = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(wine.Name))
+        {
+            segments.Add(wine.Name.Trim());
+        }
+
+        var subAppellation = wine.SubAppellation?.Name;
+        if (!string.IsNullOrWhiteSpace(subAppellation))
+        {
+            segments.Add(subAppellation.Trim());
+        }
+
+        var appellation = wine.SubAppellation?.Appellation?.Name;
+        if (!string.IsNullOrWhiteSpace(appellation))
+        {
+            var trimmed = appellation.Trim();
+            if (!segments.Any(entry => string.Equals(entry, trimmed, StringComparison.OrdinalIgnoreCase)))
+            {
+                segments.Add(trimmed);
+            }
+        }
+
+        var region = wine.SubAppellation?.Appellation?.Region?.Name;
+        if (!string.IsNullOrWhiteSpace(region))
+        {
+            var trimmed = region.Trim();
+            if (!segments.Any(entry => string.Equals(entry, trimmed, StringComparison.OrdinalIgnoreCase)))
+            {
+                segments.Add(trimmed);
+            }
+        }
+
+        var country = wine.SubAppellation?.Appellation?.Region?.Country?.Name;
+        if (!string.IsNullOrWhiteSpace(country))
+        {
+            var trimmed = country.Trim();
+            if (!segments.Any(entry => string.Equals(entry, trimmed, StringComparison.OrdinalIgnoreCase)))
+            {
+                segments.Add(trimmed);
+            }
+        }
+
+        var vintage = wish.WineVintage?.Vintage ?? 0;
+        if (vintage >= 1900 && vintage <= 2100)
+        {
+            segments.Add(vintage.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (segments.Count == 0)
+        {
+            return "https://www.wine-searcher.com/";
+        }
+
+        var encoded = WebUtility.UrlEncode(string.Join(' ', segments));
+        return string.IsNullOrWhiteSpace(encoded)
+            ? "https://www.wine-searcher.com/"
+            : $"https://www.wine-searcher.com/find/{encoded}";
     }
 }
