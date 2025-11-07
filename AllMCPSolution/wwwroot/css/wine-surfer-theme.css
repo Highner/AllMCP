@@ -925,6 +925,42 @@ a.wine-card:focus {
     cursor: not-allowed;
 }
 
+.bottle-management-inline-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.bottle-management-inline-select {
+    width: 100%;
+    min-width: 0;
+}
+
+.bottle-management-price-input {
+    appearance: none;
+    background-color: rgba(16, 16, 20, 0.6);
+    border: 1px solid rgba(244, 241, 234, 0.16);
+    border-radius: 10px;
+    color: #f4f1ea;
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    width: 100%;
+    text-align: right;
+}
+
+.bottle-management-price-input:focus {
+    outline: none;
+    border-color: rgba(244, 241, 234, 0.32);
+    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.14);
+}
+
+.bottle-management-price-input[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .bottle-management-table-title {
     margin: 0;
     font-size: 1.125rem;
