@@ -22,7 +22,9 @@
         addButton: '[data-bottle-management-add]',
         locationSelect: '[data-bottle-management-location]',
         quantitySelect: '[data-bottle-management-quantity]',
-        pendingCheckbox: '[data-bottle-management-pending]'
+        pendingCheckbox: '[data-bottle-management-pending]',
+        rowLocationSelect: '[data-bottle-management-location-field]',
+        rowPriceInput: '[data-bottle-management-price-input]'
     };
 
     const state = {
@@ -673,6 +675,29 @@
         return segments.join(' · ');
     };
 
+    const buildLocationOptionsMarkup = (selectedId) => {
+        const normalizedSelected = typeof selectedId === 'string'
+            ? selectedId.trim()
+            : '';
+
+        const options = ['<option value="">No location</option>'];
+
+        state.locations.forEach((location) => {
+            const value = typeof location?.id === 'string' ? location.id : '';
+            if (!value) {
+                return;
+            }
+
+            const label = buildLocationLabel(location);
+            const isSelected = normalizedSelected && normalizedSelected === value;
+            options.push(
+                `<option value="${escapeHtml(value)}"${isSelected ? ' selected' : ''}>${escapeHtml(label)}</option>`
+            );
+        });
+
+        return options.join('');
+    };
+
     const renderRows = (details) => {
         const tbody = qs(SELECTORS.tableBody);
         if (!tbody) {
@@ -692,7 +717,8 @@
             const locationId = normalizeId(detail?.BottleLocationId ?? detail?.bottleLocationId);
             const location = escapeHtml(detail?.BottleLocation ?? detail?.bottleLocation ?? '—');
             const priceValue = detail?.Price ?? detail?.price;
-            const price = formatPrice(priceValue);
+            const priceNumber = parseNumeric(priceValue);
+            const priceInputValue = formatPriceInputValue(priceNumber);
             const scoreValue = detail?.CurrentUserScore ?? detail?.currentUserScore ?? detail?.AverageScore ?? detail?.averageScore;
             const score = formatScore(scoreValue);
             const isDrunk = detail?.IsDrunk ?? detail?.isDrunk ?? false;
@@ -738,10 +764,29 @@
                 ? buildActionButtons(bottleId)
                 : '';
 
+            const safeBottleId = bottleId ? escapeHtml(bottleId) : '';
+            const locationField = bottleId
+                ? (
+                    `<div class="bottle-management-inline-field">` +
+                        `<label class="sr-only" for="bottle-location-${safeBottleId}">Bottle location</label>` +
+                        `<select class="bottle-management-select bottle-management-inline-select" id="bottle-location-${safeBottleId}" data-bottle-management-location-field data-bottle-id="${safeBottleId}" aria-label="Bottle location">${buildLocationOptionsMarkup(locationId)}</select>` +
+                    '</div>'
+                )
+                : location;
+
+            const priceField = bottleId
+                ? (
+                    `<div class="bottle-management-inline-field">` +
+                        `<label class="sr-only" for="bottle-price-${safeBottleId}">Bottle price</label>` +
+                        `<input type="text" id="bottle-price-${safeBottleId}" class="bottle-management-price-input" data-bottle-management-price-input data-bottle-id="${safeBottleId}" inputmode="decimal" pattern="[0-9.,]*" placeholder="0.00" autocomplete="off" aria-label="Bottle price" value="${escapeHtml(priceInputValue)}" />` +
+                    '</div>'
+                )
+                : escapeHtml(priceInputValue || '—');
+
             return (
-                '<tr data-bottle-management-row>' +
-                    `<td class="bottle-management-col-location">${location}</td>` +
-                    `<td class="bottle-management-col-price">${price}</td>` +
+                `<tr data-bottle-management-row${safeBottleId ? ` data-bottle-id="${safeBottleId}"` : ''}>` +
+                    `<td class="bottle-management-col-location">${locationField}</td>` +
+                    `<td class="bottle-management-col-price">${priceField}</td>` +
                     `<td class="bottle-management-col-score">${score}</td>` +
                     `<td class="bottle-management-col-status">${status}</td>` +
                     `<td class="bottle-management-col-actions">${actions}</td>` +
@@ -752,22 +797,12 @@
         tbody.innerHTML = rows;
     };
 
-    const formatPrice = (value) => {
-        if (value == null || value === '') {
-            return '—';
+    const formatPriceInputValue = (value) => {
+        if (!Number.isFinite(value)) {
+            return '';
         }
 
-        const numeric = typeof value === 'number' ? value : Number(value);
-        if (!Number.isFinite(numeric)) {
-            return '—';
-        }
-
-        return numeric.toLocaleString(undefined, {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
+        return Number(value).toFixed(2);
     };
 
     const formatScore = (value) => {
@@ -857,6 +892,99 @@
         }
 
         return bottleDetailMap.get(normalized) ?? null;
+    };
+
+    const updateBottle = async (bottleId, updates = {}) => {
+        const record = getBottleRecord(bottleId);
+        if (!record || !record.wineVintageId) {
+            showError('We could not find that bottle in your inventory.');
+            return false;
+        }
+
+        const payload = {
+            wineVintageId: record.wineVintageId,
+            price: null,
+            isDrunk: updates.isDrunk !== undefined ? Boolean(updates.isDrunk) : Boolean(record.isDrunk),
+            drunkAt: updates.drunkAt !== undefined ? updates.drunkAt : (record.drunkAt ?? null),
+            pendingDelivery: updates.pendingDelivery !== undefined
+                ? Boolean(updates.pendingDelivery)
+                : Boolean(record.pendingDelivery),
+            bottleLocationId: null
+        };
+
+        const nextPrice = updates.price !== undefined ? updates.price : record.price;
+        if (nextPrice == null || nextPrice === '') {
+            payload.price = null;
+        } else if (typeof nextPrice === 'number') {
+            payload.price = Number.isFinite(nextPrice) ? Number(nextPrice) : null;
+        } else if (typeof nextPrice === 'string') {
+            const parsed = Number(nextPrice);
+            payload.price = Number.isFinite(parsed) ? parsed : null;
+        } else {
+            payload.price = null;
+        }
+
+        const nextLocation = updates.bottleLocationId !== undefined
+            ? updates.bottleLocationId
+            : record.bottleLocationId;
+        if (nextLocation == null || nextLocation === '') {
+            payload.bottleLocationId = null;
+        } else if (typeof nextLocation === 'string') {
+            payload.bottleLocationId = nextLocation;
+        } else {
+            payload.bottleLocationId = String(nextLocation);
+        }
+
+        if (payload.drunkAt === '') {
+            payload.drunkAt = null;
+        }
+
+        try {
+            const response = await fetch(`/wine-manager/bottles/${bottleId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const raw = await response.text();
+            const contentType = response.headers.get('Content-Type') ?? '';
+            const isJson = raw && contentType.toLowerCase().includes('application/json');
+            let data = null;
+
+            if (raw && isJson) {
+                try {
+                    data = JSON.parse(raw);
+                } catch (parseError) {
+                    console.error('Unable to parse bottle update response', parseError);
+                }
+            }
+
+            if (!response.ok) {
+                const fallback = raw?.trim()
+                    ? raw.trim()
+                    : 'We could not update that bottle right now. Please try again.';
+                const message = extractProblemMessage(data, fallback);
+                showError(message);
+                return false;
+            }
+
+            clearError();
+
+            if (data) {
+                renderDetails(data);
+            } else if (record.wineVintageId) {
+                await fetchBottles(record.wineVintageId);
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Failed to update bottle', error);
+            showError('We could not update that bottle right now. Please try again.');
+            return false;
+        }
     };
 
     const buildActionButtons = (bottleId) => {
@@ -1152,6 +1280,153 @@
         }
     };
 
+    const handleLocationFieldChange = async (select) => {
+        if (!(select instanceof HTMLSelectElement)) {
+            return;
+        }
+
+        const bottleId = select.getAttribute('data-bottle-id')
+            || select.dataset?.bottleId
+            || '';
+        if (!bottleId) {
+            return;
+        }
+
+        const record = getBottleRecord(bottleId);
+        if (!record) {
+            showError('We could not find that bottle in your inventory.');
+            select.value = '';
+            return;
+        }
+
+        const newValueRaw = typeof select.value === 'string' ? select.value.trim() : '';
+        const currentValue = record.bottleLocationId ?? '';
+        if (newValueRaw === currentValue || (!newValueRaw && !currentValue)) {
+            select.value = currentValue;
+            return;
+        }
+
+        select.setAttribute('disabled', '');
+        select.dataset.state = 'saving';
+
+        let success = false;
+        try {
+            success = await updateBottle(bottleId, {
+                bottleLocationId: newValueRaw ? newValueRaw : null
+            });
+        } catch (error) {
+            console.error('Failed to update bottle location', error);
+            showError('We could not update that bottle right now. Please try again.');
+        } finally {
+            if (!success) {
+                select.value = currentValue;
+            }
+
+            select.removeAttribute('disabled');
+            delete select.dataset.state;
+        }
+    };
+
+    const handlePriceInputChange = async (input) => {
+        if (!(input instanceof HTMLInputElement)) {
+            return;
+        }
+
+        const bottleId = input.getAttribute('data-bottle-id')
+            || input.dataset?.bottleId
+            || '';
+        if (!bottleId) {
+            return;
+        }
+
+        const record = getBottleRecord(bottleId);
+        if (!record) {
+            showError('We could not find that bottle in your inventory.');
+            input.value = '';
+            return;
+        }
+
+        const rawValue = typeof input.value === 'string' ? input.value : '';
+        const trimmed = rawValue.trim();
+        let normalizedPrice = null;
+
+        if (trimmed) {
+            const sanitized = trimmed.replace(/[^0-9.,]/g, '');
+            if (!sanitized) {
+                showError('Enter a valid price using numbers.');
+                input.value = formatPriceInputValue(record.price);
+                return;
+            }
+
+            let normalized = sanitized;
+            const lastDot = sanitized.lastIndexOf('.');
+            const lastComma = sanitized.lastIndexOf(',');
+
+            if (lastDot !== -1 || lastComma !== -1) {
+                if (lastDot > lastComma) {
+                    normalized = sanitized.replace(/,/g, '');
+                } else {
+                    const parts = sanitized.split(',');
+                    const lastPart = parts[parts.length - 1];
+                    const isLikelyThousands = sanitized.indexOf('.') === -1
+                        && parts.length > 1
+                        && lastPart.length === 3
+                        && parts.slice(0, -1).every((segment) => segment.length > 0 && segment.length <= 3);
+
+                    if (isLikelyThousands) {
+                        normalized = sanitized.replace(/,/g, '');
+                    } else {
+                        normalized = sanitized.replace(/\./g, '').replace(/,/g, '.');
+                    }
+                }
+            }
+
+            const hasDigits = /\d/.test(normalized);
+            if (!hasDigits || !/^\d*(\.\d{0,2})?$/.test(normalized)) {
+                showError('Enter a valid price using numbers (up to two decimals).');
+                input.value = formatPriceInputValue(record.price);
+                return;
+            }
+
+            const numeric = Number.parseFloat(normalized);
+            if (!Number.isFinite(numeric)) {
+                showError('Enter a valid price using numbers.');
+                input.value = formatPriceInputValue(record.price);
+                return;
+            }
+
+            normalizedPrice = Math.round(numeric * 100) / 100;
+        }
+
+        const currentPrice = Number.isFinite(record.price)
+            ? Math.round(record.price * 100) / 100
+            : null;
+
+        if (normalizedPrice === currentPrice) {
+            input.value = formatPriceInputValue(record.price);
+            return;
+        }
+
+        input.value = formatPriceInputValue(normalizedPrice);
+        input.setAttribute('disabled', '');
+        input.dataset.state = 'saving';
+
+        let success = false;
+        try {
+            success = await updateBottle(bottleId, { price: normalizedPrice });
+        } catch (error) {
+            console.error('Failed to update bottle price', error);
+            showError('We could not update that bottle right now. Please try again.');
+        } finally {
+            if (!success) {
+                input.value = formatPriceInputValue(record.price);
+            }
+
+            input.removeAttribute('disabled');
+            delete input.dataset.state;
+        }
+    };
+
     const wireTableBodyActions = () => {
         const tbody = qs(SELECTORS.tableBody);
         if (!tbody) {
@@ -1192,6 +1467,27 @@
             if (undrinkButton) {
                 event.preventDefault();
                 void handleUndrinkClick(undrinkButton);
+            }
+        });
+
+        tbody.addEventListener('change', (event) => {
+            const element = event.target instanceof Element
+                ? event.target
+                : null;
+
+            if (!element) {
+                return;
+            }
+
+            if (element.matches(SELECTORS.rowLocationSelect)) {
+                event.preventDefault();
+                void handleLocationFieldChange(element);
+                return;
+            }
+
+            if (element.matches(SELECTORS.rowPriceInput)) {
+                event.preventDefault();
+                void handlePriceInputChange(element);
             }
         });
     };
