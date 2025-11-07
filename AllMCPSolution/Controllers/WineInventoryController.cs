@@ -2129,7 +2129,7 @@ public partial class WineInventoryController : Controller
                 Price = null,
                 IsDrunk = false,
                 DrunkAt = null,
-                PendingDelivery = false,
+                PendingDelivery = request.PendingDelivery,
                 BottleLocationId = bottleLocation?.Id,
                 UserId = user.Id
             };
@@ -3703,6 +3703,8 @@ public class WineInventoryViewModel
         [Range(1, 12)] public int Quantity { get; set; } = 1;
 
         public Guid? BottleLocationId { get; set; }
+
+        public bool PendingDelivery { get; set; }
     }
 
     public class CreateWineRequest
