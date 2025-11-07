@@ -1690,6 +1690,13 @@
     };
     window.InventoryAddModal = inventoryApi;
 
+    const inventoryImportApi = window.inventoryImportModal ?? {};
+    inventoryImportApi.initialize = inventoryApi.initialize;
+    inventoryImportApi.open = requestOpenAddWineModal;
+    inventoryImportApi.close = requestCloseAddWineModal;
+    inventoryImportApi.isOpen = inventoryApi.isOpen;
+    window.inventoryImportModal = inventoryImportApi;
+
     const favoritesApi = window.wineSurferFavorites ?? {};
     favoritesApi.openAddWineModal = requestOpenAddWineModal;
     window.wineSurferFavorites = favoritesApi;
