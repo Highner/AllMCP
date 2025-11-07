@@ -165,7 +165,7 @@
                             </a>
                         </th>
                         <th class="summary-header summary-header--bottles">
-                            <span class="header-text">Bottles</span>
+                            <span class="header-text">Bottles (pending/cellared/drunk)</span>
                         </th>
                         <th class="summary-header summary-header--color">
                             <a class="sort-header @SortStateClass("color")" href="@BuildSortUrl("color")">
@@ -251,8 +251,8 @@
                                 <td class="summary-region">@regionDisplay</td>
                                 <td class="summary-appellation">@display</td>
                                 <td class="summary-bottles" data-field="bottle-count">
-                                    <span aria-hidden="true">@bottle.AvailableBottleCount/@bottle.BottleCount</span>
-                                    <span class="sr-only">@bottle.AvailableBottleCount bottles available of a total of @bottle.BottleCount</span>
+                                    <span aria-hidden="true">@bottle.PendingBottleCount/@bottle.CellaredBottleCount/@bottle.DrunkBottleCount</span>
+                                    <span class="sr-only">@bottle.PendingBottleCount pending, @bottle.CellaredBottleCount cellared, @bottle.DrunkBottleCount enjoyed</span>
                                 </td>
                                 <td class="summary-color">@bottle.Color</td>
                                 <td class="summary-status"><span class="status-pill @bottle.StatusCssClass" data-field="status">@bottle.StatusLabel</span></td>
@@ -401,10 +401,18 @@
                         ? " location-card--highlight"
                         : string.Empty;
                     var remainingCapacity = hasCapacity ? capacityValue - location.BottleCount : 0;
+                    var summarySegments = new List<string>
+                    {
+                        $"{location.PendingBottleCount} pending",
+                        $"{location.CellaredBottleCount} cellared",
+                        $"{location.DrunkBottleCount} enjoyed"
+                    };
+
+                    var bottleStatusSummary = string.Join(" · ", summarySegments);
                     string statusLabel;
                     if (location.BottleCount > 0)
                     {
-                        var summary = $"{location.CellaredBottleCount} cellared · {location.DrunkBottleCount} enjoyed";
+                        var summary = bottleStatusSummary;
                         if (hasCapacity)
                         {
                             var capacitySummary = remainingCapacity > 0
@@ -469,7 +477,7 @@
                     else
                     {
                         fillSummaryLabel = location.BottleCount > 0
-                            ? $"{location.CellaredBottleCount} cellared · {location.DrunkBottleCount} enjoyed"
+                            ? bottleStatusSummary
                             : "Add a capacity to track fill";
                     }
                     <article class="wine-card wine-surface wine-surface-border wine-card-hover location-card@highlightClass"
@@ -479,6 +487,7 @@
                              data-location-capacity="@(location.Capacity?.ToString() ?? string.Empty)"
                              data-bottle-count="@location.BottleCount"
                              data-unique-count="@location.UniqueWineCount"
+                             data-pending-count="@location.PendingBottleCount"
                              data-cellared-count="@location.CellaredBottleCount"
                              data-drunk-count="@location.DrunkBottleCount">
                         <div class="location-card-view" data-location-view>
@@ -587,6 +596,7 @@
                          data-location-capacity=""
                          data-bottle-count="0"
                          data-unique-count="0"
+                         data-pending-count="0"
                          data-cellared-count="0"
                          data-drunk-count="0">
                     <div class="location-card-view" data-location-view>

@@ -2338,6 +2338,11 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     color: hsla(var(--ring) / 0.9);
 }
 
+.status-pill.pending {
+    background: hsla(var(--muted) / 0.25);
+    color: hsla(var(--muted-foreground) / 0.9);
+}
+
 .status-pill.mixed {
     background: hsla(var(--primary) / 0.25);
     color: hsla(var(--primary) / 0.9);

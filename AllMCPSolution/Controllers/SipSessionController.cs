@@ -470,6 +470,7 @@ public class SipSessionController : WineSurferControllerBase
                     vintageValue,
                     labelBase,
                     isOwnedByCurrentUser,
+                    bottle.PendingDelivery,
                     bottle.IsDrunk,
                     bottle.DrunkAt,
                     currentUserNote?.Id,

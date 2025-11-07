@@ -613,6 +613,7 @@ public sealed class WineImportService : IWineImportService
                 IsDrunk = false,
                 DrunkAt = null,
                 Price = null,
+                PendingDelivery = false,
                 BottleLocationId = null,
                 UserId = userId
             };

@@ -247,6 +247,7 @@ public sealed class WineWizardController : WineSurferControllerBase
                     Price = null,
                     IsDrunk = false,
                     DrunkAt = null,
+                    PendingDelivery = false,
                     BottleLocationId = pendingRequest.LocationId,
                     UserId = currentUserId
                 };

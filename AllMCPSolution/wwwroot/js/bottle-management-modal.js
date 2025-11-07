@@ -676,8 +676,9 @@
             const scoreValue = detail?.CurrentUserScore ?? detail?.currentUserScore ?? detail?.AverageScore ?? detail?.averageScore;
             const score = formatScore(scoreValue);
             const isDrunk = detail?.IsDrunk ?? detail?.isDrunk ?? false;
+            const isPending = detail?.PendingDelivery ?? detail?.pendingDelivery ?? false;
             const drunkAtRaw = detail?.DrunkAt ?? detail?.drunkAt ?? null;
-            const status = escapeHtml(formatEnjoyedStatus(isDrunk, drunkAtRaw));
+            const status = escapeHtml(formatEnjoyedStatus(isDrunk, drunkAtRaw, isPending));
             const noteId = normalizeId(detail?.CurrentUserNoteId ?? detail?.currentUserNoteId ?? detail?.currentUserNoteID);
             const note = typeof detail?.CurrentUserNote === 'string'
                 ? detail.CurrentUserNote
@@ -703,6 +704,7 @@
                     bottleLocationId: locationId || null,
                     price: parseNumeric(priceValue),
                     isDrunk,
+                    pendingDelivery: Boolean(isPending),
                     drunkAt: drunkAtRaw || null,
                     noteId: noteId || null,
                     note: note || '',
@@ -802,7 +804,11 @@
         return null;
     };
 
-    const formatEnjoyedStatus = (isDrunk, drunkAt) => {
+    const formatEnjoyedStatus = (isDrunk, drunkAt, isPending = false) => {
+        if (isPending) {
+            return 'Pending delivery';
+        }
+
         if (!isDrunk) {
             return 'No';
         }
@@ -1037,7 +1043,8 @@
             wineVintageId: record.wineVintageId,
             price: record.price,
             isDrunk: false,
-            drunkAt: null
+            drunkAt: null,
+            pendingDelivery: Boolean(record.pendingDelivery)
         };
 
         if (record.bottleLocationId) {
@@ -1207,7 +1214,8 @@
             wineVintageId: record.wineVintageId,
             price: record.price,
             isDrunk: true,
-            drunkAt: normalizedDate
+            drunkAt: normalizedDate,
+            pendingDelivery: false
         };
 
         if (record.bottleLocationId) {
@@ -1504,7 +1512,8 @@
             syncControlState();
             const payload = {
                 wineVintageId: state.wineVintageId,
-                quantity: normalizeQuantity(state.quantity)
+                quantity: normalizeQuantity(state.quantity),
+                pendingDelivery: false
             };
 
             state.quantity = payload.quantity;

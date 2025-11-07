@@ -48,7 +48,7 @@ public class BottleRepository : IBottleRepository
         }
 
         return await BuildBottleQuery()
-            .Where(b => b.UserId == userId && !b.IsDrunk)
+            .Where(b => b.UserId == userId && !b.IsDrunk && !b.PendingDelivery)
             .ToListAsync(ct);
     }
 
@@ -81,6 +81,7 @@ public class BottleRepository : IBottleRepository
         }
 
         entity.IsDrunk = true;
+        entity.PendingDelivery = false;
         entity.DrunkAt = drunkAt ?? DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
@@ -155,7 +156,7 @@ public class BottleRepository : IBottleRepository
     {
         return await _db.Bottles
             .AsNoTracking()
-            .Where(b => !b.IsDrunk)
+            .Where(b => !b.IsDrunk && !b.PendingDelivery)
             .Select(b => new
             {
                 SubAppellation = b.WineVintage.Wine.SubAppellation,

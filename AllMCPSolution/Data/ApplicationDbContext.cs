@@ -250,6 +250,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<Bottle>(e =>
         {
             e.Property(b => b.IsDrunk).IsRequired();
+            e.Property(b => b.PendingDelivery)
+                .IsRequired()
+                .HasDefaultValue(false);
 
             e.HasOne(b => b.WineVintage)
                 .WithMany(wv => wv.Bottles)
