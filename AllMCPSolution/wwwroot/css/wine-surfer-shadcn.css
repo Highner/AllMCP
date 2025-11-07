@@ -1613,6 +1613,16 @@ textarea:focus {
     gap: 6px;
 }
 
+.inventory-add-field--checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+}
+
+.inventory-add-field--checkbox .inventory-add-label {
+    margin: 0;
+}
+
 .inventory-add-label {
     font-size: 0.8rem;
     letter-spacing: 1.5px;

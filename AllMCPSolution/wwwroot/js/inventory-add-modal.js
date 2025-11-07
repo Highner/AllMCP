@@ -186,6 +186,7 @@
         const vintage = popover.querySelector('.inventory-add-vintage');
         const locationSelect = popover.querySelector('.inventory-add-location');
         const quantity = popover.querySelector('.inventory-add-quantity');
+        const pendingDeliveryCheckbox = popover.querySelector('.inventory-add-pending-delivery');
         const summary = popover.querySelector('.inventory-add-summary');
         const hint = popover.querySelector('.inventory-add-vintage-hint');
         const error = popover.querySelector('.inventory-add-error');
@@ -448,6 +449,9 @@
             if (quantity) {
                 quantity.disabled = state;
             }
+            if (pendingDeliveryCheckbox) {
+                pendingDeliveryCheckbox.disabled = state;
+            }
         }
 
         async function openModal(context = null) {
@@ -464,6 +468,9 @@
             closeWineSurferPopover({ restoreFocus: false });
 
             setModalLoading(true);
+            if (pendingDeliveryCheckbox) {
+                pendingDeliveryCheckbox.checked = false;
+            }
             let matchedOption = null;
             let normalizedVintage = '';
 
@@ -681,6 +688,9 @@
             if (quantity) {
                 quantity.value = '1';
             }
+            if (pendingDeliveryCheckbox) {
+                pendingDeliveryCheckbox.checked = false;
+            }
 
             document.dispatchEvent(new CustomEvent('inventoryAddModal:closed', {
                 detail: {
@@ -700,6 +710,7 @@
             const vintageValue = Number(vintage?.value ?? '');
             const quantityValue = Number(quantity?.value ?? '1');
             const locationValue = locationSelect?.value ?? '';
+            const pendingDeliveryValue = Boolean(pendingDeliveryCheckbox?.checked);
 
             if (!wineId) {
                 showError('Select a wine to add to your inventory.');
@@ -729,7 +740,8 @@
                         wineId,
                         vintage: vintageValue,
                         quantity: quantityValue,
-                        bottleLocationId: locationValue || null
+                        bottleLocationId: locationValue || null,
+                        pendingDelivery: pendingDeliveryValue
                     };
 
                     document.dispatchEvent(new CustomEvent('inventoryAddModal:wizardSelection', { detail }));
@@ -739,7 +751,13 @@
 
                 const result = await sendJson('/wine-manager/inventory', {
                     method: 'POST',
-                    body: JSON.stringify({ wineId, vintage: vintageValue, quantity: quantityValue, bottleLocationId: locationValue || null })
+                    body: JSON.stringify({
+                        wineId,
+                        vintage: vintageValue,
+                        quantity: quantityValue,
+                        bottleLocationId: locationValue || null,
+                        pendingDelivery: pendingDeliveryValue
+                    })
                 });
                 const message = quantityValue === 1
                     ? 'Bottle added to your inventory.'
@@ -752,6 +770,7 @@
                         vintage: vintageValue,
                         quantity: quantityValue,
                         bottleLocationId: locationValue || null,
+                        pendingDelivery: pendingDeliveryValue,
                         message,
                         result
                     }

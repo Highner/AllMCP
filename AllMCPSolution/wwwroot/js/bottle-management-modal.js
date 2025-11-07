@@ -21,7 +21,8 @@
         triggers: '[data-open-bottle-management]',
         addButton: '[data-bottle-management-add]',
         locationSelect: '[data-bottle-management-location]',
-        quantitySelect: '[data-bottle-management-quantity]'
+        quantitySelect: '[data-bottle-management-quantity]',
+        pendingCheckbox: '[data-bottle-management-pending]'
     };
 
     const state = {
@@ -33,6 +34,7 @@
         locations: [],
         selectedLocationId: null,
         quantity: 1,
+        pendingDelivery: false,
         drinkingWindowStart: null,
         drinkingWindowEnd: null,
         isSavingDrinkingWindow: false
@@ -253,6 +255,13 @@
             quantitySelect.value = String(defaultQuantity);
         }
 
+        const pendingCheckbox = qs(SELECTORS.pendingCheckbox, root);
+        if (pendingCheckbox) {
+            pendingCheckbox.checked = false;
+            pendingCheckbox.setAttribute('disabled', '');
+            pendingCheckbox.setAttribute('aria-disabled', 'true');
+        }
+
         resetDrinkingWindowControls(root);
         refreshDrinkingWindowControls();
     };
@@ -340,6 +349,13 @@
         } else {
             state.quantity = normalizeQuantity(state.quantity);
         }
+
+        const pendingCheckbox = qs(SELECTORS.pendingCheckbox);
+        if (pendingCheckbox) {
+            state.pendingDelivery = pendingCheckbox.checked === true;
+        } else {
+            state.pendingDelivery = false;
+        }
     };
 
     const open = (wineVintageId) => {
@@ -363,9 +379,11 @@
         state.locations = [];
         state.selectedLocationId = null;
         state.quantity = normalizeQuantity(1);
+        state.pendingDelivery = false;
         resetControls(dialog);
         syncControlState();
         updateAddButtonState();
+        updatePendingCheckboxState();
         attachKeydown();
 
         const hiddenField = qs(SELECTORS.vintageField, dialog);
@@ -403,9 +421,11 @@
         state.locations = [];
         state.selectedLocationId = null;
         state.quantity = normalizeQuantity(1);
+        state.pendingDelivery = false;
         resetControls();
         syncControlState();
         updateAddButtonState();
+        updatePendingCheckboxState();
         detachKeydown();
     };
 
@@ -1468,6 +1488,17 @@
         });
     };
 
+    const wirePendingCheckbox = () => {
+        const checkbox = qs(SELECTORS.pendingCheckbox);
+        if (!checkbox) {
+            return;
+        }
+
+        checkbox.addEventListener('change', () => {
+            state.pendingDelivery = checkbox.checked === true;
+        });
+    };
+
     const wireAddButton = () => {
         const button = qs(SELECTORS.addButton);
         if (!button) {
@@ -1480,9 +1511,32 @@
         });
     };
 
+    const updatePendingCheckboxState = () => {
+        const checkbox = qs(SELECTORS.pendingCheckbox);
+        if (!checkbox) {
+            return;
+        }
+
+        checkbox.checked = state.pendingDelivery === true;
+
+        const shouldDisable = !state.isOpen
+            || !state.wineVintageId
+            || !state.hasGroup
+            || state.isAdding;
+
+        if (shouldDisable) {
+            checkbox.setAttribute('disabled', '');
+            checkbox.setAttribute('aria-disabled', 'true');
+        } else {
+            checkbox.removeAttribute('disabled');
+            checkbox.removeAttribute('aria-disabled');
+        }
+    };
+
     const updateAddButtonState = () => {
         const button = qs(SELECTORS.addButton);
         if (!button) {
+            updatePendingCheckboxState();
             return;
         }
 
@@ -1498,6 +1552,8 @@
             button.removeAttribute('disabled');
             button.removeAttribute('aria-disabled');
         }
+
+        updatePendingCheckboxState();
     };
 
     const addBottle = async () => {
@@ -1513,7 +1569,7 @@
             const payload = {
                 wineVintageId: state.wineVintageId,
                 quantity: normalizeQuantity(state.quantity),
-                pendingDelivery: false
+                pendingDelivery: state.pendingDelivery === true
             };
 
             state.quantity = payload.quantity;
@@ -1707,11 +1763,13 @@
         wireTriggers();
         wireLocationSelect();
         wireQuantitySelect();
+        wirePendingCheckbox();
         wireAddButton();
         wireDrinkingWindowControls();
         wireTableBodyActions();
         wireDrinkModalSubmit();
         syncControlState();
+        updatePendingCheckboxState();
         const overlay = qs(SELECTORS.overlay);
         if (overlay) {
             overlay.addEventListener('click', (event) => {
