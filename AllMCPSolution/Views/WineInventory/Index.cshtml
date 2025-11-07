@@ -110,34 +110,66 @@
     ViewData["WineSurferPageTitle"] = "Wine Inventory";
 
     var headerFilterValue = HtmlEncoder.Default.Encode(Model.Search ?? string.Empty);
+    var isCellaredOnly = string.Equals(Model.Status, "cellared", StringComparison.OrdinalIgnoreCase);
+    var statusToggleState = isCellaredOnly ? "cellared" : "all";
+    var statusToggleLabel = HtmlEncoder.Default.Encode(isCellaredOnly ? "Cellared only" : "All bottles");
+    var statusToggleHint = HtmlEncoder.Default.Encode(isCellaredOnly ? "Tap to show all bottles" : "Tap to show cellared only");
+    var statusToggleAnnouncement = HtmlEncoder.Default.Encode(isCellaredOnly
+        ? "Showing only cellared bottles. Activate to show all bottles."
+        : "Showing all bottles. Activate to show only cellared bottles.");
     var yourCellarTable = new CrudTableTemplateModel
     {
         TitleContent = _ => Html.PartialAsync("_InventorySectionHeader", new InventorySectionHeaderModel
         {
             Title = "Your Cellar",
             AdditionalCssClass = "location-header--table",
-            Actions = _ => new HtmlString($@"
-                <div class=""inventory-section-header__filter"">
-                    <label class=""sr-only"" for=""your-cellar-filter"">Filter your cellar</label>
-                    <div class=""inventory-section-header__filter-input-wrapper"">
-                        <input type=""search""
-                               id=""your-cellar-filter""
-                               class=""input inventory-section-header__filter-input""
-                               placeholder=""Filter wines""
-                               autocomplete=""off""
-                               value=""{headerFilterValue}""
-                               data-inventory-header-filter-input />
+            Actions = _ =>
+            {
+                var builder = new HtmlContentBuilder();
+                builder.AppendHtml($@"
+                    <div class=""inventory-section-header__filter"">
+                        <label class=""sr-only"" for=""your-cellar-filter"">Filter your cellar</label>
+                        <div class=""inventory-section-header__filter-input-wrapper"">
+                            <input type=""search""
+                                   id=""your-cellar-filter""
+                                   class=""input inventory-section-header__filter-input""
+                                   placeholder=""Filter wines""
+                                   autocomplete=""off""
+                                   value=""{headerFilterValue}""
+                                   data-inventory-header-filter-input />
+                            <button type=""button""
+                                    class=""inventory-section-header__filter-clear""
+                                    aria-label=""Clear filter""
+                                    data-inventory-header-filter-clear
+                                    hidden>
+                                <span aria-hidden=""true"">&times;</span>
+                            </button>
+                        </div>
+                    </div>
+                ");
+
+                builder.AppendHtml($@"
+                    <div class=""inventory-status-toggle"" data-inventory-status-toggle-container>
+                        <span class=""inventory-status-toggle__label"">Show</span>
                         <button type=""button""
-                                class=""inventory-section-header__filter-clear""
-                                aria-label=""Clear filter""
-                                data-inventory-header-filter-clear
-                                hidden>
-                            <span aria-hidden=""true"">&times;</span>
+                                class=""wine-surfer-button wine-surfer-button--ghost inventory-status-toggle__button""
+                                data-inventory-status-toggle
+                                data-state=""{statusToggleState}""
+                                aria-pressed=""{(isCellaredOnly ? "true" : "false")}""
+                                aria-label=""{statusToggleAnnouncement}"">
+                            <span class=""inventory-status-toggle__state"" data-inventory-status-toggle-label>{statusToggleLabel}</span>
+                            <span class=""inventory-status-toggle__hint"" data-inventory-status-toggle-hint>{statusToggleHint}</span>
+                            <span class=""sr-only"" data-inventory-status-toggle-sr>{statusToggleAnnouncement}</span>
                         </button>
                     </div>
-                </div>
-                <button type=""button"" class=""wine-surfer-button wine-surfer-button--orange inventory-add-trigger"" data-add-wine-trigger=""inventory"">Add wine</button>
-            ")
+                ");
+
+                builder.AppendHtml(@"
+                    <button type=""button"" class=""wine-surfer-button wine-surfer-button--orange inventory-add-trigger"" data-add-wine-trigger=""inventory"">Add wine</button>
+                ");
+
+                return builder;
+            }
         }).GetAwaiter().GetResult(),
         DataTableKey = "summary",
         BackgroundCssClass = "crud-table crud-table--bare",

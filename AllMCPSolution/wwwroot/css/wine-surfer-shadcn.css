@@ -2756,6 +2756,8 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
     align-items: center;
     gap: 12px;
     margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .inventory-section-header__filter {
@@ -2804,6 +2806,53 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 .inventory-section-header__filter-clear:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px hsla(var(--ring) / 0.35);
+}
+
+.inventory-status-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.inventory-status-toggle__label {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: hsla(var(--muted-foreground) / 0.85);
+}
+
+.inventory-status-toggle__button {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 8px 18px;
+    text-transform: none;
+    letter-spacing: normal;
+    line-height: 1.2;
+}
+
+.inventory-status-toggle__button[data-state="cellared"] {
+    background: hsla(var(--muted) / 0.16);
+    border-color: hsla(var(--muted-foreground) / 0.45);
+}
+
+.inventory-status-toggle__button[data-state="cellared"]:hover,
+.inventory-status-toggle__button[data-state="cellared"]:focus-visible {
+    background: hsla(var(--muted) / 0.24);
+}
+
+.inventory-status-toggle__state {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.inventory-status-toggle__hint {
+    font-size: 11px;
+    color: hsla(var(--muted-foreground) / 0.85);
+    letter-spacing: normal;
+    text-transform: none;
 }
 
 .location-header {
