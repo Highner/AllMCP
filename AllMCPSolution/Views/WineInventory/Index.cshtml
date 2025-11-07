@@ -102,6 +102,9 @@
 
     var headerFilterValue = HtmlEncoder.Default.Encode(Model.Search ?? string.Empty);
     var isCellaredOnly = string.Equals(Model.Status, "cellared", StringComparison.OrdinalIgnoreCase);
+    var bottleCountHeader = isCellaredOnly
+        ? "Bottles (pending/cellared)"
+        : "Bottles (pending/cellared/drunk)";
     var statusToggleState = isCellaredOnly ? "cellared" : "all";
     var statusToggleLabel = HtmlEncoder.Default.Encode(isCellaredOnly ? "Cellared only" : "All bottles");
     var statusToggleHint = HtmlEncoder.Default.Encode(isCellaredOnly ? "Tap to show all bottles" : "Tap to show cellared only");
@@ -188,7 +191,7 @@
                             </a>
                         </th>
                         <th class="summary-header summary-header--bottles">
-                            <span class="header-text">Bottles (pending/cellared/drunk)</span>
+                            <span class="header-text">@bottleCountHeader</span>
                         </th>
                         <th class="summary-header summary-header--color">
                             <a class="sort-header @SortStateClass("color")" href="@BuildSortUrl("color")">
@@ -274,8 +277,16 @@
                                 <td class="summary-region">@regionDisplay</td>
                                 <td class="summary-appellation">@display</td>
                                 <td class="summary-bottles" data-field="bottle-count">
-                                    <span aria-hidden="true">@bottle.PendingBottleCount/@bottle.CellaredBottleCount/@bottle.DrunkBottleCount</span>
-                                    <span class="sr-only">@bottle.PendingBottleCount pending, @bottle.CellaredBottleCount cellared, @bottle.DrunkBottleCount enjoyed</span>
+                                    @if (isCellaredOnly)
+                                    {
+                                        <span aria-hidden="true">@bottle.PendingBottleCount/@bottle.CellaredBottleCount</span>
+                                        <span class="sr-only">@bottle.PendingBottleCount pending, @bottle.CellaredBottleCount cellared</span>
+                                    }
+                                    else
+                                    {
+                                        <span aria-hidden="true">@bottle.PendingBottleCount/@bottle.CellaredBottleCount/@bottle.DrunkBottleCount</span>
+                                        <span class="sr-only">@bottle.PendingBottleCount pending, @bottle.CellaredBottleCount cellared, @bottle.DrunkBottleCount enjoyed</span>
+                                    }
                                 </td>
                                 <td class="summary-color">@bottle.Color</td>
                                 <td class="summary-status"><span class="status-pill @bottle.StatusCssClass" data-field="status">@bottle.StatusLabel</span></td>

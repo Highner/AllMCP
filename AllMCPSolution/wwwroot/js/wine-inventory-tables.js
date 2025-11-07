@@ -44,7 +44,21 @@
             }
 
             const normalized = value.trim().toLowerCase();
-            return normalized === 'cellared' ? 'cellared' : 'all';
+            switch (normalized) {
+                case 'pending':
+                case 'drunk':
+                case 'cellared':
+                    return normalized;
+                case 'undrunk':
+                    return 'cellared';
+                default:
+                    return 'all';
+            }
+        }
+
+        function getActiveStatusFilter() {
+            const raw = filtersStatusInput?.value ?? statusToggleButton?.dataset.state ?? 'all';
+            return normalizeStatusValue(raw);
         }
 
         function updateStatusToggleUI(status) {
@@ -79,6 +93,53 @@
 
             const hasValue = headerFilterInput.value.trim().length > 0;
             headerFilterClearButton.hidden = !hasValue;
+        }
+
+        function formatCountWithLabel(count, singular, plural) {
+            const safeCount = Number.isFinite(count) ? count : 0;
+            const formatted = safeCount.toLocaleString();
+            const noun = safeCount === 1 ? singular : plural;
+            return `${formatted} ${noun}`;
+        }
+
+        function buildBottleCountCopy(pending, cellared, drunk, statusFilter) {
+            const normalizedStatus = normalizeStatusValue(statusFilter);
+            const safePending = Number.isFinite(pending) ? pending : 0;
+            const safeCellared = Number.isFinite(cellared) ? cellared : 0;
+            const safeDrunk = Number.isFinite(drunk) ? drunk : 0;
+            const pendingFormatted = safePending.toLocaleString();
+            const cellaredFormatted = safeCellared.toLocaleString();
+            const drunkFormatted = safeDrunk.toLocaleString();
+            const pendingPart = formatCountWithLabel(safePending, 'pending bottle', 'pending bottles');
+            const cellaredPart = formatCountWithLabel(safeCellared, 'cellared bottle', 'cellared bottles');
+            const drunkPart = formatCountWithLabel(safeDrunk, 'enjoyed bottle', 'enjoyed bottles');
+
+            switch (normalizedStatus) {
+                case 'pending':
+                    return {
+                        hidden: pendingFormatted,
+                        accessible: pendingPart,
+                        ariaLabelSuffix: `(${pendingFormatted} pending)`
+                    };
+                case 'cellared':
+                    return {
+                        hidden: `${pendingFormatted}/${cellaredFormatted}`,
+                        accessible: `${pendingPart}, ${cellaredPart}`,
+                        ariaLabelSuffix: `(${pendingFormatted} pending, ${cellaredFormatted} cellared)`
+                    };
+                case 'drunk':
+                    return {
+                        hidden: drunkFormatted,
+                        accessible: drunkPart,
+                        ariaLabelSuffix: `(${drunkFormatted} enjoyed)`
+                    };
+                default:
+                    return {
+                        hidden: `${pendingFormatted}/${cellaredFormatted}/${drunkFormatted}`,
+                        accessible: `${pendingPart}, ${cellaredPart}, ${drunkPart}`,
+                        ariaLabelSuffix: `(${pendingFormatted} pending, ${cellaredFormatted} cellared, ${drunkFormatted} enjoyed)`
+                    };
+            }
         }
 
         function cancelInlineDetailsRequest() {
@@ -667,8 +728,11 @@
                 : (Array.isArray(payload?.details) ? payload.details : []);
 
             if (wineId) {
-                const aggregated = aggregateVintageCounts(details);
-                vintageSummaryCache.set(wineId, aggregated);
+                const statusFilter = getActiveStatusFilter();
+                const aggregated = aggregateVintageCounts(details, statusFilter);
+                const cacheEntry = new Map();
+                cacheEntry.set(statusFilter, aggregated);
+                vintageSummaryCache.set(wineId, cacheEntry);
             }
 
             if (row.classList.contains('selected')) {
@@ -726,17 +790,15 @@
                         : 0;
                 const hiddenDisplay = bottlesCell.querySelector('span[aria-hidden="true"]');
                 const accessibleDisplay = bottlesCell.querySelector('.sr-only');
+                const statusFilter = getActiveStatusFilter();
+                const copy = buildBottleCountCopy(pending, cellared, drunk, statusFilter);
 
                 if (hiddenDisplay) {
-                    hiddenDisplay.textContent = `${pending.toLocaleString()}/${cellared.toLocaleString()}/${drunk.toLocaleString()}`;
+                    hiddenDisplay.textContent = copy.hidden;
                 }
 
                 if (accessibleDisplay) {
-                    const parts = [];
-                    parts.push(`${pending} ${pending === 1 ? 'pending bottle' : 'pending bottles'}`);
-                    parts.push(`${cellared} ${cellared === 1 ? 'cellared bottle' : 'cellared bottles'}`);
-                    parts.push(`${drunk} ${drunk === 1 ? 'enjoyed bottle' : 'enjoyed bottles'}`);
-                    accessibleDisplay.textContent = parts.join(', ');
+                    accessibleDisplay.textContent = copy.accessible;
                 }
             }
 
@@ -909,7 +971,7 @@
                 }
             }
 
-            function renderVintageView(vintages) {
+            function renderVintageView(vintages, statusFilter) {
                 if (!tableElement || !tableBody || !statusElement || !emptyElement) {
                     return;
                 }
@@ -922,16 +984,19 @@
                     return;
                 }
 
-                renderVintageRows(tableBody, vintages);
+                renderVintageRows(tableBody, vintages, statusFilter);
                 tableElement.removeAttribute('hidden');
                 emptyElement.setAttribute('hidden', 'hidden');
                 statusElement.setAttribute('hidden', 'hidden');
                 statusElement.classList.remove('inventory-inline-status--error');
             }
 
-            const cached = vintageSummaryCache.get(wineId);
+            const statusFilter = getActiveStatusFilter();
+            const normalizedStatus = normalizeStatusValue(statusFilter);
+            const cachedByStatus = vintageSummaryCache.get(wineId);
+            const cached = cachedByStatus?.get(normalizedStatus);
             if (cached) {
-                renderVintageView(cached);
+                renderVintageView(cached, normalizedStatus);
                 return;
             }
 
@@ -948,14 +1013,17 @@
                     signal: abortController.signal
                 });
                 const details = Array.isArray(response?.details) ? response.details : [];
-                const aggregated = aggregateVintageCounts(details);
-                vintageSummaryCache.set(wineId, aggregated);
+                const aggregated = aggregateVintageCounts(details, normalizedStatus);
+                if (!vintageSummaryCache.has(wineId)) {
+                    vintageSummaryCache.set(wineId, new Map());
+                }
+                vintageSummaryCache.get(wineId).set(normalizedStatus, aggregated);
 
                 if (!inlineRow.isConnected || expandedInventoryRow !== row) {
                     return;
                 }
 
-                renderVintageView(aggregated);
+                renderVintageView(aggregated, normalizedStatus);
             } catch (error) {
                 if (abortController.signal.aborted || error?.name === 'AbortError') {
                     return;
@@ -986,12 +1054,14 @@
             return inventoryInlineTemplate.content.firstElementChild.cloneNode(true);
         }
 
-        function renderVintageRows(tbody, vintages) {
+        function renderVintageRows(tbody, vintages, statusFilter) {
             if (!tbody || !inventoryInlineRowTemplate?.content?.firstElementChild) {
                 return;
             }
 
             tbody.innerHTML = '';
+
+            const normalizedStatus = normalizeStatusValue(statusFilter);
 
             vintages.forEach((vintage) => {
                 const templateRow = inventoryInlineRowTemplate.content.firstElementChild.cloneNode(true);
@@ -1055,15 +1125,14 @@
                     bottleCell.dataset.drunkCount = String(formattedDrunk);
                 }
 
+                const copy = buildBottleCountCopy(formattedPending, formattedCellared, formattedDrunk, normalizedStatus);
+
                 if (bottleDisplay) {
-                    bottleDisplay.textContent = `${formattedPending.toLocaleString()}/${formattedCellared.toLocaleString()}/${formattedDrunk.toLocaleString()}`;
+                    bottleDisplay.textContent = copy.hidden;
                 }
 
                 if (bottleAccessible) {
-                    const pendingNoun = formattedPending === 1 ? 'pending bottle' : 'pending bottles';
-                    const cellaredNoun = formattedCellared === 1 ? 'cellared bottle' : 'cellared bottles';
-                    const drunkNoun = formattedDrunk === 1 ? 'enjoyed bottle' : 'enjoyed bottles';
-                    bottleAccessible.textContent = `${formattedPending} ${pendingNoun}, ${formattedCellared} ${cellaredNoun}, ${formattedDrunk} ${drunkNoun}`;
+                    bottleAccessible.textContent = copy.accessible;
                 }
 
                 if (noteCell) {
@@ -1079,12 +1148,12 @@
                     totalCount: Number.isFinite(totalCount) ? totalCount : formattedPending + formattedCellared + formattedDrunk
                 };
 
-                bindVintageInlineRow(templateRow, { ...vintage, ...counts });
+                bindVintageInlineRow(templateRow, { ...vintage, ...counts }, normalizedStatus);
                 tbody.appendChild(templateRow);
             });
         }
 
-        function bindVintageInlineRow(row, vintage) {
+        function bindVintageInlineRow(row, vintage, statusFilter) {
             if (!(row instanceof HTMLTableRowElement)) {
                 return;
             }
@@ -1120,9 +1189,10 @@
                 ? vintage.totalCount
                 : pendingCount + cellaredCount + drunkCount;
             const totalBottleNoun = totalCount === 1 ? 'bottle' : 'bottles';
+            const copy = buildBottleCountCopy(pendingCount, cellaredCount, drunkCount, statusFilter);
             row.setAttribute(
                 'aria-label',
-                `View ${totalCount} ${totalBottleNoun} from vintage ${vintageLabel} (${pendingCount} pending, ${cellaredCount} cellared, ${drunkCount} enjoyed)`
+                `View ${totalCount} ${totalBottleNoun} from vintage ${vintageLabel} ${copy.ariaLabelSuffix}`
             );
 
             const openBottleModal = () => {
@@ -1144,12 +1214,14 @@
             });
         }
 
-        function aggregateVintageCounts(details) {
+        function aggregateVintageCounts(details, statusFilter) {
             const results = new Map();
 
             if (!Array.isArray(details)) {
                 return [];
             }
+
+            const normalizedStatus = normalizeStatusValue(statusFilter);
 
             details.forEach((detail) => {
                 const vintageId = detail?.wineVintageId;
@@ -1157,7 +1229,6 @@
                     return;
                 }
 
-                const existing = results.get(vintageId);
                 const hasScore = typeof detail?.currentUserScore === 'number'
                     && Number.isFinite(detail.currentUserScore);
                 const scoreValue = hasScore ? detail.currentUserScore : 0;
@@ -1185,6 +1256,25 @@
                 })();
                 const isDrunk = Boolean(detail?.isDrunk);
                 const isPending = Boolean(detail?.pendingDelivery ?? detail?.PendingDelivery);
+
+                const include = (() => {
+                    switch (normalizedStatus) {
+                        case 'pending':
+                            return isPending;
+                        case 'cellared':
+                            return !isPending && !isDrunk;
+                        case 'drunk':
+                            return !isPending && isDrunk;
+                        default:
+                            return true;
+                    }
+                })();
+
+                if (!include) {
+                    return;
+                }
+
+                const existing = results.get(vintageId);
 
                 if (existing) {
                     existing.totalCount += 1;
@@ -1258,7 +1348,9 @@
                 return bVintage - aVintage;
             });
 
-            return aggregated;
+            return aggregated.filter((entry) => {
+                return Number.isFinite(entry.totalCount) && entry.totalCount > 0;
+            });
         }
 
         function normalizeDrinkingWindowYear(value) {
