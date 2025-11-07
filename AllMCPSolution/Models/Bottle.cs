@@ -8,6 +8,8 @@ public class Bottle
     public bool IsDrunk { get; set; }
     public DateTime? DrunkAt { get; set; }
 
+    public bool PendingDelivery { get; set; }
+
     public Guid WineVintageId { get; set; }
     public WineVintage WineVintage { get; set; } = null!;
 

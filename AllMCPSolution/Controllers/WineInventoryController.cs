@@ -186,7 +186,8 @@ public partial class WineInventoryController : Controller
         query = normalizedStatus switch
         {
             "drunk" => query.Where(b => b.IsDrunk),
-            "cellared" or "undrunk" => query.Where(b => !b.IsDrunk),
+            "pending" => query.Where(b => b.PendingDelivery),
+            "cellared" or "undrunk" => query.Where(b => !b.IsDrunk && !b.PendingDelivery),
             _ => query
         };
 
@@ -206,6 +207,21 @@ public partial class WineInventoryController : Controller
         var descending = string.Equals(normalizedSortDir, "desc", StringComparison.OrdinalIgnoreCase);
         var filteredBottles = query.ToList();
         var sortSource = filteredBottles.AsEnumerable();
+
+        static int GetStatusRank(Bottle bottle)
+        {
+            if (bottle.PendingDelivery)
+            {
+                return 0;
+            }
+
+            if (bottle.IsDrunk)
+            {
+                return 2;
+            }
+
+            return 1;
+        }
 
         IOrderedEnumerable<Bottle> ordered = normalizedSortField switch
         {
@@ -228,8 +244,8 @@ public partial class WineInventoryController : Controller
                     .ThenBy(b => b.WineVintage.Wine.SubAppellation?.Appellation?.Name)
                     .ThenBy(b => b.WineVintage.Wine.SubAppellation?.Name),
             "status" => descending
-                ? sortSource.OrderByDescending(b => b.IsDrunk)
-                : sortSource.OrderBy(b => b.IsDrunk),
+                ? sortSource.OrderByDescending(GetStatusRank)
+                : sortSource.OrderBy(GetStatusRank),
             "score" => descending
                 ? sortSource.OrderByDescending(b => GetAverageScore(b.WineVintageId))
                 : sortSource.OrderBy(b => GetAverageScore(b.WineVintageId)),
@@ -257,12 +273,15 @@ public partial class WineInventoryController : Controller
                 var bottlesInWine = group.ToList();
                 var firstBottle = bottlesInWine.First();
                 var totalCount = bottlesInWine.Count;
+                var pendingCount = bottlesInWine.Count(b => b.PendingDelivery);
                 var drunkCount = bottlesInWine.Count(b => b.IsDrunk);
-                var availableCount = Math.Max(totalCount - drunkCount, 0);
-                var (statusLabel, statusClass) = drunkCount switch
+                var cellaredCount = Math.Max(totalCount - pendingCount - drunkCount, 0);
+
+                var (statusLabel, statusClass) = (pendingCount, cellaredCount, drunkCount) switch
                 {
-                    var d when d == 0 => ("Cellared", "cellared"),
-                    var d when d == totalCount => ("Drunk", "drunk"),
+                    var (pending, _, drunk) when pending > 0 && drunk == 0 && cellaredCount == 0 => ("Pending", "pending"),
+                    var (_, cellared, drunk) when cellared > 0 && drunk == 0 && pendingCount == 0 => ("Cellared", "cellared"),
+                    var (_, _, drunk) when drunk == totalCount && totalCount > 0 => ("Drunk", "drunk"),
                     _ => ("Mixed", "mixed")
                 };
 
@@ -271,7 +290,7 @@ public partial class WineInventoryController : Controller
                 var windowAlignmentScores = new List<decimal>();
 
                 var undrunkVintageIds = bottlesInWine
-                    .Where(bottle => !bottle.IsDrunk)
+                    .Where(bottle => !bottle.IsDrunk && !bottle.PendingDelivery)
                     .Select(bottle => bottle.WineVintageId)
                     .Distinct();
 
@@ -310,7 +329,9 @@ public partial class WineInventoryController : Controller
                     Vintage = 0, // displayed as — in the view
                     Color = firstBottle.WineVintage.Wine.Color.ToString(),
                     BottleCount = totalCount,
-                    AvailableBottleCount = availableCount,
+                    PendingBottleCount = pendingCount,
+                    CellaredBottleCount = cellaredCount,
+                    DrunkBottleCount = drunkCount,
                     StatusLabel = statusLabel,
                     StatusCssClass = statusClass,
                     AverageScore = CalculateAverageScore(bottlesInWine),
@@ -401,6 +422,7 @@ public partial class WineInventoryController : Controller
             StatusOptions = new List<FilterOption>
             {
                 new("all", "All Bottles"),
+                new("pending", "Pending delivery"),
                 new("cellared", "Cellared"),
                 new("drunk", "Drunk")
             }
@@ -955,6 +977,7 @@ public partial class WineInventoryController : Controller
                         IsDrunk = isConsumed,
                         DrunkAt = isConsumed ? consumptionDate : null,
                         Price = null,
+                        PendingDelivery = false,
                         BottleLocationId = null,
                         UserId = currentUserId
                     };
@@ -1918,6 +1941,7 @@ public partial class WineInventoryController : Controller
                 IsDrunk = false,
                 DrunkAt = null,
                 Price = null,
+                PendingDelivery = false,
                 BottleLocationId = bottleLocation?.Id,
                 UserId = currentUserId
             };
@@ -2021,6 +2045,7 @@ public partial class WineInventoryController : Controller
                 IsDrunk = false,
                 DrunkAt = null,
                 Price = null,
+                PendingDelivery = false,
                 BottleLocationId = bottleLocation?.Id,
                 UserId = currentUserId
             };
@@ -2104,6 +2129,7 @@ public partial class WineInventoryController : Controller
                 Price = null,
                 IsDrunk = false,
                 DrunkAt = null,
+                PendingDelivery = false,
                 BottleLocationId = bottleLocation?.Id,
                 UserId = user.Id
             };
@@ -2286,18 +2312,19 @@ public partial class WineInventoryController : Controller
         var isDrunk = request.IsDrunk;
         var drunkAt = NormalizeDrunkAt(isDrunk, request.DrunkAt);
 
-        for (var i = 0; i < quantity; i++)
-        {
-            var bottle = new Bottle
+            for (var i = 0; i < quantity; i++)
             {
-                Id = Guid.NewGuid(),
-                WineVintageId = request.WineVintageId,
-                Price = request.Price,
-                IsDrunk = isDrunk,
-                DrunkAt = drunkAt,
-                BottleLocationId = bottleLocation?.Id,
-                UserId = targetUserId
-            };
+                var bottle = new Bottle
+                {
+                    Id = Guid.NewGuid(),
+                    WineVintageId = request.WineVintageId,
+                    Price = request.Price,
+                    IsDrunk = isDrunk,
+                    DrunkAt = drunkAt,
+                    PendingDelivery = isDrunk ? false : request.PendingDelivery,
+                    BottleLocationId = bottleLocation?.Id,
+                    UserId = targetUserId
+                };
 
             await _bottleRepository.AddAsync(bottle, cancellationToken);
         }
@@ -2441,6 +2468,7 @@ public partial class WineInventoryController : Controller
         bottle.Price = request.Price;
         bottle.IsDrunk = request.IsDrunk;
         bottle.DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt);
+        bottle.PendingDelivery = request.IsDrunk ? false : request.PendingDelivery;
         bottle.BottleLocationId = bottleLocation?.Id;
 
         await _bottleRepository.UpdateAsync(bottle, cancellationToken);
@@ -2492,6 +2520,7 @@ public partial class WineInventoryController : Controller
         bottle.Price = request.Price;
         bottle.IsDrunk = request.IsDrunk;
         bottle.DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt);
+        bottle.PendingDelivery = request.IsDrunk ? false : request.PendingDelivery;
         bottle.BottleLocationId = bottleLocation?.Id;
 
         await _bottleRepository.UpdateAsync(bottle, cancellationToken);
@@ -2723,12 +2752,14 @@ public partial class WineInventoryController : Controller
         }
 
         var totalCount = ownedBottles.Count;
+        var pendingCount = ownedBottles.Count(b => b.PendingDelivery);
         var drunkCount = ownedBottles.Count(b => b.IsDrunk);
-        var availableCount = Math.Max(totalCount - drunkCount, 0);
-        var (statusLabel, statusClass) = drunkCount switch
+        var cellaredCount = Math.Max(totalCount - pendingCount - drunkCount, 0);
+        var (statusLabel, statusClass) = (pendingCount, cellaredCount, drunkCount) switch
         {
-            var d when d == 0 => ("Cellared", "cellared"),
-            var d when d == totalCount => ("Drunk", "drunk"),
+            var (pending, _, drunk) when pending > 0 && drunk == 0 && cellaredCount == 0 => ("Pending", "pending"),
+            var (_, cellared, drunk) when cellared > 0 && drunk == 0 && pendingCount == 0 => ("Cellared", "cellared"),
+            var (_, _, drunk) when drunk == totalCount && totalCount > 0 => ("Drunk", "drunk"),
             _ => ("Mixed", "mixed")
         };
 
@@ -2740,7 +2771,7 @@ public partial class WineInventoryController : Controller
 
         foreach (var bottle in ownedBottles)
         {
-            if (drinkingWindowsByVintageId.TryGetValue(bottle.WineVintageId, out var window))
+            if (!bottle.PendingDelivery && drinkingWindowsByVintageId.TryGetValue(bottle.WineVintageId, out var window))
             {
                 summaryWindowStartYears.Add(window.StartingYear);
                 summaryWindowEndYears.Add(window.EndingYear);
@@ -2773,7 +2804,9 @@ public partial class WineInventoryController : Controller
             Vintage = 0,
             Color = first.WineVintage.Wine.Color.ToString(),
             BottleCount = totalCount,
-            AvailableBottleCount = availableCount,
+            PendingBottleCount = pendingCount,
+            CellaredBottleCount = cellaredCount,
+            DrunkBottleCount = drunkCount,
             StatusLabel = statusLabel,
             StatusCssClass = statusClass,
             AverageScore = CalculateAverageScore(ownedBottles),
@@ -2784,6 +2817,7 @@ public partial class WineInventoryController : Controller
 
         var details = ownedBottles
             .OrderByDescending(b => b.WineVintage.Vintage)
+            .ThenBy(b => b.PendingDelivery ? 0 : 1)
             .ThenBy(b => b.IsDrunk)
             .ThenBy(b => b.DrunkAt ?? DateTime.MaxValue)
             .Select(b =>
@@ -2801,6 +2835,7 @@ public partial class WineInventoryController : Controller
                     Price = b.Price,
                     IsDrunk = b.IsDrunk,
                     DrunkAt = b.DrunkAt,
+                    PendingDelivery = b.PendingDelivery,
                     BottleLocationId = b.BottleLocationId,
                     BottleLocation = b.BottleLocation?.Name ?? "—",
                     UserId = b.UserId,
@@ -2854,7 +2889,8 @@ public partial class WineInventoryController : Controller
         var drinkingWindow = await _drinkingWindowRepository.FindAsync(userId, wineVintageId, cancellationToken);
         var summary = CreateBottleGroupViewModel(wineVintageId, ownedBottles, averageScore, drinkingWindow);
         var details = ownedBottles
-            .OrderBy(b => b.IsDrunk)
+            .OrderBy(b => b.PendingDelivery ? 0 : 1)
+            .ThenBy(b => b.IsDrunk)
             .ThenBy(b => b.DrunkAt ?? DateTime.MaxValue)
             .Select(b =>
             {
@@ -2869,6 +2905,7 @@ public partial class WineInventoryController : Controller
                     Price = b.Price,
                     IsDrunk = b.IsDrunk,
                     DrunkAt = b.DrunkAt,
+                    PendingDelivery = b.PendingDelivery,
                     BottleLocationId = b.BottleLocationId,
                     BottleLocation = b.BottleLocation?.Name ?? "—",
                     UserId = b.UserId,
@@ -3214,7 +3251,8 @@ public partial class WineInventoryController : Controller
                         .Select(bottle => bottle.WineVintageId)
                         .Distinct()
                         .Count(),
-                    DrunkBottleCount = group.Count(bottle => bottle.IsDrunk)
+                    DrunkBottleCount = group.Count(bottle => bottle.IsDrunk),
+                    PendingBottleCount = group.Count(bottle => bottle.PendingDelivery)
                 });
 
         return userLocations
@@ -3229,12 +3267,13 @@ public partial class WineInventoryController : Controller
                         Capacity = location.Capacity,
                         BottleCount = 0,
                         UniqueWineCount = 0,
+                        PendingBottleCount = 0,
                         CellaredBottleCount = 0,
                         DrunkBottleCount = 0
                     };
                 }
 
-                var cellaredCount = summary.BottleCount - summary.DrunkBottleCount;
+                var cellaredCount = summary.BottleCount - summary.DrunkBottleCount - summary.PendingBottleCount;
 
                 return new WineInventoryLocationViewModel
                 {
@@ -3243,6 +3282,7 @@ public partial class WineInventoryController : Controller
                     Capacity = location.Capacity,
                     BottleCount = summary.BottleCount,
                     UniqueWineCount = summary.UniqueWineCount,
+                    PendingBottleCount = Math.Max(summary.PendingBottleCount, 0),
                     CellaredBottleCount = Math.Max(cellaredCount, 0),
                     DrunkBottleCount = summary.DrunkBottleCount
                 };
@@ -3294,6 +3334,7 @@ public partial class WineInventoryController : Controller
             UserName = bottle.User?.Name ?? string.Empty,
             IsDrunk = bottle.IsDrunk,
             DrunkAt = bottle.DrunkAt,
+            PendingDelivery = bottle.PendingDelivery,
             BottleAverageScore = CalculateAverageScore(bottle),
             GroupAverageScore = groupAverageScore
         };
@@ -3311,13 +3352,15 @@ public partial class WineInventoryController : Controller
     {
         var firstBottle = bottles.First();
         var totalCount = bottles.Count;
+        var pendingCount = bottles.Count(b => b.PendingDelivery);
         var drunkCount = bottles.Count(b => b.IsDrunk);
-        var availableCount = Math.Max(totalCount - drunkCount, 0);
+        var cellaredCount = Math.Max(totalCount - pendingCount - drunkCount, 0);
 
-        var (statusLabel, statusClass) = drunkCount switch
+        var (statusLabel, statusClass) = (pendingCount, cellaredCount, drunkCount) switch
         {
-            var d when d == 0 => ("Cellared", "cellared"),
-            var d when d == totalCount => ("Drunk", "drunk"),
+            var (pending, _, drunk) when pending > 0 && drunk == 0 && cellaredCount == 0 => ("Pending", "pending"),
+            var (_, cellared, drunk) when cellared > 0 && drunk == 0 && pendingCount == 0 => ("Cellared", "cellared"),
+            var (_, _, drunk) when drunk == totalCount && totalCount > 0 => ("Drunk", "drunk"),
             _ => ("Mixed", "mixed")
         };
 
@@ -3334,7 +3377,9 @@ public partial class WineInventoryController : Controller
             Vintage = firstBottle.WineVintage.Vintage,
             Color = firstBottle.WineVintage.Wine.Color.ToString(),
             BottleCount = totalCount,
-            AvailableBottleCount = availableCount,
+            PendingBottleCount = pendingCount,
+            CellaredBottleCount = cellaredCount,
+            DrunkBottleCount = drunkCount,
             StatusLabel = statusLabel,
             StatusCssClass = statusClass,
             AverageScore = averageScore,
@@ -3536,7 +3581,9 @@ public class WineInventoryViewModel
         public int Vintage { get; set; }
         public string Color { get; set; } = string.Empty;
         public int BottleCount { get; set; }
-        public int AvailableBottleCount { get; set; }
+        public int PendingBottleCount { get; set; }
+        public int CellaredBottleCount { get; set; }
+        public int DrunkBottleCount { get; set; }
         public string StatusLabel { get; set; } = string.Empty;
         public string StatusCssClass { get; set; } = string.Empty;
         public decimal? AverageScore { get; set; }
@@ -3551,6 +3598,7 @@ public class WineInventoryViewModel
         public decimal? Price { get; set; }
         public bool IsDrunk { get; set; }
         public DateTime? DrunkAt { get; set; }
+        public bool PendingDelivery { get; set; }
         public Guid? BottleLocationId { get; set; }
         public string BottleLocation { get; set; } = string.Empty;
         public Guid? UserId { get; set; }
@@ -3577,6 +3625,7 @@ public class WineInventoryViewModel
         public int? Capacity { get; set; }
         public int BottleCount { get; set; }
         public int UniqueWineCount { get; set; }
+        public int PendingBottleCount { get; set; }
         public int CellaredBottleCount { get; set; }
         public int DrunkBottleCount { get; set; }
     }
@@ -3605,6 +3654,8 @@ public class WineInventoryViewModel
         public Guid? BottleLocationId { get; set; }
 
         public Guid? UserId { get; set; }
+
+        public bool PendingDelivery { get; set; }
 
         [Range(1, 12)] public int Quantity { get; set; } = 1;
     }
@@ -3928,6 +3979,7 @@ public class WineInventoryViewModel
         public string UserName { get; set; } = string.Empty;
         public bool IsDrunk { get; set; }
         public DateTime? DrunkAt { get; set; }
+        public bool PendingDelivery { get; set; }
         public decimal? BottleAverageScore { get; set; }
         public decimal? GroupAverageScore { get; set; }
     }

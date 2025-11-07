@@ -635,23 +635,34 @@
 
             const bottlesCell = row.querySelector('[data-field="bottle-count"]');
             if (bottlesCell) {
-                const available = Number.isFinite(group?.availableBottleCount)
-                    ? Number(group.availableBottleCount)
-                    : 0;
-                const total = Number.isFinite(group?.bottleCount)
-                    ? Number(group.bottleCount)
-                    : available;
+                const pending = Number.isFinite(group?.pendingBottleCount)
+                    ? Number(group.pendingBottleCount)
+                    : Number.isFinite(group?.pendingCount)
+                        ? Number(group.pendingCount)
+                        : 0;
+                const cellared = Number.isFinite(group?.cellaredBottleCount)
+                    ? Number(group.cellaredBottleCount)
+                    : Number.isFinite(group?.availableBottleCount)
+                        ? Number(group.availableBottleCount)
+                        : 0;
+                const drunk = Number.isFinite(group?.drunkBottleCount)
+                    ? Number(group.drunkBottleCount)
+                    : Number.isFinite(group?.drunkCount)
+                        ? Number(group.drunkCount)
+                        : 0;
                 const hiddenDisplay = bottlesCell.querySelector('span[aria-hidden="true"]');
                 const accessibleDisplay = bottlesCell.querySelector('.sr-only');
 
                 if (hiddenDisplay) {
-                    hiddenDisplay.textContent = `${available.toLocaleString()}/${total.toLocaleString()}`;
+                    hiddenDisplay.textContent = `${pending.toLocaleString()}/${cellared.toLocaleString()}/${drunk.toLocaleString()}`;
                 }
 
                 if (accessibleDisplay) {
-                    const availableNoun = available === 1 ? 'bottle' : 'bottles';
-                    const totalNoun = total === 1 ? 'bottle' : 'bottles';
-                    accessibleDisplay.textContent = `${available} ${availableNoun} available of a total of ${total} ${totalNoun}`;
+                    const parts = [];
+                    parts.push(`${pending} ${pending === 1 ? 'pending bottle' : 'pending bottles'}`);
+                    parts.push(`${cellared} ${cellared === 1 ? 'cellared bottle' : 'cellared bottles'}`);
+                    parts.push(`${drunk} ${drunk === 1 ? 'enjoyed bottle' : 'enjoyed bottles'}`);
+                    accessibleDisplay.textContent = parts.join(', ');
                 }
             }
 
@@ -930,41 +941,46 @@
                     surfScoreCell.textContent = formatAlignmentScore(vintage?.alignmentScore);
                 }
 
-                const availableCount = typeof vintage?.availableCount === 'number'
-                    ? vintage.availableCount
-                    : (typeof vintage?.count === 'number' ? vintage.count : 0);
-                const enjoyedCount = typeof vintage?.drunkCount === 'number'
+                const pendingCount = typeof vintage?.pendingCount === 'number'
+                    ? vintage.pendingCount
+                    : (typeof vintage?.pendingBottleCount === 'number' ? vintage.pendingBottleCount : 0);
+                const cellaredCount = typeof vintage?.cellaredCount === 'number'
+                    ? vintage.cellaredCount
+                    : (typeof vintage?.availableCount === 'number'
+                        ? vintage.availableCount
+                        : (typeof vintage?.count === 'number' ? vintage.count : 0));
+                const drunkCount = typeof vintage?.drunkCount === 'number'
                     ? vintage.drunkCount
                     : 0;
                 const totalCount = typeof vintage?.totalCount === 'number'
                     ? vintage.totalCount
-                    : availableCount + enjoyedCount;
+                    : pendingCount + cellaredCount + drunkCount;
 
-                const formattedAvailable = Number.isFinite(availableCount)
-                    ? availableCount
+                const formattedPending = Number.isFinite(pendingCount)
+                    ? pendingCount
                     : 0;
-                const formattedTotal = Number.isFinite(totalCount)
-                    ? totalCount
-                    : formattedAvailable + (Number.isFinite(enjoyedCount) ? enjoyedCount : 0);
-                const formattedEnjoyed = Number.isFinite(enjoyedCount)
-                    ? enjoyedCount
+                const formattedCellared = Number.isFinite(cellaredCount)
+                    ? cellaredCount
+                    : 0;
+                const formattedDrunk = Number.isFinite(drunkCount)
+                    ? drunkCount
                     : 0;
 
                 if (bottleCell) {
-                    bottleCell.dataset.availableCount = String(formattedAvailable);
-                    bottleCell.dataset.totalCount = String(formattedTotal);
-                    bottleCell.dataset.enjoyedCount = String(formattedEnjoyed);
+                    bottleCell.dataset.pendingCount = String(formattedPending);
+                    bottleCell.dataset.cellaredCount = String(formattedCellared);
+                    bottleCell.dataset.drunkCount = String(formattedDrunk);
                 }
 
                 if (bottleDisplay) {
-                    bottleDisplay.textContent = `${formattedAvailable.toLocaleString()}/${formattedTotal.toLocaleString()}`;
+                    bottleDisplay.textContent = `${formattedPending.toLocaleString()}/${formattedCellared.toLocaleString()}/${formattedDrunk.toLocaleString()}`;
                 }
 
                 if (bottleAccessible) {
-                    const availableNoun = formattedAvailable === 1 ? 'bottle' : 'bottles';
-                    const totalNoun = formattedTotal === 1 ? 'bottle' : 'bottles';
-                    const enjoyedNoun = formattedEnjoyed === 1 ? 'bottle' : 'bottles';
-                    bottleAccessible.textContent = `${formattedAvailable} ${availableNoun} available of a total of ${formattedTotal} ${totalNoun} (${formattedEnjoyed} ${enjoyedNoun} enjoyed)`;
+                    const pendingNoun = formattedPending === 1 ? 'pending bottle' : 'pending bottles';
+                    const cellaredNoun = formattedCellared === 1 ? 'cellared bottle' : 'cellared bottles';
+                    const drunkNoun = formattedDrunk === 1 ? 'enjoyed bottle' : 'enjoyed bottles';
+                    bottleAccessible.textContent = `${formattedPending} ${pendingNoun}, ${formattedCellared} ${cellaredNoun}, ${formattedDrunk} ${drunkNoun}`;
                 }
 
                 if (noteCell) {
@@ -974,9 +990,10 @@
                 }
 
                 const counts = {
-                    availableCount,
-                    drunkCount: enjoyedCount,
-                    totalCount
+                    pendingCount: formattedPending,
+                    cellaredCount: formattedCellared,
+                    drunkCount: formattedDrunk,
+                    totalCount: Number.isFinite(totalCount) ? totalCount : formattedPending + formattedCellared + formattedDrunk
                 };
 
                 bindVintageInlineRow(templateRow, { ...vintage, ...counts });
@@ -1007,17 +1024,22 @@
             row.setAttribute('role', 'button');
 
             const vintageLabel = formatVintageLabel(vintage?.vintage);
-            const availableCount = typeof vintage?.availableCount === 'number'
-                ? vintage.availableCount
-                : (typeof vintage?.count === 'number' ? vintage.count : 0);
+            const pendingCount = typeof vintage?.pendingCount === 'number'
+                ? vintage.pendingCount
+                : (typeof vintage?.pendingBottleCount === 'number' ? vintage.pendingBottleCount : 0);
+            const cellaredCount = typeof vintage?.cellaredCount === 'number'
+                ? vintage.cellaredCount
+                : (typeof vintage?.availableCount === 'number'
+                    ? vintage.availableCount
+                    : (typeof vintage?.count === 'number' ? vintage.count : 0));
             const drunkCount = typeof vintage?.drunkCount === 'number' ? vintage.drunkCount : 0;
             const totalCount = typeof vintage?.totalCount === 'number'
                 ? vintage.totalCount
-                : availableCount + drunkCount;
+                : pendingCount + cellaredCount + drunkCount;
             const totalBottleNoun = totalCount === 1 ? 'bottle' : 'bottles';
             row.setAttribute(
                 'aria-label',
-                `View ${totalCount} ${totalBottleNoun} from vintage ${vintageLabel} (${availableCount} available, ${drunkCount} enjoyed)`
+                `View ${totalCount} ${totalBottleNoun} from vintage ${vintageLabel} (${pendingCount} pending, ${cellaredCount} cellared, ${drunkCount} enjoyed)`
             );
 
             const openBottleModal = () => {
@@ -1079,13 +1101,16 @@
                     return null;
                 })();
                 const isDrunk = Boolean(detail?.isDrunk);
+                const isPending = Boolean(detail?.pendingDelivery ?? detail?.PendingDelivery);
 
                 if (existing) {
                     existing.totalCount += 1;
-                    if (isDrunk) {
+                    if (isPending) {
+                        existing.pendingCount += 1;
+                    } else if (isDrunk) {
                         existing.drunkCount += 1;
                     } else {
-                        existing.availableCount += 1;
+                        existing.cellaredCount += 1;
                     }
                     if (hasScore) {
                         existing.scoreTotal += scoreValue;
@@ -1108,8 +1133,9 @@
                         wineVintageId: vintageId,
                         vintage: detail?.vintage,
                         totalCount: 1,
-                        availableCount: isDrunk ? 0 : 1,
-                        drunkCount: isDrunk ? 1 : 0,
+                        pendingCount: isPending ? 1 : 0,
+                        cellaredCount: (!isPending && !isDrunk) ? 1 : 0,
+                        drunkCount: (!isPending && isDrunk) ? 1 : 0,
                         scoreTotal: scoreValue,
                         scoreCount: hasScore ? 1 : 0,
                         alignmentScore,
@@ -1125,13 +1151,17 @@
                     ? Math.round((entry.scoreTotal / entry.scoreCount) * 10) / 10
                     : null;
 
+                const total = Number.isFinite(entry.totalCount)
+                    ? entry.totalCount
+                    : entry.pendingCount + entry.cellaredCount + entry.drunkCount;
+
                 return {
                     wineVintageId: entry.wineVintageId,
                     vintage: entry.vintage,
-                    count: entry.availableCount,
-                    availableCount: entry.availableCount,
+                    pendingCount: entry.pendingCount,
+                    cellaredCount: entry.cellaredCount,
                     drunkCount: entry.drunkCount,
-                    totalCount: entry.totalCount,
+                    totalCount: total,
                     averageScore,
                     alignmentScore: entry.alignmentScore,
                     note: entry.note,
@@ -1746,8 +1776,13 @@
 
             const bottleCount = Number(counts?.bottleCount ?? card.dataset.bottleCount ?? 0) || 0;
             const uniqueCount = Number(counts?.uniqueCount ?? card.dataset.uniqueCount ?? 0) || 0;
+            const pendingCount = Number(counts?.pendingCount ?? card.dataset.pendingCount ?? 0) || 0;
             const drunkCount = Number(counts?.drunkCount ?? card.dataset.drunkCount ?? 0) || 0;
-            let cellaredCount = Number(counts?.cellaredCount ?? card.dataset.cellaredCount ?? (bottleCount - drunkCount)) || 0;
+            let cellaredCount = Number(
+                counts?.cellaredCount
+                ?? card.dataset.cellaredCount
+                ?? (bottleCount - pendingCount - drunkCount)
+            ) || 0;
 
             if (cellaredCount < 0) {
                 cellaredCount = 0;
@@ -1755,6 +1790,7 @@
 
             card.dataset.bottleCount = String(Math.max(bottleCount, 0));
             card.dataset.uniqueCount = String(Math.max(uniqueCount, 0));
+            card.dataset.pendingCount = String(Math.max(pendingCount, 0));
             card.dataset.cellaredCount = String(cellaredCount);
             card.dataset.drunkCount = String(Math.max(drunkCount, 0));
         }
@@ -1765,9 +1801,17 @@
             }
 
             const bottleCount = Number(card.dataset.bottleCount ?? '0') || 0;
+            const pendingCount = Number(card.dataset.pendingCount ?? '0') || 0;
             const cellaredCount = Number(card.dataset.cellaredCount ?? '0') || 0;
             const drunkCount = Number(card.dataset.drunkCount ?? '0') || 0;
             const capacity = getLocationCapacity(card);
+
+            const summaryParts = [
+                `${pendingCount} pending`,
+                `${cellaredCount} cellared`,
+                `${drunkCount} enjoyed`
+            ];
+            const bottleSummary = summaryParts.join(' · ');
 
             const bottleTarget = card.querySelector('[data-location-bottle-count]');
             if (bottleTarget) {
@@ -1822,7 +1866,7 @@
 
                     if (remainingTarget) {
                         const fillSummary = bottleCount > 0
-                            ? `${cellaredCount} cellared · ${drunkCount} enjoyed`
+                            ? bottleSummary
                             : 'Add a capacity to track fill';
                         remainingTarget.textContent = fillSummary;
                     }
@@ -1835,8 +1879,7 @@
             const descriptionTarget = card.querySelector('[data-location-description]');
             if (descriptionTarget) {
                 if (bottleCount > 0) {
-                    const safeCellared = Math.max(cellaredCount, 0);
-                    let description = `${safeCellared} cellared · ${drunkCount} enjoyed`;
+                    let description = bottleSummary;
 
                     if (capacity != null) {
                         const remaining = capacity - bottleCount;
@@ -2214,6 +2257,7 @@
                 const counts = {
                     bottleCount: Number(summary?.BottleCount ?? summary?.bottleCount ?? 0) || 0,
                     uniqueCount: Number(summary?.UniqueWineCount ?? summary?.uniqueWineCount ?? 0) || 0,
+                    pendingCount: Number(summary?.PendingBottleCount ?? summary?.pendingBottleCount ?? 0) || 0,
                     cellaredCount: Number(summary?.CellaredBottleCount ?? summary?.cellaredBottleCount ?? 0) || 0,
                     drunkCount: Number(summary?.DrunkBottleCount ?? summary?.drunkBottleCount ?? 0) || 0
                 };
