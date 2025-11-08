@@ -20,6 +20,8 @@ public interface IBottleRepository
     Task<IReadOnlyList<Bottle>> GetAvailableForUserAsync(Guid userId, CancellationToken ct = default);
     Task<IReadOnlyList<Bottle>> GetForUserAsync(Guid userId, CancellationToken ct = default);
     Task<bool> MarkAsDrunkAsync(Guid bottleId, Guid ownerUserId, DateTime? drunkAt, CancellationToken ct = default);
+    Task<IReadOnlyList<Bottle>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default);
+    Task UpdateManyAsync(IEnumerable<Bottle> bottles, CancellationToken ct = default);
 }
 
 public class BottleRepository : IBottleRepository
@@ -93,6 +95,41 @@ public class BottleRepository : IBottleRepository
 
         await _db.SaveChangesAsync(ct);
         return true;
+    }
+
+    public async Task<IReadOnlyList<Bottle>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default)
+    {
+        if (ids is null)
+        {
+            return Array.Empty<Bottle>();
+        }
+
+        var idList = ids
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        if (idList.Count == 0)
+        {
+            return Array.Empty<Bottle>();
+        }
+
+        return await _db.Bottles
+            .AsNoTracking()
+            .Where(b => idList.Contains(b.Id))
+            .ToListAsync(ct);
+    }
+
+    public async Task UpdateManyAsync(IEnumerable<Bottle> bottles, CancellationToken ct = default)
+    {
+        var entities = bottles?.ToList();
+        if (entities is null || entities.Count == 0)
+        {
+            return;
+        }
+
+        _db.Bottles.UpdateRange(entities);
+        await _db.SaveChangesAsync(ct);
     }
 
 

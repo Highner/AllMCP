@@ -394,6 +394,40 @@ public partial class WineInventoryController : Controller
 
         var locationSummaries = BuildLocationSummaries(bottles, userLocations);
 
+        var locationOptions = userLocations
+            .Select(location => new BottleLocationOption
+            {
+                Id = location.Id,
+                Name = location.Name,
+                Capacity = location.Capacity
+            })
+            .ToList();
+
+        var pendingBottleOptions = bottles
+            .Where(bottle => bottle.PendingDelivery)
+            .OrderBy(bottle => bottle.WineVintage?.Wine?.Name ?? string.Empty)
+            .ThenBy(bottle => bottle.WineVintage?.Vintage ?? 0)
+            .Select(bottle => new PendingBottleOption
+            {
+                BottleId = bottle.Id,
+                WineVintageId = bottle.WineVintageId,
+                WineName = bottle.WineVintage?.Wine?.Name ?? "Unknown wine",
+                Vintage = bottle.WineVintage?.Vintage ?? 0,
+                SubAppellation = bottle.WineVintage?.Wine?.SubAppellation?.Name,
+                Appellation = bottle.WineVintage?.Wine?.SubAppellation?.Appellation?.Name,
+                Region = bottle.WineVintage?.Wine?.SubAppellation?.Appellation?.Region?.Name,
+                LocationName = bottle.BottleLocation?.Name
+            })
+            .ToList();
+
+        var pendingBottleCount = pendingBottleOptions.Count;
+
+        var acceptDeliveriesModal = new AcceptDeliveriesModalViewModel
+        {
+            PendingBottles = pendingBottleOptions,
+            Locations = locationOptions
+        };
+
         var highlightedLocationIds = hasActiveFilters
             ? filteredBottles
                 .Where(bottle => bottle.BottleLocationId.HasValue
@@ -413,15 +447,10 @@ public partial class WineInventoryController : Controller
             Locations = locationSummaries,
             InventoryAddModal = new InventoryAddModalViewModel
             {
-                Locations = userLocations
-                    .Select(location => new BottleLocationOption
-                    {
-                        Id = location.Id,
-                        Name = location.Name,
-                        Capacity = location.Capacity
-                    })
-                    .ToList()
+                Locations = locationOptions
             },
+            AcceptDeliveriesModal = acceptDeliveriesModal,
+            PendingBottleCount = pendingBottleCount,
             HasActiveFilters = hasActiveFilters,
             HighlightedLocationIds = highlightedLocationIds,
             StatusOptions = new List<FilterOption>
@@ -2513,6 +2542,85 @@ public partial class WineInventoryController : Controller
         return Json(response);
     }
 
+    [HttpPost("deliveries/accept")]
+    public async Task<IActionResult> AcceptDeliveries([FromBody] AcceptDeliveriesRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        if (!TryGetCurrentUserId(out var currentUserId))
+        {
+            return Challenge();
+        }
+
+        if (request.LocationId == Guid.Empty)
+        {
+            ModelState.AddModelError(nameof(request.LocationId), "Choose a storage location for the delivered bottles.");
+            return ValidationProblem(ModelState);
+        }
+
+        var requestedBottleIds = request.BottleIds?
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList() ?? new List<Guid>();
+
+        if (requestedBottleIds.Count == 0)
+        {
+            ModelState.AddModelError(nameof(request.BottleIds), "Select at least one pending bottle to accept.");
+            return ValidationProblem(ModelState);
+        }
+
+        var location = await _bottleLocationRepository.GetByIdAsync(request.LocationId, cancellationToken);
+        if (location is null || location.UserId != currentUserId)
+        {
+            ModelState.AddModelError(nameof(request.LocationId), "Storage location was not found.");
+            return ValidationProblem(ModelState);
+        }
+
+        var bottles = await _bottleRepository.GetByIdsAsync(requestedBottleIds, cancellationToken);
+        var bottleList = bottles.ToList();
+
+        if (bottleList.Count != requestedBottleIds.Count)
+        {
+            return NotFound();
+        }
+
+        var unauthorizedBottle = bottleList.FirstOrDefault(bottle => bottle.UserId != currentUserId);
+        if (unauthorizedBottle is not null)
+        {
+            return NotFound();
+        }
+
+        var alreadyAccepted = bottleList.FirstOrDefault(bottle => !bottle.PendingDelivery);
+        if (alreadyAccepted is not null)
+        {
+            ModelState.AddModelError(nameof(request.BottleIds),
+                "One or more bottles are no longer pending delivery. Refresh and try again.");
+            return ValidationProblem(ModelState);
+        }
+
+        foreach (var bottle in bottleList)
+        {
+            bottle.PendingDelivery = false;
+            bottle.BottleLocationId = location.Id;
+            bottle.BottleLocation = null;
+            bottle.UserId = currentUserId;
+        }
+
+        _logger.LogInformation(
+            "AcceptDeliveries updating {BottleCount} bottles to location {LocationId} for user {UserId}.",
+            bottleList.Count,
+            location.Id,
+            currentUserId);
+
+        await _bottleRepository.UpdateManyAsync(bottleList, cancellationToken);
+
+        return NoContent();
+    }
+
     // Fallback endpoint to support environments that disallow HTTP PUT from the client
     [HttpPost("bottles/{id:guid}/drink")]
     public async Task<IActionResult> DrinkBottle(Guid id, [FromBody] BottleMutationRequest request,
@@ -3617,6 +3725,9 @@ public class WineInventoryViewModel
         Array.Empty<WineInventoryLocationViewModel>();
 
     public InventoryAddModalViewModel InventoryAddModal { get; set; } = new();
+    public AcceptDeliveriesModalViewModel AcceptDeliveriesModal { get; set; } =
+        AcceptDeliveriesModalViewModel.Empty;
+    public int PendingBottleCount { get; set; }
     public bool HasActiveFilters { get; set; }
     public IReadOnlySet<Guid> HighlightedLocationIds { get; set; } = new HashSet<Guid>();
     public IReadOnlyList<FilterOption> StatusOptions { get; set; } = Array.Empty<FilterOption>();
@@ -3712,6 +3823,15 @@ public class WineInventoryViewModel
         public bool PendingDelivery { get; set; }
 
         [Range(1, 12)] public int Quantity { get; set; } = 1;
+    }
+
+    public class AcceptDeliveriesRequest
+    {
+        [Required]
+        public Guid LocationId { get; set; }
+
+        [MinLength(1)]
+        public IReadOnlyList<Guid> BottleIds { get; set; } = Array.Empty<Guid>();
     }
 
     public class DrinkingWindowRequest
