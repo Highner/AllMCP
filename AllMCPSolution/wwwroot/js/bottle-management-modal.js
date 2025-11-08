@@ -307,7 +307,7 @@
                 .filter((value) => value !== null)
             : [];
 
-        const previousSelection = state.selectedLocationId;
+        const previousSelection = normalizeLocationId(state.selectedLocationId);
         state.locations = normalized;
 
         select.innerHTML = '';
@@ -334,14 +334,14 @@
             && normalized.some((location) => location.id === previousSelection);
         const targetValue = hasPrevious ? previousSelection : '';
         select.value = targetValue;
-        state.selectedLocationId = targetValue || null;
+        state.selectedLocationId = normalizeLocationId(targetValue);
         select.removeAttribute('disabled');
     };
 
     const syncControlState = () => {
         const locationSelect = qs(SELECTORS.locationSelect);
         if (locationSelect) {
-            state.selectedLocationId = locationSelect.value ? locationSelect.value : null;
+            state.selectedLocationId = normalizeLocationId(locationSelect.value);
         }
 
         const quantitySelect = qs(SELECTORS.quantitySelect);
@@ -662,6 +662,29 @@
         return String(value).trim();
     };
 
+    const normalizeLocationId = (value) => {
+        if (value == null) {
+            return null;
+        }
+
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (!trimmed) {
+                return null;
+            }
+
+            const lowered = trimmed.toLowerCase();
+            if (lowered === 'null' || lowered === 'undefined') {
+                return null;
+            }
+
+            return trimmed;
+        }
+
+        const normalized = String(value).trim();
+        return normalized ? normalized : null;
+    };
+
     const buildBottleLabel = (wineName, vintage) => {
         const segments = [];
 
@@ -922,6 +945,13 @@
             bottleLocationId: null
         };
 
+        console.info('[BottleManagementModal] Preparing bottle update payload', {
+            bottleId,
+            updates,
+            recordSnapshot: record,
+            draftPayload: payload
+        });
+
         const nextPrice = updates.price !== undefined ? updates.price : record.price;
         if (nextPrice == null || nextPrice === '') {
             payload.price = null;
@@ -935,15 +965,14 @@
         }
 
         const nextLocation = updates.bottleLocationId !== undefined
-            ? updates.bottleLocationId
-            : record.bottleLocationId;
-        if (nextLocation == null || nextLocation === '') {
-            payload.bottleLocationId = null;
-        } else if (typeof nextLocation === 'string') {
-            payload.bottleLocationId = nextLocation;
-        } else {
-            payload.bottleLocationId = String(nextLocation);
-        }
+            ? normalizeLocationId(updates.bottleLocationId)
+            : normalizeLocationId(record.bottleLocationId);
+        payload.bottleLocationId = nextLocation ?? null;
+
+        console.info('[BottleManagementModal] Sending bottle update payload', {
+            bottleId,
+            payload
+        });
 
         if (payload.drunkAt === '') {
             payload.drunkAt = null;
@@ -963,6 +992,13 @@
             const contentType = response.headers.get('Content-Type') ?? '';
             const isJson = raw && contentType.toLowerCase().includes('application/json');
             let data = null;
+
+            console.info('[BottleManagementModal] Bottle update response received', {
+                bottleId,
+                status: response.status,
+                ok: response.ok,
+                rawBody: raw
+            });
 
             if (raw && isJson) {
                 try {
@@ -1147,6 +1183,12 @@
             const isJson = contentType.toLowerCase().includes('application/json');
             let data = null;
 
+            console.info('[BottleManagementModal] Bottle removal response received', {
+                status: response.status,
+                ok: response.ok,
+                rawBody: raw
+            });
+
             if (raw && isJson) {
                 try {
                     data = JSON.parse(raw);
@@ -1309,12 +1351,25 @@
             return;
         }
 
-        const newValueRaw = typeof select.value === 'string' ? select.value.trim() : '';
-        const currentValue = record.bottleLocationId ?? '';
-        if (newValueRaw === currentValue || (!newValueRaw && !currentValue)) {
-            select.value = currentValue;
+        const newValue = normalizeLocationId(select.value);
+        const currentValue = normalizeLocationId(record.bottleLocationId);
+        if (newValue === currentValue) {
+            console.info('[BottleManagementModal] Ignoring location change because the normalized value matches the current state', {
+                bottleId,
+                rawValue: select.value,
+                normalizedValue: newValue,
+                currentValue
+            });
+            select.value = currentValue ?? '';
             return;
         }
+
+        console.info('[BottleManagementModal] Saving bottle location change', {
+            bottleId,
+            rawValue: select.value,
+            normalizedValue: newValue,
+            currentValue
+        });
 
         select.setAttribute('disabled', '');
         select.dataset.state = 'saving';
@@ -1322,14 +1377,19 @@
         let success = false;
         try {
             success = await updateBottle(bottleId, {
-                bottleLocationId: newValueRaw ? newValueRaw : null
+                bottleLocationId: newValue
+            });
+            console.info('[BottleManagementModal] Bottle location change result', {
+                bottleId,
+                normalizedValue: newValue,
+                success
             });
         } catch (error) {
             console.error('Failed to update bottle location', error);
             showError('We could not update that bottle right now. Please try again.');
         } finally {
             if (!success) {
-                select.value = currentValue;
+                select.value = currentValue ?? '';
             }
 
             select.removeAttribute('disabled');
@@ -1828,7 +1888,7 @@
         }
 
         select.addEventListener('change', () => {
-            state.selectedLocationId = select.value ? select.value : null;
+            state.selectedLocationId = normalizeLocationId(select.value);
         });
     };
 
@@ -1931,9 +1991,20 @@
 
             state.quantity = payload.quantity;
 
-            if (state.selectedLocationId) {
-                payload.bottleLocationId = state.selectedLocationId;
-            }
+            const normalizedLocationId = normalizeLocationId(state.selectedLocationId);
+
+            payload.bottleLocationId = normalizedLocationId ?? null;
+
+            console.info('[BottleManagementModal] Sending add bottle payload', {
+                payload,
+                stateSnapshot: {
+                    wineVintageId: state.wineVintageId,
+                    selectedLocationId: state.selectedLocationId,
+                    normalizedLocationId,
+                    quantity: state.quantity,
+                    pendingDelivery: state.pendingDelivery
+                }
+            });
 
             const response = await fetch('/wine-manager/bottles', {
                 method: 'POST',
@@ -1948,6 +2019,12 @@
             const contentType = response.headers.get('Content-Type') ?? '';
             const isJson = contentType.toLowerCase().includes('application/json');
             let data = null;
+
+            console.info('[BottleManagementModal] Add bottle response received', {
+                status: response.status,
+                ok: response.ok,
+                rawBody: raw
+            });
 
             if (raw && isJson) {
                 try {

@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.Extensions.Logging;
 using AllMCPSolution.Utilities;
 using OpenAI.Chat;
 
@@ -35,6 +37,7 @@ public partial class WineInventoryController : Controller
     private readonly IChatGptService _chatGptService;
     private readonly IChatGptPromptService _chatGptPromptService;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ILogger<WineInventoryController> _logger;
 
 
 
@@ -92,7 +95,8 @@ public partial class WineInventoryController : Controller
         ICellarTrackerImportService cellarTrackerImportService,
         IChatGptService chatGptService,
         IChatGptPromptService chatGptPromptService,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        ILogger<WineInventoryController> logger)
     {
         _bottleRepository = bottleRepository;
         _bottleLocationRepository = bottleLocationRepository;
@@ -113,6 +117,7 @@ public partial class WineInventoryController : Controller
         _chatGptService = chatGptService;
         _chatGptPromptService = chatGptPromptService;
         _userManager = userManager;
+        _logger = logger;
     }
 
     [HttpGet("")]
@@ -2275,30 +2280,43 @@ public partial class WineInventoryController : Controller
     {
         if (!ModelState.IsValid)
         {
+            _logger.LogWarning("Invalid create bottle request for wine vintage {WineVintageId}: {Errors}", request?.WineVintageId, FormatModelStateErrors(ModelState));
             return ValidationProblem(ModelState);
         }
 
+        _logger.LogInformation("CreateBottle request received for wine vintage {WineVintageId}. Requested location: {BottleLocationId}. Quantity: {Quantity}. Pending delivery: {PendingDelivery}", request.WineVintageId, request.BottleLocationId, request.Quantity, request.PendingDelivery);
+
         if (!TryGetCurrentUserId(out var currentUserId))
         {
+            _logger.LogWarning("CreateBottle request for wine vintage {WineVintageId} rejected because the user is not authenticated.", request.WineVintageId);
             return Challenge();
         }
 
         var existingBottles = await _bottleRepository.GetByWineVintageIdAsync(request.WineVintageId, cancellationToken);
         if (!existingBottles.Any(bottle => bottle.UserId == currentUserId))
         {
+            _logger.LogWarning("CreateBottle request for wine vintage {WineVintageId} denied because user {UserId} does not own a bottle in this group.", request.WineVintageId, currentUserId);
             return NotFound();
         }
 
         BottleLocation? bottleLocation = null;
         if (request.BottleLocationId.HasValue)
         {
+            _logger.LogInformation("CreateBottle verifying requested location {BottleLocationId} for wine vintage {WineVintageId}.", request.BottleLocationId, request.WineVintageId);
             bottleLocation =
                 await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
             if (bottleLocation is null)
             {
+                _logger.LogWarning("CreateBottle request for wine vintage {WineVintageId} failed because bottle location {BottleLocationId} was not found.", request.WineVintageId, request.BottleLocationId);
                 ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
                 return ValidationProblem(ModelState);
             }
+
+            _logger.LogInformation("CreateBottle request resolved bottle location {BottleLocationId} named {BottleLocationName}.", bottleLocation.Id, bottleLocation.Name);
+        }
+        else
+        {
+            _logger.LogInformation("CreateBottle request for wine vintage {WineVintageId} will assign no location.", request.WineVintageId);
         }
 
         Guid targetUserId = currentUserId;
@@ -2432,30 +2450,45 @@ public partial class WineInventoryController : Controller
     {
         if (!ModelState.IsValid)
         {
+            _logger.LogWarning("Invalid update request for bottle {BottleId}: {Errors}", id, FormatModelStateErrors(ModelState));
             return ValidationProblem(ModelState);
         }
 
+        _logger.LogInformation("UpdateBottle request received for bottle {BottleId} (wine vintage {WineVintageId}). Requested location: {BottleLocationId}. Pending delivery: {PendingDelivery}. Price: {Price}", id, request.WineVintageId, request.BottleLocationId, request.PendingDelivery, request.Price);
+
         if (!TryGetCurrentUserId(out var currentUserId))
         {
+            _logger.LogWarning("UpdateBottle request for bottle {BottleId} rejected because the user is not authenticated.", id);
             return Challenge();
         }
 
         var bottle = await _bottleRepository.GetByIdAsync(id, cancellationToken);
         if (bottle is null || bottle.UserId != currentUserId)
         {
+            _logger.LogWarning("UpdateBottle request for bottle {BottleId} failed because the bottle could not be found for user {UserId}.", id, currentUserId);
             return NotFound();
         }
+
+        _logger.LogInformation("UpdateBottle current bottle location is {BottleLocationId}.", bottle.BottleLocationId);
 
         BottleLocation? bottleLocation = null;
         if (request.BottleLocationId.HasValue)
         {
+            _logger.LogInformation("UpdateBottle request will verify bottle location {BottleLocationId} for bottle {BottleId}.", request.BottleLocationId, id);
             bottleLocation =
                 await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
             if (bottleLocation is null)
             {
+                _logger.LogWarning("UpdateBottle request for bottle {BottleId} failed because bottle location {BottleLocationId} was not found.", id, request.BottleLocationId);
                 ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
                 return ValidationProblem(ModelState);
             }
+
+            _logger.LogInformation("UpdateBottle request resolved bottle location {BottleLocationId} named {BottleLocationName}.", bottleLocation.Id, bottleLocation.Name);
+        }
+        else
+        {
+            _logger.LogInformation("UpdateBottle request for bottle {BottleId} will clear the bottle location.", id);
         }
 
         if (request.UserId.HasValue && request.UserId.Value != currentUserId)
@@ -2470,6 +2503,9 @@ public partial class WineInventoryController : Controller
         bottle.DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt);
         bottle.PendingDelivery = request.IsDrunk ? false : request.PendingDelivery;
         bottle.BottleLocationId = bottleLocation?.Id;
+        bottle.BottleLocation = null; // ensure EF does not reapply a stale navigation when updating
+
+        _logger.LogInformation("UpdateBottle persisting bottle {BottleId} with location {BottleLocationId}, price {Price}, pending delivery {PendingDelivery}, is drunk {IsDrunk}.", bottle.Id, bottle.BottleLocationId, bottle.Price, bottle.PendingDelivery, bottle.IsDrunk);
 
         await _bottleRepository.UpdateAsync(bottle, cancellationToken);
 
@@ -2484,30 +2520,45 @@ public partial class WineInventoryController : Controller
     {
         if (!ModelState.IsValid)
         {
+            _logger.LogWarning("Invalid drink bottle request for bottle {BottleId}: {Errors}", id, FormatModelStateErrors(ModelState));
             return ValidationProblem(ModelState);
         }
 
+        _logger.LogInformation("DrinkBottle request received for bottle {BottleId} (wine vintage {WineVintageId}). Requested location: {BottleLocationId}. Pending delivery: {PendingDelivery}. Price: {Price}.", id, request.WineVintageId, request.BottleLocationId, request.PendingDelivery, request.Price);
+
         if (!TryGetCurrentUserId(out var currentUserId))
         {
+            _logger.LogWarning("DrinkBottle request for bottle {BottleId} rejected because the user is not authenticated.", id);
             return Challenge();
         }
 
         var bottle = await _bottleRepository.GetByIdAsync(id, cancellationToken);
         if (bottle is null || bottle.UserId != currentUserId)
         {
+            _logger.LogWarning("DrinkBottle request for bottle {BottleId} failed because the bottle could not be found for user {UserId}.", id, currentUserId);
             return NotFound();
         }
+
+        _logger.LogInformation("DrinkBottle current bottle location is {BottleLocationId}.", bottle.BottleLocationId);
 
         BottleLocation? bottleLocation = null;
         if (request.BottleLocationId.HasValue)
         {
+            _logger.LogInformation("DrinkBottle request will verify bottle location {BottleLocationId} for bottle {BottleId}.", request.BottleLocationId, id);
             bottleLocation =
                 await _bottleLocationRepository.GetByIdAsync(request.BottleLocationId.Value, cancellationToken);
             if (bottleLocation is null)
             {
+                _logger.LogWarning("DrinkBottle request for bottle {BottleId} failed because bottle location {BottleLocationId} was not found.", id, request.BottleLocationId);
                 ModelState.AddModelError(nameof(request.BottleLocationId), "Bottle location was not found.");
                 return ValidationProblem(ModelState);
             }
+
+            _logger.LogInformation("DrinkBottle request resolved bottle location {BottleLocationId} named {BottleLocationName}.", bottleLocation.Id, bottleLocation.Name);
+        }
+        else
+        {
+            _logger.LogInformation("DrinkBottle request for bottle {BottleId} will clear the bottle location.", id);
         }
 
         if (request.UserId.HasValue && request.UserId.Value != currentUserId)
@@ -2522,6 +2573,9 @@ public partial class WineInventoryController : Controller
         bottle.DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt);
         bottle.PendingDelivery = request.IsDrunk ? false : request.PendingDelivery;
         bottle.BottleLocationId = bottleLocation?.Id;
+        bottle.BottleLocation = null; // ensure EF does not reapply a stale navigation when updating
+
+        _logger.LogInformation("DrinkBottle persisting bottle {BottleId} with location {BottleLocationId}, price {Price}, pending delivery {PendingDelivery}, is drunk {IsDrunk}.", bottle.Id, bottle.BottleLocationId, bottle.Price, bottle.PendingDelivery, bottle.IsDrunk);
 
         await _bottleRepository.UpdateAsync(bottle, cancellationToken);
 
@@ -3616,6 +3670,45 @@ public class WineInventoryViewModel
         public int? UserDrinkingWindowStartYear { get; set; }
         public int? UserDrinkingWindowEndYear { get; set; }
         public decimal? UserDrinkingWindowAlignmentScore { get; set; }
+    }
+
+    private static string FormatModelStateErrors(ModelStateDictionary modelState)
+    {
+        if (modelState is null)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+
+        foreach (var entry in modelState)
+        {
+            if (entry.Value?.Errors is null || entry.Value.Errors.Count == 0)
+            {
+                continue;
+            }
+
+            foreach (var error in entry.Value.Errors)
+            {
+                if (builder.Length > 0)
+                {
+                    builder.Append(" | ");
+                }
+
+                builder.Append(entry.Key);
+
+                if (!string.IsNullOrWhiteSpace(error.ErrorMessage))
+                {
+                    builder.Append(": ").Append(error.ErrorMessage);
+                }
+                else if (error.Exception is not null)
+                {
+                    builder.Append(": ").Append(error.Exception.Message);
+                }
+            }
+        }
+
+        return builder.Length == 0 ? "No model state errors recorded." : builder.ToString();
     }
 
     public class WineInventoryLocationViewModel
