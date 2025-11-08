@@ -120,6 +120,8 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
             var displayName = BuildWineDisplayName(wineVintage, wine);
             var origin = BuildWineOrigin(wine);
             var attributes = BuildWineAttributes(wine);
+            var ratingDate = DetermineRatingDate(bottle, note);
+            var ageAtRating = BuildWineAgeText(wineVintage, ratingDate);
             var score = note.Score!.Value.ToString("0.##", CultureInfo.InvariantCulture);
             var noteText = PrepareNoteText(note.Note);
 
@@ -141,6 +143,12 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
 
             builder.Append(" | Score: ");
             builder.Append(score);
+
+            if (!string.IsNullOrEmpty(ageAtRating))
+            {
+                builder.Append(" | Age at rating: ");
+                builder.Append(ageAtRating);
+            }
 
             if (!string.IsNullOrEmpty(noteText))
             {
@@ -322,6 +330,59 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
         }
 
         return name;
+    }
+
+    private static DateTime? DetermineRatingDate(Bottle? bottle, TastingNote? note)
+    {
+        if (note?.NotTasted == true)
+        {
+            return null;
+        }
+
+        if (bottle?.DrunkAt is { } drunkAt)
+        {
+            return drunkAt;
+        }
+
+        return null;
+    }
+
+    private static string BuildWineAgeText(WineVintage? wineVintage, DateTime? ratingDate)
+    {
+        if (wineVintage?.Vintage is null or <= 0)
+        {
+            return "Unknown";
+        }
+
+        var effectiveDate = ratingDate ?? DateTime.UtcNow;
+
+        try
+        {
+            var vintageDate = new DateTime(wineVintage.Vintage, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            if (effectiveDate < vintageDate)
+            {
+                return "<1 year";
+            }
+
+            var ageInDays = (effectiveDate - vintageDate).TotalDays;
+            var ageInYears = ageInDays / 365.2425d;
+
+            if (ageInYears < 1d)
+            {
+                return "<1 year";
+            }
+
+            if (ageInYears < 10d)
+            {
+                return $"{ageInYears:0.0} years";
+            }
+
+            return $"{Math.Round(ageInYears, 0, MidpointRounding.AwayFromZero)} years";
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return "Unknown";
+        }
     }
 
     private static string BuildWineOrigin(Wine? wine)
