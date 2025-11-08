@@ -115,9 +115,9 @@ public class WineSurferController : WineSurferControllerBase
         var currentPath = HttpContext?.Request?.Path.Value ?? string.Empty;
         ViewData["WineSurferTopBarModel"] = await _topBarService.BuildAsync(User, currentPath, cancellationToken);
 
-        var wines = await _wineRepository.GetAllAsync(cancellationToken);
+        //var wines = await _wineRepository.GetAllAsync(cancellationToken);
 
-        var highlightPoints = wines
+        /*var highlightPoints = wines
             .Where(w => w.SubAppellation?.Appellation?.Region is not null)
             .Select(w => new
             {
@@ -134,11 +134,11 @@ public class WineSurferController : WineSurferControllerBase
             .Where(point => point is not null)
             .Cast<MapHighlightPoint>()
             .OrderBy(point => point.Label)
-            .ToList();
+            .ToList();*/
 
         var now = DateTime.UtcNow;
         const int upcomingSipSessionLimit = 4;
-        var biggestSplashYear = now.Year;
+        //var biggestSplashYear = now.Year;
 
         WineSurferCurrentUser? currentUser = null;
         IReadOnlyList<WineSurferIncomingSisterhoodInvitation> incomingInvitations = Array.Empty<WineSurferIncomingSisterhoodInvitation>();
@@ -262,8 +262,8 @@ public class WineSurferController : WineSurferControllerBase
         }
 
         IReadOnlyList<WineSurferSisterhoodOption> manageableSisterhoods = Array.Empty<WineSurferSisterhoodOption>();
-        IReadOnlyList<WineSurferBiggestSplashWine> biggestSplashWines = Array.Empty<WineSurferBiggestSplashWine>();
-        IReadOnlyList<WineSurferSipSessionBottle> favoriteBottles = Array.Empty<WineSurferSipSessionBottle>();
+        //IReadOnlyList<WineSurferBiggestSplashWine> biggestSplashWines = Array.Empty<WineSurferBiggestSplashWine>();
+        //IReadOnlyList<WineSurferSipSessionBottle> favoriteBottles = Array.Empty<WineSurferSipSessionBottle>();
         IReadOnlyList<WineSurferSharedBottle> sharedBottles = Array.Empty<WineSurferSharedBottle>();
         IReadOnlyCollection<Guid> inventoryWineIds = Array.Empty<Guid>();
         IReadOnlyCollection<WineSurferInventoryWine> inventoryWineVintages = Array.Empty<WineSurferInventoryWine>();
@@ -275,7 +275,7 @@ public class WineSurferController : WineSurferControllerBase
                 .Select(s => new WineSurferSisterhoodOption(s.Id, s.Name, s.Description))
                 .ToList();
 
-            var ownedBottles = await _bottleRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
+            /*var ownedBottles = await _bottleRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
             if (ownedBottles.Count > 0)
             {
                 var ownedWineIds = new HashSet<Guid>();
@@ -303,17 +303,17 @@ public class WineSurferController : WineSurferControllerBase
                 if (ownedWineVintages.Count > 0)
                 {
                     inventoryWineVintages = ownedWineVintages;
-                }
+                }*/
 
-                favoriteBottles = CreateBottleSummaries(ownedBottles, currentUserId)
-                    .Where(bottle => bottle.CurrentUserScore.HasValue)
-                    .OrderByDescending(bottle => bottle.CurrentUserScore!.Value)
-                    .ThenBy(bottle => bottle.WineName, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(bottle => bottle.Vintage ?? int.MaxValue)
-                    .ThenBy(bottle => bottle.Label, StringComparer.OrdinalIgnoreCase)
-                    .Take(3)
-                    .ToList();
-            }
+                // favoriteBottles = CreateBottleSummaries(ownedBottles, currentUserId)
+                //     .Where(bottle => bottle.CurrentUserScore.HasValue)
+                //     .OrderByDescending(bottle => bottle.CurrentUserScore!.Value)
+                //     .ThenBy(bottle => bottle.WineName, StringComparer.OrdinalIgnoreCase)
+                //     .ThenBy(bottle => bottle.Vintage ?? int.MaxValue)
+                //     .ThenBy(bottle => bottle.Label, StringComparer.OrdinalIgnoreCase)
+                //     .Take(3)
+                //     .ToList();
+            //}
 
             var shareLookup = new Dictionary<Guid, BottleShare>();
 
@@ -354,7 +354,7 @@ public class WineSurferController : WineSurferControllerBase
                 }
             }
 
-            var evolutionScores = await _evolutionScoreRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
+            /*var evolutionScores = await _evolutionScoreRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
             if (evolutionScores.Count > 0)
             {
                 var topSplash = evolutionScores
@@ -419,7 +419,7 @@ public class WineSurferController : WineSurferControllerBase
                 {
                     biggestSplashWines = topSplash;
                 }
-            }
+            }*/
 
             suggestedAppellations = await _suggestedAppellationService.GetForUserAsync(currentUserId.Value, cancellationToken);
             if (suggestedAppellations.Count > 0)
@@ -435,21 +435,9 @@ public class WineSurferController : WineSurferControllerBase
 
                     suggestionHighlights.Add(highlight);
                 }
-
-                if (suggestionHighlights.Count > 0)
-                {
-                    highlightPoints.AddRange(suggestionHighlights);
-                }
             }
         }
 
-        if (highlightPoints.Count > 1)
-        {
-            highlightPoints = highlightPoints
-                .OrderBy(point => point.IsSuggested ? 1 : 0)
-                .ThenBy(point => point.Label, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
 
         await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken);
         await SetWineWizardViewDataAsync(currentUserId, cancellationToken);
@@ -463,20 +451,20 @@ public class WineSurferController : WineSurferControllerBase
             .ToList();
 
         var model = new WineSurferLandingViewModel(
-            highlightPoints,
+            //highlightPoints,
             currentUser,
             incomingInvitations,
             upcomingSipSessions,
             sentInvitationNotifications,
             manageableSisterhoods,
-            biggestSplashWines,
-            biggestSplashYear,
-            favoriteBottles,
+            //biggestSplashWines,
+            //biggestSplashYear,
+            //favoriteBottles,
             winesToDrink,
             sharedBottles,
-            suggestedAppellations,
-            inventoryWineIds,
-            inventoryWineVintages);
+            suggestedAppellations);//,
+            //inventoryWineIds,
+            //inventoryWineVintages);
         Response.ContentType = "text/html; charset=utf-8";
         return View("Index", model);
     }
@@ -4024,20 +4012,20 @@ public record WineSurferSuggestedWine(
 
 
 public record WineSurferLandingViewModel(
-    IReadOnlyList<MapHighlightPoint> HighlightPoints,
+    //IReadOnlyList<MapHighlightPoint> HighlightPoints,
     WineSurferCurrentUser? CurrentUser,
     IReadOnlyList<WineSurferIncomingSisterhoodInvitation> IncomingInvitations,
     IReadOnlyList<WineSurferUpcomingSipSession> UpcomingSipSessions,
     IReadOnlyList<WineSurferSentInvitationNotification> SentInvitationNotifications,
     IReadOnlyList<WineSurferSisterhoodOption> ManageableSisterhoods,
-    IReadOnlyList<WineSurferBiggestSplashWine> BiggestSplashWines,
-    int BiggestSplashYear,
-    IReadOnlyList<WineSurferSipSessionBottle> FavoriteBottles,
+    //IReadOnlyList<WineSurferBiggestSplashWine> BiggestSplashWines,
+    //int BiggestSplashYear,
+    //IReadOnlyList<WineSurferSipSessionBottle> FavoriteBottles,
     IReadOnlyList<WineSurferSipSessionBottle> WinesToDrink,
     IReadOnlyList<WineSurferSharedBottle> SharedBottles,
-    IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations,
-    IReadOnlyCollection<Guid> InventoryWineIds,
-    IReadOnlyCollection<WineSurferInventoryWine> InventoryWineVintages);
+    IReadOnlyList<WineSurferSuggestedAppellation> SuggestedAppellations);//,
+    //IReadOnlyCollection<Guid> InventoryWineIds,
+    //IReadOnlyCollection<WineSurferInventoryWine> InventoryWineVintages);
 
 public record WineSurferInventoryWine(Guid WineId, int Vintage);
 

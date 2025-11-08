@@ -1690,13 +1690,9 @@
                         }
                         else
                         {
-                            var inventoryWineVintages = Model.InventoryWineVintages ?? Array.Empty<WineSurferInventoryWine>();
+                            //var inventoryWineVintages = Model.InventoryWineVintages ?? Array.Empty<WineSurferInventoryWine>();
                             HashSet<(Guid WineId, int Vintage)>? inventoryWineVintageSet = null;
-                            if (inventoryWineVintages.Count > 0)
-                            {
-                                inventoryWineVintageSet = new HashSet<(Guid WineId, int Vintage)>(
-                                    inventoryWineVintages.Select(entry => (entry.WineId, entry.Vintage)));
-                            }
+                     
                             <p class="suggested-wines-message" data-suggested-message hidden role="status"></p>
                             <div class="suggested-wine-groups" role="list">
                                 @foreach (var suggestion in suggestionsWithWines)
@@ -2143,87 +2139,7 @@
                     });
                 })();
             </script>
-            <script id="wineHighlightData" type="application/json">
-                @Html.Raw(JsonSerializer.Serialize(Model.HighlightPoints
-                    .Select((point, index) => new
-                    {
-                        index,
-                        point.Label,
-                        point.Country,
-                        point.RegionName,
-                        point.SuggestionReason,
-                        point.Latitude,
-                        point.Longitude,
-                        point.BottlesCellared,
-                        point.BottlesConsumed,
-                        point.AverageScore,
-                        point.UserAverageScores,
-                        point.IsSuggested
-                    }), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))
-            </script>
-            <section class="regions-panel" aria-label="Highlighted wine regions">
-                @for (var i = 0; i < Model.HighlightPoints.Count; i++)
-                {
-                    var point = Model.HighlightPoints[i];
-                    var cardClasses = "region-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card";
-                    if (point.IsSuggested)
-                    {
-                        cardClasses += " region-card--suggested";
-                    }
-                    <article class="@cardClasses" data-region-index="@i" data-region-suggested="@(point.IsSuggested ? "true" : null)">
-                        @if (point.IsSuggested)
-                        {
-                            <span class="region-card__tag">Suggested</span>
-                        }
-                        <span class="label wine-card__title">@point.Label</span>
-                        @if (!string.IsNullOrWhiteSpace(point.Country))
-                        {
-                            <span class="country wine-card__subtitle">@point.Country</span>
-                        }
-                        @if (!point.IsSuggested)
-                        {
-                            <dl class="inventory-overview wine-card__stats" aria-label="Inventory overview for @point.Label">
-                                <div class="metric wine-card__stat">
-                                    <dt>Cellared</dt>
-                                    <dd>@point.BottlesCellared</dd>
-                                </div>
-                                <div class="metric wine-card__stat">
-                                    <dt>Consumed</dt>
-                                    <dd>@point.BottlesConsumed</dd>
-                                </div>
-                                <div class="metric wine-card__stat">
-                                    <dt>Avg. Score</dt>
-                                    <dd data-region-average>—</dd>
-                                </div>
-                            </dl>
-                        }
-                        else
-                        {
-                            var suggestionReason = string.IsNullOrWhiteSpace(point.SuggestionReason)
-                                ? null
-                                : point.SuggestionReason.Trim();
-                            <p class="region-card__suggested-note">
-                                @if (suggestionReason is not null)
-                                {
-                                    <span class="region-card__suggested-reason">@suggestionReason</span>
-                                }
-                                else
-                                {
-                                    <span>Suggested by your taste profile.</span>
-                                }
-                                <span class="region-card__suggested-instructions">Zoom the map to explore this appellation.</span>
-                            </p>
-                        }
-                    </article>
-                }
-                @if (!Model.HighlightPoints.Any())
-                {
-                    <article class="region-card wine-card wine-surface wine-surface-border wine-card-hover wine-surfer-card">
-                        <span class="label wine-card__title">No wine regions available yet</span>
-                        <span class="country wine-card__subtitle">Add bottles to your inventory to light up the map.</span>
-                    </article>
-                }
-            </section>
+            
         </main>
     </div>
     <script>
