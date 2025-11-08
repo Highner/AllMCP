@@ -3757,6 +3757,7 @@ public class WineInventoryViewModel
         public decimal? UserDrinkingWindowAlignmentScore { get; set; }
     }
 
+
     public class WineInventoryBottleDetailViewModel
     {
         public Guid BottleId { get; set; }

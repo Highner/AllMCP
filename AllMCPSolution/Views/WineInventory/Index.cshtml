@@ -120,7 +120,7 @@
         : "Bottles (pending/cellared/drunk)";
     var statusToggleState = isCellaredOnly ? "cellared" : "all";
     var statusToggleLabel = HtmlEncoder.Default.Encode(isCellaredOnly ? "Cellared only" : "All bottles");
-    var statusToggleHint = HtmlEncoder.Default.Encode(isCellaredOnly ? "Tap to show all bottles" : "Tap to show cellared only");
+    //var statusToggleHint = HtmlEncoder.Default.Encode(isCellaredOnly ? "Tap to show all bottles" : "Tap to show cellared only");
     var statusToggleAnnouncement = HtmlEncoder.Default.Encode(isCellaredOnly
         ? "Showing only cellared bottles. Activate to show all bottles."
         : "Showing all bottles. Activate to show only cellared bottles.");
@@ -157,7 +157,6 @@
 
                 builder.AppendHtml($@"
                     <div class=""inventory-status-toggle"" data-inventory-status-toggle-container>
-                        <span class=""inventory-status-toggle__label"">Show</span>
                         <button type=""button""
                                 class=""wine-surfer-button wine-surfer-button--ghost inventory-status-toggle__button""
                                 data-inventory-status-toggle
@@ -165,7 +164,7 @@
                                 aria-pressed=""{isCellaredOnly.ToString().ToLowerInvariant()}""
                                 aria-label=""{statusToggleAnnouncement}"">
                             <span class=""inventory-status-toggle__state"" data-inventory-status-toggle-label>{statusToggleLabel}</span>
-                            <span class=""inventory-status-toggle__hint"" data-inventory-status-toggle-hint>{statusToggleHint}</span>
+                            
                             <span class=""sr-only"" data-inventory-status-toggle-sr>{statusToggleAnnouncement}</span>
                         </button>
                     </div>
