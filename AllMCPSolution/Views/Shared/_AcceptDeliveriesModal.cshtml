@@ -48,6 +48,37 @@
         return parts.Count > 0 ? string.Join(" · ", parts) : string.Empty;
     }
 
+    string BuildFilterText(PendingBottleOption option)
+    {
+        var values = new List<string>();
+
+        void TryAdd(string? value)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                values.Add(value.Trim());
+            }
+        }
+
+        TryAdd(BuildWineLabel(option));
+        TryAdd(option.WineName);
+        TryAdd(option.SubAppellation);
+        TryAdd(option.Appellation);
+        TryAdd(option.Region);
+        TryAdd(option.LocationName);
+
+        return values.Count == 0
+            ? string.Empty
+            : string.Join(" ", values).ToLowerInvariant();
+    }
+
+    string BuildLocationDisplay(PendingBottleOption option)
+    {
+        return string.IsNullOrWhiteSpace(option.LocationName)
+            ? "—"
+            : option.LocationName.Trim();
+    }
+
     var overlayAttributes = new Dictionary<string, string?>
     {
         ["hidden"] = null,
@@ -82,46 +113,69 @@
         CloseButtonCssClass = "wine-surfer-modal__close accept-deliveries-close",
         CloseButtonLabel = "Close accept deliveries dialog",
         CloseButtonAttributes = closeAttributes,
-        BodyContent = @<section class="accept-deliveries" data-accept-deliveries-root data-has-pending="@(hasPending ? "true" : "false")" data-has-locations="@(hasLocations ? "true" : "false")">
+        BodyContent = @<section class="accept-deliveries-section" data-accept-deliveries-root data-has-pending="@(hasPending ? "true" : "false")" data-has-locations="@(hasLocations ? "true" : "false")">
             <form class="accept-deliveries-form" data-accept-deliveries-form>
                 <fieldset class="accept-deliveries-fieldset">
                     <legend class="accept-deliveries-legend">Pending bottles</legend>
                     <p class="accept-deliveries-empty-message" data-accept-deliveries-empty @(hasPending ? "hidden" : null)>
                         You're all caught up—no pending deliveries.
                     </p>
-                    @if (hasPending)
-                    {
-                        <ul class="accept-deliveries-list" data-accept-deliveries-list>
-                            @foreach (var bottle in pendingBottles)
-                            {
-                                var wineLabel = BuildWineLabel(bottle);
-                                var regionLabel = BuildRegionLabel(bottle);
-                                var locationLabel = string.IsNullOrWhiteSpace(bottle.LocationName)
-                                    ? string.Empty
-                                    : $"Current location: {bottle.LocationName}";
-                                <li class="accept-deliveries-item">
-                                    <label class="accept-deliveries-option">
-                                        <input type="checkbox"
-                                               class="accept-deliveries-checkbox"
-                                               value="@bottle.BottleId"
-                                               data-accept-deliveries-bottle-id="@bottle.BottleId"
-                                               data-accept-deliveries-wine-vintage-id="@bottle.WineVintageId" />
-                                        <span class="accept-deliveries-option-text">
+                    <div class="accept-deliveries-toolbar" data-accept-deliveries-toolbar @(hasPending ? null : "hidden")>
+                        <label class="accept-deliveries-filter-label">
+                            <span class="sr-only">Filter pending deliveries</span>
+                            <input type="search"
+                                   class="accept-deliveries-filter-input"
+                                   placeholder="Filter by wine, region, or location"
+                                   aria-label="Filter pending deliveries"
+                                   autocomplete="off"
+                                   spellcheck="false"
+                                   data-accept-deliveries-filter />
+                        </label>
+                    </div>
+                    <div class="accept-deliveries-list" data-accept-deliveries-list @(hasPending ? null : "hidden")>
+                        <table class="crud-table__table accept-deliveries-table">
+                            <thead>
+                                <tr class="crud-table__header-row">
+                                    <th scope="col" class="accept-deliveries-col-select" aria-label="Select"></th>
+                                    <th scope="col" class="accept-deliveries-col-wine">Wine</th>
+                                    <th scope="col" class="accept-deliveries-col-region">Region</th>
+                                    <th scope="col" class="accept-deliveries-col-location">Current location</th>
+                                </tr>
+                            </thead>
+                            <tbody data-accept-deliveries-tbody>
+                                @foreach (var bottle in pendingBottles)
+                                {
+                                    var wineLabel = BuildWineLabel(bottle);
+                                    var regionLabel = BuildRegionLabel(bottle);
+                                    var regionDisplay = string.IsNullOrWhiteSpace(regionLabel) ? "—" : regionLabel;
+                                    var locationDisplay = BuildLocationDisplay(bottle);
+                                    var filterText = BuildFilterText(bottle);
+                                    <tr class="accept-deliveries-row" data-accept-deliveries-row data-filter-text="@filterText">
+                                        <td class="accept-deliveries-col-select">
+                                            <input type="checkbox"
+                                                   class="accept-deliveries-checkbox"
+                                                   value="@bottle.BottleId"
+                                                   data-accept-deliveries-bottle-id="@bottle.BottleId"
+                                                   data-accept-deliveries-wine-vintage-id="@bottle.WineVintageId"
+                                                   aria-label="Select @wineLabel" />
+                                        </td>
+                                        <td class="accept-deliveries-col-wine">
                                             <span class="accept-deliveries-option-wine">@wineLabel</span>
-                                            @if (!string.IsNullOrEmpty(regionLabel))
-                                            {
-                                                <span class="accept-deliveries-option-meta">@regionLabel</span>
-                                            }
-                                            @if (!string.IsNullOrWhiteSpace(locationLabel))
-                                            {
-                                                <span class="accept-deliveries-option-location">@locationLabel</span>
-                                            }
-                                        </span>
-                                    </label>
-                                </li>
-                            }
-                        </ul>
-                    }
+                                        </td>
+                                        <td class="accept-deliveries-col-region">
+                                            <span class="accept-deliveries-option-meta">@regionDisplay</span>
+                                        </td>
+                                        <td class="accept-deliveries-col-location">
+                                            <span class="accept-deliveries-option-location">@locationDisplay</span>
+                                        </td>
+                                    </tr>
+                                }
+                                <tr class="accept-deliveries-empty-row" data-accept-deliveries-no-results hidden>
+                                    <td colspan="4">No pending deliveries match your filter.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </fieldset>
                 <label class="accept-deliveries-field">
                     <span class="accept-deliveries-label">Store bottles in</span>
