@@ -95,6 +95,19 @@
 
     var hasBottles = Model.Bottles.Any();
     var hasLocations = Model.Locations.Any();
+    var pendingBottleCount = Math.Max(Model.PendingBottleCount, 0);
+    var pendingBottleCountFormatted = pendingBottleCount.ToString("N0", CultureInfo.CurrentCulture);
+    var acceptDeliveriesAriaLabel = pendingBottleCount == 0
+        ? "No pending deliveries to accept"
+        : $"Accept deliveries for {pendingBottleCountFormatted} pending bottles";
+    var acceptDeliveriesSrCopy = pendingBottleCount == 0
+        ? "No pending deliveries to accept."
+        : $"You have {pendingBottleCountFormatted} pending bottles awaiting delivery.";
+    var acceptDeliveriesDisabledAttribute = pendingBottleCount == 0 ? " disabled aria-disabled=\"true\"" : string.Empty;
+    acceptDeliveriesAriaLabel = HtmlEncoder.Default.Encode(acceptDeliveriesAriaLabel);
+    acceptDeliveriesSrCopy = HtmlEncoder.Default.Encode(acceptDeliveriesSrCopy);
+    var pendingBottleCountDisplay = HtmlEncoder.Default.Encode(pendingBottleCountFormatted);
+    var pendingBottleCountData = pendingBottleCount.ToString(CultureInfo.InvariantCulture);
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
         ?? WineSurferTopBarModel.Empty(currentPath);
     var bottleHeaderContent = await Html.PartialAsync("_BottleDetailsHeaderControls");
@@ -156,6 +169,18 @@
                             <span class=""sr-only"" data-inventory-status-toggle-sr>{statusToggleAnnouncement}</span>
                         </button>
                     </div>
+                ");
+
+                builder.AppendHtml($@"
+                    <button type=""button""
+                            class=""wine-surfer-button wine-surfer-button--ghost inventory-accept-deliveries-button""
+                            data-accept-deliveries-trigger
+                            aria-label=""{acceptDeliveriesAriaLabel}""
+                            data-pending-count=""{pendingBottleCountData}""{acceptDeliveriesDisabledAttribute}>
+                        Accept deliveries
+                        <span class=""inventory-accept-deliveries-count"" aria-hidden=""true"">({pendingBottleCountDisplay} pending)</span>
+                        <span class=""sr-only"">{acceptDeliveriesSrCopy}</span>
+                    </button>
                 ");
 
                 builder.AppendHtml(@"
@@ -729,6 +754,7 @@
         @await Html.PartialAsync("_WineInventoryVintageInlineTable")
 
         @await Html.PartialAsync("_InventoryAddModal", Model.InventoryAddModal)
+        @await Html.PartialAsync("_AcceptDeliveriesModal", Model.AcceptDeliveriesModal)
 
         @await Html.PartialAsync("_BottleManagementModal", BottleManagementModalViewModel.Default)
 
