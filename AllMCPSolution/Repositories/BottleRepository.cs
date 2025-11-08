@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using AllMCPSolution.Data;
 using AllMCPSolution.Models;
 
@@ -24,7 +25,13 @@ public interface IBottleRepository
 public class BottleRepository : IBottleRepository
 {
     private readonly ApplicationDbContext _db;
-    public BottleRepository(ApplicationDbContext db) => _db = db;
+    private readonly ILogger<BottleRepository> _logger;
+
+    public BottleRepository(ApplicationDbContext db, ILogger<BottleRepository> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
 
     public async Task<List<Bottle>> GetAllAsync(CancellationToken ct = default)
     {
@@ -131,12 +138,14 @@ public class BottleRepository : IBottleRepository
     public async Task AddAsync(Bottle bottle, CancellationToken ct = default)
     {
         _db.Bottles.Add(bottle);
+        _logger.LogInformation("Adding bottle {BottleId} for user {UserId} with location {BottleLocationId}.", bottle.Id, bottle.UserId, bottle.BottleLocationId);
         await _db.SaveChangesAsync(ct);
     }
 
     public async Task UpdateAsync(Bottle bottle, CancellationToken ct = default)
     {
         _db.Bottles.Update(bottle);
+        _logger.LogInformation("Updating bottle {BottleId} for user {UserId} with location {BottleLocationId}.", bottle.Id, bottle.UserId, bottle.BottleLocationId);
         await _db.SaveChangesAsync(ct);
     }
 
