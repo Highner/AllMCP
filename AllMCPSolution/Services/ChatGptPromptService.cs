@@ -161,6 +161,7 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
 
         builder.AppendLine();
         builder.AppendLine("Identify consistent stylistic preferences, texture, structure, and favored regions or grapes.");
+        builder.AppendLine("Identify preferences for the evolution of the wine over time. Does the user like aged wines? Only for certain areas? Only for certain grapes?");
         builder.AppendLine("Use only the provided information and avoid recommending specific new bottles.");
         builder.AppendLine("Also include exactly two suggested appellations or sub-appellations that match the palate, providing country, region, appellation, an optional subAppellation (use null when unknown), and a single-sentence reason under 200 characters explaining the fit. Suggest only appellations that are not already in use.");
         builder.AppendLine("For each suggested appellation list two or three representative wines from that location, giving the label name (without the vintage, grape varieties, regions, or appellation names), color (Red, White, or Rose), an optional variety, an optional subAppellation (e.g. the Burgundy village), and a vintage string that is either a four-digit year or \"NV\".");
