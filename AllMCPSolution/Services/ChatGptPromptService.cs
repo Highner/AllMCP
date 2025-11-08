@@ -113,50 +113,59 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
 
         for (var index = 0; index < scoredBottles.Count; index++)
         {
-            var (bottle, note) = scoredBottles[index];
-            var wineVintage = bottle?.WineVintage;
-            var wine = wineVintage?.Wine;
-
-            var displayName = BuildWineDisplayName(wineVintage, wine);
-            var origin = BuildWineOrigin(wine);
-            var attributes = BuildWineAttributes(wine);
-            var ratingDate = DetermineRatingDate(bottle, note);
-            var ageAtRating = BuildWineAgeText(wineVintage, ratingDate);
-            var score = note.Score!.Value.ToString("0.##", CultureInfo.InvariantCulture);
-            var noteText = PrepareNoteText(note.Note);
-
-            builder.Append(index + 1);
-            builder.Append(". ");
-            builder.Append(displayName);
-
-            if (!string.IsNullOrEmpty(origin))
+            try
             {
-                builder.Append(" — ");
-                builder.Append(origin);
-            }
+                var (bottle, note) = scoredBottles[index];
+                var wineVintage = bottle?.WineVintage;
+                var wine = wineVintage?.Wine;
 
-            if (!string.IsNullOrEmpty(attributes))
+                var displayName = BuildWineDisplayName(wineVintage, wine);
+                var origin = BuildWineOrigin(wine);
+                var attributes = BuildWineAttributes(wine);
+                var ratingDate = DetermineRatingDate(bottle, note);
+                var ageAtRating = BuildWineAgeText(wineVintage, ratingDate);
+                var score = note.Score!.Value.ToString("0.##", CultureInfo.InvariantCulture);
+                var noteText = PrepareNoteText(note.Note);
+
+                builder.Append(index + 1);
+                builder.Append(". ");
+                builder.Append(displayName);
+
+                if (!string.IsNullOrEmpty(origin))
+                {
+                    builder.Append(" — ");
+                    builder.Append(origin);
+                }
+
+                if (!string.IsNullOrEmpty(attributes))
+                {
+                    builder.Append(" | ");
+                    builder.Append(attributes);
+                }
+
+                builder.Append(" | Score: ");
+                builder.Append(score);
+
+                if (!string.IsNullOrEmpty(ageAtRating))
+                {
+                    builder.Append(" | Age at rating: ");
+                    builder.Append(ageAtRating);
+                }
+
+                if (!string.IsNullOrEmpty(noteText))
+                {
+                    builder.Append(" | Notes: ");
+                    builder.Append(noteText);
+                }
+
+                builder.AppendLine();
+            }
+            catch (Exception e)
             {
-                builder.Append(" | ");
-                builder.Append(attributes);
+                Console.WriteLine(e);
+                throw;
             }
-
-            builder.Append(" | Score: ");
-            builder.Append(score);
-
-            if (!string.IsNullOrEmpty(ageAtRating))
-            {
-                builder.Append(" | Age at rating: ");
-                builder.Append(ageAtRating);
-            }
-
-            if (!string.IsNullOrEmpty(noteText))
-            {
-                builder.Append(" | Notes: ");
-                builder.Append(noteText);
-            }
-
-            builder.AppendLine();
+           
         }
 
         builder.AppendLine();

@@ -473,13 +473,16 @@ public class TasteProfileController: WineSurferControllerBase
             .Select(bottle =>
             {
                 var note = bottle.TastingNotes?
-                    .FirstOrDefault(tn => tn.UserId == userId.Value && tn.Score.HasValue);
+                    .FirstOrDefault(tn => tn.UserId == userId.Value);
+
+                if (note is not null && note.Note == null)
+                    note.Note = string.Empty; // replace null with ""
+                
+
                 return (Bottle: bottle, Note: note);
             })
-            .Where(entry => entry.Note is not null)
-            .Select(entry => (Bottle: entry.Bottle, Note: entry.Note!))
-            .OrderByDescending(entry => entry.Note.Score!.Value)
-            .Take(25)
+            .Where(entry => entry.Note is not null && entry.Note.Score.HasValue)
+            .OrderByDescending(entry => entry.Note.Score ?? 0)
             .ToList();
 
         if (scoredBottles.Count == 0)
