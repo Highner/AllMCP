@@ -3672,45 +3672,6 @@ public class WineInventoryViewModel
         public decimal? UserDrinkingWindowAlignmentScore { get; set; }
     }
 
-    private static string FormatModelStateErrors(ModelStateDictionary modelState)
-    {
-        if (modelState is null)
-        {
-            return string.Empty;
-        }
-
-        var builder = new StringBuilder();
-
-        foreach (var entry in modelState)
-        {
-            if (entry.Value?.Errors is null || entry.Value.Errors.Count == 0)
-            {
-                continue;
-            }
-
-            foreach (var error in entry.Value.Errors)
-            {
-                if (builder.Length > 0)
-                {
-                    builder.Append(" | ");
-                }
-
-                builder.Append(entry.Key);
-
-                if (!string.IsNullOrWhiteSpace(error.ErrorMessage))
-                {
-                    builder.Append(": ").Append(error.ErrorMessage);
-                }
-                else if (error.Exception is not null)
-                {
-                    builder.Append(": ").Append(error.Exception.Message);
-                }
-            }
-        }
-
-        return builder.Length == 0 ? "No model state errors recorded." : builder.ToString();
-    }
-
     public class WineInventoryLocationViewModel
     {
         public Guid Id { get; set; }
@@ -3978,6 +3939,45 @@ public class WineInventoryViewModel
     // Helper wrapped in partial class to keep controller organized.
     public partial class WineInventoryController
     {
+        private static string FormatModelStateErrors(ModelStateDictionary modelState)
+        {
+            if (modelState is null)
+            {
+                return string.Empty;
+            }
+
+            var builder = new StringBuilder();
+
+            foreach (var entry in modelState)
+            {
+                if (entry.Value?.Errors is null || entry.Value.Errors.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (var error in entry.Value.Errors)
+                {
+                    if (builder.Length > 0)
+                    {
+                        builder.Append(" | ");
+                    }
+
+                    builder.Append(entry.Key);
+
+                    if (!string.IsNullOrWhiteSpace(error.ErrorMessage))
+                    {
+                        builder.Append(": ").Append(error.ErrorMessage);
+                    }
+                    else if (error.Exception is not null)
+                    {
+                        builder.Append(": ").Append(error.Exception.Message);
+                    }
+                }
+            }
+
+            return builder.Length == 0 ? "No model state errors recorded." : builder.ToString();
+        }
+
         private static string? FormatCatalogErrors(IReadOnlyDictionary<string, string[]>? errors)
         {
             if (errors is null || errors.Count == 0)
