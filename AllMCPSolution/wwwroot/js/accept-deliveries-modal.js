@@ -11,7 +11,11 @@
         submit: '[data-accept-deliveries-submit]',
         location: '[data-accept-deliveries-location]',
         error: '[data-accept-deliveries-error]',
-        root: '[data-accept-deliveries-root]'
+        root: '[data-accept-deliveries-root]',
+        filter: '[data-accept-deliveries-filter]',
+        tbody: '[data-accept-deliveries-tbody]',
+        row: '[data-accept-deliveries-row]',
+        noResults: '[data-accept-deliveries-no-results]'
     };
 
     function onReady(callback) {
@@ -95,6 +99,9 @@
         const locationSelect = dialog.querySelector(SELECTORS.location);
         const errorNode = dialog.querySelector(SELECTORS.error);
         const root = dialog.querySelector(SELECTORS.root);
+        const filterInput = dialog.querySelector(SELECTORS.filter);
+        const tableBody = dialog.querySelector(SELECTORS.tbody);
+        const noResultsRow = dialog.querySelector(SELECTORS.noResults);
         const checkboxSelector = 'input[type="checkbox"][data-accept-deliveries-bottle-id]';
         const submitLabel = submitButton ? (submitButton.textContent || '').trim() || 'Accept delivery' : 'Accept delivery';
         const initialLocationDisabled = locationSelect ? locationSelect.disabled : false;
@@ -115,6 +122,13 @@
 
         if (form) {
             form.addEventListener('submit', onSubmit);
+        }
+
+        if (filterInput) {
+            filterInput.addEventListener('input', () => {
+                applyFilter();
+                updateSubmitState();
+            });
         }
 
         closeButtons.forEach(button => button.addEventListener('click', closeModal));
@@ -140,10 +154,41 @@
             });
         });
 
+        applyFilter();
         updateSubmitState();
 
         function checkboxNodes() {
             return Array.from(dialog.querySelectorAll(checkboxSelector));
+        }
+
+        function rowNodes() {
+            if (!tableBody) {
+                return [];
+            }
+
+            return Array.from(tableBody.querySelectorAll(SELECTORS.row));
+        }
+
+        function applyFilter() {
+            if (!tableBody) {
+                return;
+            }
+
+            const query = (filterInput?.value || '').trim().toLowerCase();
+            let visibleCount = 0;
+
+            rowNodes().forEach(row => {
+                const text = row.getAttribute('data-filter-text') || '';
+                const isMatch = !query || text.includes(query);
+                row.hidden = !isMatch;
+                if (isMatch) {
+                    visibleCount++;
+                }
+            });
+
+            if (noResultsRow) {
+                noResultsRow.hidden = visibleCount !== 0;
+            }
         }
 
         function openModal() {
@@ -155,6 +200,7 @@
             overlay.setAttribute('aria-hidden', 'false');
             document.addEventListener('keydown', handleKeydown);
             clearError();
+            applyFilter();
             updateSubmitState();
             focusInitialElement();
         }
@@ -169,6 +215,7 @@
             document.removeEventListener('keydown', handleKeydown);
             restoreControls();
             clearError();
+            resetFilter();
             updateSubmitState();
         }
 
@@ -179,7 +226,12 @@
         }
 
         function focusInitialElement() {
-            const checkbox = checkboxNodes().find(cb => !cb.disabled);
+            if (filterInput && isElementVisible(filterInput) && typeof filterInput.focus === 'function') {
+                filterInput.focus();
+                return;
+            }
+
+            const checkbox = checkboxNodes().find(cb => !cb.disabled && isElementVisible(cb));
             if (checkbox && typeof checkbox.focus === 'function') {
                 checkbox.focus();
                 return;
@@ -264,6 +316,8 @@
             if (cancelButton) {
                 cancelButton.disabled = initialCancelDisabled;
             }
+
+            applyFilter();
         }
 
         async function onSubmit(event) {
@@ -310,6 +364,33 @@
                     updateSubmitState();
                 }
             }
+        }
+
+        function resetFilter() {
+            if (!filterInput) {
+                return;
+            }
+
+            filterInput.value = '';
+            applyFilter();
+        }
+
+        function isElementVisible(element) {
+            if (!element) {
+                return false;
+            }
+
+            if (element instanceof HTMLElement) {
+                if (element.hidden) {
+                    return false;
+                }
+
+                if (element.offsetParent === null && window.getComputedStyle(element).position !== 'fixed') {
+                    return false;
+                }
+            }
+
+            return true;
         }
     });
 })();

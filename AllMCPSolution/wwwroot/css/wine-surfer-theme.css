@@ -584,6 +584,107 @@ a.wine-card:focus {
     min-width: 104px;
 }
 
+.accept-deliveries-section {
+    --accept-deliveries-toolbar-padding-top: 18px;
+    --accept-deliveries-toolbar-padding-bottom: 16px;
+    --accept-deliveries-toolbar-padding-inline: 24px;
+    --accept-deliveries-toolbar-control-size: 44px;
+    --accept-deliveries-toolbar-gap: 12px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.accept-deliveries-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    padding: var(--accept-deliveries-toolbar-padding-top)
+        var(--accept-deliveries-toolbar-padding-inline)
+        var(--accept-deliveries-toolbar-padding-bottom);
+    margin-bottom: var(--accept-deliveries-toolbar-gap);
+    background: rgba(12, 12, 12, 0.96);
+    backdrop-filter: blur(2px);
+    border-bottom: 1px solid rgba(244, 241, 234, 0.12);
+    box-shadow: 0 12px 24px rgba(12, 12, 12, 0.55);
+}
+
+.accept-deliveries-filter-label {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+}
+
+.accept-deliveries-filter-input {
+    width: 100%;
+    max-width: 360px;
+    height: var(--accept-deliveries-toolbar-control-size);
+    min-width: 0;
+}
+
+.accept-deliveries-list {
+    flex: 1;
+    min-height: 0;
+    padding: 0 var(--accept-deliveries-toolbar-padding-inline)
+        var(--accept-deliveries-toolbar-padding-bottom);
+    overflow-y: auto;
+}
+
+.accept-deliveries-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.accept-deliveries-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(12, 12, 12, 0.96);
+    backdrop-filter: blur(2px);
+    box-shadow: 0 10px 22px rgba(12, 12, 12, 0.5);
+}
+
+.accept-deliveries-col-select {
+    width: 48px;
+    text-align: center;
+}
+
+.accept-deliveries-col-select input[type="checkbox"] {
+    margin: 0 auto;
+}
+
+.accept-deliveries-col-wine {
+    width: 40%;
+}
+
+.accept-deliveries-col-region,
+.accept-deliveries-col-location {
+    width: 30%;
+}
+
+.accept-deliveries-row td {
+    vertical-align: middle;
+}
+
+.accept-deliveries-option-wine {
+    display: block;
+    font-weight: 600;
+}
+
+.accept-deliveries-option-meta,
+.accept-deliveries-option-location {
+    display: block;
+    font-size: 0.875rem;
+    color: rgba(244, 241, 234, 0.72);
+}
+
+.accept-deliveries-empty-row td {
+    text-align: center;
+    padding: 18px 0;
+    color: rgba(244, 241, 234, 0.72);
+}
+
 .wine-wizard-start-body {
     padding: 32px 28px;
     text-align: center;
