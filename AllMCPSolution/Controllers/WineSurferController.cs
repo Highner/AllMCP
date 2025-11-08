@@ -202,84 +202,138 @@ public class WineSurferController : WineSurferControllerBase
         }
 
         IReadOnlyList<WineSurferUpcomingSipSession> upcomingSipSessions = Array.Empty<WineSurferUpcomingSipSession>();
-        if (currentUserId.HasValue)
-        {
-            upcomingSipSessions = (await _sipSessionRepository.GetUpcomingAsync(now, upcomingSipSessionLimit, currentUserId.Value, cancellationToken))
-                .Select(session =>
-                {
-                    var summary = new WineSurferSipSessionSummary(
-                        session.Id,
-                        session.Name,
-                        session.Description,
-                        session.ScheduledAt,
-                        session.Date,
-                        session.Location ?? string.Empty,
-                        session.CreatedAt,
-                        session.UpdatedAt,
-                        CreateBottleSummaries(session.Bottles, currentUserId)
-                    );
-                    return new WineSurferUpcomingSipSession(
-                        session.SisterhoodId,
-                        session.Sisterhood?.Name ?? "Sisterhood",
-                        session.Sisterhood?.Description,
-                        summary
-                    );
-                })
-                .ToList();
-        }
-
         IReadOnlyList<WineSurferSentInvitationNotification> sentInvitationNotifications = Array.Empty<WineSurferSentInvitationNotification>();
-        if (currentUserId.HasValue)
-        {
-            var acceptedInvitations = await _sisterhoodInvitationRepository.GetAcceptedForAdminAsync(
-                currentUserId.Value,
-                now - SentInvitationNotificationWindow,
-                cancellationToken);
-
-            sentInvitationNotifications = NotificationService.CreateSentInvitationNotifications(acceptedInvitations);
-        }
-
         IReadOnlyList<WineSurferSisterhoodOption> manageableSisterhoods = Array.Empty<WineSurferSisterhoodOption>();
         IReadOnlyList<WineSurferSharedBottle> sharedBottles = Array.Empty<WineSurferSharedBottle>();
         IReadOnlyCollection<Guid> inventoryWineIds = Array.Empty<Guid>();
         IReadOnlyCollection<WineSurferInventoryWine> inventoryWineVintages = Array.Empty<WineSurferInventoryWine>();
         IReadOnlyList<WineSurferSuggestedAppellation> suggestedAppellations = Array.Empty<WineSurferSuggestedAppellation>();
+
+        Task<List<SipSession>>? upcomingTask = null;
+        Task<IReadOnlyList<SisterhoodInvitation>>? acceptedInvitationsTask = null;
+        Task<IReadOnlyList<Sisterhood>>? adminSisterhoodsTask = null;
+        Task<IReadOnlyList<BottleShare>>? receivedSharesTask = null;
+        Task<IReadOnlyList<BottleShare>>? grantedSharesTask = null;
+        Task<IReadOnlyList<WineSurferSuggestedAppellation>>? suggestedAppellationsTask = null;
+        Task<List<BottleLocation>>? bottleLocationsTask = null;
+        Task<IReadOnlyList<SisterhoodConnectionUser>>? connectionsTask = null;
+
         if (currentUserId.HasValue)
         {
-            var adminSisterhoods = await _sisterhoodRepository.GetAdminForUserAsync(currentUserId.Value, cancellationToken);
-            manageableSisterhoods = adminSisterhoods
-                .Select(s => new WineSurferSisterhoodOption(s.Id, s.Name, s.Description))
-                .ToList();
+            var asyncTasks = new List<Task>();
 
-           
+            upcomingTask = _sipSessionRepository.GetUpcomingAsync(now, upcomingSipSessionLimit, currentUserId.Value, cancellationToken);
+            asyncTasks.Add(upcomingTask);
 
-            var shareLookup = new Dictionary<Guid, BottleShare>();
+            acceptedInvitationsTask = _sisterhoodInvitationRepository.GetAcceptedForAdminAsync(
+                currentUserId.Value,
+                now - SentInvitationNotificationWindow,
+                cancellationToken);
+            asyncTasks.Add(acceptedInvitationsTask);
 
-            var receivedShares = await _bottleShareRepository.GetSharesForRecipientAsync(currentUserId.Value, cancellationToken);
-            if (receivedShares.Count > 0)
+            adminSisterhoodsTask = _sisterhoodRepository.GetAdminForUserAsync(currentUserId.Value, cancellationToken);
+            asyncTasks.Add(adminSisterhoodsTask);
+
+            receivedSharesTask = _bottleShareRepository.GetSharesForRecipientAsync(currentUserId.Value, cancellationToken);
+            asyncTasks.Add(receivedSharesTask);
+
+            grantedSharesTask = _bottleShareRepository.GetSharesGrantedByUserAsync(currentUserId.Value, cancellationToken);
+            asyncTasks.Add(grantedSharesTask);
+
+            suggestedAppellationsTask = _suggestedAppellationService.GetForUserAsync(currentUserId.Value, cancellationToken);
+            asyncTasks.Add(suggestedAppellationsTask);
+
+            bottleLocationsTask = _bottleLocationRepository.GetAllAsync(cancellationToken);
+            asyncTasks.Add(bottleLocationsTask);
+
+            connectionsTask = _connectionService.GetConnectionsAsync(currentUserId.Value, cancellationToken);
+            asyncTasks.Add(connectionsTask);
+
+            await Task.WhenAll(asyncTasks);
+
+            if (upcomingTask is not null)
             {
-                foreach (var share in receivedShares)
+                var upcomingSessions = upcomingTask.Result;
+                if (upcomingSessions.Count > 0)
                 {
-                    if (share is null)
-                    {
-                        continue;
-                    }
-
-                    shareLookup[share.Id] = share;
+                    upcomingSipSessions = upcomingSessions
+                        .Select(session =>
+                        {
+                            var summary = new WineSurferSipSessionSummary(
+                                session.Id,
+                                session.Name,
+                                session.Description,
+                                session.ScheduledAt,
+                                session.Date,
+                                session.Location ?? string.Empty,
+                                session.CreatedAt,
+                                session.UpdatedAt,
+                                CreateBottleSummaries(session.Bottles, currentUserId)
+                            );
+                            return new WineSurferUpcomingSipSession(
+                                session.SisterhoodId,
+                                session.Sisterhood?.Name ?? "Sisterhood",
+                                session.Sisterhood?.Description,
+                                summary
+                            );
+                        })
+                        .ToList();
                 }
             }
 
-            var grantedShares = await _bottleShareRepository.GetSharesGrantedByUserAsync(currentUserId.Value, cancellationToken);
-            if (grantedShares.Count > 0)
+            if (acceptedInvitationsTask is not null)
             {
-                foreach (var share in grantedShares)
+                var acceptedInvitations = acceptedInvitationsTask.Result;
+                if (acceptedInvitations.Count > 0)
                 {
-                    if (share is null)
-                    {
-                        continue;
-                    }
+                    sentInvitationNotifications = NotificationService.CreateSentInvitationNotifications(acceptedInvitations);
+                }
+            }
 
-                    shareLookup[share.Id] = share;
+            if (adminSisterhoodsTask is not null)
+            {
+                var adminSisterhoods = adminSisterhoodsTask.Result;
+                if (adminSisterhoods.Count > 0)
+                {
+                    manageableSisterhoods = adminSisterhoods
+                        .Select(s => new WineSurferSisterhoodOption(s.Id, s.Name, s.Description))
+                        .ToList();
+                }
+            }
+
+            var shareLookup = new Dictionary<Guid, BottleShare>();
+
+            if (receivedSharesTask is not null)
+            {
+                var receivedShares = receivedSharesTask.Result;
+                if (receivedShares.Count > 0)
+                {
+                    foreach (var share in receivedShares)
+                    {
+                        if (share is null)
+                        {
+                            continue;
+                        }
+
+                        shareLookup[share.Id] = share;
+                    }
+                }
+            }
+
+            if (grantedSharesTask is not null)
+            {
+                var grantedShares = grantedSharesTask.Result;
+                if (grantedShares.Count > 0)
+                {
+                    foreach (var share in grantedShares)
+                    {
+                        if (share is null)
+                        {
+                            continue;
+                        }
+
+                        shareLookup[share.Id] = share;
+                    }
                 }
             }
 
@@ -292,27 +346,31 @@ public class WineSurferController : WineSurferControllerBase
                 }
             }
 
-
-            suggestedAppellations = await _suggestedAppellationService.GetForUserAsync(currentUserId.Value, cancellationToken);
-            if (suggestedAppellations.Count > 0)
+            if (suggestedAppellationsTask is not null)
             {
-                var suggestionHighlights = new List<MapHighlightPoint>(suggestedAppellations.Count);
-                foreach (var suggestion in suggestedAppellations)
+                suggestedAppellations = suggestedAppellationsTask.Result;
+                if (suggestedAppellations.Count > 0)
                 {
-                    var highlight = CreateSuggestedHighlightPoint(suggestion);
-                    if (highlight is null)
+                    var suggestionHighlights = new List<MapHighlightPoint>(suggestedAppellations.Count);
+                    foreach (var suggestion in suggestedAppellations)
                     {
-                        continue;
-                    }
+                        var highlight = CreateSuggestedHighlightPoint(suggestion);
+                        if (highlight is null)
+                        {
+                            continue;
+                        }
 
-                    suggestionHighlights.Add(highlight);
+                        suggestionHighlights.Add(highlight);
+                    }
                 }
             }
         }
 
+        var bottleLocations = bottleLocationsTask?.Result;
+        var connections = connectionsTask?.Result;
 
-        await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken);
-        await SetWineWizardViewDataAsync(currentUserId, cancellationToken);
+        await SetInventoryAddModalViewDataAsync(currentUserId, cancellationToken, bottleLocations);
+        await SetWineWizardViewDataAsync(currentUserId, cancellationToken, connections);
 
         var winesToDrink = upcomingSipSessions
             .SelectMany(s => s.Session.Bottles ?? Array.Empty<WineSurferSipSessionBottle>())
@@ -2848,7 +2906,10 @@ public class WineSurferController : WineSurferControllerBase
         };
     }
 
-    private async Task SetInventoryAddModalViewDataAsync(Guid? currentUserId, CancellationToken cancellationToken)
+    private async Task SetInventoryAddModalViewDataAsync(
+        Guid? currentUserId,
+        CancellationToken cancellationToken,
+        IReadOnlyList<BottleLocation>? bottleLocations = null)
     {
         InventoryAddModalViewModel viewModel;
 
@@ -2858,8 +2919,8 @@ public class WineSurferController : WineSurferControllerBase
         }
         else
         {
-            var bottleLocations = await _bottleLocationRepository.GetAllAsync(cancellationToken);
-            var userLocations = bottleLocations
+            var resolvedLocations = bottleLocations ?? await _bottleLocationRepository.GetAllAsync(cancellationToken);
+            var userLocations = resolvedLocations
                 .Where(location => location.UserId == currentUserId.Value)
                 .OrderBy(location => location.Name)
                 .Select(location => new BottleLocationOption
@@ -2879,7 +2940,10 @@ public class WineSurferController : WineSurferControllerBase
         ViewData["InventoryAddModal"] = viewModel;
     }
 
-    private async Task SetWineWizardViewDataAsync(Guid? currentUserId, CancellationToken cancellationToken)
+    private async Task SetWineWizardViewDataAsync(
+        Guid? currentUserId,
+        CancellationToken cancellationToken,
+        IReadOnlyList<SisterhoodConnectionUser>? connections = null)
     {
         var inventoryViewModel = ViewData["InventoryAddModal"] as InventoryAddModalViewModel
             ?? new InventoryAddModalViewModel();
@@ -2894,11 +2958,12 @@ public class WineSurferController : WineSurferControllerBase
         }
         else
         {
-            var connections = await _connectionService.GetConnectionsAsync(currentUserId.Value, cancellationToken);
+            var resolvedConnections = connections
+                ?? await _connectionService.GetConnectionsAsync(currentUserId.Value, cancellationToken);
 
             sisterhoodModal = new SisterhoodUserSelectModalViewModel
             {
-                Users = connections,
+                Users = resolvedConnections,
                 IntroText = "Pick the fellow surfers to share these bottles with.",
                 FilterLabel = "Filter fellow surfers",
                 FilterPlaceholder = "Search by name, email, or sisterhood",
