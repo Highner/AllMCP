@@ -574,7 +574,7 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
         builder.AppendLine("For example if the taste profile mentions preferences for tertiary or aged flavours the you might want to adjust the drinking window to include the tertiary flavours -> later drinking window. Vice versa if the taste profile mentions a dislike for aged wines or tertiary notes.");
         builder.AppendLine("Consult professional wine critics and wine tasting notes to determine the wine's aging profile and how it aligns with the user's taste profile. Check for plausibility (e.g. drinking window cannot start before the vintage).");
         builder.AppendLine("Provide a drinking window that is at least 10 years long. Ageworthy wines can last until well into the future from now.");
-        builder.AppendLine("When searching the web, use cellar tracker as your main source of information and tasting notes.");
+        builder.AppendLine("As a main source of information, search the web for the wine name, vintage and 'Drinking window' keyword. Use the result as a baseline that you adjust according to the user's taste profile.");
         builder.AppendLine();
         builder.AppendLine("This is the user's taste profile:");
         builder.AppendLine();
