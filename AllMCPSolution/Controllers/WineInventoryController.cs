@@ -205,6 +205,8 @@ public partial class WineInventoryController : Controller
                     StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (b.WineVintage.Wine.SubAppellation?.Appellation?.Name?.Contains(normalizedSearch,
                     StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (b.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name?.Contains(normalizedSearch,
+                    StringComparison.OrdinalIgnoreCase) ?? false) ||
                 b.WineVintage.Vintage.ToString(CultureInfo.InvariantCulture)
                     .Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase));
         }
