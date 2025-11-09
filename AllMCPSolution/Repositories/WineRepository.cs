@@ -257,7 +257,19 @@ public class WineRepository : IWineRepository
 
     public async Task UpdateAsync(Wine wine, CancellationToken ct = default)
     {
-        _db.Wines.Update(wine);
+        var existing = await _db.Wines
+            .FirstOrDefaultAsync(w => w.Id == wine.Id, ct);
+
+        if (existing is null)
+        {
+            return;
+        }
+
+        existing.Name = wine.Name;
+        existing.GrapeVariety = wine.GrapeVariety;
+        existing.Color = wine.Color;
+        existing.SubAppellationId = wine.SubAppellationId;
+
         await _db.SaveChangesAsync(ct);
     }
 
