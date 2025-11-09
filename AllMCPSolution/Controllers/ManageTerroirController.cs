@@ -1148,6 +1148,7 @@ public class ManageTerroirController : WineSurferControllerBase
         existing.GrapeVariety = grapeVariety;
         existing.Color = request.Color;
         existing.SubAppellationId = subAppellation.Id;
+        existing.SubAppellation = subAppellation;
 
         await _wineRepository.UpdateAsync(existing, cancellationToken);
 
