@@ -570,11 +570,13 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
             : wineDescription.Trim();
 
         var builder = new StringBuilder();
-        builder.AppendLine("You are a expert sommellier. Help the user find the perfect drinking window for a wine based on the user's taste profile. Pay special attention to any keywords or phrases that might indicate the user's preferences to age or ageworthy wines and adjust the drinking window accordingly.");
-        builder.AppendLine("For example if the taste profile mentions preferences for tertiary or aged flavours the you might want to adjust the drinking window to include the tertiary flavours -> later drinking window. Vice versa if the taste profile mentions a dislike for aged wines or tertiary notes.");
-        builder.AppendLine("Consult professional wine critics and wine tasting notes to determine the wine's aging profile and how it aligns with the user's taste profile. Check for plausibility (e.g. drinking window cannot start before the vintage).");
+        builder.AppendLine("You are a expert sommellier. Help the user find the perfect drinking window for a wine based on the user's taste profile.");
+        builder.AppendLine("As a main source of information, search the web for the wine name, vintage and 'Drinking window' keyword (e.g. 'Chateau Petrus 1990 drinking window'. Use the result as a baseline that you adjust according to the user's taste profile.");
+        builder.AppendLine("Pay special attention to any keywords or phrases that might indicate the user's preferences to age or ageworthy wines and adjust the drinking window accordingly.");
+        builder.AppendLine("For example if the taste profile mentions preferences for tertiary or aged flavours you might want to adjust the drinking window -> later drinking window. Vice versa if the taste profile mentions a dislike for aged wines or tertiary notes.");
+        builder.AppendLine("Check for plausibility (e.g. drinking window cannot start before the vintage).");
         builder.AppendLine("Provide a drinking window that is at least 10 years long. Ageworthy wines can last until well into the future from now.");
-        builder.AppendLine("As a main source of information, search the web for the wine name, vintage and 'Drinking window' keyword. Use the result as a baseline that you adjust according to the user's taste profile.");
+
         builder.AppendLine();
         builder.AppendLine("This is the user's taste profile:");
         builder.AppendLine();
