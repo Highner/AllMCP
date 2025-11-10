@@ -3355,31 +3355,6 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 }
 
 
-/* Inline inventory vintage table: adjust numeric column widths */
-.inventory-inline-table .inventory-inline-drinking-window-header,
-.inventory-inline-table .inventory-inline-drinking-window {
-    min-width: 128px;
-    width: 128px;
-}
-
-.inventory-inline-table .inventory-inline-surf-score-header,
-.inventory-inline-table .inventory-inline-surf-score {
-    min-width: 96px;
-    width: 96px;
-}
-
-/* Inline inventory vintage table: storage locations column */
-.inventory-inline-table .inventory-inline-locations-header,
-.inventory-inline-table .inventory-inline-locations {
-    min-width: 220px;
-}
-
-.inventory-inline-table .inventory-inline-locations {
-    white-space: normal;
-    word-break: break-word;
-    color: hsla(var(--foreground) / 0.92);
-}
-
 /* Inline inventory vintage table: note column styling */
 .inventory-inline-table .inventory-inline-note-header,
 .inventory-inline-table .inventory-inline-note {
