@@ -1073,6 +1073,7 @@
                 const drinkingWindowCell = templateRow.querySelector('[data-drinking-window]');
                 const surfScoreCell = templateRow.querySelector('[data-surf-score]');
                 const noteCell = templateRow.querySelector('[data-note]');
+                const locationsCell = templateRow.querySelector('[data-storage-locations]');
 
                 if (vintageCell) {
                     vintageCell.textContent = formatVintageLabel(vintage?.vintage);
@@ -1139,6 +1140,23 @@
                     const note = typeof vintage?.note === 'string' ? vintage.note.trim() : '';
                     noteCell.textContent = note || '—';
                     noteCell.title = note || '';
+                }
+
+                if (locationsCell) {
+                    const locations = Array.isArray(vintage?.storageLocations)
+                        ? vintage.storageLocations
+                            .map((location) => normalizeStorageLocation(location))
+                            .filter((location) => Boolean(location))
+                        : [];
+                    const uniqueLocations = Array.from(new Set(locations));
+                    if (uniqueLocations.length === 0) {
+                        locationsCell.textContent = '—';
+                        locationsCell.title = '';
+                    } else {
+                        const joined = uniqueLocations.join(', ');
+                        locationsCell.textContent = joined;
+                        locationsCell.title = joined;
+                    }
                 }
 
                 const counts = {
@@ -1233,6 +1251,7 @@
                     && Number.isFinite(detail.currentUserScore);
                 const scoreValue = hasScore ? detail.currentUserScore : 0;
                 const noteText = typeof detail?.currentUserNote === 'string' ? detail.currentUserNote.trim() : '';
+                const locationName = normalizeStorageLocation(detail?.bottleLocation);
                 const startYear = normalizeDrinkingWindowYear(
                     detail?.userDrinkingWindowStartYear ?? detail?.drinkingWindowStartYear
                 );
@@ -1301,6 +1320,9 @@
                     if (existing.userDrinkingWindowEndYear == null && endYear != null) {
                         existing.userDrinkingWindowEndYear = endYear;
                     }
+                    if (locationName) {
+                        existing.locations.add(locationName);
+                    }
                 } else {
                     results.set(vintageId, {
                         wineVintageId: vintageId,
@@ -1314,7 +1336,8 @@
                         alignmentScore,
                         note: noteText,
                         userDrinkingWindowStartYear: startYear,
-                        userDrinkingWindowEndYear: endYear
+                        userDrinkingWindowEndYear: endYear,
+                        locations: locationName ? new Set([locationName]) : new Set()
                     });
                 }
             });
@@ -1328,6 +1351,10 @@
                     ? entry.totalCount
                     : entry.pendingCount + entry.cellaredCount + entry.drunkCount;
 
+                const storageLocations = Array.from(entry.locations ?? [])
+                    .filter((value) => typeof value === 'string' && value.trim().length > 0)
+                    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
                 return {
                     wineVintageId: entry.wineVintageId,
                     vintage: entry.vintage,
@@ -1339,7 +1366,8 @@
                     alignmentScore: entry.alignmentScore,
                     note: entry.note,
                     userDrinkingWindowStartYear: entry.userDrinkingWindowStartYear,
-                    userDrinkingWindowEndYear: entry.userDrinkingWindowEndYear
+                    userDrinkingWindowEndYear: entry.userDrinkingWindowEndYear,
+                    storageLocations
                 };
             });
             aggregated.sort((a, b) => {
@@ -1366,6 +1394,19 @@
             }
 
             return null;
+        }
+
+        function normalizeStorageLocation(value) {
+            if (typeof value !== 'string') {
+                return '';
+            }
+
+            const trimmed = value.trim();
+            if (!trimmed) {
+                return '';
+            }
+
+            return trimmed;
         }
 
         function buildAppellationDisplay(group) {
