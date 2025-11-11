@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 using AllMCPSolution.Models;
 using AllMCPSolution.Services;
-using AllMCPSolution.Services.Theming;
 using AllMCPSolution.Hubs;
 using AllMCPSolution.Utilities;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -90,7 +89,6 @@ builder.Services.AddScoped<ICellarTrackerImportService, CellarTrackerImportServi
 builder.Services.AddScoped<IChatGptService, ChatGptService>();
 builder.Services.AddScoped<IChatGptPromptService, ChatGptPromptService>();
 builder.Services.AddScoped<IWineCatalogService, WineCatalogService>();
-builder.Services.AddScoped<IThemeService, ThemeService>();
 builder.Services.AddScoped<ISuggestedAppellationService, SuggestedAppellationService>();
 
 builder.Services.AddScoped<IOcrService, AzureVisionOcrService>();

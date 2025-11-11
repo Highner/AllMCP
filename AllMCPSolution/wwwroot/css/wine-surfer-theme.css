@@ -1,11 +1,18 @@
 :root {
-    color-scheme: var(--wine-color-scheme, dark);
+    color-scheme: dark;
+    --wine-app-background: radial-gradient(circle at top, rgba(244, 241, 234, 0.08), transparent 60%), #050505;
+    --wine-surface-gradient: linear-gradient(160deg, rgba(244, 241, 234, 0.06), rgba(244, 241, 234, 0.02));
+    --wine-surface-gradient-strong: linear-gradient(150deg, rgba(244, 241, 234, 0.08), rgba(244, 241, 234, 0.02));
+    --wine-surface-border: rgba(244, 241, 234, 0.08);
+    --wine-surface-border-strong: rgba(244, 241, 234, 0.12);
+    --wine-surface-highlight: radial-gradient(circle at top right, rgba(244, 241, 234, 0.12), transparent 55%);
+    --wine-surface-highlight-strong: radial-gradient(circle at top right, rgba(244, 241, 234, 0.18), transparent 55%);
     --wine-surfer-card-max-width: 960px;
 }
 
 body.wine-app {
     background: var(--wine-app-background);
-    color: hsl(var(--foreground));
+    color: #f4f1ea;
 }
 
 body.wine-app--with-bottom-nav {
@@ -49,10 +56,10 @@ body.wine-app--with-bottom-nav {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
-    background: linear-gradient(155deg, hsla(var(--foreground) / 0.16), hsla(var(--foreground) / 0.04));
-    border: 1px solid hsla(var(--foreground) / 0.2);
+    background: linear-gradient(155deg, rgba(244, 241, 234, 0.16), rgba(244, 241, 234, 0.04));
+    border: 1px solid rgba(244, 241, 234, 0.2);
     border-radius: 24px;
-    box-shadow: 0 18px 40px hsla(var(--background) / 0.6);
+    box-shadow: 0 18px 40px rgba(5, 5, 5, 0.6);
     backdrop-filter: blur(14px);
     pointer-events: auto;
     width: 100%;
@@ -71,24 +78,24 @@ body.wine-app--with-bottom-nav {
     padding: 12px;
     border-radius: 16px;
     text-decoration: none;
-    color: hsla(var(--foreground) / 0.76);
+    color: rgba(244, 241, 234, 0.76);
     background: transparent;
     transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .bottom-nav__link:hover,
 .bottom-nav__link:focus-visible {
-    background: hsla(var(--foreground) / 0.12);
-    color: hsl(var(--foreground));
+    background: rgba(244, 241, 234, 0.12);
+    color: #f4f1ea;
     transform: translateY(-2px);
-    box-shadow: 0 10px 28px hsla(var(--background) / 0.45);
+    box-shadow: 0 10px 28px rgba(5, 5, 5, 0.45);
     outline: none;
 }
 
 .bottom-nav__link--active {
-    background: hsla(var(--foreground) / 0.18);
-    color: hsl(var(--foreground));
-    box-shadow: 0 14px 32px hsla(var(--background) / 0.55);
+    background: rgba(244, 241, 234, 0.18);
+    color: #f4f1ea;
+    box-shadow: 0 14px 32px rgba(5, 5, 5, 0.55);
 }
 
 .bottom-nav__icon {
@@ -309,20 +316,20 @@ a.wine-card:focus {
     font-size: 12px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.6);
+    color: rgba(244, 241, 234, 0.6);
 }
 
 .wine-card__description {
     margin: 0;
     line-height: 1.6;
-    color: hsla(var(--foreground) / 0.78);
+    color: rgba(244, 241, 234, 0.78);
 }
 
 .wine-card__meta {
     margin: 0;
     font-size: 11px;
     letter-spacing: 1.5px;
-    color: hsla(var(--foreground) / 0.55);
+    color: rgba(244, 241, 234, 0.55);
 }
 
 .wine-card__badge {
@@ -333,8 +340,8 @@ a.wine-card:focus {
     font-size: 10px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    border: 1px solid hsla(var(--foreground) / 0.25);
-    color: hsla(var(--foreground) / 0.8);
+    border: 1px solid rgba(244, 241, 234, 0.25);
+    color: rgba(244, 241, 234, 0.8);
 }
 
 .wine-card__tags {
@@ -351,8 +358,8 @@ a.wine-card:focus {
     border-radius: 999px;
     letter-spacing: 1px;
     text-transform: uppercase;
-    background: hsla(var(--foreground) / 0.08);
-    color: hsla(var(--foreground) / 0.82);
+    background: rgba(244, 241, 234, 0.08);
+    color: rgba(244, 241, 234, 0.82);
     font-size: 11px;
 }
 
@@ -370,7 +377,7 @@ a.wine-card:focus {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: hsla(var(--background) / 0.72);
+    background: rgba(5, 5, 5, 0.72);
     backdrop-filter: blur(6px);
     z-index: 65;
 }
@@ -380,14 +387,14 @@ a.wine-card:focus {
 }
 
 .wine-surfer-modal {
-    background: hsla(var(--background) / 0.96);
+    background: rgba(12, 12, 12, 0.96);
     border-radius: 16px;
-    border: 1px solid hsla(var(--foreground) / 0.12);
+    border: 1px solid rgba(244, 241, 234, 0.12);
     width: min(560px, 100%);
     max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 25px 60px hsla(var(--background) / 0.45);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
     overflow: hidden;
 }
 
@@ -397,7 +404,7 @@ a.wine-card:focus {
     align-items: center;
     justify-content: flex-start;
     gap: 12px;
-    border-bottom: 1px solid hsla(var(--foreground) / 0.12);
+    border-bottom: 1px solid rgba(244, 241, 234, 0.12);
 }
 
 .wine-surfer-modal__title {
@@ -409,9 +416,9 @@ a.wine-card:focus {
 
 .wine-surfer-modal__close {
     appearance: none;
-    border: 1px solid hsla(var(--foreground) / 0.24);
-    background: hsla(var(--foreground) / 0.04);
-    color: hsl(var(--foreground));
+    border: 1px solid rgba(244, 241, 234, 0.24);
+    background: rgba(244, 241, 234, 0.04);
+    color: #f4f1ea;
     border-radius: 999px;
     width: 34px;
     height: 34px;
@@ -427,20 +434,20 @@ a.wine-card:focus {
 
 .wine-surfer-modal__close:hover,
 .wine-surfer-modal__close:focus-visible {
-    background: hsla(var(--foreground) / 0.12);
-    border-color: hsla(var(--foreground) / 0.4);
-    color: hsl(var(--foreground));
+    background: rgba(244, 241, 234, 0.12);
+    border-color: rgba(244, 241, 234, 0.4);
+    color: #fff;
 }
 
 .wine-surfer-modal__close:focus-visible {
-    outline: 2px solid hsla(var(--foreground) / 0.6);
+    outline: 2px solid rgba(244, 241, 234, 0.6);
     outline-offset: 3px;
 }
 
 .sip-session-edit-modal-backdrop {
     position: fixed;
     inset: 0;
-    background: hsla(var(--background) / 0.72);
+    background: rgba(5, 5, 5, 0.72);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -454,14 +461,14 @@ a.wine-card:focus {
 }
 
 .sip-session-edit-modal {
-    background: hsla(var(--background) / 0.96);
+    background: rgba(12, 12, 12, 0.96);
     border-radius: 16px;
-    border: 1px solid hsla(var(--foreground) / 0.12);
+    border: 1px solid rgba(244, 241, 234, 0.12);
     width: min(540px, 100%);
     max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 25px 60px hsla(var(--background) / 0.45);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
     overflow: hidden;
 }
 
@@ -495,8 +502,8 @@ a.wine-card:focus {
     justify-content: flex-end;
     align-items: center;
     gap: 12px;
-    border-top: 1px solid hsla(var(--foreground) / 0.12);
-    background: hsla(var(--background) / 0.96);
+    border-top: 1px solid rgba(244, 241, 234, 0.12);
+    background: rgba(12, 12, 12, 0.96);
 }
 
 .choose-bottles-section {
@@ -525,10 +532,10 @@ a.wine-card:focus {
         var(--choose-bottles-toolbar-padding-inline)
         var(--choose-bottles-toolbar-padding-bottom);
     margin-bottom: var(--choose-bottles-toolbar-gap);
-    background: hsla(var(--background) / 0.96);
+    background: rgba(12, 12, 12, 0.96);
     backdrop-filter: blur(2px);
-    border-bottom: 1px solid hsla(var(--foreground) / 0.12);
-    box-shadow: 0 12px 24px hsla(var(--background) / 0.55);
+    border-bottom: 1px solid rgba(244, 241, 234, 0.12);
+    box-shadow: 0 12px 24px rgba(12, 12, 12, 0.55);
 }
 
 .choose-bottles-filter-label {
@@ -555,13 +562,13 @@ a.wine-card:focus {
     position: sticky;
     top: 0;
     z-index: 2;
-    background: hsla(var(--background) / 0.96);
+    background: rgba(12, 12, 12, 0.96);
     backdrop-filter: blur(2px);
-    box-shadow: 0 10px 22px hsla(var(--background) / 0.5);
+    box-shadow: 0 10px 22px rgba(12, 12, 12, 0.5);
 }
 
 .choose-bottles-footer {
-    background: linear-gradient(180deg, hsla(var(--background) / 0) 0%, hsla(var(--background) / 0.96) 24%);
+    background: linear-gradient(180deg, rgba(12, 12, 12, 0) 0%, rgba(12, 12, 12, 0.96) 24%);
     backdrop-filter: blur(2px);
 }
 
@@ -597,10 +604,10 @@ a.wine-card:focus {
         var(--accept-deliveries-toolbar-padding-inline)
         var(--accept-deliveries-toolbar-padding-bottom);
     margin-bottom: var(--accept-deliveries-toolbar-gap);
-    background: hsla(var(--background) / 0.96);
+    background: rgba(12, 12, 12, 0.96);
     backdrop-filter: blur(2px);
-    border-bottom: 1px solid hsla(var(--foreground) / 0.12);
-    box-shadow: 0 12px 24px hsla(var(--background) / 0.55);
+    border-bottom: 1px solid rgba(244, 241, 234, 0.12);
+    box-shadow: 0 12px 24px rgba(12, 12, 12, 0.55);
 }
 
 .accept-deliveries-filter-label {
@@ -633,9 +640,9 @@ a.wine-card:focus {
     position: sticky;
     top: 0;
     z-index: 2;
-    background: hsla(var(--background) / 0.96);
+    background: rgba(12, 12, 12, 0.96);
     backdrop-filter: blur(2px);
-    box-shadow: 0 10px 22px hsla(var(--background) / 0.5);
+    box-shadow: 0 10px 22px rgba(12, 12, 12, 0.5);
 }
 
 .accept-deliveries-col-select {
@@ -669,13 +676,13 @@ a.wine-card:focus {
 .accept-deliveries-option-location {
     display: block;
     font-size: 0.875rem;
-    color: hsla(var(--foreground) / 0.72);
+    color: rgba(244, 241, 234, 0.72);
 }
 
 .accept-deliveries-empty-row td {
     text-align: center;
     padding: 18px 0;
-    color: hsla(var(--foreground) / 0.72);
+    color: rgba(244, 241, 234, 0.72);
 }
 
 .wine-wizard-start-body {
@@ -745,7 +752,7 @@ a.wine-card:focus {
 .sip-session-rate-modal {
     width: min(460px, 100%);
     max-height: 90vh;
-    box-shadow: 0 24px 55px hsla(var(--background) / 0.45);
+    box-shadow: 0 24px 55px rgba(0, 0, 0, 0.45);
 }
 
 .sip-session-rate-modal__header {
@@ -768,7 +775,7 @@ a.wine-card:focus {
     font-size: 12px;
     letter-spacing: 1.4px;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.72);
+    color: rgba(244, 241, 234, 0.72);
 }
 
 .sip-session-rate-modal__form textarea,
@@ -776,9 +783,9 @@ a.wine-card:focus {
     width: 100%;
     padding: 10px 12px;
     border-radius: 10px;
-    border: 1px solid hsla(var(--foreground) / 0.14);
-    background: hsla(var(--foreground) / 0.05);
-    color: hsl(var(--foreground));
+    border: 1px solid rgba(244, 241, 234, 0.14);
+    background: rgba(244, 241, 234, 0.05);
+    color: #f4f1ea;
     font-family: inherit;
     font-size: 14px;
 }
@@ -786,8 +793,8 @@ a.wine-card:focus {
 .sip-session-rate-modal__form textarea:focus,
 .sip-session-rate-modal__form input[type="number"]:focus {
     outline: none;
-    border-color: hsla(var(--foreground) / 0.4);
-    box-shadow: 0 0 0 2px hsla(var(--foreground) / 0.12);
+    border-color: rgba(244, 241, 234, 0.4);
+    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.12);
 }
 
 .sip-session-rate-modal__form textarea {
@@ -808,13 +815,13 @@ a.wine-card:focus {
 .sip-session-rate-modal__hint {
     margin: 0;
     font-size: 13px;
-    color: hsla(var(--foreground) / 0.75);
+    color: rgba(244, 241, 234, 0.75);
 }
 
 .sip-session-rate-modal__footnote {
     margin: -8px 0 0;
     font-size: 11px;
-    color: hsla(var(--foreground) / 0.55);
+    color: rgba(244, 241, 234, 0.55);
 }
 
 .sip-session-rate-modal__actions {
@@ -829,8 +836,8 @@ a.wine-card:focus {
     flex-direction: column;
     gap: 12px;
     border-radius: 14px;
-    border: 1px dashed hsla(var(--foreground) / 0.18);
-    background: hsla(var(--foreground) / 0.03);
+    border: 1px dashed rgba(244, 241, 234, 0.18);
+    background: rgba(244, 241, 234, 0.03);
     padding: 16px;
 }
 
@@ -838,7 +845,7 @@ a.wine-card:focus {
     font-size: 12px;
     letter-spacing: 1.5px;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.7);
+    color: rgba(244, 241, 234, 0.7);
 }
 
 .sip-session-form input[type="text"],
@@ -849,9 +856,9 @@ a.wine-card:focus {
     width: 100%;
     padding: 10px 12px;
     border-radius: 12px;
-    border: 1px solid hsla(var(--foreground) / 0.16);
-    background: hsla(var(--foreground) / 0.06);
-    color: hsl(var(--foreground));
+    border: 1px solid rgba(244, 241, 234, 0.16);
+    background: rgba(244, 241, 234, 0.06);
+    color: #f4f1ea;
     font-size: 14px;
 }
 
@@ -866,8 +873,8 @@ a.wine-card:focus {
 .sip-session-form textarea:focus,
 .sip-session-form select:focus {
     outline: none;
-    border-color: hsla(var(--foreground) / 0.3);
-    background: hsla(var(--foreground) / 0.12);
+    border-color: rgba(244, 241, 234, 0.3);
+    background: rgba(244, 241, 234, 0.12);
 }
 
 .sip-session-form-actions {
@@ -908,12 +915,12 @@ a.wine-card:focus {
     flex-wrap: wrap;
     align-items: center;
     gap: 12px;
-    color: hsla(var(--foreground) / 0.85);
+    color: rgba(244, 241, 234, 0.85);
     font-size: 0.875rem;
 }
 
 .bottle-management-meta-separator {
-    color: hsla(var(--foreground) / 0.6);
+    color: rgba(244, 241, 234, 0.6);
 }
 
 .bottle-management-drinking-window {
@@ -929,10 +936,10 @@ a.wine-card:focus {
 
 .bottle-management-drinking-window-input {
     appearance: none;
-    background-color: hsla(var(--background) / 0.6);
-    border: 1px solid hsla(var(--foreground) / 0.16);
+    background-color: rgba(16, 16, 20, 0.6);
+    border: 1px solid rgba(244, 241, 234, 0.16);
     border-radius: 10px;
-    color: hsl(var(--foreground));
+    color: #f4f1ea;
     padding: 6px 12px;
     font-size: 0.875rem;
     line-height: 1.4;
@@ -940,8 +947,8 @@ a.wine-card:focus {
 
 .bottle-management-drinking-window-input:focus {
     outline: none;
-    border-color: hsla(var(--foreground) / 0.32);
-    box-shadow: 0 0 0 2px hsla(var(--foreground) / 0.14);
+    border-color: rgba(244, 241, 234, 0.32);
+    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.14);
 }
 
 .bottle-management-drinking-window-input:disabled {
@@ -983,7 +990,7 @@ a.wine-card:focus {
     flex-direction: column;
     gap: 4px;
     font-size: 0.875rem;
-    color: hsla(var(--foreground) / 0.85);
+    color: rgba(244, 241, 234, 0.85);
 }
 
 .bottle-management-control--checkbox {
@@ -998,10 +1005,10 @@ a.wine-card:focus {
 
 .bottle-management-select {
     appearance: none;
-    background-color: hsla(var(--background) / 0.6);
-    border: 1px solid hsla(var(--foreground) / 0.16);
+    background-color: rgba(16, 16, 20, 0.6);
+    border: 1px solid rgba(244, 241, 234, 0.16);
     border-radius: 10px;
-    color: hsl(var(--foreground));
+    color: #f4f1ea;
     padding: 6px 12px;
     min-width: 140px;
     font-size: 0.875rem;
@@ -1010,8 +1017,8 @@ a.wine-card:focus {
 
 .bottle-management-select:focus {
     outline: none;
-    border-color: hsla(var(--foreground) / 0.32);
-    box-shadow: 0 0 0 2px hsla(var(--foreground) / 0.14);
+    border-color: rgba(244, 241, 234, 0.32);
+    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.14);
 }
 
 .bottle-management-select:disabled {
@@ -1033,10 +1040,10 @@ a.wine-card:focus {
 
 .bottle-management-price-input {
     appearance: none;
-    background-color: hsla(var(--background) / 0.6);
-    border: 1px solid hsla(var(--foreground) / 0.16);
+    background-color: rgba(16, 16, 20, 0.6);
+    border: 1px solid rgba(244, 241, 234, 0.16);
     border-radius: 10px;
-    color: hsl(var(--foreground));
+    color: #f4f1ea;
     padding: 6px 12px;
     font-size: 0.875rem;
     line-height: 1.4;
@@ -1046,8 +1053,8 @@ a.wine-card:focus {
 
 .bottle-management-price-input:focus {
     outline: none;
-    border-color: hsla(var(--foreground) / 0.32);
-    box-shadow: 0 0 0 2px hsla(var(--foreground) / 0.14);
+    border-color: rgba(244, 241, 234, 0.32);
+    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.14);
 }
 
 .bottle-management-price-input[disabled] {
@@ -1081,7 +1088,7 @@ a.wine-card:focus {
     font-size: 1.125rem;
     font-weight: 600;
     letter-spacing: 0.4px;
-    color: hsla(var(--foreground) / 0.9);
+    color: rgba(244, 241, 234, 0.9);
 }
 
 @media (max-width: 640px) {
@@ -1120,7 +1127,7 @@ a.wine-card:focus {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    background: hsla(var(--background) / 0.92);
+    background: rgba(16, 16, 20, 0.92);
 }
 
 .sisterhood-user-select-form {
@@ -1132,7 +1139,7 @@ a.wine-card:focus {
 .sisterhood-user-select-intro {
     margin: 0;
     font-size: 0.95rem;
-    color: hsla(var(--foreground) / 0.86);
+    color: rgba(244, 241, 234, 0.86);
 }
 
 .sisterhood-user-select-filter {
@@ -1145,24 +1152,24 @@ a.wine-card:focus {
     font-size: 0.7rem;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.62);
+    color: rgba(244, 241, 234, 0.62);
 }
 
 .sisterhood-user-select-filter-input {
     appearance: none;
-    background: hsla(var(--background) / 0.7);
-    border: 1px solid hsla(var(--foreground) / 0.16);
+    background: rgba(16, 16, 20, 0.7);
+    border: 1px solid rgba(244, 241, 234, 0.16);
     border-radius: 12px;
     padding: 10px 14px;
     font-size: 0.95rem;
-    color: hsl(var(--foreground));
+    color: #f4f1ea;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .sisterhood-user-select-filter-input:focus {
     outline: none;
-    border-color: hsla(var(--foreground) / 0.36);
-    box-shadow: 0 0 0 2px hsla(var(--foreground) / 0.18);
+    border-color: rgba(244, 241, 234, 0.36);
+    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.18);
 }
 
 .sisterhood-user-select-filter-input:disabled {
@@ -1174,9 +1181,9 @@ a.wine-card:focus {
     max-height: min(360px, 56vh);
     overflow-y: auto;
     padding: 4px;
-    border: 1px solid hsla(var(--foreground) / 0.12);
+    border: 1px solid rgba(244, 241, 234, 0.12);
     border-radius: 16px;
-    background: hsla(var(--background) / 0.55);
+    background: rgba(10, 10, 14, 0.55);
 }
 
 .sisterhood-user-select-list {
@@ -1199,37 +1206,37 @@ a.wine-card:focus {
     align-items: flex-start;
     padding: 12px 14px;
     border-radius: 14px;
-    border: 1px solid hsla(var(--foreground) / 0.12);
-    background: hsla(var(--foreground) / 0.04);
+    border: 1px solid rgba(244, 241, 234, 0.12);
+    background: rgba(244, 241, 234, 0.04);
     transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .sisterhood-user-select-option:hover,
 .sisterhood-user-select-option:focus-within {
-    border-color: hsla(var(--foreground) / 0.28);
-    background: hsla(var(--foreground) / 0.08);
-    box-shadow: 0 12px 28px hsla(var(--background) / 0.28);
+    border-color: rgba(244, 241, 234, 0.28);
+    background: rgba(244, 241, 234, 0.08);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
 }
 
 .sisterhood-user-select-checkbox {
     margin-top: 6px;
     width: 18px;
     height: 18px;
-    accent-color: hsl(var(--foreground));
+    accent-color: #f4f1ea;
 }
 
 .sisterhood-user-select-avatar {
     width: 38px;
     height: 38px;
     border-radius: 50%;
-    border: 1px solid hsla(var(--foreground) / 0.28);
-    background: linear-gradient(135deg, hsla(var(--foreground) / 0.24), hsla(var(--foreground) / 0));
+    border: 1px solid rgba(244, 241, 234, 0.28);
+    background: linear-gradient(135deg, rgba(244, 241, 234, 0.24), rgba(244, 241, 234, 0));
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
     font-size: 1rem;
-    color: hsl(var(--foreground));
+    color: #f4f1ea;
 }
 
 .sisterhood-user-select-text {
@@ -1242,19 +1249,19 @@ a.wine-card:focus {
     font-size: 1rem;
     font-weight: 600;
     margin: 0;
-    color: hsl(var(--foreground));
+    color: #f4f1ea;
 }
 
 .sisterhood-user-select-email {
     font-size: 0.85rem;
-    color: hsla(var(--foreground) / 0.72);
+    color: rgba(244, 241, 234, 0.72);
 }
 
 .sisterhood-user-select-shared-count {
     font-size: 0.75rem;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.58);
+    color: rgba(244, 241, 234, 0.58);
 }
 
 .sisterhood-user-select-sisterhoods {
@@ -1269,10 +1276,10 @@ a.wine-card:focus {
 .sisterhood-user-select-sisterhoods li {
     padding: 4px 10px;
     border-radius: 999px;
-    background: hsla(var(--foreground) / 0.08);
-    border: 1px solid hsla(var(--foreground) / 0.14);
+    background: rgba(244, 241, 234, 0.08);
+    border: 1px solid rgba(244, 241, 234, 0.14);
     font-size: 0.75rem;
-    color: hsla(var(--foreground) / 0.88);
+    color: rgba(244, 241, 234, 0.88);
 }
 
 .sisterhood-user-select-empty,
@@ -1280,18 +1287,18 @@ a.wine-card:focus {
 .sisterhood-user-select-status {
     margin: 0;
     font-size: 0.85rem;
-    color: hsla(var(--foreground) / 0.74);
+    color: rgba(244, 241, 234, 0.74);
 }
 
 .sisterhood-user-select-empty {
-    color: hsla(var(--foreground) / 0.58);
+    color: rgba(244, 241, 234, 0.58);
 }
 
 .sisterhood-user-select-empty-state {
     padding: 12px 14px;
     border-radius: 12px;
-    border: 1px dashed hsla(var(--foreground) / 0.28);
-    background: hsla(var(--foreground) / 0.06);
+    border: 1px dashed rgba(244, 241, 234, 0.28);
+    background: rgba(244, 241, 234, 0.06);
 }
 
 .sisterhood-user-select-actions {
@@ -1328,12 +1335,12 @@ a.wine-card:focus {
 .wishlist-fieldset {
     margin: 0;
     padding: 16px;
-    border: 1px solid hsla(var(--foreground) / 0.14);
+    border: 1px solid rgba(244, 241, 234, 0.14);
     border-radius: 16px;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    background: hsla(var(--background) / 0.35);
+    background: rgba(16, 16, 20, 0.35);
 }
 
 .wishlist-fieldset legend {
@@ -1342,7 +1349,7 @@ a.wine-card:focus {
     font-size: 11px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.65);
+    color: rgba(244, 241, 234, 0.65);
 }
 
 .wishlist-select-group {
@@ -1359,9 +1366,9 @@ a.wine-card:focus {
 
 .wishlist-create-toggle {
     background: transparent;
-    border: 1px solid hsla(var(--foreground) / 0.28);
+    border: 1px solid rgba(244, 241, 234, 0.28);
     border-radius: 999px;
-    color: hsla(var(--foreground) / 0.9);
+    color: rgba(244, 241, 234, 0.9);
     text-transform: uppercase;
     letter-spacing: 1.8px;
     font-size: 11px;
@@ -1373,13 +1380,13 @@ a.wine-card:focus {
 
 .wishlist-create-toggle:hover,
 .wishlist-create-toggle:focus-visible {
-    background: hsla(var(--foreground) / 0.14);
-    border-color: hsla(var(--foreground) / 0.36);
-    color: hsl(var(--foreground));
+    background: rgba(244, 241, 234, 0.14);
+    border-color: rgba(244, 241, 234, 0.36);
+    color: #f4f1ea;
 }
 
 .wishlist-create-toggle:focus-visible {
-    outline: 2px solid hsla(var(--foreground) / 0.5);
+    outline: 2px solid rgba(244, 241, 234, 0.5);
     outline-offset: 2px;
 }
 
@@ -1396,23 +1403,23 @@ a.wine-card:focus {
     width: 100%;
     border-radius: 12px;
     padding: 12px;
-    background: hsla(var(--background) / 0.55);
-    border: 1px solid hsla(var(--foreground) / 0.2);
-    color: hsl(var(--foreground));
+    background: rgba(18, 18, 22, 0.55);
+    border: 1px solid rgba(244, 241, 234, 0.2);
+    color: #f4f1ea;
     font-size: 0.95rem;
 }
 
 .wishlist-name:focus-visible {
-    outline: 2px solid hsla(var(--foreground) / 0.5);
+    outline: 2px solid rgba(244, 241, 234, 0.5);
     outline-offset: 2px;
 }
 
 .wishlist-error[data-state="info"] {
-    color: hsla(var(--foreground) / 0.75);
+    color: rgba(244, 241, 234, 0.75);
 }
 
 .wishlist-error[data-state="error"] {
-    color: hsla(var(--destructive) / 0.75);
+    color: #ff9ca3;
 }
 
 .wine-card__stats {
@@ -1435,7 +1442,7 @@ a.wine-card:focus {
     font-size: 11px;
     letter-spacing: 1.6px;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.6);
+    color: rgba(244, 241, 234, 0.6);
 }
 
 .wine-card__stat dd {
@@ -1449,11 +1456,11 @@ a.wine-card:focus {
     font-size: 12px;
     letter-spacing: 1.6px;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.65);
+    color: rgba(244, 241, 234, 0.65);
 }
 
 .bottle-note--hidden {
-    color: hsla(var(--foreground) / 0.72);
+    color: rgba(244, 241, 234, 0.72);
 }
 
 .bottle-card-actions {
@@ -1532,7 +1539,7 @@ a.wine-card:focus {
 .sip-session-card {
     backdrop-filter: blur(4px);
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-    color: hsl(var(--foreground));
+    color: #f4f1ea;
     text-decoration: none;
 }
 
@@ -1540,8 +1547,8 @@ a.wine-card:focus {
 .sip-session-card:focus-within,
 .sip-session-card:focus-visible {
     transform: translateY(-4px);
-    border-color: hsla(var(--foreground) / 0.35);
-    box-shadow: 0 0 24px hsla(var(--foreground) / 0.12);
+    border-color: rgba(244, 241, 234, 0.35);
+    box-shadow: 0 0 24px rgba(244, 241, 234, 0.12);
     outline: none;
     text-decoration: none;
 }
@@ -1563,7 +1570,7 @@ a.wine-card:focus {
     font-size: 12px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.65);
+    color: rgba(244, 241, 234, 0.65);
 }
 
 .sip-session-meta {
@@ -1573,7 +1580,7 @@ a.wine-card:focus {
     font-size: 13px;
     letter-spacing: 1.6px;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.75);
+    color: rgba(244, 241, 234, 0.75);
 }
 
 .sip-session-meta span {
@@ -1586,15 +1593,15 @@ a.wine-card:focus {
     margin: 0;
     font-size: 15px;
     line-height: 1.7;
-    color: hsla(var(--foreground) / 0.78);
+    color: rgba(244, 241, 234, 0.78);
 }
 
 .sip-session-bottles {
     margin: 8px 0 0;
     padding: 12px 16px;
     border-radius: 18px;
-    border: 1px solid hsla(var(--foreground) / 0.08);
-    background: hsla(var(--foreground) / 0.05);
+    border: 1px solid rgba(244, 241, 234, 0.08);
+    background: rgba(244, 241, 234, 0.05);
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -1604,7 +1611,7 @@ a.wine-card:focus {
     font-size: 12px;
     letter-spacing: 1.6px;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.62);
+    color: rgba(244, 241, 234, 0.62);
 }
 
 .sip-session-bottle-list {
@@ -1613,7 +1620,7 @@ a.wine-card:focus {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    color: hsla(var(--foreground) / 0.85);
+    color: rgba(244, 241, 234, 0.85);
 }
 
 .sip-session-bottle-list li {
@@ -1625,12 +1632,12 @@ a.wine-card:focus {
     margin: 0;
     padding: 18px 22px;
     border-radius: 18px;
-    border: 1px dashed hsla(var(--foreground) / 0.25);
-    background: hsla(var(--background) / 0.6);
+    border: 1px dashed rgba(244, 241, 234, 0.25);
+    background: rgba(12, 12, 12, 0.6);
     font-size: 13px;
     letter-spacing: 1.6px;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.68);
+    color: rgba(244, 241, 234, 0.68);
 }
 
 @media (max-width: 768px) {
@@ -1688,14 +1695,14 @@ a.wine-card:focus {
     font-size: 14px;
     letter-spacing: 1.2px;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.65);
+    color: rgba(244, 241, 234, 0.65);
 }
 
 .import-preview__count {
     margin: 0;
     font-size: 13px;
     letter-spacing: 1.2px;
-    color: hsla(var(--foreground) / 0.78);
+    color: rgba(244, 241, 234, 0.78);
 }
 
 .import-preview__table-wrapper {
@@ -1711,7 +1718,7 @@ a.wine-card:focus {
 .import-preview__table th,
 .import-preview__table td {
     padding: 12px 16px;
-    border-bottom: 1px solid hsla(var(--foreground) / 0.08);
+    border-bottom: 1px solid rgba(244, 241, 234, 0.08);
     vertical-align: top;
 }
 
@@ -1719,7 +1726,7 @@ a.wine-card:focus {
     font-size: 12px;
     letter-spacing: 1.6px;
     text-transform: uppercase;
-    color: hsla(var(--foreground) / 0.62);
+    color: rgba(244, 241, 234, 0.62);
 }
 
 .import-preview__table tbody tr:last-child td {
@@ -1742,11 +1749,11 @@ a.wine-card:focus {
     margin-top: 4px;
     font-size: 12px;
     letter-spacing: 0.6px;
-    color: hsla(var(--foreground) / 0.58);
+    color: rgba(244, 241, 234, 0.58);
 }
 
 .import-preview__cell--match {
-    background: hsla(var(--positive) / 0.16);
+    background: rgba(46, 173, 108, 0.16);
     position: relative;
 }
 
@@ -1766,23 +1773,23 @@ a.wine-card:focus {
     font-size: 12px;
     letter-spacing: 1.4px;
     text-transform: uppercase;
-    background: hsla(var(--foreground) / 0.08);
-    color: hsla(var(--foreground) / 0.78);
+    background: rgba(244, 241, 234, 0.08);
+    color: rgba(244, 241, 234, 0.78);
 }
 
 .import-preview__status[data-state="added"] {
-    background: hsla(var(--positive) / 0.28);
-    color: hsla(var(--positive-foreground) / 0.92);
+    background: rgba(46, 173, 108, 0.28);
+    color: #d8f8e4;
 }
 
 .import-preview__status[data-state="existing"] {
-    background: hsla(var(--warning) / 0.24);
-    color: hsla(var(--warning-foreground) / 0.94);
+    background: rgba(255, 193, 7, 0.24);
+    color: #ffe7a3;
 }
 
 .import-preview__status[data-state="error"] {
-    background: hsla(var(--destructive) / 0.28);
-    color: hsla(var(--destructive-foreground) / 0.9);
+    background: rgba(244, 67, 54, 0.28);
+    color: #ffc4c0;
 }
 
 .import-preview__row--added {
@@ -1790,7 +1797,7 @@ a.wine-card:focus {
 }
 
 .import-preview__row--error {
-    background: hsla(var(--destructive) / 0.12);
+    background: rgba(244, 67, 54, 0.12);
 }
 
 .import-preview__action-button {
@@ -1825,19 +1832,19 @@ a.wine-card:focus {
     margin: 0;
     font-size: 13px;
     letter-spacing: 1.1px;
-    color: hsla(var(--foreground) / 0.72);
+    color: rgba(244, 241, 234, 0.72);
 }
 
 .import-preview__bulk-status[data-state="success"] {
-    color: hsla(var(--positive-foreground) / 0.92);
+    color: #d8f8e4;
 }
 
 .import-preview__bulk-status[data-state="error"] {
-    color: hsla(var(--destructive-foreground) / 0.85);
+    color: #ffb8b3;
 }
 
 .import-preview__bulk-status[data-state="info"] {
-    color: hsla(var(--foreground) / 0.72);
+    color: rgba(244, 241, 234, 0.72);
 }
 
 @media (max-width: 900px) {
