@@ -332,8 +332,9 @@
                                 <td class="summary-score" data-field="score">@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
                                 <td class="summary-actions">
                                     <button type="button"
-                                            class="wine-surfer-button wine-surfer-button--ghost"
+                                            class="wine-surfer-button wine-surfer-button--ghost inventory-generate-button"
                                             data-generate-drinking-windows
+                                            data-last-generated-at="@(bottle.DrinkingWindowGeneratedAtUtc?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty)"
                                             aria-label="Generate drinking windows for @bottle.WineName">
                                         <svg class="inventory-generate-icon"
                                              viewBox="0 0 24 24"
@@ -346,6 +347,15 @@
                                              stroke-linejoin="round">
                                             <path d="M4 12a8 8 0 0 1 12.9-6.3l1.8-1.8v6.1H12l2.2-2.2A5 5 0 1 0 17 12h3a8 8 0 1 1-16 0Z" />
                                         </svg>
+                                        <span class="inventory-generate-button__text">
+                                            <span class="inventory-generate-button__primary">Generate windows</span>
+                                            <span class="inventory-generate-button__meta" data-last-generated-label>
+                                                @(
+                                                    bottle.DrinkingWindowGeneratedAtUtc.HasValue
+                                                        ? $"Last generated {bottle.DrinkingWindowGeneratedAtUtc.Value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)}"
+                                                        : "Not generated yet")
+                                            </span>
+                                        </span>
                                     </button>
                                 </td>
                             </tr>

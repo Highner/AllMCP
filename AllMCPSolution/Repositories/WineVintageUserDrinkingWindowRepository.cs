@@ -59,6 +59,7 @@ public sealed class WineVintageUserDrinkingWindowRepository : IWineVintageUserDr
 
     public async Task AddAsync(WineVintageUserDrinkingWindow drinkingWindow, CancellationToken ct = default)
     {
+        drinkingWindow.GeneratedAtUtc ??= DateTime.UtcNow;
         _dbContext.WineVintageUserDrinkingWindows.Add(drinkingWindow);
         await _dbContext.SaveChangesAsync(ct);
     }
@@ -81,6 +82,7 @@ public sealed class WineVintageUserDrinkingWindowRepository : IWineVintageUserDr
         existing.StartingYear = drinkingWindow.StartingYear;
         existing.EndingYear = drinkingWindow.EndingYear;
         existing.AlignmentScore = drinkingWindow.AlignmentScore;
+        existing.GeneratedAtUtc = drinkingWindow.GeneratedAtUtc ?? existing.GeneratedAtUtc;
 
         await _dbContext.SaveChangesAsync(ct);
     }
