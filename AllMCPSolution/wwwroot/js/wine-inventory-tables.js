@@ -21,14 +21,6 @@
         const statusToggleLabel = statusToggleButton?.querySelector('[data-inventory-status-toggle-label]');
         const statusToggleHint = statusToggleButton?.querySelector('[data-inventory-status-toggle-hint]');
         const statusToggleSr = statusToggleButton?.querySelector('[data-inventory-status-toggle-sr]');
-        const groupingToggleButton = document.querySelector('[data-inventory-grouping-toggle]');
-        const groupingToggleLabel = groupingToggleButton?.querySelector('[data-inventory-grouping-toggle-label]');
-        const groupingToggleSr = groupingToggleButton?.querySelector('[data-inventory-grouping-toggle-sr]');
-        const groupingContainer = document.querySelector('[data-inventory-grouping-container]');
-        const groupedInventoryTable = groupingContainer?.querySelector('[data-inventory-table="grouped"]')
-            ?? document.getElementById('inventory-table');
-        const vintageInventoryTable = groupingContainer?.querySelector('[data-inventory-table="vintages"]')
-            ?? document.getElementById('inventory-table-vintages');
         const headerFilterFocusStorageKey = 'wine-inventory:restore-header-focus';
         let headerFilterDebounceId = null;
         let maintainHeaderFilterFocus = false;
@@ -45,17 +37,6 @@
                 label: 'Cellared only',
                 hint: 'Tap to show all bottles',
                 announcement: 'Showing only cellared bottles. Activate to show all bottles.',
-            },
-        };
-
-        const GROUPING_TOGGLE_COPY = {
-            grouped: {
-                label: 'Grouped by wine',
-                announcement: 'Showing wines grouped by wine. Activate to show each vintage separately.',
-            },
-            vintage: {
-                label: 'Vintage view',
-                announcement: 'Showing each vintage separately. Activate to show wines grouped by wine.',
             },
         };
 
@@ -107,76 +88,6 @@
             }
         }
 
-        function normalizeGroupingMode(value) {
-            if (typeof value !== 'string') {
-                return 'grouped';
-            }
-
-            const normalized = value.trim().toLowerCase();
-            return normalized === 'vintage' ? 'vintage' : 'grouped';
-        }
-
-        function getActiveGroupingMode() {
-            const buttonState = groupingToggleButton?.dataset.state;
-            const containerState = groupingContainer?.dataset.groupingMode;
-            return normalizeGroupingMode(buttonState || containerState || 'grouped');
-        }
-
-        function updateGroupingToggleUI(mode) {
-            const normalized = normalizeGroupingMode(mode);
-            const copy = GROUPING_TOGGLE_COPY[normalized] ?? GROUPING_TOGGLE_COPY.grouped;
-
-            if (groupingToggleButton) {
-                groupingToggleButton.dataset.state = normalized;
-                groupingToggleButton.setAttribute('aria-pressed', normalized === 'vintage' ? 'true' : 'false');
-                groupingToggleButton.setAttribute('aria-label', copy.announcement);
-            }
-
-            if (groupingToggleLabel) {
-                groupingToggleLabel.textContent = copy.label;
-            }
-
-            if (groupingToggleSr) {
-                groupingToggleSr.textContent = copy.announcement;
-            }
-        }
-
-        function updateGroupingView(mode) {
-            const normalized = normalizeGroupingMode(mode);
-
-            if (groupingContainer) {
-                groupingContainer.dataset.groupingMode = normalized;
-            }
-
-            if (groupedInventoryTable) {
-                if (normalized === 'grouped') {
-                    groupedInventoryTable.removeAttribute('hidden');
-                } else {
-                    groupedInventoryTable.setAttribute('hidden', 'hidden');
-                }
-            }
-
-            if (vintageInventoryTable) {
-                if (normalized === 'vintage') {
-                    vintageInventoryTable.removeAttribute('hidden');
-                } else {
-                    vintageInventoryTable.setAttribute('hidden', 'hidden');
-                }
-            }
-
-            if (normalized === 'vintage' && expandedInventoryRow) {
-                collapseInventoryRow(expandedInventoryRow);
-            }
-
-            bindVintageTableRows();
-        }
-
-        function setGroupingMode(mode) {
-            const normalized = normalizeGroupingMode(mode);
-            updateGroupingToggleUI(normalized);
-            updateGroupingView(normalized);
-        }
-
         function updateHeaderFilterClearButtonVisibility() {
             if (!headerFilterInput || !headerFilterClearButton) {
                 return;
@@ -224,34 +135,13 @@
                         accessible: drunkPart,
                         ariaLabelSuffix: `(${drunkFormatted} enjoyed)`
                     };
-            default:
-                return {
-                    hidden: `${pendingFormatted}/${cellaredFormatted}/${drunkFormatted}`,
-                    accessible: `${pendingPart}, ${cellaredPart}, ${drunkPart}`,
-                    ariaLabelSuffix: `(${pendingFormatted} pending, ${cellaredFormatted} cellared, ${drunkFormatted} enjoyed)`
-                };
+                default:
+                    return {
+                        hidden: `${pendingFormatted}/${cellaredFormatted}/${drunkFormatted}`,
+                        accessible: `${pendingPart}, ${cellaredPart}, ${drunkPart}`,
+                        ariaLabelSuffix: `(${pendingFormatted} pending, ${cellaredFormatted} cellared, ${drunkFormatted} enjoyed)`
+                    };
             }
-        }
-
-        function resolveBottleStatus(pending, cellared, drunk) {
-            const safePending = Number.isFinite(pending) ? pending : 0;
-            const safeCellared = Number.isFinite(cellared) ? cellared : 0;
-            const safeDrunk = Number.isFinite(drunk) ? drunk : 0;
-            const total = safePending + safeCellared + safeDrunk;
-
-            if (safePending > 0 && safeCellared === 0 && safeDrunk === 0) {
-                return { label: 'Pending', cssClass: 'pending' };
-            }
-
-            if (safeCellared > 0 && safePending === 0 && safeDrunk === 0) {
-                return { label: 'Cellared', cssClass: 'cellared' };
-            }
-
-            if (total > 0 && safeDrunk === total) {
-                return { label: 'Drunk', cssClass: 'drunk' };
-            }
-
-            return { label: 'Mixed', cssClass: 'mixed' };
         }
 
         function cancelInlineDetailsRequest() {
@@ -388,8 +278,6 @@
         }
 
         updateStatusToggleUI(filtersStatusInput?.value ?? statusToggleButton?.dataset.state ?? 'all');
-        const initialGroupingMode = getActiveGroupingMode();
-        setGroupingMode(initialGroupingMode);
 
         if (statusToggleButton && filtersForm && filtersStatusInput) {
             statusToggleButton.addEventListener('click', (event) => {
@@ -407,17 +295,6 @@
                 cancelInlineDetailsRequest();
                 submitFiltersForm();
             });
-        }
-
-        if (groupingToggleButton) {
-            groupingToggleButton.addEventListener('click', (event) => {
-                event.preventDefault();
-                const current = getActiveGroupingMode();
-                const next = current === 'vintage' ? 'grouped' : 'vintage';
-                setGroupingMode(next);
-            });
-        } else {
-            bindVintageTableRows();
         }
 
         if (headerFilterInput) {
@@ -629,7 +506,7 @@
             bottleLocations: []
         };
 
-        const inventoryTable = groupedInventoryTable;
+        const inventoryTable = document.getElementById('inventory-table');
         const inventoryInlineTemplate = document.getElementById('inventory-wine-vintages-template');
         const inventoryInlineRowTemplate = document.getElementById('inventory-wine-vintage-row-template');
         const vintageSummaryCache = new Map();
@@ -1071,10 +948,6 @@
                 const cacheEntry = new Map();
                 cacheEntry.set(statusFilter, aggregated);
                 vintageSummaryCache.set(wineId, cacheEntry);
-            }
-
-            if (details.length > 0) {
-                updateVintageTableFromDetails(details, group);
             }
 
             if (row.classList.contains('selected')) {
@@ -1580,210 +1453,6 @@
                 if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
                     openBottleModal();
-                }
-            });
-        }
-
-        function updateVintageRowAccessibility(row) {
-            if (!(row instanceof HTMLTableRowElement)) {
-                return;
-            }
-
-            const statusFilter = getActiveStatusFilter();
-            const pending = Number.parseInt(row.dataset.pendingCount ?? '0', 10) || 0;
-            const cellared = Number.parseInt(row.dataset.cellaredCount ?? '0', 10) || 0;
-            const drunk = Number.parseInt(row.dataset.drunkCount ?? '0', 10) || 0;
-            const total = pending + cellared + drunk;
-            const totalFormatted = Number.isFinite(total) ? total.toLocaleString() : '0';
-            const noun = total === 1 ? 'bottle' : 'bottles';
-            const wineName = (row.dataset.wineName ?? '').trim();
-            const vintageLabel = (row.dataset.vintageLabel ?? '').trim() || '—';
-            const descriptor = wineName ? `${wineName} vintage ${vintageLabel}` : `vintage ${vintageLabel}`;
-            const copy = buildBottleCountCopy(pending, cellared, drunk, statusFilter);
-            row.setAttribute('aria-label', `Manage ${totalFormatted} ${noun} for ${descriptor} ${copy.ariaLabelSuffix}`.trim());
-        }
-
-        function bindVintageTableRow(row) {
-            if (!(row instanceof HTMLTableRowElement)) {
-                return;
-            }
-
-            if (row.dataset.vintageBound === 'true') {
-                updateVintageRowAccessibility(row);
-                return;
-            }
-
-            const openModal = () => {
-                const wineVintageId = row.dataset.wineVintageId ?? '';
-                if (wineVintageId && window.BottleManagementModal?.open) {
-                    window.BottleManagementModal.open(wineVintageId);
-                }
-            };
-
-            row.addEventListener('click', (event) => {
-                const target = event.target;
-                if (target instanceof HTMLElement && target.closest('[data-open-bottle-management]')) {
-                    return;
-                }
-
-                event.preventDefault();
-                openModal();
-            });
-
-            row.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    openModal();
-                }
-            });
-
-            row.dataset.vintageBound = 'true';
-            updateVintageRowAccessibility(row);
-        }
-
-        function bindVintageTableRows() {
-            if (!vintageInventoryTable) {
-                return;
-            }
-
-            const rows = Array.from(vintageInventoryTable.querySelectorAll('[data-inventory-vintage-row]'));
-            rows.forEach((row) => {
-                if (row instanceof HTMLTableRowElement) {
-                    bindVintageTableRow(row);
-                }
-            });
-        }
-
-        function updateVintageTableRow(row, summary, group) {
-            if (!(row instanceof HTMLTableRowElement) || !summary) {
-                return;
-            }
-
-            const pending = Number.isFinite(summary?.pendingCount) ? Number(summary.pendingCount) : 0;
-            const cellared = Number.isFinite(summary?.cellaredCount) ? Number(summary.cellaredCount) : 0;
-            const drunk = Number.isFinite(summary?.drunkCount) ? Number(summary.drunkCount) : 0;
-
-            row.dataset.pendingCount = String(pending);
-            row.dataset.cellaredCount = String(cellared);
-            row.dataset.drunkCount = String(drunk);
-
-            if (group && typeof group?.wineName === 'string' && group.wineName.trim()) {
-                row.dataset.wineName = group.wineName.trim();
-                const wineCell = row.querySelector('.summary-wine');
-                if (wineCell) {
-                    wineCell.textContent = group.wineName.trim();
-                }
-            }
-
-            if (typeof summary?.vintage === 'number' && Number.isFinite(summary.vintage)) {
-                const label = formatVintageLabel(summary.vintage);
-                row.dataset.vintageLabel = label;
-                const vintageCell = row.querySelector('.summary-vintage');
-                if (vintageCell) {
-                    vintageCell.textContent = label;
-                }
-            }
-
-            const bottleCell = row.querySelector('[data-field="bottle-count"]');
-            if (bottleCell) {
-                const hidden = bottleCell.querySelector('[aria-hidden="true"]');
-                const accessible = bottleCell.querySelector('.sr-only');
-                const copy = buildBottleCountCopy(pending, cellared, drunk, getActiveStatusFilter());
-                if (hidden) {
-                    hidden.textContent = copy.hidden;
-                }
-                if (accessible) {
-                    accessible.textContent = copy.accessible;
-                }
-            }
-
-            const statusInfo = resolveBottleStatus(pending, cellared, drunk);
-            const statusCell = row.querySelector('.summary-status');
-            if (statusCell) {
-                const pill = statusCell.querySelector('.status-pill');
-                if (pill) {
-                    pill.textContent = statusInfo.label;
-                    pill.className = `status-pill ${statusInfo.cssClass}`.trim();
-                } else {
-                    statusCell.textContent = statusInfo.label;
-                }
-            }
-
-            const startCell = row.querySelector('[data-field="drinking-window-start"]');
-            if (startCell) {
-                startCell.textContent = formatDrinkingWindowValue(summary?.userDrinkingWindowStartYear);
-            }
-
-            const endCell = row.querySelector('[data-field="drinking-window-end"]');
-            if (endCell) {
-                const endValue = summary?.userDrinkingWindowEndYear;
-                const formattedEnd = formatDrinkingWindowValue(endValue);
-                const urgency = getDrinkingWindowUrgency(endValue);
-                let indicator = endCell.querySelector('.drinking-window-urgency');
-                if (!indicator) {
-                    indicator = document.createElement('span');
-                }
-
-                indicator.textContent = formattedEnd;
-                indicator.setAttribute('aria-label', urgency.label);
-
-                const classes = ['status-pill', 'drinking-window-urgency'];
-                if (urgency.cssClass) {
-                    urgency.cssClass.split(/\s+/).forEach((cls) => {
-                        if (cls) {
-                            classes.push(cls);
-                        }
-                    });
-                }
-
-                indicator.className = classes.join(' ');
-                endCell.textContent = '';
-                endCell.appendChild(indicator);
-
-                if (urgency.label) {
-                    endCell.setAttribute('title', urgency.label);
-                } else {
-                    endCell.removeAttribute('title');
-                }
-            }
-
-            const scoreCell = row.querySelector('[data-field="score"]');
-            if (scoreCell) {
-                scoreCell.textContent = formatAverageScore(summary?.averageScore);
-            }
-
-            updateVintageRowAccessibility(row);
-        }
-
-        function updateVintageTableFromDetails(details, group) {
-            if (!Array.isArray(details) || !vintageInventoryTable) {
-                return;
-            }
-
-            const statusFilter = getActiveStatusFilter();
-            const aggregated = aggregateVintageCounts(details, statusFilter);
-            const lookup = new Map();
-
-            aggregated.forEach((entry) => {
-                const key = typeof entry?.wineVintageId === 'string'
-                    ? entry.wineVintageId
-                    : (entry?.wineVintageId != null ? String(entry.wineVintageId) : '');
-                if (key) {
-                    lookup.set(key, entry);
-                }
-            });
-
-            lookup.forEach((summary, key) => {
-                let selectorValue = key;
-                if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-                    selectorValue = CSS.escape(key);
-                } else {
-                    selectorValue = key.replace(/"/g, '\\"');
-                }
-
-                const row = vintageInventoryTable.querySelector(`[data-inventory-vintage-row][data-wine-vintage-id="${selectorValue}"]`);
-                if (row instanceof HTMLTableRowElement) {
-                    updateVintageTableRow(row, summary, group);
                 }
             });
         }
