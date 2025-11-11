@@ -219,32 +219,6 @@
         <span class="top-bar-page-title top-bar-page-title--hidden" aria-hidden="true"></span>
     }
     <div class="top-bar-actions">
-        @if (hasThemeSwitcher)
-        {
-            var themeSelectionId = "wineThemeSelection";
-            var activePaletteName = activePalette?.Name ?? string.Empty;
-            var themeSelectAction = Url.Action("Select", "Theme") ?? "/theme/select";
-            <div class="theme-switcher">
-                <form class="theme-switcher__form" method="post" action="@themeSelectAction">
-                    @Html.AntiForgeryToken()
-                    <label class="theme-switcher__label" for="@themeSelectionId">Theme</label>
-                    <select id="@themeSelectionId" class="theme-switcher__select" name="palette" onchange="this.form.submit()">
-@foreach (var palette in orderedPalettes)
-{
-    if (palette is null)
-    {
-        continue;
-    }
-    var paletteIsActive = activePaletteName.Length > 0 && string.Equals(palette.Name, activePaletteName, StringComparison.OrdinalIgnoreCase);
-    var paletteTitle = string.IsNullOrWhiteSpace(palette.Description) ? palette.DisplayName : palette.Description;
-    <option value="@palette.Name" @(paletteIsActive ? "selected" : string.Empty) title="@paletteTitle">@palette.DisplayName</option>
-}
-                    </select>
-                    <input type="hidden" name="returnUrl" value="@returnUrl" />
-                    <button type="submit">Apply theme</button>
-                </form>
-            </div>
-        }
         <div class="notification-shell">
             <button
                 id="notificationToggle"
@@ -419,6 +393,35 @@
                 {
                     <a href="@item.Href">@item.Label</a>
                 }
+            </div>
+            <div class="menu-divider" aria-hidden="true"></div>
+        }
+        @if (hasThemeSwitcher)
+        {
+            var themeSelectionId = "menuThemeSelection";
+            var activePaletteName = activePalette?.Name ?? string.Empty;
+            var themeSelectAction = Url.Action("Select", "Theme") ?? "/theme/select";
+            <div class="menu-theme">
+                <div class="theme-switcher theme-switcher--menu">
+                    <form class="theme-switcher__form theme-switcher__form--menu" method="post" action="@themeSelectAction">
+                        @Html.AntiForgeryToken()
+                        <label class="theme-switcher__label" for="@themeSelectionId">Theme</label>
+                        <select id="@themeSelectionId" class="theme-switcher__select" name="palette" onchange="this.form.submit()">
+@foreach (var palette in orderedPalettes)
+{
+    if (palette is null)
+    {
+        continue;
+    }
+    var paletteIsActive = activePaletteName.Length > 0 && string.Equals(palette.Name, activePaletteName, StringComparison.OrdinalIgnoreCase);
+    var paletteTitle = string.IsNullOrWhiteSpace(palette.Description) ? palette.DisplayName : palette.Description;
+    <option value="@palette.Name" @(paletteIsActive ? "selected" : string.Empty) title="@paletteTitle">@palette.DisplayName</option>
+}
+                        </select>
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <button type="submit">Apply theme</button>
+                    </form>
+                </div>
             </div>
             <div class="menu-divider" aria-hidden="true"></div>
         }
