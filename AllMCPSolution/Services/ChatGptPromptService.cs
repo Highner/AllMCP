@@ -106,7 +106,8 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine("Create a cohesive wine taste profile for the user based on the scored bottles listed below. The scores range from 0 (worst) to 10 (best).");
+        builder.AppendLine("Create a cohesive wine taste profile for the user based on the scored bottles listed below. The scores range from 0 (worst) to 10 (best). A 5 is considered neutral.");
+        builder.AppendLine("For each wine the user scored, fetch tasting notes available on the web. Then determine from the score if the user liked the characteristics described in the tasting notes you found on the web and the ones from the user's own tasting note for that wine.");
         builder.AppendLine("For the red light sections, do not just list characteristics that are generally considered bad for wine (even if the user mentions them), but instead highlight the specific characteristics that might otherwise be considered desirable.");
         builder.AppendLine("Each entry follows: Name (Vintage) — Origin | Attributes | Score | Notes.");
         builder.AppendLine();
