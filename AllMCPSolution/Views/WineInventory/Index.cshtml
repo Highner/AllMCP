@@ -382,11 +382,6 @@
     <main class="inventory-shell">
         <div class="inventory-layout">
             <div class="inventory-left">
-                @if (!hasBottles)
-                {
-                    <div class="no-results wine-card-hover wine-card-hover--prominent">No bottles match the current filters.</div>
-                }
-
                 <div id="inventory-view" class="inventory-view" aria-hidden="false">
                     @await Html.PartialAsync("_CrudTableTemplate", yourCellarTable)
                 </div>
