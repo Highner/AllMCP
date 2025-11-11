@@ -418,18 +418,6 @@ public partial class WineInventoryController : Controller
             .ThenBy(b => b.Vintage)
             .ToList();
 
-        var vintageItems = orderedWithTies
-            .GroupBy(b => b.WineVintageId)
-            .Select(group =>
-            {
-                var bottlesInVintage = group.ToList();
-                var averageScore = GetAverageScore(group.Key);
-                drinkingWindowsByVintageId.TryGetValue(group.Key, out var drinkingWindow);
-
-                return CreateBottleGroupViewModel(group.Key, bottlesInVintage, averageScore, drinkingWindow);
-            })
-            .ToList();
-
         var locationSummaries = BuildLocationSummaries(bottles, userLocations);
 
         var locationOptions = userLocations
@@ -487,7 +475,6 @@ public partial class WineInventoryController : Controller
             SortField = normalizedSortField,
             SortDirection = descending ? "desc" : "asc",
             Bottles = items,
-            VintageBottles = vintageItems,
             CurrentUserId = currentUserId,
             Locations = locationSummaries,
             InventoryAddModal = new InventoryAddModalViewModel
@@ -3780,9 +3767,6 @@ public class WineInventoryViewModel
     public string SortDirection { get; set; } = "asc";
 
     public IReadOnlyList<WineInventoryBottleViewModel> Bottles { get; set; } =
-        Array.Empty<WineInventoryBottleViewModel>();
-
-    public IReadOnlyList<WineInventoryBottleViewModel> VintageBottles { get; set; } =
         Array.Empty<WineInventoryBottleViewModel>();
 
     public Guid CurrentUserId { get; set; }
