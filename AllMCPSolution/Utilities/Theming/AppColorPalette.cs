@@ -103,7 +103,8 @@ public static class AppColorPalettes
         return new List<AppColorPalette>
         {
             CreateNocturnePalette(),
-            CreateCoastalPalette()
+            CreateCoastalPalette(),
+            CreateDaybreakPalette()
         };
     }
 
@@ -228,5 +229,66 @@ public static class AppColorPalettes
             variables,
             chartColors,
             description: "Ocean blues with sunrise accents.");
+    }
+
+    private static AppColorPalette CreateDaybreakPalette()
+    {
+        var variables = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [AppColorTokens.ColorScheme] = "light",
+            [AppColorTokens.Background] = "38 42% 96%",
+            [AppColorTokens.Foreground] = "24 32% 18%",
+            [AppColorTokens.Muted] = "38 30% 88%",
+            [AppColorTokens.MutedForeground] = "24 22% 38%",
+            [AppColorTokens.Accent] = "156 32% 82%",
+            [AppColorTokens.AccentForeground] = "156 40% 22%",
+            [AppColorTokens.Card] = "38 38% 98%",
+            [AppColorTokens.CardForeground] = "24 32% 18%",
+            [AppColorTokens.Popover] = "34 40% 99%",
+            [AppColorTokens.PopoverForeground] = "24 32% 18%",
+            [AppColorTokens.Primary] = "27 82% 62%",
+            [AppColorTokens.PrimaryForeground] = "26 32% 16%",
+            [AppColorTokens.Warning] = "40 88% 58%",
+            [AppColorTokens.WarningForeground] = "28 40% 18%",
+            [AppColorTokens.Secondary] = "158 34% 84%",
+            [AppColorTokens.SecondaryForeground] = "160 42% 24%",
+            [AppColorTokens.Destructive] = "6 74% 56%",
+            [AppColorTokens.DestructiveForeground] = "0 0% 98%",
+            [AppColorTokens.Positive] = "143 48% 48%",
+            [AppColorTokens.PositiveForeground] = "141 50% 94%",
+            [AppColorTokens.Border] = "37 24% 78%",
+            [AppColorTokens.Input] = "37 24% 78%",
+            [AppColorTokens.Ring] = "27 82% 62%",
+            [AppColorTokens.Radius] = "0.95rem",
+            [AppColorTokens.AppBackground] = "radial-gradient(circle at top, rgba(255, 233, 214, 0.6), transparent 60%), #f6f1ea",
+            [AppColorTokens.SurfaceGradient] = "linear-gradient(160deg, rgba(255, 233, 214, 0.45), rgba(200, 225, 215, 0.24))",
+            [AppColorTokens.SurfaceGradientStrong] = "linear-gradient(150deg, rgba(255, 233, 214, 0.58), rgba(200, 225, 215, 0.3))",
+            [AppColorTokens.SurfaceBorder] = "rgba(96, 84, 72, 0.14)",
+            [AppColorTokens.SurfaceBorderStrong] = "rgba(96, 84, 72, 0.22)",
+            [AppColorTokens.SurfaceHighlight] = "radial-gradient(circle at top right, rgba(200, 225, 215, 0.42), transparent 60%)",
+            [AppColorTokens.SurfaceHighlightStrong] = "radial-gradient(circle at top right, rgba(200, 225, 215, 0.55), transparent 55%)",
+            [AppColorTokens.CardMaxWidth] = "960px"
+        };
+
+        var chartColors = new List<string>
+        {
+            "#F4A259",
+            "#FFCF99",
+            "#7BC8A4",
+            "#A3CEF1",
+            "#D4A5A5",
+            "#F6D6AD",
+            "#B7B7A4",
+            "#E9B3CE",
+            "#9BD0D9",
+            "#E2C2FF"
+        };
+
+        return new AppColorPalette(
+            "daybreak",
+            "Daybreak Bloom",
+            variables,
+            chartColors,
+            description: "Soft daylight neutrals with gentle pastels.");
     }
 }
