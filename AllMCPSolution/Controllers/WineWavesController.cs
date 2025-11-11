@@ -14,7 +14,9 @@ using System.ClientModel;
 using AllMCPSolution.Models;
 using AllMCPSolution.Repositories;
 using AllMCPSolution.Services;
+using AllMCPSolution.Services.Theming;
 using AllMCPSolution.Utilities;
+using AllMCPSolution.Utilities.Theming;
 using Microsoft.Extensions.Options;
 
 namespace AllMCPSolution.Controllers;
@@ -23,25 +25,12 @@ namespace AllMCPSolution.Controllers;
 [Route("wine-surfer")]
 public sealed class WineWavesController : WineSurferControllerBase
 {
-    private static readonly string[] DatasetPalette =
-    {
-        "#E4572E",
-        "#4E79A7",
-        "#F28E2B",
-        "#76B7B2",
-        "#59A14F",
-        "#EDC948",
-        "#B07AA1",
-        "#FF9DA7",
-        "#9C755F",
-        "#BAB0AC"
-    };
-
     private readonly IWineVintageEvolutionScoreRepository _evolutionScoreRepository;
     private readonly IBottleRepository _bottleRepository;
     private readonly IWineSurferTopBarService _topBarService;
     private readonly IChatGptService _chatGptService;
     private readonly IChatGptPromptService _chatGptPromptService;
+    private readonly IThemeService _themeService;
     private readonly string _wineWavesModel;
 
     public WineWavesController(
@@ -51,6 +40,7 @@ public sealed class WineWavesController : WineSurferControllerBase
         IWineSurferTopBarService topBarService,
         IChatGptService chatGptService,
         IChatGptPromptService chatGptPromptService,
+        IThemeService themeService,
         IOptions<ChatGptOptions> chatGptOptions,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
@@ -59,6 +49,7 @@ public sealed class WineWavesController : WineSurferControllerBase
         _topBarService = topBarService;
         _chatGptService = chatGptService;
         _chatGptPromptService = chatGptPromptService;
+        _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
         if (chatGptOptions is null)
         {
             throw new ArgumentNullException(nameof(chatGptOptions));
@@ -94,6 +85,16 @@ public sealed class WineWavesController : WineSurferControllerBase
 
         var scores = await _evolutionScoreRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
 
+        var activePalette = _themeService.GetActivePalette();
+        var datasetColors = activePalette?.ChartColors ?? Array.Empty<string>();
+        var datasetColorCount = datasetColors.Count;
+        if (datasetColorCount == 0)
+        {
+            var fallbackPalette = AppColorPalettes.DefaultPalettes.FirstOrDefault();
+            datasetColors = fallbackPalette?.ChartColors ?? Array.Empty<string>();
+            datasetColorCount = datasetColors.Count;
+        }
+
         var datasets = scores
             .GroupBy(score => score.WineVintageId)
             .OrderBy(group => group.First().WineVintage.Wine.Name)
@@ -111,7 +112,9 @@ public sealed class WineWavesController : WineSurferControllerBase
 
                 var label = BuildWineLabel(wine, vintage);
                 var detailText = BuildWineOriginDetails(wine);
-                var color = DatasetPalette[index % DatasetPalette.Length];
+                var color = datasetColorCount > 0
+                    ? datasetColors[index % datasetColorCount]
+                    : (AppColorPalettes.DefaultPalettes.FirstOrDefault()?.ChartColors.FirstOrDefault() ?? string.Empty);
 
                 return new WineWavesDataset(
                     first.WineVintageId,
