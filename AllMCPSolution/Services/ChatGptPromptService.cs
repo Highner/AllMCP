@@ -44,7 +44,7 @@ public class ChatGptPromptService : IChatGptPromptService
     private const string DrinkingWindowSystemPromptText =
         "Respond ONLY with minified JSON matching {\\\"startYear\\\":2000,\\\"endYear\\\":2010,\\\"alignmentScore\\\":7.5}. " +
         "Both startYear and endYear must be integers representing the inclusive start and end of the optimal drinking window. " +
-        "The alignmentScore must be a decimal between 0 and 10 describing how well the wine matches the user's taste profile. Do not include any commentary or code fences.";
+        "The alignmentScore must be a decimal between 0 and 10 describing how well the wine matches the user's taste profile. Do not include any commentary or code fences. Search the web for tasting notes for the wine and use them to determine the alignmentScore.";
     
     private const string TasteProfileSystemPromptText =
         "You are an expert sommelier assistant. Respond ONLY with valid minified JSON like {\\\"summary\\\":\\\"...\\\",\\\"profile\\\":\\\"...\\\",\\\"suggestedAppellations\\\":[{\\\"country\\\":\\\"...\\\",\\\"region\\\":\\\"...\\\",\\\"appellation\\\":\\\"...\\\",\\\"subAppellation\\\":null,\\\"reason\\\":\\\"...\\\",\\\"wines\\\":[{\\\"name\\\":\\\"...\\\",\\\"color\\\":\\\"Red\\\",\\\"variety\\\":\\\"...\\\",\\\"subAppellation\\\":null,\\\"vintage\\\":\\\"2019\\\"},{\\\"name\\\":\\\"...\\\",\\\"color\\\":\\\"White\\\",\\\"variety\\\":null,\\\"subAppellation\\\":null,\\\"vintage\\\":\\\"NV\\\"}]}]}. " +
