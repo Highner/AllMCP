@@ -126,6 +126,7 @@ public partial class WineInventoryController : Controller
         [FromQuery] string? search,
         [FromQuery] string? sortField,
         [FromQuery] string? sortDir,
+        [FromQuery] string? locationId,
         CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
@@ -141,6 +142,11 @@ public partial class WineInventoryController : Controller
         var bottles = allBottles
             .Where(bottle => bottle.UserId == currentUserId)
             .ToList();
+
+        var userLocations = await GetUserLocationsAsync(currentUserId, cancellationToken);
+        var userLocationIds = userLocations
+            .Select(location => location.Id)
+            .ToHashSet();
 
         var userDrinkingWindows = await _drinkingWindowRepository
             .GetForUserAsync(currentUserId, cancellationToken);
@@ -181,10 +187,18 @@ public partial class WineInventoryController : Controller
 
         var normalizedStatus = string.IsNullOrWhiteSpace(status) ? "all" : status.Trim().ToLowerInvariant();
         var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        Guid? normalizedLocationId = null;
+        if (!string.IsNullOrWhiteSpace(locationId)
+            && Guid.TryParse(locationId, out var parsedLocationId)
+            && userLocationIds.Contains(parsedLocationId))
+        {
+            normalizedLocationId = parsedLocationId;
+        }
         var normalizedSortField = string.IsNullOrWhiteSpace(sortField) ? "wine" : sortField.Trim().ToLowerInvariant();
         var normalizedSortDir = string.IsNullOrWhiteSpace(sortDir) ? "asc" : sortDir.Trim().ToLowerInvariant();
         var hasActiveFilters = !string.Equals(normalizedStatus, "all", StringComparison.Ordinal)
-                               || !string.IsNullOrWhiteSpace(normalizedSearch);
+                               || !string.IsNullOrWhiteSpace(normalizedSearch)
+                               || normalizedLocationId.HasValue;
 
         IEnumerable<Bottle> query = bottles;
 
@@ -195,6 +209,11 @@ public partial class WineInventoryController : Controller
             "cellared" or "undrunk" => query.Where(b => !b.IsDrunk && !b.PendingDelivery),
             _ => query
         };
+
+        if (normalizedLocationId.HasValue)
+        {
+            query = query.Where(b => b.BottleLocationId == normalizedLocationId);
+        }
 
         if (!string.IsNullOrWhiteSpace(normalizedSearch))
         {
@@ -389,11 +408,6 @@ public partial class WineInventoryController : Controller
             .ThenBy(b => b.Vintage)
             .ToList();
 
-        var userLocations = await GetUserLocationsAsync(currentUserId, cancellationToken);
-        var userLocationIds = userLocations
-            .Select(location => location.Id)
-            .ToHashSet();
-
         var locationSummaries = BuildLocationSummaries(bottles, userLocations);
 
         var locationOptions = userLocations
@@ -438,6 +452,12 @@ public partial class WineInventoryController : Controller
                 .ToHashSet()
             : new HashSet<Guid>();
 
+        if (normalizedLocationId.HasValue
+            && userLocationIds.Contains(normalizedLocationId.Value))
+        {
+            highlightedLocationIds.Add(normalizedLocationId.Value);
+        }
+
         var viewModel = new WineInventoryViewModel
         {
             Status = normalizedStatus,
@@ -455,6 +475,7 @@ public partial class WineInventoryController : Controller
             PendingBottleCount = pendingBottleCount,
             HasActiveFilters = hasActiveFilters,
             HighlightedLocationIds = highlightedLocationIds,
+            LocationFilterId = normalizedLocationId,
             StatusOptions = new List<FilterOption>
             {
                 new("all", "All Bottles"),
@@ -3732,6 +3753,7 @@ public class WineInventoryViewModel
     public int PendingBottleCount { get; set; }
     public bool HasActiveFilters { get; set; }
     public IReadOnlySet<Guid> HighlightedLocationIds { get; set; } = new HashSet<Guid>();
+    public Guid? LocationFilterId { get; set; }
     public IReadOnlyList<FilterOption> StatusOptions { get; set; } = Array.Empty<FilterOption>();
 }
 

@@ -15,6 +15,7 @@
         const headerFilterClearButton = document.querySelector('[data-inventory-header-filter-clear]');
         const filtersSearchInput = filtersForm?.querySelector('input[name="search"]');
         const filtersStatusInput = filtersForm?.querySelector('input[name="status"]');
+        const filtersLocationInput = filtersForm?.querySelector('input[name="locationId"]');
         const inventoryView = document.getElementById('inventory-view');
         const statusToggleButton = document.querySelector('[data-inventory-status-toggle]');
         const statusToggleLabel = statusToggleButton?.querySelector('[data-inventory-status-toggle-label]');
@@ -23,6 +24,7 @@
         const headerFilterFocusStorageKey = 'wine-inventory:restore-header-focus';
         let headerFilterDebounceId = null;
         let maintainHeaderFilterFocus = false;
+        let activeLocationFilterId = filtersLocationInput?.value ?? '';
         let inlineDetailsAbortController = null;
 
         const STATUS_TOGGLE_COPY = {
@@ -147,6 +149,54 @@
                 inlineDetailsAbortController.abort();
                 inlineDetailsAbortController = null;
             }
+        }
+
+        function setActiveLocationFilter(value) {
+            if (typeof value === 'string') {
+                activeLocationFilterId = value;
+            } else {
+                activeLocationFilterId = '';
+            }
+        }
+
+        function syncLocationSectionDataset() {
+            if (!locationSection) {
+                return;
+            }
+
+            if (activeLocationFilterId) {
+                locationSection.dataset.activeLocationId = activeLocationFilterId;
+            } else if ('activeLocationId' in locationSection.dataset) {
+                delete locationSection.dataset.activeLocationId;
+            }
+        }
+
+        function toggleLocationFilter(locationId) {
+            if (!filtersLocationInput) {
+                return;
+            }
+
+            const normalizedId = typeof locationId === 'string' ? locationId.trim() : '';
+            const currentValue = (filtersLocationInput.value ?? '').trim();
+
+            if (!normalizedId && !currentValue) {
+                return;
+            }
+
+            const isClearing = normalizedId && normalizedId.localeCompare(currentValue, undefined, { sensitivity: 'accent' }) === 0;
+            const nextValue = isClearing ? '' : normalizedId;
+            filtersLocationInput.value = nextValue;
+            setActiveLocationFilter(nextValue);
+            syncLocationSectionDataset();
+
+            if (headerFilterDebounceId) {
+                window.clearTimeout(headerFilterDebounceId);
+                headerFilterDebounceId = null;
+            }
+
+            maintainHeaderFilterFocus = false;
+            cancelInlineDetailsRequest();
+            submitFiltersForm();
         }
 
         function focusHeaderFilterInput() {
@@ -301,6 +351,11 @@
                 });
 
                 updateStatusToggleUI(filtersStatusInput?.value ?? 'all');
+
+                if (filtersLocationInput) {
+                    setActiveLocationFilter(filtersLocationInput.value ?? '');
+                    syncLocationSectionDataset();
+                }
 
                 if (headerFilterDebounceId) {
                     window.clearTimeout(headerFilterDebounceId);
@@ -1567,6 +1622,15 @@
             });
         }
 
+        if (!activeLocationFilterId && typeof locationSection?.dataset?.activeLocationId === 'string') {
+            setActiveLocationFilter(locationSection.dataset.activeLocationId);
+            if (filtersLocationInput) {
+                filtersLocationInput.value = activeLocationFilterId;
+            }
+        }
+
+        syncLocationSectionDataset();
+
         const existingCards = Array.from(locationList.querySelectorAll('[data-location-card]'));
         existingCards.forEach((card) => {
             setLocationDatasetCounts(card);
@@ -1722,6 +1786,10 @@
                 return;
             }
 
+            if (card.dataset.locationBound === 'true') {
+                return;
+            }
+
             configureLocationActionMenu(card);
 
             const editButton = card.querySelector('[data-location-edit]');
@@ -1730,6 +1798,37 @@
             const cancelButton = form?.querySelector('[data-location-cancel]');
             const input = form?.querySelector('[data-location-input]');
             const capacityInput = form?.querySelector('[data-location-capacity-input]');
+
+            card.addEventListener('click', (event) => {
+                if (!filtersLocationInput) {
+                    return;
+                }
+
+                const target = event.target instanceof Element ? event.target : null;
+                if (target) {
+                    if (target.closest('button, a, input, select, textarea, label, form')) {
+                        return;
+                    }
+
+                    if (target.closest('[data-action-menu]') || target.closest('[data-location-edit-form]')) {
+                        return;
+                    }
+                }
+
+                const locationId = card.dataset.locationId ?? '';
+                if (!locationId) {
+                    return;
+                }
+
+                const editForm = card.querySelector('[data-location-edit-form]');
+                const view = card.querySelector('[data-location-view]');
+                if ((editForm && !editForm.hasAttribute('hidden')) || (view && view.hasAttribute('hidden'))) {
+                    return;
+                }
+
+                event.preventDefault();
+                toggleLocationFilter(locationId);
+            });
 
             editButton?.addEventListener('click', (event) => {
                 event.preventDefault();
@@ -1752,6 +1851,8 @@
                 event.preventDefault();
                 handleLocationDelete(card);
             });
+
+            card.dataset.locationBound = 'true';
         }
 
         function openLocationEdit(card) {
