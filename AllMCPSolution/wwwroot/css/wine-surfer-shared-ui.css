@@ -28,7 +28,7 @@ body.wine-app .lead {
     text-align: center;
     font-size: 18px;
     line-height: 1.6;
-    color: rgba(244, 241, 234, 0.78);
+    color: hsla(var(--foreground) / 0.78);
     margin: 0;
 }
 
@@ -50,13 +50,13 @@ body.wine-app .status-banner {
 }
 
 body.wine-app .status-banner.success {
-    background: rgba(51, 133, 107, 0.16);
-    border: 1px solid rgba(51, 133, 107, 0.35);
+    background: hsla(var(--positive) / 0.16);
+    border: 1px solid hsla(var(--positive) / 0.35);
 }
 
 body.wine-app .status-banner.error {
-    background: rgba(133, 51, 65, 0.16);
-    border: 1px solid rgba(133, 51, 65, 0.35);
+    background: hsla(var(--destructive) / 0.16);
+    border: 1px solid hsla(var(--destructive) / 0.35);
 }
 
 body.wine-app .sisterhood-button,
@@ -67,9 +67,9 @@ body.wine-app .wine-surfer-button {
     gap: 6px;
     padding: 8px 16px;
     border-radius: 999px;
-    border: 1px solid rgba(244, 241, 234, 0.18);
+    border: 1px solid hsla(var(--foreground) / 0.18);
     background: transparent;
-    color: #f4f1ea;
+    color: hsl(var(--foreground));
     font-size: 12px;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -81,14 +81,14 @@ body.wine-app .sisterhood-button:hover,
 body.wine-app .sisterhood-button:focus-visible,
 body.wine-app .wine-surfer-button:hover,
 body.wine-app .wine-surfer-button:focus-visible {
-    background: rgba(244, 241, 234, 0.12);
-    color: #f4f1ea;
+    background: hsla(var(--foreground) / 0.12);
+    color: hsl(var(--foreground));
 }
 
 body.wine-app .sisterhood-button:focus-visible,
 body.wine-app .wine-surfer-button:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.25);
+    box-shadow: 0 0 0 2px hsla(var(--foreground) / 0.25);
 }
 
 body.wine-app .sisterhood-button:disabled,
@@ -98,45 +98,45 @@ body.wine-app .wine-surfer-button:disabled {
 }
 
 body.wine-app .sisterhood-button--primary {
-    border-color: rgba(244, 241, 234, 0.28);
-    background: rgba(244, 241, 234, 0.12);
+    border-color: hsla(var(--foreground) / 0.28);
+    background: hsla(var(--foreground) / 0.12);
 }
 
 body.wine-app .sisterhood-button--primary:hover,
 body.wine-app .sisterhood-button--primary:focus-visible {
-    background: rgba(244, 241, 234, 0.18);
+    background: hsla(var(--foreground) / 0.18);
     transform: translateY(-1px);
 }
 
 body.wine-app .sisterhood-button--danger {
-    border-color: rgba(181, 65, 65, 0.45);
-    color: #f6dcdc;
+    border-color: hsla(var(--destructive) / 0.45);
+    color: hsla(var(--destructive-foreground) / 0.95);
 }
 
 body.wine-app .sisterhood-button--danger:hover,
 body.wine-app .sisterhood-button--danger:focus-visible {
-    background: rgba(181, 65, 65, 0.25);
-    color: #ffe3e3;
+    background: hsla(var(--destructive) / 0.25);
+    color: hsl(var(--destructive-foreground));
 }
 
 body.wine-app .sisterhood-button--ghost {
-    color: rgba(244, 241, 234, 0.85);
+    color: hsla(var(--foreground) / 0.85);
 }
 
 body.wine-app .sisterhood-button--ghost:hover,
 body.wine-app .sisterhood-button--ghost:focus-visible {
-    color: #f4f1ea;
+    color: hsl(var(--foreground));
 }
 
 body.wine-app .sisterhood-button--ghost-danger {
-    border-color: rgba(214, 104, 86, 0.45);
-    color: #f3b0a3;
+    border-color: hsla(var(--destructive) / 0.45);
+    color: hsla(var(--destructive) / 0.7);
 }
 
 body.wine-app .sisterhood-button--ghost-danger:hover,
 body.wine-app .sisterhood-button--ghost-danger:focus-visible {
-    background: rgba(214, 104, 86, 0.15);
-    color: #ffd6cc;
+    background: hsla(var(--destructive) / 0.15);
+    color: hsla(var(--destructive-foreground) / 0.9);
 }
 
 body.wine-app .action-menu {
@@ -148,9 +148,9 @@ body.wine-app .action-menu__trigger {
     width: 38px;
     height: 38px;
     border-radius: 50%;
-    border: 1px solid rgba(244, 241, 234, 0.18);
-    background: rgba(244, 241, 234, 0.04);
-    color: rgba(244, 241, 234, 0.86);
+    border: 1px solid hsla(var(--foreground) / 0.18);
+    background: hsla(var(--foreground) / 0.04);
+    color: hsla(var(--foreground) / 0.86);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -161,14 +161,14 @@ body.wine-app .action-menu__trigger {
 body.wine-app .action-menu__trigger:hover,
 body.wine-app .action-menu__trigger:focus-visible,
 body.wine-app .action-menu[data-open] .action-menu__trigger {
-    background: rgba(244, 241, 234, 0.12);
-    color: #f4f1ea;
-    border-color: rgba(244, 241, 234, 0.28);
+    background: hsla(var(--foreground) / 0.12);
+    color: hsl(var(--foreground));
+    border-color: hsla(var(--foreground) / 0.28);
 }
 
 body.wine-app .action-menu__trigger:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.25);
+    box-shadow: 0 0 0 2px hsla(var(--foreground) / 0.25);
 }
 
 body.wine-app .action-menu__icon {
@@ -184,9 +184,9 @@ body.wine-app .action-menu__content {
     min-width: 200px;
     padding: 12px;
     border-radius: 12px;
-    border: 1px solid rgba(244, 241, 234, 0.12);
-    background: rgba(16, 16, 16, 0.96);
-    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.4);
+    border: 1px solid hsla(var(--foreground) / 0.12);
+    background: hsla(var(--background) / 0.96);
+    box-shadow: 0 18px 44px hsla(var(--background) / 0.4);
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -202,8 +202,8 @@ body.wine-app .action-menu__content::before {
     height: 14px;
     transform: rotate(45deg);
     background: inherit;
-    border-left: 1px solid rgba(244, 241, 234, 0.12);
-    border-top: 1px solid rgba(244, 241, 234, 0.12);
+    border-left: 1px solid hsla(var(--foreground) / 0.12);
+    border-top: 1px solid hsla(var(--foreground) / 0.12);
     z-index: -1;
 }
 
@@ -220,9 +220,9 @@ body.wine-app .action-menu__button {
     gap: 6px;
     padding: 8px 16px;
     border-radius: 999px;
-    border: 1px solid rgba(244, 241, 234, 0.18);
+    border: 1px solid hsla(var(--foreground) / 0.18);
     background: transparent;
-    color: #f4f1ea;
+    color: hsl(var(--foreground));
     font-size: 12px;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -232,35 +232,35 @@ body.wine-app .action-menu__button {
 
 body.wine-app .action-menu__button:hover,
 body.wine-app .action-menu__button:focus-visible {
-    background: rgba(244, 241, 234, 0.12);
-    color: #f4f1ea;
+    background: hsla(var(--foreground) / 0.12);
+    color: hsl(var(--foreground));
 }
 
 body.wine-app .action-menu__button:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(244, 241, 234, 0.25);
+    box-shadow: 0 0 0 2px hsla(var(--foreground) / 0.25);
 }
 
 body.wine-app .action-menu__button--danger {
-    border-color: rgba(181, 65, 65, 0.45);
-    color: #f6dcdc;
+    border-color: hsla(var(--destructive) / 0.45);
+    color: hsla(var(--destructive-foreground) / 0.95);
 }
 
 body.wine-app .action-menu__button--danger:hover,
 body.wine-app .action-menu__button--danger:focus-visible {
-    background: rgba(181, 65, 65, 0.25);
-    color: #ffe3e3;
+    background: hsla(var(--destructive) / 0.25);
+    color: hsl(var(--destructive-foreground));
 }
 
 body.wine-app .action-menu__button--ghost-danger {
-    border-color: rgba(214, 104, 86, 0.45);
-    color: #f3b0a3;
+    border-color: hsla(var(--destructive) / 0.45);
+    color: hsla(var(--destructive) / 0.7);
 }
 
 body.wine-app .action-menu__button--ghost-danger:hover,
 body.wine-app .action-menu__button--ghost-danger:focus-visible {
-    background: rgba(214, 104, 86, 0.15);
-    color: #ffd6cc;
+    background: hsla(var(--destructive) / 0.15);
+    color: hsla(var(--destructive-foreground) / 0.9);
 }
 
 body.wine-app .empty-state {
@@ -271,7 +271,7 @@ body.wine-app .empty-state {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    color: rgba(244, 241, 234, 0.78);
+    color: hsla(var(--foreground) / 0.78);
     margin: 0 auto;
 }
 
@@ -280,7 +280,7 @@ body.wine-app .empty-state h2 {
     text-transform: uppercase;
     letter-spacing: 6px;
     font-size: 18px;
-    color: #f4f1ea;
+    color: hsl(var(--foreground));
 }
 
 body.wine-app .empty-state p {
@@ -330,37 +330,37 @@ body.wine-app .empty-state p {
 
 /* Wine Surfer global buttons (green/orange/red variants) */
 body.wine-app .wine-surfer-button--green {
-    border-color: rgba(51, 133, 107, 0.45);
-    color: #d8fff1;
+    border-color: hsla(var(--positive) / 0.45);
+    color: hsla(var(--positive-foreground) / 0.95);
 }
 
 body.wine-app .wine-surfer-button--green:hover,
 body.wine-app .wine-surfer-button--green:focus-visible {
-    background: rgba(51, 133, 107, 0.22);
-    color: #edfff9;
+    background: hsla(var(--positive) / 0.22);
+    color: hsla(var(--positive-foreground) / 0.98);
     transform: translateY(-1px);
 }
 
 body.wine-app .wine-surfer-button--orange {
-    border-color: rgba(246, 198, 114, 0.45);
-    color: #fff1d6;
+    border-color: hsla(var(--warning) / 0.45);
+    color: hsla(var(--warning-foreground) / 0.96);
 }
 
 body.wine-app .wine-surfer-button--orange:hover,
 body.wine-app .wine-surfer-button--orange:focus-visible {
-    background: rgba(246, 198, 114, 0.18);
-    color: #fff6e6;
+    background: hsla(var(--warning) / 0.18);
+    color: hsla(var(--warning-foreground) / 0.98);
     transform: translateY(-1px);
 }
 
 body.wine-app .wine-surfer-button--red {
-    border-color: rgba(181, 65, 65, 0.45);
-    color: #f6dcdc;
+    border-color: hsla(var(--destructive) / 0.45);
+    color: hsla(var(--destructive-foreground) / 0.95);
 }
 
 body.wine-app .wine-surfer-button--red:hover,
 body.wine-app .wine-surfer-button--red:focus-visible {
-    background: rgba(181, 65, 65, 0.25);
-    color: #ffe3e3;
+    background: hsla(var(--destructive) / 0.25);
+    color: hsl(var(--destructive-foreground));
     transform: translateY(-1px);
 }
