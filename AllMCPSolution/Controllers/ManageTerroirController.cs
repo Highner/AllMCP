@@ -962,6 +962,7 @@ public class ManageTerroirController : WineSurferControllerBase
 
         existing.Name = trimmedName;
         existing.AppellationId = appellation.Id;
+        existing.Appellation = null;
 
         await _subAppellationRepository.UpdateAsync(existing, cancellationToken);
 
