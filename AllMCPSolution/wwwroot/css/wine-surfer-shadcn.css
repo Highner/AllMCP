@@ -1022,11 +1022,10 @@ body.account-edit-open {
 }
 
 .inventory-view .crud-table__body--bare {
-    overflow-x: auto;
-    overflow-y: visible;
-    width: 100%;
-    max-width: 100%;
-    -webkit-overflow-scrolling: touch;
+    /* Ensure the Your Cellar table never triggers its own horizontal scrollbar. */
+    overflow: visible;
+    width: max-content;
+    min-width: 100%;
 }
 
 .location-header--table {
