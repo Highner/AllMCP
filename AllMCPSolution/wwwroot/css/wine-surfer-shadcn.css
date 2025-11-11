@@ -968,11 +968,6 @@ body.account-edit-open {
 .inventory-layout {
     display: grid;
     gap: 24px;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-        "left"
-        "filters"
-        "right";
 }
 
 .inventory-left,
@@ -983,24 +978,9 @@ body.account-edit-open {
     min-width: 0;
 }
 
-.inventory-left {
-    grid-area: left;
-}
-
-.inventory-right {
-    grid-area: right;
-}
-
-.inventory-layout > .filters {
-    grid-area: filters;
-}
-
 @media (min-width: 768px) {
     .inventory-layout {
         grid-template-columns: minmax(0, 1fr) minmax(240px, 288px);
-        grid-template-areas:
-            "left right"
-            "filters right";
         align-items: flex-start;
     }
 
@@ -1012,9 +992,6 @@ body.account-edit-open {
 @media (min-width: 1440px) {
     .inventory-layout {
         grid-template-columns: minmax(0, 1fr) minmax(272px, 336px);
-        grid-template-areas:
-            "left right"
-            "filters right";
     }
 
     .inventory-locations {
