@@ -347,15 +347,10 @@
                                              stroke-linejoin="round">
                                             <path d="M4 12a8 8 0 0 1 12.9-6.3l1.8-1.8v6.1H12l2.2-2.2A5 5 0 1 0 17 12h3a8 8 0 1 1-16 0Z" />
                                         </svg>
-                                        <span class="inventory-generate-button__text">
-                                            <span class="inventory-generate-button__primary">Generate windows</span>
-                                            <span class="inventory-generate-button__meta" data-last-generated-label>
-                                                @(
-                                                    bottle.DrinkingWindowGeneratedAtUtc.HasValue
-                                                        ? $"Last generated {bottle.DrinkingWindowGeneratedAtUtc.Value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)}"
-                                                        : "Not generated yet")
-                                            </span>
-                                        </span>
+                                        <span class="inventory-generate-button__date"
+                                              data-last-generated-label@(bottle.DrinkingWindowGeneratedAtUtc.HasValue ? string.Empty : " hidden")>@(bottle.DrinkingWindowGeneratedAtUtc.HasValue
+                                                ? bottle.DrinkingWindowGeneratedAtUtc.Value.ToLocalTime().ToString("d", CultureInfo.CurrentCulture)
+                                                : string.Empty)</span>
                                     </button>
                                 </td>
                             </tr>

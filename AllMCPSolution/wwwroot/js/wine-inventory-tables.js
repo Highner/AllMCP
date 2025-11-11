@@ -531,13 +531,12 @@
 
             try {
                 const formatter = new Intl.DateTimeFormat(undefined, {
-                    dateStyle: 'medium',
-                    timeStyle: 'short'
+                    dateStyle: 'medium'
                 });
 
                 return formatter.format(parsed);
             } catch {
-                return parsed.toLocaleString();
+                return parsed.toLocaleDateString();
             }
         }
 
@@ -599,14 +598,14 @@
                 if (display) {
                     const meta = button.querySelector('[data-last-generated-label]');
                     if (meta) {
-                        meta.textContent = `Last generated ${display}`;
+                        meta.textContent = display;
                         meta.hidden = false;
                     }
 
-                    button.setAttribute('aria-label', `${baseAriaLabel}. Last generated ${display}.`);
+                    button.setAttribute('aria-label', `${baseAriaLabel}. Last generated on ${display}.`);
 
                     if (!skipTitle) {
-                        button.title = `Last generated ${display}`;
+                        button.title = display;
                     }
 
                     return;
@@ -616,8 +615,8 @@
             }
             const meta = button.querySelector('[data-last-generated-label]');
             if (meta) {
-                meta.textContent = 'Not generated yet';
-                meta.hidden = false;
+                meta.textContent = '';
+                meta.hidden = true;
             }
 
             button.setAttribute('aria-label', `${baseAriaLabel}. Not generated yet.`);
