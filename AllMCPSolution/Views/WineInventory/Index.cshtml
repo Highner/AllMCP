@@ -21,6 +21,7 @@
         {
             ["status"] = string.Equals(Model.Status, "all", StringComparison.OrdinalIgnoreCase) ? null : Model.Status,
             ["search"] = string.IsNullOrWhiteSpace(Model.Search) ? null : Model.Search,
+            ["locationId"] = Model.LocationFilterId.HasValue ? Model.LocationFilterId.Value.ToString() : null,
             ["sortField"] = field,
             ["sortDir"] = nextDir
         };
@@ -124,6 +125,7 @@
     var statusToggleAnnouncement = HtmlEncoder.Default.Encode(isCellaredOnly
         ? "Showing only cellared bottles. Activate to show all bottles."
         : "Showing all bottles. Activate to show only cellared bottles.");
+    var activeLocationFilterId = Model.LocationFilterId?.ToString() ?? string.Empty;
     var yourCellarTable = new CrudTableTemplateModel
     {
         TitleContent = _ => Html.PartialAsync("_InventorySectionHeader", new InventorySectionHeaderModel
@@ -400,6 +402,10 @@
                        value="@(Model.Search ?? string.Empty)"
                        data-default-value="" />
                 <input type="hidden"
+                       name="locationId"
+                       value="@activeLocationFilterId"
+                       data-default-value="" />
+                <input type="hidden"
                        name="sortField"
                        value="@(Model.SortField ?? "wine")"
                        data-default-value="wine" />
@@ -413,7 +419,8 @@
             <div class="inventory-right">
                 <section id="inventory-locations"
                          class="inventory-locations"
-                         data-current-user-id="@Model.CurrentUserId">
+                         data-current-user-id="@Model.CurrentUserId"
+                         data-active-location-id="@activeLocationFilterId">
                     @(Html.PartialAsync("_InventorySectionHeader", new InventorySectionHeaderModel
                     {
                         Title = "Storage",
