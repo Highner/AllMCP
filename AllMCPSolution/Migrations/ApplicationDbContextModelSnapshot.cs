@@ -693,6 +693,9 @@ namespace AllMCPSolution.Migrations
                     b.Property<int>("EndingYear")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("GeneratedAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("StartingYear")
                         .HasColumnType("int");
 
