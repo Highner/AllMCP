@@ -157,6 +157,8 @@
             } else {
                 activeLocationFilterId = '';
             }
+
+            updateLocationFilterHighlights();
         }
 
         function syncLocationSectionDataset() {
@@ -169,6 +171,32 @@
             } else if ('activeLocationId' in locationSection.dataset) {
                 delete locationSection.dataset.activeLocationId;
             }
+        }
+
+        function updateLocationFilterHighlights() {
+            if (!locationList) {
+                return;
+            }
+
+            const normalizedActiveId = typeof activeLocationFilterId === 'string'
+                ? activeLocationFilterId.trim()
+                : '';
+
+            const cards = Array.from(locationList.querySelectorAll('[data-location-card]'));
+            cards.forEach((card) => {
+                const cardId = (card.dataset.locationId ?? '').trim();
+                const shouldHighlight = normalizedActiveId.length > 0
+                    && cardId.length > 0
+                    && cardId.localeCompare(normalizedActiveId, undefined, { sensitivity: 'accent' }) === 0;
+
+                card.classList.toggle('location-card--highlight', shouldHighlight);
+
+                if (shouldHighlight) {
+                    card.setAttribute('aria-current', 'true');
+                } else {
+                    card.removeAttribute('aria-current');
+                }
+            });
         }
 
         function toggleLocationFilter(locationId) {
@@ -1638,6 +1666,8 @@
             bindLocationCard(card);
         });
 
+        updateLocationFilterHighlights();
+
         initializeReferenceLocations();
         updateLocationEmptyState();
 
@@ -2057,6 +2087,7 @@
             }
 
             updateLocationEmptyState();
+            updateLocationFilterHighlights();
         }
 
         function reorderLocationCard(card) {
@@ -2080,6 +2111,7 @@
 
             card.remove();
             updateLocationEmptyState();
+            updateLocationFilterHighlights();
         }
 
         function setLocationDatasetCounts(card, counts) {
