@@ -1,3 +1,4 @@
+@using System
 @using System.Collections.Generic
 @using System.Linq
 @using System.Security.Claims
@@ -5,9 +6,21 @@
 @using Microsoft.AspNetCore.Mvc.Rendering
 @using AllMCPSolution.Controllers
 @using AllMCPSolution.Models
+@using AllMCPSolution.Services.Theming
+@using AllMCPSolution.Utilities.Theming
 @model WineSurferTopBarModel?
+@inject IThemeService ThemeService
 
-@{ 
+@{
+    var themePalettes = ThemeService.GetPalettes() ?? Array.Empty<AppColorPalette>();
+    var activePalette = ThemeService.GetActivePalette();
+    var paletteVariables = ThemeService.BuildCssVariables() ?? new Dictionary<string, string>();
+    var orderedPalettes = themePalettes
+        .Where(palette => palette is not null)
+        .OrderBy(palette => palette.DisplayName)
+        .ToList();
+    activePalette ??= orderedPalettes.FirstOrDefault() ?? themePalettes.FirstOrDefault();
+    var hasThemeSwitcher = orderedPalettes.Count > 1;
     var isAdmin = Model?.IsAdmin ?? false;
     var isAuthenticatedUser = User?.Identity?.IsAuthenticated == true;
 
@@ -178,6 +191,18 @@
     var showPageTitle = !string.IsNullOrEmpty(pageTitle);
 }
 
+@if (paletteVariables.Count > 0)
+{
+    <style id="wine-surfer-theme-variables" data-active-theme="@activePalette?.Name">
+        :root {
+@foreach (var entry in paletteVariables)
+{
+@:        @entry.Key: @entry.Value;
+}
+        }
+    </style>
+}
+
 <header class="top-bar">
     <div class="top-bar-antiforgery" data-antiforgery-token-cache hidden>
         @Html.AntiForgeryToken()
@@ -194,6 +219,32 @@
         <span class="top-bar-page-title top-bar-page-title--hidden" aria-hidden="true"></span>
     }
     <div class="top-bar-actions">
+        @if (hasThemeSwitcher)
+        {
+            var themeSelectionId = "wineThemeSelection";
+            var activePaletteName = activePalette?.Name ?? string.Empty;
+            var themeSelectAction = Url.Action("Select", "Theme") ?? "/theme/select";
+            <div class="theme-switcher">
+                <form class="theme-switcher__form" method="post" action="@themeSelectAction">
+                    @Html.AntiForgeryToken()
+                    <label class="theme-switcher__label" for="@themeSelectionId">Theme</label>
+                    <select id="@themeSelectionId" class="theme-switcher__select" name="palette" onchange="this.form.submit()">
+@foreach (var palette in orderedPalettes)
+{
+    if (palette is null)
+    {
+        continue;
+    }
+    var paletteIsActive = activePaletteName.Length > 0 && string.Equals(palette.Name, activePaletteName, StringComparison.OrdinalIgnoreCase);
+    var paletteTitle = string.IsNullOrWhiteSpace(palette.Description) ? palette.DisplayName : palette.Description;
+    <option value="@palette.Name" @(paletteIsActive ? "selected" : string.Empty) title="@paletteTitle">@palette.DisplayName</option>
+}
+                    </select>
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button type="submit">Apply theme</button>
+                </form>
+            </div>
+        }
         <div class="notification-shell">
             <button
                 id="notificationToggle"
