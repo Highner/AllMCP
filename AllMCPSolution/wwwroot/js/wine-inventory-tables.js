@@ -514,6 +514,119 @@
         let activeActionMenu = null;
         let actionMenuEventsBound = false;
 
+        function formatLastDrinkingWindowDisplay(isoString) {
+            if (typeof isoString !== 'string') {
+                return null;
+            }
+
+            const trimmed = isoString.trim();
+            if (!trimmed) {
+                return null;
+            }
+
+            const parsed = new Date(trimmed);
+            if (Number.isNaN(parsed.getTime())) {
+                return null;
+            }
+
+            try {
+                const formatter = new Intl.DateTimeFormat(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short'
+                });
+
+                return formatter.format(parsed);
+            } catch {
+                return parsed.toLocaleString();
+            }
+        }
+
+        function extractGroupLastGeneratedIso(group) {
+            if (!group || typeof group !== 'object') {
+                return '';
+            }
+
+            const candidates = [
+                group.lastDrinkingWindowGeneratedAtUtc,
+                group.lastDrinkingWindowGeneratedAtUTC,
+                group.lastDrinkingWindowGeneratedAt,
+                group.drinkingWindowGeneratedAtUtc,
+                group.drinkingWindowGeneratedAtUTC,
+                group.drinkingWindowGeneratedAt,
+                group.lastGeneratedAtUtc,
+                group.lastGeneratedAtUTC,
+                group.lastGeneratedAt
+            ];
+
+            for (const candidate of candidates) {
+                if (typeof candidate === 'string' && candidate.trim().length > 0) {
+                    return candidate.trim();
+                }
+            }
+
+            return '';
+        }
+
+        function updateDrinkingWindowButtonMeta(button, wineId, isoOverride, options) {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            const settings = typeof options === 'object' && options !== null ? options : {};
+            const skipTitle = settings.skipTitle === true;
+            const baseAriaLabel = button.dataset.originalAriaLabel
+                ?? button.dataset.originalLabel
+                ?? button.getAttribute('aria-label')
+                ?? 'Generate drinking windows';
+
+            let isoCandidate = typeof isoOverride === 'string' ? isoOverride : '';
+            if (!isoCandidate) {
+                isoCandidate = button.dataset.lastGeneratedAt ?? '';
+            }
+
+            let normalizedIso = '';
+            if (isoCandidate) {
+                const parsed = new Date(isoCandidate);
+                if (!Number.isNaN(parsed.getTime())) {
+                    normalizedIso = parsed.toISOString();
+                }
+            }
+
+            if (normalizedIso) {
+                button.dataset.lastGeneratedAt = normalizedIso;
+                const display = formatLastDrinkingWindowDisplay(normalizedIso);
+
+                if (display) {
+                    const meta = button.querySelector('[data-last-generated-label]');
+                    if (meta) {
+                        meta.textContent = `Last generated ${display}`;
+                        meta.hidden = false;
+                    }
+
+                    button.setAttribute('aria-label', `${baseAriaLabel}. Last generated ${display}.`);
+
+                    if (!skipTitle) {
+                        button.title = `Last generated ${display}`;
+                    }
+
+                    return;
+                }
+            } else if ('lastGeneratedAt' in button.dataset) {
+                delete button.dataset.lastGeneratedAt;
+            }
+            const meta = button.querySelector('[data-last-generated-label]');
+            if (meta) {
+                meta.textContent = 'Not generated yet';
+                meta.hidden = false;
+            }
+
+            button.setAttribute('aria-label', `${baseAriaLabel}. Not generated yet.`);
+
+            if (!skipTitle) {
+                button.title = '';
+            }
+        }
+
         function setActionMenuCardOverflow(menu, isOpen) {
             if (!(menu instanceof HTMLElement)) {
                 return;
@@ -702,9 +815,18 @@
                     generateButton.dataset.originalLabel = ariaLabel || textLabel || 'Generate drinking windows';
                 }
 
+                if (!generateButton.dataset.originalAriaLabel) {
+                    const baseAriaLabel = generateButton.getAttribute('aria-label');
+                    if (baseAriaLabel) {
+                        generateButton.dataset.originalAriaLabel = baseAriaLabel;
+                    }
+                }
+
                 if (!generateButton.dataset.originalContent) {
                     generateButton.dataset.originalContent = generateButton.innerHTML;
                 }
+
+                updateDrinkingWindowButtonMeta(generateButton, row.dataset.wineId ?? '');
 
                 generateButton.addEventListener('click', (event) => {
                     event.preventDefault();
@@ -753,6 +875,8 @@
                 actionableButton.textContent = 'Generating…';
             }
 
+            let generatedAtIso = null;
+
             try {
                 const response = await sendJson(`/wine-manager/wines/${encodeURIComponent(wineId)}/drinking-windows`, {
                     method: 'POST',
@@ -761,9 +885,16 @@
 
                 applyInventoryUpdateFromResponse(row, response, wineId);
 
+                const group = response?.Group ?? response?.group ?? null;
+                generatedAtIso = extractGroupLastGeneratedIso(group)
+                    || actionableButton?.dataset.lastGeneratedAt
+                    || new Date().toISOString();
+
                 if (actionableButton) {
                     actionableButton.title = 'Drinking windows updated.';
                     actionableButton.textContent = 'Generated!';
+                    actionableButton.dataset.lastGeneratedAt = generatedAtIso;
+                    updateDrinkingWindowButtonMeta(actionableButton, wineId, generatedAtIso, { skipTitle: true });
                     window.setTimeout(() => {
                         if (!actionableButton.isConnected) {
                             return;
@@ -776,6 +907,7 @@
                         }
 
                         actionableButton.title = '';
+                        updateDrinkingWindowButtonMeta(actionableButton, wineId, generatedAtIso);
                     }, 2000);
                 }
             } catch (error) {
@@ -787,6 +919,7 @@
                 if (actionableButton) {
                     actionableButton.textContent = 'Try again';
                     actionableButton.title = message;
+                    updateDrinkingWindowButtonMeta(actionableButton, wineId, undefined, { skipTitle: true });
                 }
             } finally {
                 if (actionableButton) {
@@ -961,6 +1094,16 @@
             row.dataset.summaryAppellation = appellationDisplay && appellationDisplay !== '—' ? appellationDisplay : '';
             row.dataset.summaryColor = colorName || '';
             row.dataset.summaryStatus = statusLabel || '';
+
+            const generateButton = row.querySelector('[data-generate-drinking-windows]');
+            if (generateButton instanceof HTMLButtonElement) {
+                const providedIso = extractGroupLastGeneratedIso(group);
+                if (providedIso) {
+                    updateDrinkingWindowButtonMeta(generateButton, row.dataset.wineId ?? '', providedIso);
+                } else {
+                    updateDrinkingWindowButtonMeta(generateButton, row.dataset.wineId ?? '');
+                }
+            }
         }
 
         function toggleInventorySummaryRow(row) {

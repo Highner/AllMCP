@@ -150,6 +150,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(window => window.AlignmentScore)
                 .HasPrecision(4, 2);
 
+            entity.Property(window => window.GeneratedAtUtc);
+
             entity.HasOne(window => window.User)
                 .WithMany(user => user.WineVintageDrinkingWindows)
                 .HasForeignKey(window => window.UserId)

@@ -314,6 +314,7 @@ public partial class WineInventoryController : Controller
                 var windowStartYears = new List<int>();
                 var windowEndYears = new List<int>();
                 var windowAlignmentScores = new List<decimal>();
+                var windowGeneratedDates = new List<DateTime>();
 
                 var undrunkVintageIds = bottlesInWine
                     .Where(bottle => !bottle.IsDrunk && !bottle.PendingDelivery)
@@ -327,6 +328,10 @@ public partial class WineInventoryController : Controller
                         windowStartYears.Add(window.StartingYear);
                         windowEndYears.Add(window.EndingYear);
                         windowAlignmentScores.Add(window.AlignmentScore);
+                        if (window.GeneratedAtUtc.HasValue)
+                        {
+                            windowGeneratedDates.Add(window.GeneratedAtUtc.Value);
+                        }
                     }
                 }
 
@@ -340,6 +345,10 @@ public partial class WineInventoryController : Controller
 
                 decimal? aggregatedAlignmentScore = windowAlignmentScores.Count > 0
                     ? NormalizeAlignmentScore(windowAlignmentScores.Average())
+                    : null;
+
+                DateTime? aggregatedGeneratedAtUtc = windowGeneratedDates.Count > 0
+                    ? windowGeneratedDates.Max()
                     : null;
 
                 return new WineInventoryBottleViewModel
@@ -363,7 +372,8 @@ public partial class WineInventoryController : Controller
                     AverageScore = CalculateAverageScore(bottlesInWine),
                     UserDrinkingWindowStartYear = aggregatedWindowStart,
                     UserDrinkingWindowEndYear = aggregatedWindowEnd,
-                    UserDrinkingWindowAlignmentScore = aggregatedAlignmentScore
+                    UserDrinkingWindowAlignmentScore = aggregatedAlignmentScore,
+                    DrinkingWindowGeneratedAtUtc = aggregatedGeneratedAtUtc
                 };
             })
             .ToList();
@@ -1581,6 +1591,7 @@ public partial class WineInventoryController : Controller
                     continue;
                 }
 
+                var generatedAtUtc = DateTime.UtcNow;
                 var wineDescription = BuildWineDescription(wine, vintage);
                 var prompt = _chatGptPromptService.BuildDrinkingWindowPrompt(tasteProfileText, wineDescription);
                 if (string.IsNullOrWhiteSpace(prompt))
@@ -1617,7 +1628,8 @@ public partial class WineInventoryController : Controller
                         WineVintageId = vintage.Id,
                         StartingYear = startYear,
                         EndingYear = endYear,
-                        AlignmentScore = normalizedAlignmentScore
+                        AlignmentScore = normalizedAlignmentScore,
+                        GeneratedAtUtc = generatedAtUtc
                     };
 
                     await _drinkingWindowRepository.AddAsync(newWindow, cancellationToken);
@@ -1627,6 +1639,7 @@ public partial class WineInventoryController : Controller
                     existingWindow.StartingYear = startYear;
                     existingWindow.EndingYear = endYear;
                     existingWindow.AlignmentScore = normalizedAlignmentScore;
+                    existingWindow.GeneratedAtUtc = generatedAtUtc;
                     await _drinkingWindowRepository.UpdateAsync(existingWindow, cancellationToken);
                 }
             }
@@ -2466,6 +2479,7 @@ public partial class WineInventoryController : Controller
         }
         else if (startYear.HasValue && endYear.HasValue)
         {
+            var generatedAtUtc = DateTime.UtcNow;
             if (existingWindow is null)
             {
                 var newWindow = new WineVintageUserDrinkingWindow
@@ -2475,7 +2489,8 @@ public partial class WineInventoryController : Controller
                     WineVintageId = wineVintageId,
                     StartingYear = startYear.Value,
                     EndingYear = endYear.Value,
-                    AlignmentScore = normalizedAlignmentScore
+                    AlignmentScore = normalizedAlignmentScore,
+                    GeneratedAtUtc = generatedAtUtc
                 };
 
                 await _drinkingWindowRepository.AddAsync(newWindow, cancellationToken);
@@ -2488,6 +2503,7 @@ public partial class WineInventoryController : Controller
                 {
                     existingWindow.AlignmentScore = normalizedAlignmentScore;
                 }
+                existingWindow.GeneratedAtUtc = generatedAtUtc;
                 await _drinkingWindowRepository.UpdateAsync(existingWindow, cancellationToken);
             }
         }
@@ -2953,6 +2969,7 @@ public partial class WineInventoryController : Controller
         var summaryWindowStartYears = new List<int>();
         var summaryWindowEndYears = new List<int>();
         var summaryAlignmentScores = new List<decimal>();
+        var summaryGeneratedDates = new List<DateTime>();
 
         foreach (var bottle in ownedBottles)
         {
@@ -2961,6 +2978,10 @@ public partial class WineInventoryController : Controller
                 summaryWindowStartYears.Add(window.StartingYear);
                 summaryWindowEndYears.Add(window.EndingYear);
                 summaryAlignmentScores.Add(window.AlignmentScore);
+                if (window.GeneratedAtUtc.HasValue)
+                {
+                    summaryGeneratedDates.Add(window.GeneratedAtUtc.Value);
+                }
             }
         }
 
@@ -2974,6 +2995,10 @@ public partial class WineInventoryController : Controller
 
         decimal? aggregatedAlignmentScore = summaryAlignmentScores.Count > 0
             ? NormalizeAlignmentScore(summaryAlignmentScores.Average())
+            : null;
+
+        DateTime? aggregatedGeneratedAtUtc = summaryGeneratedDates.Count > 0
+            ? summaryGeneratedDates.Max()
             : null;
 
         var summary = new WineInventoryBottleViewModel
@@ -2997,7 +3022,8 @@ public partial class WineInventoryController : Controller
             AverageScore = CalculateAverageScore(ownedBottles),
             UserDrinkingWindowStartYear = aggregatedWindowStart,
             UserDrinkingWindowEndYear = aggregatedWindowEnd,
-            UserDrinkingWindowAlignmentScore = aggregatedAlignmentScore
+            UserDrinkingWindowAlignmentScore = aggregatedAlignmentScore,
+            DrinkingWindowGeneratedAtUtc = aggregatedGeneratedAtUtc
         };
 
         var details = ownedBottles
@@ -3572,7 +3598,8 @@ public partial class WineInventoryController : Controller
             UserDrinkingWindowEndYear = drinkingWindow?.EndingYear,
             UserDrinkingWindowAlignmentScore = drinkingWindow is not null
                 ? NormalizeAlignmentScore(drinkingWindow.AlignmentScore)
-                : null
+                : null,
+            DrinkingWindowGeneratedAtUtc = drinkingWindow?.GeneratedAtUtc
         };
     }
 
@@ -3779,6 +3806,7 @@ public class WineInventoryViewModel
         public int? UserDrinkingWindowStartYear { get; set; }
         public int? UserDrinkingWindowEndYear { get; set; }
         public decimal? UserDrinkingWindowAlignmentScore { get; set; }
+        public DateTime? DrinkingWindowGeneratedAtUtc { get; set; }
     }
 
 
