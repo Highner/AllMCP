@@ -135,6 +135,33 @@ h1 {
     gap: 10px;
 }
 
+.menu-theme {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.theme-switcher--menu {
+    width: 100%;
+}
+
+.theme-switcher--menu::after {
+    top: auto;
+    bottom: 16px;
+}
+
+.theme-switcher__form--menu {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+}
+
+.theme-switcher__form--menu .theme-switcher__select {
+    width: 100%;
+    padding-right: 36px;
+}
+
 .theme-switcher__label {
     font-size: 11px;
     letter-spacing: 1.3px;
