@@ -95,6 +95,7 @@
     }
 
     var hasBottles = Model.Bottles.Any();
+    var hasVintageBottles = Model.VintageBottles.Any();
     var hasLocations = Model.Locations.Any();
     var pendingBottleCount = Math.Max(Model.PendingBottleCount, 0);
     var pendingBottleCountFormatted = pendingBottleCount.ToString("N0", CultureInfo.CurrentCulture);
@@ -125,6 +126,9 @@
     var statusToggleAnnouncement = HtmlEncoder.Default.Encode(isCellaredOnly
         ? "Showing only cellared bottles. Activate to show all bottles."
         : "Showing all bottles. Activate to show only cellared bottles.");
+    var groupingToggleState = "grouped";
+    var groupingToggleLabel = HtmlEncoder.Default.Encode("Grouped by wine");
+    var groupingToggleAnnouncement = HtmlEncoder.Default.Encode("Showing wines grouped by wine. Activate to show each vintage separately.");
     var activeLocationFilterId = Model.LocationFilterId?.ToString() ?? string.Empty;
     var yourCellarTable = new CrudTableTemplateModel
     {
@@ -166,8 +170,22 @@
                                 aria-pressed=""{isCellaredOnly.ToString().ToLowerInvariant()}""
                                 aria-label=""{statusToggleAnnouncement}"">
                             <span class=""inventory-status-toggle__state"" data-inventory-status-toggle-label>{statusToggleLabel}</span>
-                            
+
                             <span class=""sr-only"" data-inventory-status-toggle-sr>{statusToggleAnnouncement}</span>
+                        </button>
+                    </div>
+                ");
+
+                builder.AppendHtml($@"
+                    <div class=""inventory-grouping-toggle"">
+                        <button type=""button""
+                                class=""wine-surfer-button wine-surfer-button--ghost inventory-grouping-toggle__button""
+                                data-inventory-grouping-toggle
+                                data-state=""{groupingToggleState}""
+                                aria-pressed=""false""
+                                aria-label=""{groupingToggleAnnouncement}"">
+                            <span class=""inventory-grouping-toggle__state"" data-inventory-grouping-toggle-label>{groupingToggleLabel}</span>
+                            <span class=""sr-only"" data-inventory-grouping-toggle-sr>{groupingToggleAnnouncement}</span>
                         </button>
                     </div>
                 ");
@@ -195,7 +213,8 @@
         BackgroundCssClass = "crud-table crud-table--bare",
         BodyCssClass = "crud-table__body crud-table__body--bare",
         BodyContent = @<text>
-            <table id="inventory-table" class="inventory-table inventory-table--grouped crud-table__table">
+            <div class="inventory-table-grouping" data-inventory-grouping-container data-grouping-mode="grouped">
+            <table id="inventory-table" class="inventory-table inventory-table--grouped crud-table__table" data-inventory-table="grouped">
                 <thead>
                     <tr class="header-row crud-table__header-row">
                         <th class='summary-header summary-header--wine'>
@@ -364,6 +383,133 @@
                     }
                 </tbody>
             </table>
+            <table id="inventory-table-vintages" class="inventory-table inventory-table--vintages crud-table__table" data-inventory-table="vintages" hidden>
+                <thead>
+                    <tr class="header-row crud-table__header-row">
+                        <th class='summary-header summary-header--wine'>
+                            <span class='header-text'>Wine</span>
+                        </th>
+                        <th class='summary-header summary-header--vintage'>
+                            <span class='header-text'>Vintage</span>
+                        </th>
+                        <th class="summary-header summary-header--region">
+                            <span class="header-text">Region</span>
+                        </th>
+                        <th class="summary-header summary-header--appellation">
+                            <span class="header-text">Appellation</span>
+                        </th>
+                        <th class="summary-header summary-header--bottles">
+                            <span class="header-text">@bottleCountHeader</span>
+                        </th>
+                        <th class="summary-header summary-header--color">
+                            <span class="header-text">Color</span>
+                        </th>
+                        <th class="summary-header summary-header--status">
+                            <span class="header-text">Status</span>
+                        </th>
+                        <th class="summary-header summary-header--drinking-window-start">
+                            <span class="header-text">Drink from</span>
+                        </th>
+                        <th class="summary-header summary-header--drinking-window-end">
+                            <span class="header-text">Until</span>
+                        </th>
+                        <th class="summary-header summary-header--score">
+                            <span class="header-text">Score</span>
+                        </th>
+                        <th class="summary-header summary-header--actions">
+                            <span class="sr-only">Actions</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (hasVintageBottles)
+                    {
+                        foreach (var bottle in Model.VintageBottles)
+                        {
+                            var subAppellation = string.IsNullOrWhiteSpace(bottle.SubAppellation) ? null : bottle.SubAppellation;
+                            var appellation = string.IsNullOrWhiteSpace(bottle.Appellation) ? null : bottle.Appellation;
+                            var region = string.IsNullOrWhiteSpace(bottle.Region) ? null : bottle.Region;
+                            var drinkingWindowUrgencyClass = DrinkingWindowUrgencyClass(bottle.UserDrinkingWindowEndYear);
+                            var drinkingWindowUrgencyLabel = DrinkingWindowUrgencyLabel(bottle.UserDrinkingWindowEndYear);
+                            var display = "—";
+                            var regionDisplay = region ?? "—";
+
+                            if (!string.IsNullOrEmpty(subAppellation) && !string.IsNullOrEmpty(appellation) && !string.Equals(subAppellation, appellation, StringComparison.OrdinalIgnoreCase))
+                            {
+                                display = $"{subAppellation} ({appellation})";
+                            }
+                            else if (!string.IsNullOrEmpty(subAppellation))
+                            {
+                                display = subAppellation;
+                            }
+                            else if (!string.IsNullOrEmpty(appellation))
+                            {
+                                display = appellation;
+                            }
+
+                            var pendingCount = bottle.PendingBottleCount;
+                            var cellaredCount = bottle.CellaredBottleCount;
+                            var drunkCount = bottle.DrunkBottleCount;
+                            var wineName = bottle.WineName;
+                            var vintageLabel = bottle.Vintage > 0 ? bottle.Vintage.ToString(CultureInfo.InvariantCulture) : "—";
+
+                            <tr class="group-row inventory-vintage-row"
+                                data-inventory-vintage-row
+                                data-wine-vintage-id="@bottle.WineVintageId"
+                                data-wine-name="@wineName"
+                                data-vintage-label="@vintageLabel"
+                                data-pending-count="@pendingCount"
+                                data-cellared-count="@cellaredCount"
+                                data-drunk-count="@drunkCount"
+                                tabindex="0"
+                                role="button"
+                                aria-label="Manage bottles for @wineName vintage @vintageLabel">
+                                <td class="summary-wine">@wineName</td>
+                                <td class="summary-vintage">@vintageLabel</td>
+                                <td class="summary-region">@regionDisplay</td>
+                                <td class="summary-appellation">@display</td>
+                                <td class="summary-bottles" data-field="bottle-count">
+                                    @if (isCellaredOnly)
+                                    {
+                                        <span aria-hidden="true">@pendingCount/@cellaredCount</span>
+                                        <span class="sr-only">@pendingCount pending, @cellaredCount cellared</span>
+                                    }
+                                    else
+                                    {
+                                        <span aria-hidden="true">@pendingCount/@cellaredCount/@drunkCount</span>
+                                        <span class="sr-only">@pendingCount pending, @cellaredCount cellared, @drunkCount enjoyed</span>
+                                    }
+                                </td>
+                                <td class="summary-color">@bottle.Color</td>
+                                <td class="summary-status"><span class="status-pill @bottle.StatusCssClass">@bottle.StatusLabel</span></td>
+                                <td class="summary-drinking-window-start" data-field="drinking-window-start">@FormatDrinkingWindowValue(bottle.UserDrinkingWindowStartYear)</td>
+                                <td class="summary-drinking-window-end" data-field="drinking-window-end"
+                                    @if (!string.IsNullOrEmpty(drinkingWindowUrgencyLabel))
+                                    {
+                                        <text> title="@drinkingWindowUrgencyLabel"</text>;
+                                    }>
+                                    <span class="status-pill drinking-window-urgency @drinkingWindowUrgencyClass"
+                                          aria-label="@drinkingWindowUrgencyLabel">@FormatDrinkingWindowValue(bottle.UserDrinkingWindowEndYear)</span>
+                                </td>
+                                <td class="summary-score" data-field="score">@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
+                                <td class="summary-actions">
+                                    <button type="button"
+                                            class="wine-surfer-button wine-surfer-button--ghost inventory-manage-button"
+                                            data-open-bottle-management
+                                            data-wine-vintage-id="@bottle.WineVintageId">Manage</button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr class="crud-table__empty-row empty-row">
+                            <td colspan="11">No bottles yet. Add your first wine above to get started.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
         </text>
     };
 
