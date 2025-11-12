@@ -1717,7 +1717,8 @@ textarea:focus {
 }
 
 .inventory-add-field select,
-.inventory-add-field input {
+.inventory-add-field input,
+.inventory-add-field textarea {
     width: 100%;
     padding: 10px 12px;
     border-radius: 10px;
