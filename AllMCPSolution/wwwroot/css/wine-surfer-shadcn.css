@@ -1303,7 +1303,7 @@ textarea:focus {
     gap: 4px;
 }
 
-.inventory-add-trigger {
+.inventory-actions-menu {
     align-self: flex-start;
     margin-left: 0;
 }
@@ -1361,7 +1361,7 @@ textarea:focus {
         flex: 1;
     }
 
-    .inventory-add-trigger {
+    .inventory-actions-menu {
         margin-left: auto;
         align-self: center;
     }
