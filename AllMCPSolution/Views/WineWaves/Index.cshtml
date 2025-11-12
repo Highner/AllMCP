@@ -303,6 +303,35 @@
             padding-right: 4px;
         }
 
+        .waves-popover-filter {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .waves-popover-filter-input {
+            appearance: none;
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 14px;
+            border: 1px solid hsla(var(--foreground) / 0.18);
+            background: hsla(var(--foreground) / 0.08);
+            color: inherit;
+            font-size: 0.95rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .waves-popover-filter-input::placeholder {
+            color: hsla(var(--foreground) / 0.6);
+        }
+
+        .waves-popover-filter-input:focus-visible {
+            outline: none;
+            border-color: hsla(var(--foreground) / 0.38);
+            box-shadow: 0 0 0 2px hsla(var(--foreground) / 0.18);
+        }
+
         .waves-popover-option {
             display: flex;
             gap: 12px;
@@ -336,6 +365,49 @@
             margin: 0;
             color: hsla(var(--foreground) / 0.6);
             font-size: 0.85rem;
+        }
+
+        .waves-popover-option-availability {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: hsla(var(--foreground) / 0.75);
+        }
+
+        .waves-popover-option-availability::before {
+            content: "";
+            display: inline-flex;
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: hsla(var(--foreground) / 0.45);
+        }
+
+        .waves-popover-option-availability--available::before {
+            background: #4ade80;
+        }
+
+        .waves-popover-option-availability--unavailable::before {
+            background: #f87171;
+        }
+
+        .waves-popover-option--unavailable {
+            opacity: 0.65;
+        }
+
+        .waves-popover-option--unavailable input[type="checkbox"] {
+            cursor: not-allowed;
+        }
+
+        .waves-popover-empty {
+            margin: 8px 0 0;
+            font-size: 0.9rem;
+            color: hsla(var(--foreground) / 0.7);
+            text-align: center;
         }
 
         .waves-popover-actions {
@@ -463,23 +535,38 @@
                 <form class="waves-popover-form" data-make-waves-form>
                     <h2 id="wavesPopoverTitle">Make waves</h2>
                     <p class="waves-popover-description">Select the vintages you want Wine Waves to analyze for fresh evolution scores.</p>
-                    <div class="waves-popover-list" role="group" aria-labelledby="wavesPopoverTitle">
+                    <div class="waves-popover-filter">
+                        <label class="sr-only" for="wavesPopoverFilter">Filter wines</label>
+                        <input type="search" id="wavesPopoverFilter" name="wavesPopoverFilter" class="waves-popover-filter-input" placeholder="Filter wines" autocomplete="off" data-make-waves-filter />
+                    </div>
+                    <div class="waves-popover-list" role="group" aria-labelledby="wavesPopoverTitle" data-make-waves-list>
                         @for (var index = 0; index < Model.Inventory.Count; index++)
                         {
                             var item = Model.Inventory[index];
                             var optionId = $"waves-option-{index}";
-                            <label class="waves-popover-option" for="@optionId">
-                                <input type="checkbox" id="@optionId" name="wineVintageIds" value="@item.WineVintageId" />
+                            var isAvailable = item.AvailableBottleCount > 0;
+                            var optionClasses = isAvailable
+                                ? "waves-popover-option"
+                                : "waves-popover-option waves-popover-option--unavailable";
+                            var availabilityText = isAvailable
+                                ? (item.AvailableBottleCount == 1
+                                    ? "1 bottle available"
+                                    : $"{item.AvailableBottleCount} bottles available")
+                                : "Not currently available";
+                            <label class="@optionClasses" for="@optionId" data-make-waves-option data-available="@isAvailable.ToString().ToLowerInvariant()"@(isAvailable ? string.Empty : " aria-disabled=\"true\"")>
+                                <input type="checkbox" id="@optionId" name="wineVintageIds" value="@item.WineVintageId" data-make-waves-checkbox data-initial-disabled="@(!isAvailable).ToString().ToLowerInvariant()" @(isAvailable ? string.Empty : "disabled") />
                                 <span class="waves-popover-option-content">
-                                    <span class="waves-popover-option-label">@item.Label</span>
+                                    <span class="waves-popover-option-label" data-make-waves-option-label>@item.Label</span>
                                     @if (!string.IsNullOrWhiteSpace(item.Details))
                                     {
-                                        <span class="waves-popover-option-details">@item.Details</span>
+                                        <span class="waves-popover-option-details" data-make-waves-option-details>@item.Details</span>
                                     }
+                                    <span class="waves-popover-option-availability @(isAvailable ? "waves-popover-option-availability--available" : "waves-popover-option-availability--unavailable")" data-make-waves-option-status>@availabilityText</span>
                                 </span>
                             </label>
                         }
                     </div>
+                    <p class="waves-popover-empty" data-make-waves-empty hidden role="status" aria-live="polite">No wines match your filter.</p>
                     @Html.AntiForgeryToken()
                     <div class="waves-popover-actions">
                         <button type="button" class="waves-secondary-button" data-make-waves-cancel>Cancel</button>
@@ -501,14 +588,41 @@
             const form = popover.querySelector('[data-make-waves-form]');
             const cancelButton = popover.querySelector('[data-make-waves-cancel]');
             const submitButton = popover.querySelector('[data-make-waves-submit]');
+            const filterInput = popover.querySelector('[data-make-waves-filter]');
+            const list = popover.querySelector('[data-make-waves-list]');
+            const emptyState = popover.querySelector('[data-make-waves-empty]');
+            const optionSelector = '[data-make-waves-option]';
             const endpoint = '/wine-surfer/wine-waves/make';
             let lastFocusedElement = null;
+            let applyFilter = null;
+
+            const focusFirstCheckbox = () => {
+                if (!list) {
+                    return;
+                }
+
+                const firstCheckbox = list.querySelector(`${optionSelector}:not([hidden]) input[type="checkbox"]:not(:disabled)`);
+                if (firstCheckbox && typeof firstCheckbox.focus === 'function') {
+                    firstCheckbox.focus();
+                    return;
+                }
+
+                if (filterInput && typeof filterInput.focus === 'function') {
+                    filterInput.focus();
+                }
+            };
 
             const closePopover = () => {
                 popover.setAttribute('hidden', 'hidden');
                 document.body.classList.remove('waves-popover-open');
                 popover.classList.remove('open');
                 trigger.setAttribute('aria-expanded', 'false');
+
+                if (filterInput && typeof applyFilter === 'function') {
+                    filterInput.value = '';
+                    applyFilter();
+                }
+
                 if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
                     lastFocusedElement.focus();
                 } else {
@@ -527,11 +641,73 @@
                 popover.classList.add('open');
                 trigger.setAttribute('aria-expanded', 'true');
 
-                const firstCheckbox = popover.querySelector('input[type="checkbox"]');
-                if (firstCheckbox && typeof firstCheckbox.focus === 'function') {
-                    firstCheckbox.focus();
+                if (typeof applyFilter === 'function') {
+                    applyFilter();
                 }
+
+                focusFirstCheckbox();
             };
+
+            if (filterInput && list) {
+                const options = Array.from(list.querySelectorAll(optionSelector));
+                applyFilter = () => {
+                    const query = filterInput.value.trim().toLowerCase();
+                    let visibleCount = 0;
+
+                    options.forEach((option) => {
+                        const label = option.querySelector('[data-make-waves-option-label]');
+                        const details = option.querySelector('[data-make-waves-option-details]');
+                        const status = option.querySelector('[data-make-waves-option-status]');
+                        const text = [
+                            label?.textContent ?? '',
+                            details?.textContent ?? '',
+                            status?.textContent ?? ''
+                        ].join(' ').toLowerCase();
+
+                        const matches = query.length === 0 || text.includes(query);
+
+                        if (!matches) {
+                            option.setAttribute('hidden', 'hidden');
+                            option.setAttribute('aria-hidden', 'true');
+                        } else {
+                            option.removeAttribute('hidden');
+                            option.removeAttribute('aria-hidden');
+                        }
+
+                        const checkbox = option.querySelector('[data-make-waves-checkbox]');
+                        if (checkbox) {
+                            const initiallyDisabled = checkbox.dataset.initialDisabled === 'true';
+                            if (!matches) {
+                                checkbox.disabled = true;
+                                checkbox.checked = false;
+                            } else {
+                                checkbox.disabled = initiallyDisabled;
+                            }
+                        }
+
+                        if (matches) {
+                            visibleCount += 1;
+                        }
+                    });
+
+                    if (emptyState) {
+                        emptyState.hidden = visibleCount !== 0;
+                    }
+                };
+
+                filterInput.addEventListener('input', () => {
+                    applyFilter();
+                });
+
+                filterInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        focusFirstCheckbox();
+                    }
+                });
+
+                applyFilter();
+            }
 
             trigger.addEventListener('click', openPopover);
 
