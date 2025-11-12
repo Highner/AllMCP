@@ -58,6 +58,23 @@
             }
         }
 
+        function getActiveLocationFilterId() {
+            if (typeof activeLocationFilterId !== 'string') {
+                return '';
+            }
+
+            return activeLocationFilterId.trim();
+        }
+
+        function buildVintageCacheKey(status, locationId) {
+            const normalizedStatus = normalizeStatusValue(status);
+            const normalizedLocation = typeof locationId === 'string'
+                ? locationId.trim().toLowerCase()
+                : '';
+
+            return `${normalizedStatus}::${normalizedLocation || 'all'}`;
+        }
+
         function getActiveStatusFilter() {
             const raw = filtersStatusInput?.value ?? statusToggleButton?.dataset.state ?? 'all';
             return normalizeStatusValue(raw);
@@ -951,9 +968,10 @@
 
             if (wineId) {
                 const statusFilter = getActiveStatusFilter();
-                const aggregated = aggregateVintageCounts(details, statusFilter);
+                const locationFilterId = getActiveLocationFilterId();
+                const aggregated = aggregateVintageCounts(details, statusFilter, locationFilterId);
                 const cacheEntry = new Map();
-                cacheEntry.set(statusFilter, aggregated);
+                cacheEntry.set(buildVintageCacheKey(statusFilter, locationFilterId), aggregated);
                 vintageSummaryCache.set(wineId, cacheEntry);
             }
 
@@ -1224,9 +1242,11 @@
             }
 
             const statusFilter = getActiveStatusFilter();
+            const locationFilterId = getActiveLocationFilterId();
             const normalizedStatus = normalizeStatusValue(statusFilter);
+            const cacheKey = buildVintageCacheKey(normalizedStatus, locationFilterId);
             const cachedByStatus = vintageSummaryCache.get(wineId);
-            const cached = cachedByStatus?.get(normalizedStatus);
+            const cached = cachedByStatus?.get(cacheKey);
             if (cached) {
                 renderVintageView(cached, normalizedStatus);
                 return;
@@ -1239,19 +1259,33 @@
             inlineDetailsAbortController = new AbortController();
             const abortController = inlineDetailsAbortController;
 
+            let requestUrl = `/wine-manager/wine/${encodeURIComponent(wineId)}/details`;
+            if (locationFilterId) {
+                const separator = requestUrl.includes('?') ? '&' : '?';
+                requestUrl = `${requestUrl}${separator}locationId=${encodeURIComponent(locationFilterId)}`;
+            }
+
             try {
-                const response = await sendJson(`/wine-manager/wine/${encodeURIComponent(wineId)}/details`, {
+                const response = await sendJson(requestUrl, {
                     method: 'GET',
                     signal: abortController.signal
                 });
                 const details = Array.isArray(response?.details) ? response.details : [];
-                const aggregated = aggregateVintageCounts(details, normalizedStatus);
+                const aggregated = aggregateVintageCounts(details, normalizedStatus, locationFilterId);
                 if (!vintageSummaryCache.has(wineId)) {
                     vintageSummaryCache.set(wineId, new Map());
                 }
-                vintageSummaryCache.get(wineId).set(normalizedStatus, aggregated);
+                vintageSummaryCache.get(wineId).set(cacheKey, aggregated);
 
                 if (!inlineRow.isConnected || expandedInventoryRow !== row) {
+                    return;
+                }
+
+                const activeLocationKey = getActiveLocationFilterId().trim().toLowerCase();
+                const expectedLocationKey = typeof locationFilterId === 'string'
+                    ? locationFilterId.trim().toLowerCase()
+                    : '';
+                if (activeLocationKey !== expectedLocationKey) {
                     return;
                 }
 
@@ -1464,7 +1498,7 @@
             });
         }
 
-        function aggregateVintageCounts(details, statusFilter) {
+        function aggregateVintageCounts(details, statusFilter, locationFilterId) {
             const results = new Map();
 
             if (!Array.isArray(details)) {
@@ -1472,10 +1506,20 @@
             }
 
             const normalizedStatus = normalizeStatusValue(statusFilter);
+            const normalizedLocationId = typeof locationFilterId === 'string'
+                ? locationFilterId.trim().toLowerCase()
+                : '';
 
             details.forEach((detail) => {
                 const vintageId = detail?.wineVintageId;
                 if (!vintageId) {
+                    return;
+                }
+
+                const detailLocationId = typeof detail?.bottleLocationId === 'string'
+                    ? detail.bottleLocationId.trim().toLowerCase()
+                    : '';
+                if (normalizedLocationId && detailLocationId !== normalizedLocationId) {
                     return;
                 }
 
