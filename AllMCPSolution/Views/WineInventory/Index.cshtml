@@ -97,14 +97,17 @@
     var hasBottles = Model.Bottles.Any();
     var hasLocations = Model.Locations.Any();
     var pendingBottleCount = Math.Max(Model.PendingBottleCount, 0);
-    var pendingBottleCountDisplay = pendingBottleCount.ToString("N0", CultureInfo.CurrentCulture);
+    var pendingBottleCountFormatted = pendingBottleCount.ToString("N0", CultureInfo.CurrentCulture);
     var acceptDeliveriesAriaLabel = pendingBottleCount == 0
         ? "No pending deliveries to accept"
-        : $"Accept deliveries for {pendingBottleCountDisplay} pending bottles";
+        : $"Accept deliveries for {pendingBottleCountFormatted} pending bottles";
     var acceptDeliveriesSrCopy = pendingBottleCount == 0
         ? "No pending deliveries to accept."
-        : $"You have {pendingBottleCountDisplay} pending bottles awaiting delivery.";
-    var acceptDeliveriesIsDisabled = pendingBottleCount == 0;
+        : $"You have {pendingBottleCountFormatted} pending bottles awaiting delivery.";
+    var acceptDeliveriesDisabledAttribute = pendingBottleCount == 0 ? " disabled aria-disabled=\"true\"" : string.Empty;
+    acceptDeliveriesAriaLabel = HtmlEncoder.Default.Encode(acceptDeliveriesAriaLabel);
+    acceptDeliveriesSrCopy = HtmlEncoder.Default.Encode(acceptDeliveriesSrCopy);
+    var pendingBottleCountDisplay = HtmlEncoder.Default.Encode(pendingBottleCountFormatted);
     var pendingBottleCountData = pendingBottleCount.ToString(CultureInfo.InvariantCulture);
     var topBarModel = ViewData["WineSurferTopBarModel"] as WineSurferTopBarModel
         ?? WineSurferTopBarModel.Empty(currentPath);
@@ -169,62 +172,21 @@
                     </div>
                 ");
 
-                var inventoryActionsMenuTriggerLabel = "Open inventory actions";
-                var inventoryActionsMenuLabel = "Inventory actions";
-                var inventoryActionsMenuId = "inventory-actions-menu";
-                var acceptDeliveriesAttributes = new Dictionary<string, string>
-                {
-                    ["data-accept-deliveries-trigger"] = string.Empty,
-                    ["data-pending-count"] = pendingBottleCountData,
-                    ["aria-label"] = acceptDeliveriesAriaLabel,
-                    ["data-accept-deliveries-sr-copy"] = acceptDeliveriesSrCopy
-                };
+                builder.AppendHtml($@"
+                    <button type=""button""
+                            class=""wine-surfer-button wine-surfer-button--ghost inventory-accept-deliveries-button""
+                            data-accept-deliveries-trigger
+                            aria-label=""{acceptDeliveriesAriaLabel}""
+                            data-pending-count=""{pendingBottleCountData}""{acceptDeliveriesDisabledAttribute}>
+                        Accept deliveries
+                        <span class=""inventory-accept-deliveries-count"" aria-hidden=""true"">({pendingBottleCountDisplay} pending)</span>
+                        <span class=""sr-only"">{acceptDeliveriesSrCopy}</span>
+                    </button>
+                ");
 
-                if (acceptDeliveriesIsDisabled)
-                {
-                    acceptDeliveriesAttributes["disabled"] = "disabled";
-                    acceptDeliveriesAttributes["aria-disabled"] = "true";
-                }
-
-                var addWineAttributes = new Dictionary<string, string>
-                {
-                    ["data-add-wine-trigger"] = "inventory"
-                };
-
-                var inventoryActionsMenuItems = new List<ActionMenuButtonItem>
-                {
-                    new(
-                        ActionMenuButtonItemKind.Button,
-                        $"Accept deliveries ({pendingBottleCountDisplay} pending)",
-                        Attributes: acceptDeliveriesAttributes),
-                    new(
-                        ActionMenuButtonItemKind.Button,
-                        "Add wine",
-                        Attributes: addWineAttributes)
-                };
-
-                var inventoryActionsMenuModel = new ActionMenuButtonModel(
-                    MenuId: inventoryActionsMenuId,
-                    TriggerAriaLabel: inventoryActionsMenuTriggerLabel,
-                    MenuLabel: inventoryActionsMenuLabel,
-                    Edit: new ActionMenuButtonEditOption(
-                        Label: "Inventory action",
-                        Attributes: new Dictionary<string, string>()),
-                    Delete: new ActionMenuButtonDeleteOption(
-                        Label: "Inventory action",
-                        FormAction: "#",
-                        HiddenFields: System.Array.Empty<KeyValuePair<string, string>>(),
-                        ConfirmMessage: null,
-                        ButtonCssClass: null,
-                        FormCssClass: null,
-                        IncludeAntiforgery: false),
-                    AdditionalItems: inventoryActionsMenuItems,
-                    ShowEdit: false,
-                    ShowDelete: false);
-
-                builder.AppendHtml("<div class=\"inventory-actions-menu\" data-inventory-actions-menu>");
-                builder.AppendHtml(Html.PartialAsync("_ActionMenuButton", inventoryActionsMenuModel).GetAwaiter().GetResult());
-                builder.AppendHtml("</div>");
+                builder.AppendHtml(@"
+                    <button type=""button"" class=""wine-surfer-button wine-surfer-button--orange inventory-add-trigger"" data-add-wine-trigger=""inventory"">Add wine</button>
+                ");
 
                 return builder;
             }
