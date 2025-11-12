@@ -786,6 +786,54 @@
                 return;
             }
 
+            const rootStyles = window.getComputedStyle(document.documentElement);
+            const readCssVariable = (token) => {
+                if (!token) {
+                    return '';
+                }
+
+                const value = rootStyles.getPropertyValue(token);
+                return typeof value === 'string' ? value.trim() : '';
+            };
+
+            const createColorFromVariable = (token, fallbackColor, alpha) => {
+                const raw = readCssVariable(token);
+                if (!raw) {
+                    return fallbackColor;
+                }
+
+                if (alpha === undefined || alpha === null) {
+                    return `hsl(${raw})`;
+                }
+
+                const normalizedAlpha = typeof alpha === 'number' ? alpha.toString() : `${alpha}`;
+                return `hsla(${raw} / ${normalizedAlpha})`;
+            };
+
+            const getFontFamily = () => {
+                const bodyStyles = window.getComputedStyle(document.body);
+                const family = bodyStyles.getPropertyValue('font-family') || bodyStyles.fontFamily;
+                const trimmed = typeof family === 'string' ? family.trim() : '';
+
+                if (trimmed) {
+                    return trimmed;
+                }
+
+                return "'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif";
+            };
+
+            const axisLabelColor = createColorFromVariable('--foreground', 'rgba(244, 241, 234, 0.82)', 0.82);
+            const axisTitleColor = createColorFromVariable('--foreground', 'rgba(244, 241, 234, 0.9)', 0.9);
+            const axisBorderColor = createColorFromVariable('--foreground', 'rgba(244, 241, 234, 0.2)', 0.2);
+            const axisGridColor = createColorFromVariable('--foreground', 'rgba(244, 241, 234, 0.12)', 0.12);
+            const tooltipBackgroundColor = createColorFromVariable('--popover', 'rgba(17, 17, 20, 0.92)', 0.92);
+            const tooltipBorderColor = createColorFromVariable('--border', 'rgba(244, 241, 234, 0.18)', 0.18);
+            const tooltipTitleColor = createColorFromVariable('--popover-foreground', 'rgba(244, 241, 234, 0.95)', 0.95);
+            const tooltipBodyColor = createColorFromVariable('--popover-foreground', 'rgba(244, 241, 234, 0.82)', 0.82);
+            const currentYearLineColor = createColorFromVariable('--warning', 'rgba(246, 198, 114, 0.75)', 0.75);
+            const tooltipCaretColor = tooltipBackgroundColor;
+            const chartFontFamily = getFontFamily();
+
             const currentYear = new Date().getFullYear();
             const currentYearLinePlugin = {
                 id: 'currentYearLine',
@@ -808,7 +856,7 @@
                         return;
                     }
 
-                    const color = pluginOptions?.color ?? 'rgba(246, 198, 114, 0.6)';
+                    const color = pluginOptions?.color ?? currentYearLineColor;
                     const lineWidth = pluginOptions?.lineWidth ?? 2;
                     const dash = Array.isArray(pluginOptions?.dash) ? pluginOptions.dash : [6, 6];
 
@@ -849,6 +897,10 @@
                     datasets
                 },
                 options: {
+                    color: axisLabelColor,
+                    font: {
+                        family: chartFontFamily
+                    },
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: {
@@ -860,6 +912,25 @@
                             display: false
                         },
                         tooltip: {
+                            backgroundColor: tooltipBackgroundColor,
+                            borderColor: tooltipBorderColor,
+                            borderWidth: 1,
+                            titleColor: tooltipTitleColor,
+                            bodyColor: tooltipBodyColor,
+                            footerColor: tooltipBodyColor,
+                            caretColor: tooltipCaretColor,
+                            titleFont: {
+                                family: chartFontFamily,
+                                weight: '600'
+                            },
+                            bodyFont: {
+                                family: chartFontFamily
+                            },
+                            footerFont: {
+                                family: chartFontFamily
+                            },
+                            padding: 12,
+                            displayColors: false,
                             callbacks: {
                                 title(tooltipItems) {
                                     const item = tooltipItems[0];
@@ -873,7 +944,7 @@
                         },
                         currentYearLine: {
                             value: currentYear,
-                            color: 'rgba(246, 198, 114, 0.75)',
+                            color: currentYearLineColor,
                             lineWidth: 2,
                             dash: [6, 6]
                         }
@@ -883,9 +954,11 @@
                             type: 'linear',
                             title: {
                                 display: true,
-                                text: 'Year'
+                                text: 'Year',
+                                color: axisTitleColor
                             },
                             ticks: {
+                                color: axisLabelColor,
                                 callback(value) {
                                     const numericValue = Number(value);
                                     if (Number.isFinite(numericValue)) {
@@ -896,22 +969,26 @@
                                 }
                             },
                             grid: {
-                                color: 'rgba(244, 241, 234, 0.08)'
+                                color: axisGridColor,
+                                borderColor: axisBorderColor
                             }
                         },
                         y: {
                             beginAtZero: true,
                             title: {
                                 display: true,
-                                text: 'Evolution Score'
+                                text: 'Evolution Score',
+                                color: axisTitleColor
                             },
                             ticks: {
+                                color: axisLabelColor,
                                 callback(value) {
                                     return Number.parseFloat(value).toFixed(0);
                                 }
                             },
                             grid: {
-                                color: 'rgba(244, 241, 234, 0.08)'
+                                color: axisGridColor,
+                                borderColor: axisBorderColor
                             }
                         }
                     }
