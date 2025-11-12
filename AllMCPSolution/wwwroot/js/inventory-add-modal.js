@@ -273,39 +273,40 @@
             }
 
             event.preventDefault();
-        const context = buildContextFromTrigger(trigger);
 
-        if (context?.source === 'import-preview') {
-            openCreateWineFromImport(trigger, context);
-            return;
-        }
+            const context = buildContextFromTrigger(trigger);
 
-        openModalWithStatus(context).catch(() => { /* handled via showStatus */ });
-    };
+            if (context?.source === 'import-preview') {
+                openCreateWineFromImport(trigger, context);
+                return;
+            }
 
-    document.addEventListener('click', handleTriggerClick);
+            openModalWithStatus(context).catch(() => { /* handled via showStatus */ });
+        };
+
+        document.addEventListener('click', handleTriggerClick, { capture: true });
 
     function buildContextFromTrigger(trigger) {
         if (!trigger || !trigger.dataset) {
             return null;
         }
 
-            const dataset = trigger.dataset;
-            return normalizeContext({
-                source: dataset.addWineTrigger,
-                rowId: dataset.previewRowId,
-                id: dataset.wineId,
-                name: dataset.wineName,
-                producer: dataset.wineProducer,
-                country: dataset.wineCountry,
-                region: dataset.wineRegion,
-                appellation: dataset.wineAppellation,
-                subAppellation: dataset.wineSubAppellation,
-                color: dataset.wineColor,
-                variety: dataset.wineVariety,
-                vintage: dataset.wineVintage
-            });
-        }
+        const dataset = trigger.dataset;
+        return normalizeContext({
+            source: dataset.addWineTrigger,
+            rowId: dataset.previewRowId,
+            id: dataset.wineId,
+            name: dataset.wineName,
+            producer: dataset.wineProducer,
+            country: dataset.wineCountry,
+            region: dataset.wineRegion,
+            appellation: dataset.wineAppellation,
+            subAppellation: dataset.wineSubAppellation,
+            color: dataset.wineColor,
+            variety: dataset.wineVariety,
+            vintage: dataset.wineVintage
+        });
+    }
 
         function openCreateWineFromImport(trigger, context) {
             const module = window.WineCreatePopover;
