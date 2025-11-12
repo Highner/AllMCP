@@ -1534,14 +1534,21 @@ public partial class WineInventoryController : Controller
 
     // New endpoint: fetch details for an entire wine (all vintages)
     [HttpGet("wine/{wineId:guid}/details")]
-    public async Task<IActionResult> GetWineDetails(Guid wineId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetWineDetails(
+        Guid wineId,
+        [FromQuery] Guid? locationId,
+        CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var currentUserId))
         {
             return Challenge();
         }
 
-        var response = await BuildWineDetailsResponseAsync(wineId, currentUserId, cancellationToken);
+        var response = await BuildWineDetailsResponseAsync(
+            wineId,
+            currentUserId,
+            cancellationToken,
+            locationId);
         if (response is null)
         {
             return NotFound();
@@ -2932,8 +2939,11 @@ public partial class WineInventoryController : Controller
         return Json(response);
     }
 
-    private async Task<BottleGroupDetailsResponse?> BuildWineDetailsResponseAsync(Guid wineId, Guid userId,
-        CancellationToken cancellationToken)
+    private async Task<BottleGroupDetailsResponse?> BuildWineDetailsResponseAsync(
+        Guid wineId,
+        Guid userId,
+        CancellationToken cancellationToken,
+        Guid? locationFilterId = null)
     {
         var userBottles = await _bottleRepository.GetForUserAsync(userId, cancellationToken);
         var userDrinkingWindows = await _drinkingWindowRepository.GetForUserAsync(userId, cancellationToken);
@@ -2943,14 +2953,24 @@ public partial class WineInventoryController : Controller
         var userLocations = await GetUserLocationsAsync(userId, cancellationToken);
         var locationSummaries = BuildLocationSummaries(userBottles, userLocations);
 
-        var ownedBottles = userBottles
+        var normalizedLocationId = locationFilterId.HasValue
+            && userLocations.Any(location => location.Id == locationFilterId.Value)
+                ? locationFilterId
+                : null;
+
+        var allOwnedForWine = userBottles
             .Where(b => b.WineVintage.Wine.Id == wineId)
             .ToList();
 
-        if (ownedBottles.Count == 0)
+        if (allOwnedForWine.Count == 0)
         {
             return null;
         }
+
+        var ownedBottles = (normalizedLocationId.HasValue
+                ? allOwnedForWine.Where(b => b.BottleLocationId == normalizedLocationId.Value)
+                : allOwnedForWine)
+            .ToList();
 
         var totalCount = ownedBottles.Count;
         var pendingCount = ownedBottles.Count(b => b.PendingDelivery);
@@ -2964,7 +2984,7 @@ public partial class WineInventoryController : Controller
             _ => ("Mixed", "mixed")
         };
 
-        var first = ownedBottles.First();
+        var metadataBottle = allOwnedForWine.First();
 
         var summaryWindowStartYears = new List<int>();
         var summaryWindowEndYears = new List<int>();
@@ -3005,14 +3025,14 @@ public partial class WineInventoryController : Controller
         {
             WineVintageId = Guid.Empty,
             WineId = wineId,
-            WineName = first.WineVintage.Wine.Name,
-            Region = first.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name,
-            SubAppellation = first.WineVintage.Wine.SubAppellation?.Name,
-            Appellation = first.WineVintage.Wine.SubAppellation?.Appellation?.Name,
-            SubAppellationId = first.WineVintage.Wine.SubAppellation?.Id,
-            AppellationId = first.WineVintage.Wine.SubAppellation?.Appellation?.Id,
+            WineName = metadataBottle.WineVintage.Wine.Name,
+            Region = metadataBottle.WineVintage.Wine.SubAppellation?.Appellation?.Region?.Name,
+            SubAppellation = metadataBottle.WineVintage.Wine.SubAppellation?.Name,
+            Appellation = metadataBottle.WineVintage.Wine.SubAppellation?.Appellation?.Name,
+            SubAppellationId = metadataBottle.WineVintage.Wine.SubAppellation?.Id,
+            AppellationId = metadataBottle.WineVintage.Wine.SubAppellation?.Appellation?.Id,
             Vintage = 0,
-            Color = first.WineVintage.Wine.Color.ToString(),
+            Color = metadataBottle.WineVintage.Wine.Color.ToString(),
             BottleCount = totalCount,
             PendingBottleCount = pendingCount,
             CellaredBottleCount = cellaredCount,
