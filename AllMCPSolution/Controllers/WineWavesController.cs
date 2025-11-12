@@ -186,47 +186,54 @@ public sealed class WineWavesController : WineSurferControllerBase
         var currentUser = await _userRepository.GetByIdAsync(userId, cancellationToken);
         var (tasteProfileSummary, tasteProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(currentUser);
 
-        var prompt = _chatGptPromptService.BuildWineWavesPrompt(promptItems, tasteProfileSummary, tasteProfile);
-        if (string.IsNullOrWhiteSpace(prompt))
+        var aggregatedScores = new List<WineVintageEvolutionScore>();
+
+        foreach (var promptItem in promptItems)
         {
-            return StatusCode(StatusCodes.Status500InternalServerError, new WineWavesMakeResponse(false, "We couldn't prepare the request. Please try again."));
+            var prompt = _chatGptPromptService.BuildWineWavesPrompt(new[] { promptItem }, tasteProfileSummary, tasteProfile);
+            if (string.IsNullOrWhiteSpace(prompt))
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new WineWavesMakeResponse(false, "We couldn't prepare the request. Please try again."));
+            }
+
+            ChatCompletion completion;
+            try
+            {
+                completion = await _chatGptService.GetChatCompletionAsync(
+                    new ChatMessage[]
+                    {
+                        new SystemChatMessage(_chatGptPromptService.WineWavesSystemPrompt),
+                        new UserChatMessage(prompt)
+                    },
+                    model: _wineWavesModel,
+                    useWebSearch: true,
+                    ct: cancellationToken);
+            }
+            catch (ChatGptServiceNotConfiguredException)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new WineWavesMakeResponse(false, "Wine Waves is not configured to request AI assistance."));
+            }
+            catch (ClientResultException)
+            {
+                return StatusCode(StatusCodes.Status502BadGateway, new WineWavesMakeResponse(false, "We couldn't reach the Wine Waves assistant. Please try again."));
+            }
+            catch (Exception)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new WineWavesMakeResponse(false, "Wine Waves couldn't generate scores right now. Please try again."));
+            }
+
+            var completionText = StringUtilities.ExtractCompletionText(completion);
+            if (!TryParseWineWavesScores(completionText, userId, new[] { promptItem.WineVintageId }, out var vintageScores))
+            {
+                return StatusCode(StatusCodes.Status502BadGateway, new WineWavesMakeResponse(false, "We couldn't understand the Wine Waves response. Please try again."));
+            }
+
+            aggregatedScores.AddRange(vintageScores);
         }
 
-        ChatCompletion completion;
-        try
-        {
-            completion = await _chatGptService.GetChatCompletionAsync(
-                new ChatMessage[]
-                {
-                    new SystemChatMessage(_chatGptPromptService.WineWavesSystemPrompt),
-                    new UserChatMessage(prompt)
-                },
-                model: _wineWavesModel,
-                useWebSearch: true,
-                ct: cancellationToken);
-        }
-        catch (ChatGptServiceNotConfiguredException)
-        {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new WineWavesMakeResponse(false, "Wine Waves is not configured to request AI assistance."));
-        }
-        catch (ClientResultException)
-        {
-            return StatusCode(StatusCodes.Status502BadGateway, new WineWavesMakeResponse(false, "We couldn't reach the Wine Waves assistant. Please try again."));
-        }
-        catch (Exception)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, new WineWavesMakeResponse(false, "Wine Waves couldn't generate scores right now. Please try again."));
-        }
+        await _evolutionScoreRepository.UpsertRangeAsync(userId, aggregatedScores, cancellationToken);
 
-        var completionText = StringUtilities.ExtractCompletionText(completion);
-        if (!TryParseWineWavesScores(completionText, userId, promptItems.Select(item => item.WineVintageId).ToList(), out var scores))
-        {
-            return StatusCode(StatusCodes.Status502BadGateway, new WineWavesMakeResponse(false, "We couldn't understand the Wine Waves response. Please try again."));
-        }
-
-        await _evolutionScoreRepository.UpsertRangeAsync(userId, scores, cancellationToken);
-
-        var affectedVintageCount = scores
+        var affectedVintageCount = aggregatedScores
             .Select(score => score.WineVintageId)
             .Distinct()
             .Count();
