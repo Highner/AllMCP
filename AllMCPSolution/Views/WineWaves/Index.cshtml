@@ -54,7 +54,7 @@
             min-height: 100vh;
             background: var(--wine-app-background);
             font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-            color: rgba(244, 241, 234, 0.94);
+            color: hsl(var(--foreground));
         }
 
         main {
@@ -260,7 +260,8 @@
         .waves-popover-backdrop {
             position: fixed;
             inset: 0;
-            background: rgba(5, 5, 7, 0.72);
+            background: hsla(var(--background) / 0.72);
+            backdrop-filter: blur(8px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -269,11 +270,11 @@
         }
 
         .waves-popover-dialog {
-            background: rgba(18, 18, 22, 0.96);
+            background: var(--wine-surface-gradient, hsla(var(--popover) / 0.98));
             border-radius: 18px;
             width: min(520px, 100%);
-            border: 1px solid rgba(244, 241, 234, 0.12);
-            box-shadow: 0 28px 48px rgba(0, 0, 0, 0.55);
+            border: 1px solid var(--wine-surface-border, hsla(var(--border) / 0.35));
+            box-shadow: 0 28px 48px hsla(var(--background) / 0.55);
             padding: 32px;
             display: flex;
             flex-direction: column;
@@ -288,7 +289,7 @@
 
         .waves-popover-description {
             margin: 0;
-            color: rgba(244, 241, 234, 0.7);
+            color: hsla(var(--foreground) / 0.7);
             line-height: 1.6;
             font-size: 0.95rem;
         }
@@ -306,7 +307,8 @@
             display: flex;
             gap: 12px;
             align-items: flex-start;
-            background: rgba(244, 241, 234, 0.05);
+            background: hsla(var(--foreground) / 0.06);
+            border: 1px solid hsla(var(--foreground) / 0.14);
             border-radius: 14px;
             padding: 12px 16px;
         }
@@ -315,7 +317,7 @@
             width: 18px;
             height: 18px;
             margin-top: 4px;
-            accent-color: #E4572E;
+            accent-color: hsl(var(--primary));
         }
 
         .waves-popover-option-content {
@@ -332,7 +334,7 @@
 
         .waves-popover-option-details {
             margin: 0;
-            color: rgba(244, 241, 234, 0.6);
+            color: hsla(var(--foreground) / 0.6);
             font-size: 0.85rem;
         }
 
@@ -355,14 +357,15 @@
         }
 
         .waves-primary-button {
-            background: rgba(244, 241, 234, 0.95);
-            color: rgba(17, 17, 20, 0.9);
-            box-shadow: 0 8px 18px rgba(244, 241, 234, 0.2);
+            background: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+            box-shadow: 0 12px 28px hsla(var(--primary) / 0.35);
         }
 
         .waves-secondary-button {
-            background: rgba(244, 241, 234, 0.12);
-            color: rgba(244, 241, 234, 0.85);
+            background: hsla(var(--foreground) / 0.12);
+            color: hsla(var(--foreground) / 0.86);
+            border: 1px solid hsla(var(--foreground) / 0.24);
         }
 
         .waves-primary-button:hover,
