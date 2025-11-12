@@ -501,9 +501,6 @@
             ?? locationSection?.getAttribute('data-current-user-id')
             ?? '';
         const addWineLocationSelect = document.querySelector('.inventory-add-location');
-        const headerActionMenus = Array.from(
-            document.querySelectorAll('[data-inventory-actions-menu] [data-action-menu]')
-        );
 
         const referenceData = {
             bottleLocations: []
@@ -757,10 +754,6 @@
             });
 
             bindActionMenuGlobalHandlers();
-        }
-
-        if (headerActionMenus.length > 0) {
-            headerActionMenus.forEach((menu) => initializeActionMenu(menu));
         }
 
         function configureLocationActionMenu(card) {
