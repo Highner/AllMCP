@@ -1024,11 +1024,17 @@ body.account-edit-open {
 
 @media (min-width: 768px) {
     .inventory-layout {
-        grid-template-columns: minmax(0, 1fr) minmax(240px, 288px);
+        grid-template-columns: max-content minmax(240px, 288px);
         grid-template-areas:
             "left right"
             "filters right";
         align-items: flex-start;
+        width: max-content;
+        min-width: 100%;
+    }
+
+    .inventory-left {
+        width: max-content;
     }
 
     .inventory-right .location-grid {
@@ -1038,7 +1044,7 @@ body.account-edit-open {
 
 @media (min-width: 1440px) {
     .inventory-layout {
-        grid-template-columns: minmax(0, 1fr) minmax(272px, 336px);
+        grid-template-columns: max-content minmax(272px, 336px);
         grid-template-areas:
             "left right"
             "filters right";
