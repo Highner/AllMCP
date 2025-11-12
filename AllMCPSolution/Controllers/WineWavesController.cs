@@ -285,8 +285,9 @@ public sealed class WineWavesController : WineSurferControllerBase
                 var wine = wineVintage.Wine;
                 var label = BuildWineLabel(wine, wineVintage.Vintage);
                 var details = BuildWineOriginDetails(wine);
+                var availableBottleCount = group.Count(bottle => !bottle.IsDrunk && !bottle.PendingDelivery);
 
-                return new WineWavesInventoryItem(wineVintage.Id, label, details);
+                return new WineWavesInventoryItem(wineVintage.Id, label, details, availableBottleCount);
             })
             .Where(item => item is not null)
             .Select(item => item!)
@@ -551,7 +552,7 @@ public sealed record WineWavesDataset(
 
 public sealed record WineWavesPoint(int Year, decimal Score);
 
-public sealed record WineWavesInventoryItem(Guid WineVintageId, string Label, string? Details);
+public sealed record WineWavesInventoryItem(Guid WineVintageId, string Label, string? Details, int AvailableBottleCount);
 
 public sealed class WineWavesMakeRequest
 {
