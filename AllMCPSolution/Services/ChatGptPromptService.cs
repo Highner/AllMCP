@@ -562,6 +562,30 @@ The resulting curve should reflect the *wine’s realistic aging trajectory* and
 
             builder.AppendLine();
 
+            if (vintage.DrinkingWindowStartYear.HasValue || vintage.DrinkingWindowEndYear.HasValue)
+            {
+                builder.Append("Ideal drinking window: ");
+
+                if (vintage.DrinkingWindowStartYear.HasValue && vintage.DrinkingWindowEndYear.HasValue)
+                {
+                    builder.Append(vintage.DrinkingWindowStartYear.Value.ToString(CultureInfo.InvariantCulture));
+                    builder.Append(" – ");
+                    builder.Append(vintage.DrinkingWindowEndYear.Value.ToString(CultureInfo.InvariantCulture));
+                }
+                else if (vintage.DrinkingWindowStartYear.HasValue)
+                {
+                    builder.Append("From ");
+                    builder.Append(vintage.DrinkingWindowStartYear.Value.ToString(CultureInfo.InvariantCulture));
+                }
+                else if (vintage.DrinkingWindowEndYear.HasValue)
+                {
+                    builder.Append("Until ");
+                    builder.Append(vintage.DrinkingWindowEndYear.Value.ToString(CultureInfo.InvariantCulture));
+                }
+
+                builder.AppendLine();
+            }
+
             // if (!string.IsNullOrWhiteSpace(vintage.Attributes))
             // {
             //     builder.Append("Attributes: ");

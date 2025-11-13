@@ -10,6 +10,10 @@ public sealed record WineWavesPromptItem(
     string? Origin,
     string? Attributes,
     IReadOnlyList<string> Highlights,
-    IReadOnlyList<WineWavesPromptScore> ExistingScores);
+    IReadOnlyList<WineWavesPromptScore> ExistingScores)
+{
+    public int? DrinkingWindowStartYear { get; init; }
+    public int? DrinkingWindowEndYear { get; init; }
+}
 
 public sealed record WineWavesPromptScore(int Year, decimal Score);

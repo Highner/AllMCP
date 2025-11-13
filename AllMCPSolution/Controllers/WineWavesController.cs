@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,7 +34,43 @@ public sealed class WineWavesController : WineSurferControllerBase
     private readonly IChatGptPromptService _chatGptPromptService;
     private readonly IThemeService _themeService;
     private readonly IWineVintageUserDrinkingWindowRepository _drinkingWindowRepository;
+    private readonly IUserDrinkingWindowService _userDrinkingWindowService;
     private readonly string _wineWavesModel;
+
+    private static readonly JsonDocumentOptions DrinkingWindowJsonDocumentOptions = new()
+    {
+        AllowTrailingCommas = true,
+        CommentHandling = JsonCommentHandling.Skip
+    };
+
+    private static readonly string[] DrinkingWindowStartPropertyCandidates =
+    {
+        "startYear",
+        "start",
+        "start_year",
+        "from",
+        "begin"
+    };
+
+    private static readonly string[] DrinkingWindowEndPropertyCandidates =
+    {
+        "endYear",
+        "end",
+        "end_year",
+        "to",
+        "finish"
+    };
+
+    private static readonly string[] DrinkingWindowAlignmentPropertyCandidates =
+    {
+        "alignmentScore",
+        "alignment",
+        "alignment_score",
+        "score"
+    };
+
+    private const decimal AlignmentScoreMinimum = 0m;
+    private const decimal AlignmentScoreMaximum = 10m;
 
     public WineWavesController(
         IWineVintageEvolutionScoreRepository evolutionScoreRepository,
@@ -44,6 +82,7 @@ public sealed class WineWavesController : WineSurferControllerBase
         IChatGptPromptService chatGptPromptService,
         IThemeService themeService,
         IOptions<ChatGptOptions> chatGptOptions,
+        IUserDrinkingWindowService userDrinkingWindowService,
         UserManager<ApplicationUser> userManager) : base(userManager, userRepository)
     {
         _evolutionScoreRepository = evolutionScoreRepository;
@@ -53,6 +92,7 @@ public sealed class WineWavesController : WineSurferControllerBase
         _chatGptService = chatGptService;
         _chatGptPromptService = chatGptPromptService;
         _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
+        _userDrinkingWindowService = userDrinkingWindowService ?? throw new ArgumentNullException(nameof(userDrinkingWindowService));
         if (chatGptOptions is null)
         {
             throw new ArgumentNullException(nameof(chatGptOptions));
@@ -194,20 +234,68 @@ public sealed class WineWavesController : WineSurferControllerBase
             return BadRequest(new WineWavesMakeResponse(false, "We couldn't find those wines in your inventory."));
         }
 
-        var promptItems = bottleLookup
-            .Select(pair => BuildPromptItem(userId, pair.Key, pair.Value))
-            .Where(item => item is not null)
-            .Select(item => item!)
-            .OrderBy(item => item.Label)
+        var promptContexts = bottleLookup
+            .Select(pair => BuildPromptContext(userId, pair.Key, pair.Value))
+            .Where(context => context is not null)
+            .Select(context => context!)
+            .OrderBy(context => context.PromptItem.Label)
             .ToList();
 
-        if (promptItems.Count == 0)
+        if (promptContexts.Count == 0)
         {
             return BadRequest(new WineWavesMakeResponse(false, "We couldn't gather enough information about the selected wines."));
         }
 
         var currentUser = await _userRepository.GetByIdAsync(userId, cancellationToken);
         var (tasteProfileSummary, tasteProfile) = TasteProfileUtilities.GetActiveTasteProfileTexts(currentUser);
+        var tasteProfileText = BuildTasteProfileText(tasteProfileSummary, tasteProfile);
+
+        var promptItems = new List<WineWavesPromptItem>(promptContexts.Count);
+        foreach (var context in promptContexts)
+        {
+            var promptItem = context.PromptItem;
+
+            try
+            {
+                var drinkingWindow = await GenerateDrinkingWindowAsync(
+                    userId,
+                    context.Wine,
+                    context.WineVintage,
+                    tasteProfileText,
+                    cancellationToken);
+
+                if (drinkingWindow is not null)
+                {
+                    promptItem = promptItem with
+                    {
+                        DrinkingWindowStartYear = drinkingWindow.StartYear,
+                        DrinkingWindowEndYear = drinkingWindow.EndYear
+                    };
+                }
+            }
+            catch (ChatGptServiceNotConfiguredException)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new WineWavesMakeResponse(false, "Drinking window generation is not configured."));
+            }
+            catch (ClientResultException)
+            {
+                return StatusCode(StatusCodes.Status502BadGateway, new WineWavesMakeResponse(false, "We couldn't reach the drinking window assistant. Please try again."));
+            }
+            catch (HttpRequestException)
+            {
+                return StatusCode(StatusCodes.Status502BadGateway, new WineWavesMakeResponse(false, "We couldn't reach the drinking window assistant. Please try again."));
+            }
+            catch (JsonException)
+            {
+                return StatusCode(StatusCodes.Status502BadGateway, new WineWavesMakeResponse(false, "The drinking window assistant returned an unexpected response."));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(StatusCodes.Status502BadGateway, new WineWavesMakeResponse(false, ex.Message));
+            }
+
+            promptItems.Add(promptItem);
+        }
 
         var aggregatedScores = new List<WineVintageEvolutionScore>();
 
@@ -340,7 +428,62 @@ public sealed class WineWavesController : WineSurferControllerBase
         return items;
     }
 
-    private static WineWavesPromptItem? BuildPromptItem(Guid userId, Guid wineVintageId, IReadOnlyCollection<Bottle> bottles)
+    private async Task<DrinkingWindowResult?> GenerateDrinkingWindowAsync(
+        Guid userId,
+        Wine wine,
+        WineVintage wineVintage,
+        string tasteProfileText,
+        CancellationToken cancellationToken)
+    {
+        if (wine is null || wineVintage is null)
+        {
+            return null;
+        }
+
+        var wineDescription = BuildWineDescription(wine, wineVintage);
+        if (string.IsNullOrWhiteSpace(wineDescription))
+        {
+            return null;
+        }
+
+        var prompt = _chatGptPromptService.BuildDrinkingWindowPrompt(tasteProfileText, wineDescription);
+        if (string.IsNullOrWhiteSpace(prompt))
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine(_chatGptPromptService.DrinkingWindowSystemPrompt);
+        builder.AppendLine(prompt);
+
+        var completion = await _chatGptService.GetChatResponseAsync(
+            builder.ToString(),
+            model: "gpt-4.1",
+            useWebSearch: true,
+            ct: cancellationToken);
+
+        var content = completion.GetOutputText();
+        if (!TryParseDrinkingWindowYears(content, out var startYear, out var endYear, out var alignmentScore))
+        {
+            throw new JsonException("Unable to parse the drinking window response.");
+        }
+
+        var normalizedAlignmentScore = NormalizeAlignmentScore(alignmentScore);
+        var generatedAtUtc = DateTime.UtcNow;
+
+        await _userDrinkingWindowService.SaveGeneratedWindowAsync(
+            userId,
+            wineVintage.Id,
+            startYear,
+            endYear,
+            normalizedAlignmentScore,
+            generatedAtUtc,
+            cancellationToken);
+
+        return new DrinkingWindowResult(startYear, endYear, normalizedAlignmentScore);
+    }
+
+    private static WineWavesPromptContext? BuildPromptContext(Guid userId, Guid wineVintageId, IReadOnlyCollection<Bottle> bottles)
     {
         if (bottles.Count == 0)
         {
@@ -355,6 +498,11 @@ public sealed class WineWavesController : WineSurferControllerBase
         }
 
         var wine = wineVintage.Wine;
+        if (wine is null)
+        {
+            return null;
+        }
+
         var label = BuildWineLabel(wine, wineVintage.Vintage);
         var origin = BuildWineOriginDetails(wine);
         var attributes = BuildWineAttributes(wine);
@@ -373,7 +521,7 @@ public sealed class WineWavesController : WineSurferControllerBase
             .Select(score => new WineWavesPromptScore(score.Year, score.Score))
             .ToList();
 
-        return new WineWavesPromptItem(
+        var promptItem = new WineWavesPromptItem(
             wineVintageId,
             label,
             wineVintage.Vintage,
@@ -381,6 +529,286 @@ public sealed class WineWavesController : WineSurferControllerBase
             attributes,
             tastingNotes,
             existingScores);
+
+        return new WineWavesPromptContext(promptItem, wine, wineVintage);
+    }
+
+    private sealed record WineWavesPromptContext(WineWavesPromptItem PromptItem, Wine Wine, WineVintage WineVintage);
+    private sealed record DrinkingWindowResult(int StartYear, int EndYear, decimal AlignmentScore);
+
+    private static string BuildTasteProfileText(string? summary, string? profile)
+    {
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(summary))
+        {
+            parts.Add(summary.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile))
+        {
+            parts.Add(profile.Trim());
+        }
+
+        if (parts.Count == 0)
+        {
+            return "No taste profile is available.";
+        }
+
+        return string.Join($"{Environment.NewLine}{Environment.NewLine}", parts);
+    }
+
+    private static string BuildWineDescription(Wine wine, WineVintage vintage)
+    {
+        if (wine is null || vintage is null)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        var wineName = string.IsNullOrWhiteSpace(wine.Name) ? "Unknown wine" : wine.Name.Trim();
+        builder.Append(wineName);
+
+        if (vintage.Vintage > 0)
+        {
+            builder.Append(' ');
+            builder.Append(vintage.Vintage.ToString(CultureInfo.InvariantCulture));
+        }
+        else
+        {
+            builder.Append(" NV");
+        }
+
+        var originParts = new List<string>();
+
+        var region = wine.SubAppellation?.Appellation?.Region?.Name;
+        if (!string.IsNullOrWhiteSpace(region))
+        {
+            originParts.Add(region.Trim());
+        }
+
+        if (originParts.Count > 0)
+        {
+            builder.Append(" from ");
+            builder.Append(string.Join(", ", originParts));
+        }
+
+        if (!string.IsNullOrWhiteSpace(wine.GrapeVariety))
+        {
+            builder.Append(". Variety: ");
+            builder.Append(wine.GrapeVariety.Trim());
+        }
+
+        builder.Append('.');
+        return builder.ToString();
+    }
+
+    private static bool TryParseDrinkingWindowYears(string? content, out int startYear, out int endYear, out decimal alignmentScore)
+    {
+        startYear = 0;
+        endYear = 0;
+        alignmentScore = AlignmentScoreMinimum;
+
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return false;
+        }
+
+        var segment = StringUtilities.ExtractJsonSegment(content);
+
+        using var document = JsonDocument.Parse(segment, DrinkingWindowJsonDocumentOptions);
+        var root = document.RootElement;
+
+        if (root.ValueKind == JsonValueKind.Object)
+        {
+            var startCandidate = TryGetYearFromObject(root, DrinkingWindowStartPropertyCandidates);
+            var endCandidate = TryGetYearFromObject(root, DrinkingWindowEndPropertyCandidates);
+            var alignmentCandidate = TryGetDecimalFromObject(root, DrinkingWindowAlignmentPropertyCandidates);
+
+            if (startCandidate.HasValue && endCandidate.HasValue)
+            {
+                startYear = startCandidate.Value;
+                endYear = endCandidate.Value;
+                alignmentScore = NormalizeAlignmentScore(alignmentCandidate ?? AlignmentScoreMinimum);
+                return NormalizeDrinkingWindowYears(ref startYear, ref endYear);
+            }
+
+            foreach (var property in root.EnumerateObject())
+            {
+                if (property.Value.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                if (TryParseYearsFromArray(property.Value, out startYear, out endYear))
+                {
+                    alignmentScore = NormalizeAlignmentScore(alignmentCandidate ?? AlignmentScoreMinimum);
+                    return NormalizeDrinkingWindowYears(ref startYear, ref endYear);
+                }
+            }
+
+            return false;
+        }
+
+        if (TryParseYearsFromArray(root, out startYear, out endYear))
+        {
+            alignmentScore = AlignmentScoreMinimum;
+            return NormalizeDrinkingWindowYears(ref startYear, ref endYear);
+        }
+
+        return false;
+    }
+
+    private static int? TryGetYearFromObject(JsonElement element, IReadOnlyList<string> propertyNames)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            foreach (var candidate in propertyNames)
+            {
+                if (string.Equals(property.Name, candidate, StringComparison.OrdinalIgnoreCase)
+                    && TryConvertToYear(property.Value, out var year))
+                {
+                    return year;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static decimal? TryGetDecimalFromObject(JsonElement element, IReadOnlyList<string> propertyNames)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            foreach (var candidate in propertyNames)
+            {
+                if (string.Equals(property.Name, candidate, StringComparison.OrdinalIgnoreCase)
+                    && TryConvertToDecimal(property.Value, out var value))
+                {
+                    return value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool TryParseYearsFromArray(JsonElement element, out int startYear, out int endYear)
+    {
+        startYear = 0;
+        endYear = 0;
+
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        int? first = null;
+        int? second = null;
+
+        foreach (var item in element.EnumerateArray())
+        {
+            if (!first.HasValue && TryConvertToYear(item, out var firstYear))
+            {
+                first = firstYear;
+            }
+            else if (first.HasValue && !second.HasValue && TryConvertToYear(item, out var secondYear))
+            {
+                second = secondYear;
+            }
+
+            if (first.HasValue && second.HasValue)
+            {
+                break;
+            }
+        }
+
+        if (!first.HasValue || !second.HasValue)
+        {
+            return false;
+        }
+
+        startYear = first.Value;
+        endYear = second.Value;
+        return true;
+    }
+
+    private static bool TryConvertToYear(JsonElement element, out int year)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Number when element.TryGetInt32(out var numeric):
+                year = numeric;
+                return true;
+            case JsonValueKind.String:
+                var text = element.GetString();
+                if (!string.IsNullOrWhiteSpace(text)
+                    && int.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+                {
+                    year = parsed;
+                    return true;
+                }
+
+                break;
+        }
+
+        year = 0;
+        return false;
+    }
+
+    private static bool TryConvertToDecimal(JsonElement element, out decimal value)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Number when element.TryGetDecimal(out var numeric):
+                value = numeric;
+                return true;
+            case JsonValueKind.String:
+                var text = element.GetString();
+                if (!string.IsNullOrWhiteSpace(text)
+                    && decimal.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+                {
+                    value = parsed;
+                    return true;
+                }
+
+                break;
+        }
+
+        value = 0m;
+        return false;
+    }
+
+    private static bool NormalizeDrinkingWindowYears(ref int startYear, ref int endYear)
+    {
+        if (startYear <= 0 || endYear <= 0)
+        {
+            return false;
+        }
+
+        if (startYear > endYear)
+        {
+            var temp = startYear;
+            startYear = endYear;
+            endYear = temp;
+        }
+
+        return true;
+    }
+
+    private static decimal NormalizeAlignmentScore(decimal score)
+    {
+        if (score < AlignmentScoreMinimum)
+        {
+            return AlignmentScoreMinimum;
+        }
+
+        if (score > AlignmentScoreMaximum)
+        {
+            return AlignmentScoreMaximum;
+        }
+
+        return Math.Round(score, 2, MidpointRounding.AwayFromZero);
     }
 
     private static bool TryParseWineWavesScores(

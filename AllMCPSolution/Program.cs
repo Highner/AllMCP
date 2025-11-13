@@ -92,6 +92,7 @@ builder.Services.AddScoped<IChatGptPromptService, ChatGptPromptService>();
 builder.Services.AddScoped<IWineCatalogService, WineCatalogService>();
 builder.Services.AddScoped<IThemeService, ThemeService>();
 builder.Services.AddScoped<ISuggestedAppellationService, SuggestedAppellationService>();
+builder.Services.AddScoped<IUserDrinkingWindowService, UserDrinkingWindowService>();
 
 builder.Services.AddScoped<IOcrService, AzureVisionOcrService>();
 
