@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Logging;
 using AllMCPSolution.Utilities;
+using AllMCPSolution.Services;
 using OpenAI.Chat;
 
 namespace AllMCPSolution.Controllers;
@@ -36,6 +37,7 @@ public partial class WineInventoryController : Controller
     private readonly ICellarTrackerImportService _cellarTrackerImportService;
     private readonly IChatGptService _chatGptService;
     private readonly IChatGptPromptService _chatGptPromptService;
+    private readonly IUserDrinkingWindowService _userDrinkingWindowService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<WineInventoryController> _logger;
 
@@ -95,6 +97,7 @@ public partial class WineInventoryController : Controller
         ICellarTrackerImportService cellarTrackerImportService,
         IChatGptService chatGptService,
         IChatGptPromptService chatGptPromptService,
+        IUserDrinkingWindowService userDrinkingWindowService,
         UserManager<ApplicationUser> userManager,
         ILogger<WineInventoryController> logger)
     {
@@ -116,6 +119,7 @@ public partial class WineInventoryController : Controller
         _cellarTrackerImportService = cellarTrackerImportService;
         _chatGptService = chatGptService;
         _chatGptPromptService = chatGptPromptService;
+        _userDrinkingWindowService = userDrinkingWindowService ?? throw new ArgumentNullException(nameof(userDrinkingWindowService));
         _userManager = userManager;
         _logger = logger;
     }
@@ -1625,30 +1629,14 @@ public partial class WineInventoryController : Controller
 
                 var normalizedAlignmentScore = NormalizeAlignmentScore(alignmentScore);
 
-                var existingWindow = await _drinkingWindowRepository.FindAsync(currentUserId, vintage.Id, cancellationToken);
-                if (existingWindow is null)
-                {
-                    var newWindow = new WineVintageUserDrinkingWindow
-                    {
-                        Id = Guid.NewGuid(),
-                        UserId = currentUserId,
-                        WineVintageId = vintage.Id,
-                        StartingYear = startYear,
-                        EndingYear = endYear,
-                        AlignmentScore = normalizedAlignmentScore,
-                        GeneratedAtUtc = generatedAtUtc
-                    };
-
-                    await _drinkingWindowRepository.AddAsync(newWindow, cancellationToken);
-                }
-                else
-                {
-                    existingWindow.StartingYear = startYear;
-                    existingWindow.EndingYear = endYear;
-                    existingWindow.AlignmentScore = normalizedAlignmentScore;
-                    existingWindow.GeneratedAtUtc = generatedAtUtc;
-                    await _drinkingWindowRepository.UpdateAsync(existingWindow, cancellationToken);
-                }
+                await _userDrinkingWindowService.SaveGeneratedWindowAsync(
+                    currentUserId,
+                    vintage.Id,
+                    startYear,
+                    endYear,
+                    normalizedAlignmentScore,
+                    generatedAtUtc,
+                    cancellationToken);
             }
         }
         catch (ChatGptServiceNotConfiguredException)
