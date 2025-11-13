@@ -69,21 +69,46 @@ Each suggestion must be a short dish description followed by a concise reason, a
 """;
 
     private const string WineWavesSystemPromptText = """
-You are an expert sommellier.
+You are an expert sommelier.
 
-Project the evolution of wines over time and how they align with the user's taste preferences on an absolute scale of 0-10. Provide no descriptions—only scores.
-Respond ONLY with minified JSON matching {"vintages":[{"wineVintageId":"...","CriticsAssessment":"...","scores":[{"year":2024,"score":7.4}]}]}.
+Project the evolution of wines over time and how they align with the user's taste preferences on an absolute scale of 0–10. Provide no descriptions—only scores.
+
+Respond ONLY with minified JSON matching:
+{"vintages":[{"wineVintageId":"...","CriticsAssessment":"...","scores":[{"year":2024,"score":7.4}]}]}
+
 Only include wineVintageId values provided by the user and omit any commentary outside the JSON payload.
 
 Start the scoring timeline three calendar years after each wine's actual vintage. The goal is to provide a comprehensive picture of the wine's evolution over time in a nice curve. Avoid straight lines.
 
-For each wine, crosscheck the user's taste profile and publicly available tasting notes and descriptions (preferably from professional critics) from the web to determine the wine's alignment score.
-Pay special attention to assessments about the wine's development over the course of its life.
+For each wine, crosscheck the user's taste profile and publicly available tasting notes and descriptions (preferably from professional critics) from the web to determine the wine's alignment score. Pay special attention to assessments about the wine's development over the course of its life.
 
-Provide consecutive annual scores for at least 20 years starting from that year.
-If the wine is described as ageworthy, cellar-worthy, long-lived, or similar, extend the sequence to at least 60 years or until the scores drop below 5.
+Provide consecutive annual scores for at least 20 years starting from that year. If the wine is described as ageworthy, cellar-worthy, long-lived, or similar, extend the sequence to at least 60 years or until the scores drop below 5.
 
 Do not invent new wineVintageId values and omit any prose outside the JSON object.
+
+---
+
+**Calibration Rules for Scoring (to ensure meaningful variation):**
+
+- Use an absolute alignment scale:
+  - 0 = Opposite of user’s taste
+  - 3 = Poor alignment
+  - 5 = Neutral alignment
+  - 7 = Pleasant alignment
+  - 8 = Strong alignment
+  - 9 = Exceptional and rare match (top 1% alignment)
+  - 10 = Nearly impossible perfection
+
+- Reserve scores ≥9 only for wines that are both:
+  1. Universally acclaimed by critics **and**
+  2. Strongly aligned with the user’s preferences.
+
+- The median well-made wine should peak near 7.  
+- The average commercial or ordinary wine should peak around 5–6.  
+- Lesser wines should not exceed 5–6 even if they improve slightly with age. 
+
+The resulting curve should reflect the *wine’s realistic aging trajectory* and its *absolute alignment* to the user's taste—not a relative or comparative ranking.
+
 """;
 
     public string TasteProfileGenerationSystemPrompt => TasteProfileSystemPromptText;
@@ -571,9 +596,9 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
             : wineDescription.Trim();
 
         var builder = new StringBuilder();
-        builder.AppendLine("You are a expert sommellier. Help the user find the perfect drinking window for a wine based on the user's taste profile.");
+        builder.AppendLine("You are a expert sommellier. Help the user find the perfect drinking window for a winee based on the user's taste profile.");
         builder.AppendLine("As a main source of information, search the web for the wine name, vintage and 'Drinking window' keyword (e.g. 'Chateau Petrus 1990 drinking window'. Use the result as a baseline that you adjust according to the user's taste profile.");
-        builder.AppendLine("Pay special attention to any keywords or phrases that might indicate the user's preferences to age or ageworthy wines and adjust the drinking window accordingly.");
+        builder.AppendLine("Pay special attention to any keywords or phrases that might indicate the user's prefernces to age or ageworthy wines and adjust the drinking window accordingly.");
         builder.AppendLine("For example if the taste profile mentions preferences for tertiary or aged flavours you might want to adjust the drinking window -> later drinking window. Vice versa if the taste profile mentions a dislike for aged wines or tertiary notes.");
         builder.AppendLine("Check for plausibility (e.g. drinking window cannot start before the vintage).");
 
