@@ -20,21 +20,21 @@
     {
         if (startYear is null && endYear is null)
         {
-            return ("Prime window unknown", "Save a drinking window from your inventory to see guidance here.", "waves-card-indicator--unknown");
+            return ("Prime window unknown", "Save a drinking window from your inventory to see guidance here.", "waves-legend-indicator--unknown");
         }
 
         if (startYear.HasValue && indicatorCurrentYear < startYear.Value)
         {
             var label = "Approaching prime window";
             var description = $"Prime window expected around {startYear.Value.ToString(CultureInfo.InvariantCulture)}.";
-            return (label, description, "waves-card-indicator--approaching");
+            return (label, description, "waves-legend-indicator--approaching");
         }
 
         if (endYear.HasValue && indicatorCurrentYear > endYear.Value)
         {
             var label = "Past prime window";
             var description = $"Prime window ended around {endYear.Value.ToString(CultureInfo.InvariantCulture)}.";
-            return (label, description, "waves-card-indicator--past");
+            return (label, description, "waves-legend-indicator--past");
         }
 
         var primeLabel = "In prime window";
@@ -56,7 +56,7 @@
             descriptionText = "Enjoy soon.";
         }
 
-        return (primeLabel, descriptionText, "waves-card-indicator--prime");
+        return (primeLabel, descriptionText, "waves-legend-indicator--prime");
     }
     (string Name, string? Vintage) SplitWineLabel(string? label)
     {
@@ -107,14 +107,15 @@
     {
         id = dataset.WineVintageId,
         label = dataset.Label,
+        details = dataset.Details,
         color = dataset.ColorHex,
         points = dataset.Points
             .OrderBy(point => point.Year)
-            .Select(point => new
-            {
-                year = point.Year,
-                score = Convert.ToDouble(point.Score, CultureInfo.InvariantCulture)
-            })
+        .Select(point => new
+        {
+            year = point.Year,
+            score = Convert.ToDouble(point.Score, CultureInfo.InvariantCulture)
+        })
     }).ToList();
     var chartDataJson = JsonSerializer.Serialize(chartPayload);
 }
@@ -134,11 +135,13 @@
     <style>
         :root {
             color-scheme: dark;
+            --waves-scroll-offset: 0px;
         }
 
         body {
             margin: 0;
             min-height: 100vh;
+            height: 100vh;
             background: var(--wine-app-background);
             font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
             color: hsl(var(--foreground));
@@ -146,230 +149,390 @@
             flex-direction: column;
         }
 
-        .waves-page {
+        .waves-layout {
+            display: grid;
+            grid-template-areas:
+                "wavesTop"
+                "wavesBottom";
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 32px;
+            padding: 48px 20px 72px;
+            width: 100%;
+            /* Make Wine Waves content use full width like other main elements */
+            max-width: none;
+            margin: 0;
             flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .waves-chart-panel {
+            grid-area: wavesTop;
+            position: sticky;
+            top: calc(var(--wine-surfer-top-bar-height, 96px) + 16px);
+            z-index: 2;
+        }
+
+        .waves-scroll-region {
+            grid-area: wavesBottom;
             min-height: 0;
             display: flex;
             flex-direction: column;
             gap: 24px;
-            padding: 32px 20px 96px;
+            padding-top: var(--waves-scroll-offset);
+            padding-bottom: 120px;
         }
 
-        .waves-top,
-        .waves-bottom {
-            background: var(--wine-surface-gradient-strong);
-            border: 1px solid var(--wine-surface-border-strong);
-            border-radius: 24px;
-            padding: 24px;
+        .waves-vintages {
+            flex: 1;
+            min-height: 0;
             display: flex;
-            flex-direction: column;
-            gap: 24px;
         }
 
-        .waves-top-header {
+        .waves-header {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
+            text-align: center;
         }
 
         .waves-title {
+            font-size: clamp(2rem, 3vw, 2.5rem);
             margin: 0;
-            font-size: clamp(1.5rem, 2vw, 2.25rem);
+            letter-spacing: 2px;
             text-transform: uppercase;
-            letter-spacing: 0.12em;
         }
 
         .waves-description {
             margin: 0;
-            color: hsla(var(--foreground) / 0.7);
+            color: hsla(var(--foreground) / 0.72);
+            font-size: 1.05rem;
             line-height: 1.6;
         }
 
-        .waves-buttons {
+        .waves-chart-card {
+            background: var(--wine-surface-gradient-strong);
+            border: 1px solid var(--wine-surface-border-strong);
+            border-radius: 24px;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            box-shadow: 0 30px 60px hsla(var(--background) / 0.55);
+        }
+
+        .waves-chart-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .waves-chart-actions .waves-actions-buttons {
             display: flex;
             flex-wrap: wrap;
+            justify-content: flex-start;
             gap: 12px;
-            align-items: center;
         }
 
-        .waves-chart-shell {
-            background: hsla(var(--background) / 0.35);
-            border-radius: 20px;
-            border: 1px solid var(--wine-surface-border);
+        .waves-chart-actions .waves-actions-buttons form {
+            margin: 0;
+        }
+
+        .waves-chart-actions .waves-actions-help {
+            margin: 0;
+            font-size: 0.85rem;
+            color: hsla(var(--foreground) / 0.65);
+        }
+
+        .waves-chart-wrapper {
+            position: relative;
             min-height: 360px;
-            padding: 12px;
+            /* Default canvas width attribute is 300px; set wrapper min-width to 1200px so the chart renders twice as wide as before */
+            min-width: 1200px;
+            cursor: col-resize;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid var(--wine-surface-border);
+            background: hsla(var(--background) / 0.45);
+            transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
         }
 
-        .waves-chart-shell canvas {
+        /* Ensure chart uses full container width in normal mode */
+        .waves-chart-wrapper canvas {
             width: 100% !important;
-            height: 100% !important;
+            display: block;
         }
 
-        .waves-bottom {
-            flex: 1;
-            min-height: 0;
+        .waves-chart-wrapper:hover {
+            box-shadow: 0 16px 36px hsla(var(--background) / 0.45);
+            transform: translateY(-2px);
+            border-color: var(--wine-surface-border-strong);
         }
 
-        .waves-card-list {
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
+        .waves-chart-wrapper canvas {
+            cursor: inherit;
+        }
+
+        .waves-legend {
             display: flex;
             flex-direction: column;
             gap: 16px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
             padding-right: 4px;
+            -webkit-overflow-scrolling: touch;
         }
 
-        .waves-card-list::-webkit-scrollbar {
+        .waves-legend::-webkit-scrollbar {
             width: 8px;
         }
 
-        .waves-card-list::-webkit-scrollbar-thumb {
+        .waves-legend::-webkit-scrollbar-thumb {
             background: hsla(var(--foreground) / 0.25);
             border-radius: 999px;
         }
 
-        .waves-card {
-            background: var(--wine-surface-gradient);
-            border: 1px solid var(--wine-surface-border);
-            border-radius: 16px;
-            padding: 20px;
+        .waves-legend-item {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 6px;
+            background: var(--wine-surface-gradient);
+            border-radius: 14px;
+            padding: 12px 14px;
+            border: 1px solid var(--wine-surface-border);
+            box-shadow: 0 12px 24px hsla(var(--background) / 0.35);
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+            width: 100%;
         }
 
-        .waves-card-header {
+        .waves-legend-item.is-highlighted {
+            border-color: hsla(var(--primary) / 0.65);
+            box-shadow: 0 6px 18px hsla(var(--primary) / 0.25);
+            transform: translateY(-2px);
+        }
+
+        .waves-legend-header {
             display: flex;
+            align-items: center;
             justify-content: space-between;
             gap: 12px;
+            width: 100%;
+            min-height: 32px;
         }
 
-        .waves-card-title {
+        .waves-legend-header-info {
             display: flex;
-            gap: 12px;
             align-items: center;
+            gap: 10px;
+            flex: 1;
             min-width: 0;
         }
 
-        .waves-card-dot {
-            width: 14px;
-            height: 14px;
+        .waves-legend-actions {
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .waves-legend-dot {
+            width: 12px;
+            height: 12px;
             border-radius: 999px;
             flex-shrink: 0;
         }
 
-        .waves-card-labels {
+        .waves-legend-title {
             display: flex;
-            flex-direction: column;
+            align-items: baseline;
+            gap: 6px;
+            flex: 1;
             min-width: 0;
         }
 
-        .waves-card-label {
+        .waves-legend-label {
             margin: 0;
-            font-size: 1rem;
             font-weight: 600;
+            font-size: 0.92rem;
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
         }
 
-        .waves-card-vintage {
+        .waves-legend-vintage {
             font-size: 0.8rem;
             letter-spacing: 0.08em;
             text-transform: uppercase;
             color: hsla(var(--foreground) / 0.7);
+            white-space: nowrap;
         }
 
-        .waves-card-delete {
-            appearance: none;
-            border: none;
-            background: hsla(var(--foreground) / 0.08);
-            color: hsla(var(--foreground) / 0.8);
-            border-radius: 999px;
-            width: 36px;
-            height: 36px;
-            display: inline-flex;
+        .waves-legend-body {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
             align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: background 0.2s ease, color 0.2s ease;
+            gap: 12px;
         }
 
-        .waves-card-delete:hover,
-        .waves-card-delete:focus-visible {
-            background: hsla(var(--foreground) / 0.2);
-            color: hsl(var(--foreground));
-            outline: none;
+        .waves-legend-body-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
         }
 
-        .waves-card-details {
-            margin: 0;
-            color: hsla(var(--foreground) / 0.75);
-            line-height: 1.5;
-        }
-
-        .waves-card-meta {
+        .waves-legend-body-meta {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 8px;
             align-items: center;
         }
 
-        .waves-card-indicator {
+        .waves-legend-secondary-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .waves-legend-details {
+            margin: 0;
+            color: hsla(var(--foreground) / 0.64);
+            font-size: 0.82rem;
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .waves-legend-window {
+            margin: 0;
+            font-size: 0.78rem;
+            color: hsla(var(--foreground) / 0.7);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            display: inline-flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .waves-legend-window-value {
+            font-weight: 600;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+
+        .waves-legend-indicator {
             display: inline-flex;
             align-items: center;
             gap: 6px;
             border-radius: 999px;
-            padding: 6px 12px;
-            font-size: 0.78rem;
+            padding: 4px 10px;
+            font-size: 0.72rem;
+            font-weight: 600;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            font-weight: 600;
+            width: fit-content;
+            transition: background 0.2s ease, color 0.2s ease;
         }
 
-        .waves-card-indicator-dot {
+        .waves-legend-indicator-dot {
             width: 8px;
             height: 8px;
             border-radius: 999px;
+            box-shadow: 0 0 10px currentColor;
         }
 
-        .waves-card-indicator--approaching {
+        .waves-legend-indicator--approaching {
             background: rgba(246, 198, 114, 0.15);
             color: rgb(246, 198, 114);
         }
 
-        .waves-card-indicator--prime {
+        .waves-legend-indicator--prime {
             background: rgba(74, 222, 128, 0.15);
             color: rgb(134, 239, 172);
         }
 
-        .waves-card-indicator--past {
+        .waves-legend-indicator--past {
             background: rgba(248, 113, 113, 0.18);
             color: rgb(248, 113, 113);
         }
 
-        .waves-card-indicator--unknown {
+        .waves-legend-indicator--unknown {
             background: hsla(var(--foreground) / 0.08);
             color: hsla(var(--foreground) / 0.7);
         }
 
-        .waves-card-window {
-            margin: 0;
-            font-size: 0.85rem;
-            color: hsla(var(--foreground) / 0.8);
+        .waves-legend-action-button {
+            appearance: none;
+            border: none;
+            background: hsla(var(--foreground) / 0.06);
+            color: hsla(var(--foreground) / 0.7);
+            border-radius: 999px;
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .waves-legend-action-button:hover,
+        .waves-legend-action-button:focus-visible {
+            background: hsla(var(--foreground) / 0.16);
+            color: hsl(var(--foreground));
+            outline: none;
+            transform: translateY(-1px);
+        }
+
+        .waves-legend-action-button svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .waves-legend-visibility-button[aria-pressed="true"] {
+            background: hsla(var(--primary) / 0.2);
+            color: hsl(var(--foreground));
+        }
+
+        .waves-legend-visibility-icon {
+            display: block;
+        }
+
+        .waves-legend-visibility-button[aria-pressed="true"] .waves-legend-visibility-icon--visible,
+        .waves-legend-visibility-button:not([aria-pressed="true"]) .waves-legend-visibility-icon--hidden {
+            display: none;
+        }
+
+        .waves-legend-delete-button {
+            position: relative;
+        }
+
+        .waves-legend-delete-button.is-loading {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .waves-empty {
             margin: 0;
             text-align: center;
             color: hsla(var(--foreground) / 0.7);
+            font-size: 1.05rem;
+        }
+
+        .waves-popover-backdrop[hidden] {
+            display: none;
         }
 
         .waves-popover-backdrop {
             position: fixed;
             inset: 0;
-            background: rgba(5, 5, 5, 0.85);
+            background: hsla(var(--background) / 0.72);
+            backdrop-filter: blur(8px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -378,68 +541,83 @@
         }
 
         .waves-popover-dialog {
-            background: var(--wine-surface-gradient-strong);
-            border: 1px solid var(--wine-surface-border-strong);
-            border-radius: 20px;
-            padding: 24px;
-            max-width: 560px;
-            width: 100%;
-            max-height: 90vh;
-            overflow: hidden;
+            background: var(--wine-surface-gradient, hsla(var(--popover) / 0.98));
+            border-radius: 18px;
+            width: min(520px, 100%);
+            border: 1px solid var(--wine-surface-border, hsla(var(--border) / 0.35));
+            box-shadow: 0 28px 48px hsla(var(--background) / 0.55);
+            padding: 32px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 20px;
         }
 
-        .waves-popover-form {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            flex: 1;
+        .waves-popover-form h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+        }
+
+        .waves-popover-description {
+            margin: 0;
+            color: hsla(var(--foreground) / 0.7);
+            line-height: 1.6;
+            font-size: 0.95rem;
         }
 
         .waves-popover-list {
-            border: 1px solid var(--wine-surface-border);
-            border-radius: 12px;
-            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
             max-height: 320px;
-            overflow-y: auto;
+            overflow: auto;
+            padding-right: 4px;
+        }
+
+        .waves-popover-filter {
             display: flex;
             flex-direction: column;
             gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .waves-popover-filter-input {
+            appearance: none;
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 14px;
+            border: 1px solid hsla(var(--foreground) / 0.18);
+            background: hsla(var(--foreground) / 0.08);
+            color: inherit;
+            font-size: 0.95rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .waves-popover-filter-input::placeholder {
+            color: hsla(var(--foreground) / 0.6);
+        }
+
+        .waves-popover-filter-input:focus-visible {
+            outline: none;
+            border-color: hsla(var(--foreground) / 0.38);
+            box-shadow: 0 0 0 2px hsla(var(--foreground) / 0.18);
         }
 
         .waves-popover-option {
             display: flex;
             gap: 12px;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid transparent;
-            cursor: pointer;
+            align-items: flex-start;
+            background: hsla(var(--foreground) / 0.06);
+            border: 1px solid hsla(var(--foreground) / 0.14);
+            border-radius: 14px;
+            padding: 12px 16px;
         }
 
-        .waves-popover-option:hover,
-        .waves-popover-option:focus-within {
-            border-color: var(--wine-surface-border);
-            background: hsla(var(--foreground) / 0.08);
-        }
-
-        .waves-popover-option--unavailable {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .waves-popover-option input {
+        .waves-popover-option input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
             margin-top: 4px;
-        }
-
-        .waves-popover-filter-input {
-            width: 100%;
-            padding: 10px 14px;
-            border-radius: 12px;
-            border: 1px solid var(--wine-surface-border);
-            background: hsla(var(--background) / 0.6);
-            color: hsl(var(--foreground));
+            accent-color: hsl(var(--primary));
         }
 
         .waves-popover-option-content {
@@ -449,19 +627,64 @@
         }
 
         .waves-popover-option-label {
+            margin: 0;
             font-weight: 600;
+            font-size: 0.95rem;
         }
 
         .waves-popover-option-details {
+            margin: 0;
+            color: hsla(var(--foreground) / 0.6);
             font-size: 0.85rem;
-            color: hsla(var(--foreground) / 0.8);
         }
 
         .waves-popover-option-availability {
-            font-size: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            font-size: 0.78rem;
             letter-spacing: 0.08em;
             text-transform: uppercase;
+            color: hsla(var(--foreground) / 0.75);
+        }
+
+        .waves-popover-option-availability::before {
+            content: "";
+            display: inline-flex;
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: hsla(var(--foreground) / 0.45);
+        }
+
+        .waves-popover-option-availability--available::before {
+            background: #4ade80;
+        }
+
+        .waves-popover-option-availability--unavailable::before {
+            background: #f87171;
+        }
+
+        .waves-popover-option--unavailable {
+            opacity: 0.65;
+        }
+
+        .waves-popover-option--unavailable input[type="checkbox"] {
+            cursor: not-allowed;
+        }
+
+        .waves-popover-empty {
+            margin: 8px 0 0;
+            font-size: 0.9rem;
             color: hsla(var(--foreground) / 0.7);
+            text-align: center;
+        }
+
+        .waves-popover-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
         }
 
         .waves-primary-button,
@@ -471,8 +694,7 @@
             border-radius: 999px;
             padding: 10px 22px;
             font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
+            letter-spacing: 1px;
             cursor: pointer;
             transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
         }
@@ -480,7 +702,7 @@
         .waves-primary-button {
             background: hsl(var(--primary));
             color: hsl(var(--primary-foreground));
-            box-shadow: 0 10px 24px hsla(var(--primary) / 0.35);
+            box-shadow: 0 12px 28px hsla(var(--primary) / 0.35);
         }
 
         .waves-secondary-button {
@@ -496,42 +718,74 @@
 
         .waves-primary-button:disabled,
         .waves-secondary-button:disabled {
-            opacity: 0.65;
             cursor: not-allowed;
+            opacity: 0.6;
             transform: none;
             box-shadow: none;
         }
 
-        .waves-popover-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
+        body.waves-popover-open {
+            overflow: hidden;
         }
 
-        .waves-popover-backdrop[hidden] {
-            display: none;
+        body.waves-popover-open .waves-legend {
+            overflow: hidden;
         }
 
-        @@media (max-width: 640px) {
-            .waves-page {
-                padding: 24px 16px 96px;
+        .waves-chart-ordering-label {
+            margin: 12px 0 0;
+            text-align: center;
+            color: hsla(var(--foreground) / 0.7);
+            font-size: 0.95rem;
+        }
+
+        .waves-chart-ordering-label strong {
+            font-weight: 600;
+            color: hsl(var(--foreground));
+        }
+
+        @@media (max-width: 720px) {
+            .waves-layout {
+                padding: 32px 16px 64px;
             }
 
-            .waves-top,
-            .waves-bottom {
-                padding: 20px;
+            .waves-chart-panel {
+                top: calc(var(--wine-surfer-top-bar-height, 72px) + 8px);
+            }
+
+            .waves-scroll-region {
+                padding-bottom: 96px;
+            }
+
+            .waves-chart-card {
+                padding: 24px;
+            }
+
+            .waves-chart-actions {
+                align-items: stretch;
+                text-align: center;
+            }
+
+            .waves-chart-actions .waves-actions-buttons {
+                justify-content: center;
+            }
+
+            .waves-chart-actions .waves-actions-help {
+                text-align: center;
+            }
+
+            .waves-popover-dialog {
+                padding: 24px;
             }
         }
     </style>
 </head>
 <body class="wine-app wine-app--with-bottom-nav">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
-    <main class="waves-page">
-        <section class="waves-top" aria-label="Wine Waves chart">
-            <div class="waves-top-header">
-                <h1 class="waves-title">Wine Waves</h1>
-                <p class="waves-description">Track AI-generated evolution scores for every vintage in your cellar.</p>
-                <div class="waves-buttons">
+    <main class="waves-layout">
+        <section class="waves-chart-card waves-chart-panel" aria-live="polite">
+            <div class="waves-chart-actions">
+                <div class="waves-actions-buttons">
                     @await Html.PartialAsync("_MakeWavesButton", hasInventory)
                     <form method="post" data-delete-waves-form>
                         @Html.AntiForgeryToken()
@@ -544,75 +798,116 @@
                         </button>
                     </form>
                 </div>
+                <p class="waves-actions-help">
+                    @(hasInventory
+                        ? "Select wines from your cellar to ask Wine Waves for new evolution scores."
+                        : "Add wines to your inventory to generate fresh evolution scores.")
+                </p>
             </div>
             @if (hasDatasets)
             {
-                <div class="waves-chart-shell">
+                <div class="waves-chart-wrapper" data-waves-chart-wrapper>
                     <canvas id="wineWavesChart" role="img" aria-label="Line chart of evolution scores by vintage"></canvas>
                 </div>
+                <p class="waves-chart-ordering-label" data-waves-ordering-label>
+                    Ordering wines by evolution score in <strong data-waves-ordering-year>@DateTime.UtcNow.Year</strong>. Drag the vertical line to change.
+                </p>
             }
             else
             {
                 <p class="waves-empty">Start scoring your wines to see their evolution unfold here.</p>
             }
         </section>
-        <section class="waves-bottom" aria-label="Wine vintage cards">
+        <div class="waves-scroll-region">
             @if (hasDatasets)
             {
-                <div class="waves-card-list">
-                    @foreach (var dataset in Model.Datasets)
-                    {
-                        var labelParts = SplitWineLabel(dataset.Label);
-                        var displayName = string.IsNullOrWhiteSpace(labelParts.Name) ? dataset.Label : labelParts.Name;
-                        var displayVintage = labelParts.Vintage;
-                        var showVintage = !string.IsNullOrWhiteSpace(displayVintage);
-                        var indicator = BuildDrinkingWindowIndicator(dataset.DrinkingWindowStartYear, dataset.DrinkingWindowEndYear);
-                        var drinkingWindowRange = BuildDrinkingWindowRangeText(dataset.DrinkingWindowStartYear, dataset.DrinkingWindowEndYear);
-                        <article class="waves-card">
-                            <div class="waves-card-header">
-                                <div class="waves-card-title">
-                                    <span class="waves-card-dot" style="background-color: @dataset.ColorHex"></span>
-                                    <div class="waves-card-labels">
-                                        <p class="waves-card-label">@displayName</p>
-                                        @if (showVintage)
-                                        {
-                                            <span class="waves-card-vintage">@displayVintage</span>
-                                        }
+                <section class="waves-vintages" aria-label="Wine Waves vintages">
+                    <div class="waves-legend" data-waves-legend>
+                        @foreach (var dataset in Model.Datasets)
+                        {
+                            var labelParts = SplitWineLabel(dataset.Label);
+                            var displayName = string.IsNullOrWhiteSpace(labelParts.Name) ? dataset.Label : labelParts.Name;
+                            var displayVintage = labelParts.Vintage;
+                            var showVintage = !string.IsNullOrWhiteSpace(displayVintage);
+                            <article class="waves-legend-item" data-waves-legend-item data-wine-vintage-id="@dataset.WineVintageId">
+                                <div class="waves-legend-header">
+                                    <div class="waves-legend-header-info">
+                                        <span class="waves-legend-dot" style="background-color: @dataset.ColorHex"></span>
+                                        <div class="waves-legend-title">
+                                            <h2 class="waves-legend-label">@displayName</h2>
+                                            @if (showVintage)
+                                            {
+                                                <span class="waves-legend-vintage">@displayVintage</span>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="waves-legend-actions">
+                                        <button type="button"
+                                                class="waves-legend-action-button waves-legend-visibility-button"
+                                                data-waves-toggle-visibility
+                                                data-wine-vintage-id="@dataset.WineVintageId"
+                                                data-wine-label="@dataset.Label"
+                                                aria-pressed="false"
+                                                aria-label="Hide curve for @dataset.Label"
+                                                title="Hide curve">
+                                            <svg viewBox="0 0 24 24" role="img" aria-hidden="true" class="waves-legend-visibility-icon waves-legend-visibility-icon--visible">
+                                                <path d="M2.458 12C3.732 7.943 7.522 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7s-8.268-2.943-9.542-7Z"
+                                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                            <svg viewBox="0 0 24 24" role="img" aria-hidden="true" class="waves-legend-visibility-icon waves-legend-visibility-icon--hidden">
+                                                <path d="M3.98 8.223A10.45 10.45 0 0 0 2.458 12C3.732 16.057 7.522 19 12 19c1.625 03.17-.36 4.57-1.012"
+                                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                <path d="M9.88 9.885A3 3 0 0 0 12 15a3 3 0 0 0 2.12-.879"
+                                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                <path d="m3 3 18 18"
+                                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 </div>
-                                <button type="button"
-                                        class="waves-card-delete"
-                                        data-waves-delete-single
-                                        data-wine-vintage-id="@dataset.WineVintageId"
-                                        data-wine-label="@dataset.Label"
-                                        aria-label="Delete waves for @dataset.Label"
-                                        title="Delete waves">
-                                    <svg viewBox="0 0 24 24" role="img" aria-hidden="true" width="18" height="18">
-                                        <path d="M9 4.5h6M10.5 4.5l.447-1.341A1 1 0 0 1 11.904 2.5h2.192a1 1 0 0 1 .957.659L15.5 4.5M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7.5"
-                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                    </svg>
-                                </button>
-                            </div>
-                            @if (!string.IsNullOrWhiteSpace(dataset.Details))
-                            {
-                                <p class="waves-card-details">@dataset.Details</p>
-                            }
-                            <div class="waves-card-meta">
-                                <div class="waves-card-indicator @indicator.CssClass" title="@indicator.Description">
-                                    <span class="waves-card-indicator-dot" aria-hidden="true"></span>
-                                    <span>@indicator.Label</span>
+                                <div class="waves-legend-body">
+                                    <div class="waves-legend-body-text">
+                                        @if (!string.IsNullOrWhiteSpace(dataset.Details))
+                                        {
+                                            <p class="waves-legend-details">@dataset.Details</p>
+                                        }
+                                        @{ var indicator = BuildDrinkingWindowIndicator(dataset.DrinkingWindowStartYear, dataset.DrinkingWindowEndYear); }
+                                        @{ var drinkingWindowRange = BuildDrinkingWindowRangeText(dataset.DrinkingWindowStartYear, dataset.DrinkingWindowEndYear); }
+                                        <div class="waves-legend-body-meta">
+                                            <div class="waves-legend-indicator @indicator.CssClass" title="@indicator.Description">
+                                                <span class="waves-legend-indicator-dot" aria-hidden="true"></span>
+                                                <span class="waves-legend-indicator-text">@indicator.Label</span>
+                                            </div>
+                                            <p class="waves-legend-window">
+                                                <span>Prime window</span>
+                                                <span class="waves-legend-window-value">@drinkingWindowRange</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="waves-legend-secondary-actions">
+                                        <button type="button"
+                                                class="waves-legend-action-button waves-legend-delete-button"
+                                                data-waves-delete-single
+                                                data-wine-vintage-id="@dataset.WineVintageId"
+                                                data-wine-label="@dataset.Label"
+                                                aria-label="Delete waves for @dataset.Label"
+                                                title="Delete waves">
+                                            <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                                                <path d="M9 4.5h6M10.5 4.5l.447-1.341A1 1 0 0 1 11.904 2.5h2.192a1 1 0 0 1 .957.659L15.5 4.5
+M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7.5"
+                                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
-                                <p class="waves-card-window">Prime window: <strong>@drinkingWindowRange</strong></p>
-                            </div>
-                        </article>
-                    }
-                </div>
+                            </article>
+                        }
+                    </div>
+                </section>
             }
-            else
-            {
-                <p class="waves-empty">No Wine Waves vintages yet. Ask the assistant to make waves above.</p>
-            }
-        </section>
+        </div>
     </main>
 
     @if (hasInventory)
@@ -621,8 +916,8 @@
             <div class="waves-popover-dialog" role="dialog" aria-modal="true" aria-labelledby="wavesPopoverTitle">
                 <form class="waves-popover-form" data-make-waves-form>
                     <h2 id="wavesPopoverTitle">Make waves</h2>
-                    <p class="waves-description">Select the vintages you want Wine Waves to analyze for fresh evolution scores.</p>
-                    <div>
+                    <p class="waves-popover-description">Select the vintages you want Wine Waves to analyze for fresh evolution scores.</p>
+                    <div class="waves-popover-filter">
                         <label class="sr-only" for="wavesPopoverFilter">Filter wines</label>
                         <input type="search" id="wavesPopoverFilter" name="wavesPopoverFilter" class="waves-popover-filter-input" placeholder="Filter wines" autocomplete="off" data-make-waves-filter />
                     </div>
@@ -648,12 +943,12 @@
                                     {
                                         <span class="waves-popover-option-details" data-make-waves-option-details>@item.Details</span>
                                     }
-                                    <span class="waves-popover-option-availability" data-make-waves-option-status>@availabilityText</span>
+                                    <span class="waves-popover-option-availability @(isAvailable ? "waves-popover-option-availability--available" : "waves-popover-option-availability--unavailable")" data-make-waves-option-status>@availabilityText</span>
                                 </span>
                             </label>
                         }
                     </div>
-                    <p class="waves-popover-empty waves-empty" data-make-waves-empty hidden role="status" aria-live="polite">No wines match your filter.</p>
+                    <p class="waves-popover-empty" data-make-waves-empty hidden role="status" aria-live="polite">No wines match your filter.</p>
                     @Html.AntiForgeryToken()
                     <div class="waves-popover-actions">
                         <button type="button" class="waves-secondary-button" data-make-waves-cancel>Cancel</button>
@@ -701,6 +996,7 @@
 
             const closePopover = () => {
                 popover.setAttribute('hidden', 'hidden');
+                document.body.classList.remove('waves-popover-open');
                 popover.classList.remove('open');
                 trigger.setAttribute('aria-expanded', 'false');
 
@@ -723,6 +1019,7 @@
 
                 lastFocusedElement = document.activeElement;
                 popover.removeAttribute('hidden');
+                document.body.classList.add('waves-popover-open');
                 popover.classList.add('open');
                 trigger.setAttribute('aria-expanded', 'true');
 
@@ -803,7 +1100,7 @@
             });
 
             document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape' && !popover.hasAttribute('hidden')) {
+                if (event.key === 'Escape' && popover.classList.contains('open')) {
                     closePopover();
                 }
             });
@@ -873,9 +1170,45 @@
         })();
 
         (function () {
+            const main = document.querySelector('.waves-layout');
+            const chartPanel = document.querySelector('.waves-chart-panel');
+            const scrollRegion = document.querySelector('.waves-scroll-region');
+            if (!main || !chartPanel || !scrollRegion) {
+                return;
+            }
+
+            const getGapSize = () => {
+                const gapValue = window.getComputedStyle(main).gap || '0';
+                const parsed = Number.parseFloat(gapValue);
+                return Number.isFinite(parsed) ? parsed : 0;
+            };
+
+            const updateSpacing = () => {
+                const chartRect = chartPanel.getBoundingClientRect();
+                const scrollRect = scrollRegion.getBoundingClientRect();
+                const requiredOffset = Math.max(0, chartRect.bottom + getGapSize() - scrollRect.top);
+                scrollRegion.style.setProperty('--waves-scroll-offset', `${requiredOffset}px`);
+            };
+
+            if (typeof window.ResizeObserver === 'function') {
+                const observer = new ResizeObserver(updateSpacing);
+                observer.observe(chartPanel);
+            }
+
+            window.addEventListener('resize', updateSpacing);
+            window.addEventListener('load', updateSpacing);
+
+            updateSpacing();
+        })();
+
+        (function () {
             const form = document.querySelector('[data-delete-waves-form]');
-            const button = document.querySelector('[data-delete-waves-trigger]');
-            if (!form || !button) {
+            if (!form) {
+                return;
+            }
+
+            const button = form.querySelector('[data-delete-waves-trigger]');
+            if (!button) {
                 return;
             }
 
@@ -981,6 +1314,7 @@
                     const originalAriaDisabled = button.getAttribute('aria-disabled');
                     button.disabled = true;
                     button.setAttribute('aria-disabled', 'true');
+                    button.classList.add('is-loading');
 
                     try {
                         const response = await fetch(endpoint, {
@@ -994,16 +1328,18 @@
                         const payload = expectsJson ? await response.json().catch(() => null) : null;
 
                         if (!response.ok || !payload) {
-                            const errorMessage = payload?.message || 'We could not delete that wave. Please try again.';
+                            const errorMessage = payload?.message || 'We could not delete waves for that vintage. Please try again.';
                             window.alert(errorMessage);
                             return;
                         }
 
-                        window.alert(payload.message || 'Deleted Wine Waves evolution scores for the selected vintage.');
+                        window.alert(payload.message || `Deleted waves for ${label}.`);
                         window.location.reload();
                     } catch (error) {
-                        window.alert('We could not delete that wave. Please try again.');
+                        window.alert('We could not delete waves for that vintage. Please try again.');
                     } finally {
+                        button.classList.remove('is-loading');
+
                         if (!originalDisabled) {
                             button.disabled = false;
 
@@ -1019,27 +1355,248 @@
         })();
 
         (function () {
-            const ctx = document.getElementById('wineWavesChart');
             const data = @Html.Raw(chartDataJson);
-            if (!ctx || !Array.isArray(data) || data.length === 0) {
+            const hasData = Array.isArray(data) && data.length > 0;
+            if (!hasData) {
                 return;
             }
 
-            const datasets = data.map(dataset => ({
-                label: dataset.label,
-                data: (dataset.points || []).map(point => ({ x: Number(point.year), y: Number(point.score) })),
-                borderColor: dataset.color,
-                backgroundColor: dataset.color,
-                tension: 0.35,
-                borderWidth: 2,
-                pointRadius: 0,
-                spanGaps: true,
-                fill: false
-            }));
+            const ctx = document.getElementById('wineWavesChart');
+            if (!ctx) {
+                return;
+            }
 
-            new Chart(ctx, {
+            const legendContainer = document.querySelector('[data-waves-legend]');
+            const orderingLabel = document.querySelector('[data-waves-ordering-label]');
+            const orderingYearElement = orderingLabel?.querySelector('[data-waves-ordering-year]');
+
+            const fallbackColor = '#f6c672';
+            const resolveColor = (value) => {
+                if (typeof value === 'string') {
+                    const trimmed = value.trim();
+                    if (trimmed.length > 0) {
+                        return trimmed;
+                    }
+                }
+
+                return fallbackColor;
+            };
+
+            const hexToRgba = (hex, alpha = 1) => {
+                if (typeof hex !== 'string') {
+                    return hex;
+                }
+
+                const normalized = hex.replace('#', '').trim();
+                if (normalized.length !== 3 && normalized.length !== 6) {
+                    return hex;
+                }
+
+                const expanded = normalized.length === 3
+                    ? normalized.split('').map((char) => char + char).join('')
+                    : normalized;
+
+                const r = Number.parseInt(expanded.slice(0, 2), 16);
+                const g = Number.parseInt(expanded.slice(2, 4), 16);
+                const b = Number.parseInt(expanded.slice(4, 6), 16);
+
+                if ([r, g, b].some((component) => Number.isNaN(component))) {
+                    return hex;
+                }
+
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            };
+
+            const allYears = data.flatMap(dataset => dataset.points?.map(point => Number(point.year)) ?? [])
+                .filter(value => Number.isFinite(value));
+            if (!allYears.length) {
+                return;
+            }
+
+            const minYear = Math.min(...allYears);
+            const maxYear = Math.max(...allYears);
+            const clampYear = (value) => {
+                const numeric = Number(value);
+                if (!Number.isFinite(numeric)) {
+                    return minYear;
+                }
+
+                return Math.min(Math.max(numeric, minYear), maxYear);
+            };
+
+            let activeYear = clampYear(new Date().getFullYear());
+
+            const formatYearForDisplay = (value) => {
+                if (!Number.isFinite(value)) {
+                    return '';
+                }
+
+                return Number.isInteger(value) ? value.toString() : value.toFixed(1);
+            };
+
+            const datasetPointMap = new Map();
+
+            const draggableYearLinePlugin = {
+                id: 'draggableYearLine',
+                afterDraw(chart, args, pluginOptions) {
+                    const { ctx: chartContext, chartArea, scales } = chart;
+                    if (!chartArea || !scales?.x) {
+                        return;
+                    }
+
+                    const { left, right, top, bottom } = chartArea;
+                    const xScale = scales.x;
+                    const lineYear = pluginOptions?.value ?? activeYear;
+
+                    if (lineYear < xScale.min || lineYear > xScale.max) {
+                        return;
+                    }
+
+                    const x = xScale.getPixelForValue(lineYear);
+                    if (!Number.isFinite(x) || x < left || x > right) {
+                        return;
+                    }
+
+                    const color = pluginOptions?.color ?? 'rgba(246, 198, 114, 0.75)';
+                    const lineWidth = pluginOptions?.lineWidth ?? 2;
+                    const dash = Array.isArray(pluginOptions?.dash) ? pluginOptions.dash : [6, 6];
+
+                    chartContext.save();
+                    chartContext.beginPath();
+                    chartContext.strokeStyle = color;
+                    chartContext.lineWidth = lineWidth;
+                    chartContext.setLineDash(dash);
+                    chartContext.moveTo(x, top);
+                    chartContext.lineTo(x, bottom);
+                    chartContext.stroke();
+                    chartContext.setLineDash([]);
+                    chartContext.restore();
+                }
+            };
+
+            Chart.register(draggableYearLinePlugin);
+
+            const datasets = data.map(dataset => {
+                const color = resolveColor(dataset.color);
+                const mutedColor = hexToRgba(color, 0.35);
+                const sortedPoints = (dataset.points || [])
+                    .map(point => ({ x: Number(point.year), y: Number(point.score) }))
+                    .filter(point => Number.isFinite(point.x) && Number.isFinite(point.y))
+                    .sort((a, b) => a.x - b.x);
+
+                datasetPointMap.set(dataset.id, sortedPoints);
+
+                return {
+                    label: dataset.label,
+                    wineVintageId: dataset.id,
+                    data: sortedPoints,
+                    borderColor: color,
+                    backgroundColor: color,
+                    tension: 0.35,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    pointHitRadius: 10,
+                    spanGaps: true,
+                    fill: false,
+                    hidden: false,
+                    originalBorderColor: color,
+                    mutedBorderColor: mutedColor
+                };
+            });
+
+            const getScoreAtYear = (points, year) => {
+                if (!Array.isArray(points) || !points.length) {
+                    return Number.NEGATIVE_INFINITY;
+                }
+
+                if (year <= points[0].x) {
+                    return points[0].y;
+                }
+
+                const lastPoint = points[points.length - 1];
+                if (year >= lastPoint.x) {
+                    return lastPoint.y;
+                }
+
+                for (let index = 0; index < points.length - 1; index += 1) {
+                    const left = points[index];
+                    const right = points[index + 1];
+                    if (year >= left.x && year <= right.x) {
+                        if (right.x === left.x) {
+                            return left.y;
+                        }
+
+                        const ratio = (year - left.x) / (right.x - left.x);
+                        return left.y + ratio * (right.y - left.y);
+                    }
+                }
+
+                return lastPoint.y;
+            };
+
+            const reorderCardsByYear = (year) => {
+                if (!legendContainer) {
+                    return;
+                }
+
+                const cards = Array.from(legendContainer.querySelectorAll('[data-waves-legend-item]'));
+                if (!cards.length) {
+                    return;
+                }
+
+                const scoredCards = cards.map((card) => {
+                    const id = card.getAttribute('data-wine-vintage-id');
+                    const points = id ? datasetPointMap.get(id) : null;
+                    const score = points ? getScoreAtYear(points, year) : Number.NEGATIVE_INFINITY;
+                    card.setAttribute('data-waves-order-score', Number.isFinite(score) ? score.toFixed(1) : '');
+                    return { card, score };
+                });
+
+                scoredCards
+                    .sort((a, b) => (Number.isFinite(b.score) ? b.score : Number.NEGATIVE_INFINITY) - (Number.isFinite(a.score) ? a.score : Number.NEGATIVE_INFINITY))
+                    .forEach(({ card }) => legendContainer.appendChild(card));
+            };
+
+            const updateOrderingLabel = (year) => {
+                if (!orderingLabel || !orderingYearElement) {
+                    return;
+                }
+
+                orderingYearElement.textContent = formatYearForDisplay(year);
+            };
+
+            const updateChartMarker = (year) => {
+                const chartInstance = window.wavesChart;
+                if (!chartInstance?.options?.plugins?.draggableYearLine) {
+                    return;
+                }
+
+                chartInstance.options.plugins.draggableYearLine.value = year;
+                chartInstance.update('none');
+            };
+
+            const setActiveYear = (year, { updateChart = true } = {}) => {
+                const clamped = clampYear(year);
+                if (!Number.isFinite(clamped) || Math.abs(clamped - activeYear) < 0.001) {
+                    return;
+                }
+
+                activeYear = clamped;
+                updateOrderingLabel(activeYear);
+                reorderCardsByYear(activeYear);
+
+                if (updateChart) {
+                    updateChartMarker(activeYear);
+                }
+            };
+
+            // Create chart and store globally so we can update the marker position as the user drags
+            window.wavesChart = new Chart(ctx, {
                 type: 'line',
-                data: { datasets },
+                data: {
+                    datasets
+                },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -1048,7 +1605,9 @@
                         intersect: false
                     },
                     plugins: {
-                        legend: { display: false },
+                        legend: {
+                            display: false
+                        },
                         tooltip: {
                             callbacks: {
                                 title(tooltipItems) {
@@ -1060,6 +1619,12 @@
                                     return `${tooltipItem.dataset.label}: ${value}`;
                                 }
                             }
+                        },
+                        draggableYearLine: {
+                            value: activeYear,
+                            color: 'rgba(246, 198, 114, 0.75)',
+                            lineWidth: 2,
+                            dash: [6, 6]
                         }
                     },
                     scales: {
@@ -1100,6 +1665,238 @@
                         }
                     }
                 }
+            });
+
+            updateOrderingLabel(activeYear);
+            reorderCardsByYear(activeYear);
+
+            const chartCanvas = ctx;
+            let isDragging = false;
+            let activePointerId = null;
+
+            const getYearFromPointerEvent = (event) => {
+                const chart = window.wavesChart;
+                const xScale = chart?.scales?.x;
+                const chartArea = chart?.chartArea;
+                if (!chart || !xScale || !chartArea) {
+                    return null;
+                }
+
+                const rect = chartCanvas.getBoundingClientRect();
+                const relativeX = event.clientX - rect.left;
+                const relativeY = event.clientY - rect.top;
+
+                if (relativeX < chartArea.left || relativeX > chartArea.right || relativeY < chartArea.top || relativeY > chartArea.bottom) {
+                    return null;
+                }
+
+                const value = xScale.getValueForPixel(relativeX);
+                if (!Number.isFinite(value)) {
+                    return null;
+                }
+
+                return clampYear(value);
+            };
+
+            const stopDragging = () => {
+                isDragging = false;
+                if (activePointerId !== null && typeof chartCanvas.releasePointerCapture === 'function') {
+                    try {
+                        chartCanvas.releasePointerCapture(activePointerId);
+                    } catch (error) {
+                        // Ignore release errors
+                    }
+                }
+
+                activePointerId = null;
+            };
+
+            chartCanvas.addEventListener('pointerdown', (event) => {
+                const year = getYearFromPointerEvent(event);
+                if (year === null) {
+                    return;
+                }
+
+                event.preventDefault();
+                isDragging = true;
+                activePointerId = event.pointerId;
+
+                if (typeof chartCanvas.setPointerCapture === 'function') {
+                    chartCanvas.setPointerCapture(event.pointerId);
+                }
+
+                setActiveYear(year);
+            });
+
+            chartCanvas.addEventListener('pointermove', (event) => {
+                if (!isDragging) {
+                    return;
+                }
+
+                const year = getYearFromPointerEvent(event);
+                if (year === null) {
+                    return;
+                }
+
+                event.preventDefault();
+                setActiveYear(year);
+            });
+
+            chartCanvas.addEventListener('pointerup', () => {
+                stopDragging();
+            });
+
+            chartCanvas.addEventListener('pointercancel', () => {
+                stopDragging();
+            });
+
+            chartCanvas.addEventListener('pointerleave', () => {
+                stopDragging();
+            });
+        })();
+
+        (function () {
+            const cards = Array.from(document.querySelectorAll('[data-waves-legend-item]'));
+            if (!cards.length) {
+                return;
+            }
+
+            let highlightedWineVintageId = null;
+
+            const updateCardState = () => {
+                cards.forEach((card) => {
+                    const cardId = card.getAttribute('data-wine-vintage-id');
+                    const isHighlighted = Boolean(highlightedWineVintageId && cardId === highlightedWineVintageId);
+                    card.classList.toggle('is-highlighted', isHighlighted);
+                });
+            };
+
+            const applyHighlightStyles = () => {
+                updateCardState();
+
+                const chart = window.wavesChart;
+                const datasets = chart?.data?.datasets;
+                if (!chart || !Array.isArray(datasets)) {
+                    return;
+                }
+
+                const shouldDimOthers = Boolean(highlightedWineVintageId);
+                datasets.forEach((dataset) => {
+                    const matchesHighlight = Boolean(highlightedWineVintageId && dataset.wineVintageId === highlightedWineVintageId);
+                    const originalColor = dataset.originalBorderColor || dataset.borderColor;
+                    const mutedColor = dataset.mutedBorderColor || originalColor;
+
+                    dataset.borderWidth = matchesHighlight ? 4 : 2;
+                    dataset.pointRadius = matchesHighlight ? 3 : 0;
+                    dataset.pointHoverRadius = matchesHighlight ? 5 : 0;
+
+                    if (matchesHighlight && dataset.hidden === true) {
+                        dataset.hidden = false;
+                    }
+
+                    if (!shouldDimOthers || matchesHighlight) {
+                        dataset.borderColor = originalColor;
+                        dataset.backgroundColor = originalColor;
+                    } else {
+                        dataset.borderColor = mutedColor;
+                        dataset.backgroundColor = mutedColor;
+                    }
+                });
+
+                if (typeof chart.update === 'function') {
+                    chart.update();
+                }
+            };
+
+            const toggleHighlight = (wineVintageId) => {
+                if (!wineVintageId) {
+                    highlightedWineVintageId = null;
+                } else {
+                    highlightedWineVintageId = highlightedWineVintageId === wineVintageId ? null : wineVintageId;
+                }
+
+                applyHighlightStyles();
+            };
+
+            cards.forEach((card) => {
+                card.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (target instanceof Element && target.closest('button')) {
+                        return;
+                    }
+
+                    const wineVintageId = card.getAttribute('data-wine-vintage-id');
+                    if (!wineVintageId) {
+                        return;
+                    }
+
+                    toggleHighlight(wineVintageId);
+                });
+            });
+
+            updateCardState();
+        })();
+
+        (function () {
+            const buttons = Array.from(document.querySelectorAll('[data-waves-toggle-visibility]'));
+            if (!buttons.length) {
+                return;
+            }
+
+            const findDataset = (chart, wineVintageId) => {
+                if (!chart || !wineVintageId) {
+                    return null;
+                }
+
+                return chart.data?.datasets?.find((dataset) => dataset.wineVintageId === wineVintageId) || null;
+            };
+
+            const updateButtonState = (button, isHidden) => {
+                const label = button.getAttribute('data-wine-label') || 'this vintage';
+                const action = isHidden ? 'Show' : 'Hide';
+                button.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+                button.setAttribute('aria-label', `${action} curve for ${label}`);
+                button.setAttribute('title', `${action} curve`);
+            };
+
+            const syncButton = (button) => {
+                const chart = window.wavesChart;
+                const wineVintageId = button.getAttribute('data-wine-vintage-id');
+                if (!chart || !wineVintageId) {
+                    return;
+                }
+
+                const dataset = findDataset(chart, wineVintageId);
+                if (!dataset) {
+                    return;
+                }
+
+                updateButtonState(button, dataset.hidden === true);
+            };
+
+            buttons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    const chart = window.wavesChart;
+                    const wineVintageId = button.getAttribute('data-wine-vintage-id');
+                    if (!chart || !wineVintageId) {
+                        return;
+                    }
+
+                    const dataset = findDataset(chart, wineVintageId);
+                    if (!dataset) {
+                        return;
+                    }
+
+                    const nextHidden = !(dataset.hidden === true);
+                    dataset.hidden = nextHidden;
+                    if (typeof chart.update === 'function') {
+                        chart.update();
+                    }
+
+                    updateButtonState(button, nextHidden);
+                });
+
+                syncButton(button);
             });
         })();
     </script>
