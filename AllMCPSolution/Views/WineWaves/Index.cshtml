@@ -219,6 +219,13 @@
             padding: 16px;
         }
 
+        .waves-legend-info {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            flex: 1;
+        }
+
         .waves-legend-dot {
             width: 12px;
             height: 12px;
@@ -244,6 +251,40 @@
             color: rgba(244, 241, 234, 0.64);
             font-size: 0.85rem;
             line-height: 1.5;
+        }
+
+        .waves-legend-delete-button {
+            appearance: none;
+            border: none;
+            background: rgba(244, 241, 234, 0.06);
+            color: rgba(244, 241, 234, 0.7);
+            border-radius: 999px;
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .waves-legend-delete-button:hover,
+        .waves-legend-delete-button:focus-visible {
+            background: rgba(244, 241, 234, 0.16);
+            color: rgba(244, 241, 234, 0.95);
+            outline: none;
+            transform: translateY(-1px);
+        }
+
+        .waves-legend-delete-button svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .waves-legend-delete-button.is-loading {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .waves-empty {
@@ -510,14 +551,28 @@
                     @foreach (var dataset in Model.Datasets)
                     {
                         <article class="waves-legend-item">
-                            <span class="waves-legend-dot" style="background-color: @dataset.ColorHex"></span>
-                            <div class="waves-legend-content">
-                                <h2 class="waves-legend-label">@dataset.Label</h2>
-                                @if (!string.IsNullOrWhiteSpace(dataset.Details))
-                                {
-                                    <p class="waves-legend-details">@dataset.Details</p>
-                                }
+                            <div class="waves-legend-info">
+                                <span class="waves-legend-dot" style="background-color: @dataset.ColorHex"></span>
+                                <div class="waves-legend-content">
+                                    <h2 class="waves-legend-label">@dataset.Label</h2>
+                                    @if (!string.IsNullOrWhiteSpace(dataset.Details))
+                                    {
+                                        <p class="waves-legend-details">@dataset.Details</p>
+                                    }
+                                </div>
                             </div>
+                            <button type="button"
+                                    class="waves-legend-delete-button"
+                                    data-waves-delete-single
+                                    data-wine-vintage-id="@dataset.WineVintageId"
+                                    data-wine-label="@dataset.Label"
+                                    aria-label="Delete waves for @dataset.Label"
+                                    title="Delete waves">
+                                <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                                    <path d="M9 4.5h6M10.5 4.5l.447-1.341A1 1 0 0 1 11.904 2.5h2.192a1 1 0 0 1 .957.659L15.5 4.5M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7.5"
+                                          fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </button>
                         </article>
                     }
                 </div>
@@ -863,6 +918,80 @@
                         }
                     }
                 }
+            });
+        })();
+
+        (function () {
+            const buttons = document.querySelectorAll('[data-waves-delete-single]');
+            if (!buttons.length) {
+                return;
+            }
+
+            const tokenInput = document.querySelector('[data-delete-waves-form] input[name="__RequestVerificationToken"]');
+            const verificationToken = tokenInput instanceof HTMLInputElement ? tokenInput.value : null;
+
+            buttons.forEach((button) => {
+                button.addEventListener('click', async (event) => {
+                    event.preventDefault();
+
+                    const wineVintageId = button.getAttribute('data-wine-vintage-id');
+                    if (!wineVintageId) {
+                        return;
+                    }
+
+                    const label = button.getAttribute('data-wine-label') || 'this vintage';
+                    const confirmation = window.confirm(`Delete waves for ${label}? This cannot be undone.`);
+                    if (!confirmation) {
+                        return;
+                    }
+
+                    const endpoint = `/wine-surfer/wine-waves/delete/vintage/${wineVintageId}`;
+                    const headers = { 'Accept': 'application/json' };
+                    if (verificationToken) {
+                        headers['RequestVerificationToken'] = verificationToken;
+                    }
+
+                    const originalDisabled = button.disabled;
+                    const originalAriaDisabled = button.getAttribute('aria-disabled');
+                    button.disabled = true;
+                    button.setAttribute('aria-disabled', 'true');
+                    button.classList.add('is-loading');
+
+                    try {
+                        const response = await fetch(endpoint, {
+                            method: 'POST',
+                            headers,
+                            credentials: 'same-origin'
+                        });
+
+                        const contentType = response.headers.get('content-type') || '';
+                        const expectsJson = contentType.toLowerCase().includes('application/json');
+                        const payload = expectsJson ? await response.json().catch(() => null) : null;
+
+                        if (!response.ok || !payload) {
+                            const errorMessage = payload?.message || 'We could not delete waves for that vintage. Please try again.';
+                            window.alert(errorMessage);
+                            return;
+                        }
+
+                        window.alert(payload.message || `Deleted waves for ${label}.`);
+                        window.location.reload();
+                    } catch (error) {
+                        window.alert('We could not delete waves for that vintage. Please try again.');
+                    } finally {
+                        button.classList.remove('is-loading');
+
+                        if (!originalDisabled) {
+                            button.disabled = false;
+
+                            if (originalAriaDisabled === null) {
+                                button.removeAttribute('aria-disabled');
+                            } else {
+                                button.setAttribute('aria-disabled', originalAriaDisabled);
+                            }
+                        }
+                    }
+                });
             });
         })();
 
