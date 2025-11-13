@@ -3465,6 +3465,19 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 
 
 /* Inline inventory vintage table: adjust numeric column widths */
+.inventory-inline-table .inventory-inline-vintage-header,
+.inventory-inline-table .inventory-inline-vintage,
+.inventory-inline-table .inventory-inline-score-header,
+.inventory-inline-table .inventory-inline-score,
+.inventory-inline-table .inventory-inline-count-header,
+.inventory-inline-table .inventory-inline-count,
+.inventory-inline-table .inventory-inline-locations-header,
+.inventory-inline-table .inventory-inline-locations {
+    /* Allow these columns to hug their content and avoid unnecessary width. */
+    width: 1%;
+    white-space: nowrap;
+}
+
 .inventory-inline-table .inventory-inline-drinking-window-header,
 .inventory-inline-table .inventory-inline-drinking-window {
     min-width: 128px;
@@ -3478,13 +3491,7 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 }
 
 /* Inline inventory vintage table: storage locations column */
-.inventory-inline-table .inventory-inline-locations-header,
 .inventory-inline-table .inventory-inline-locations {
-    min-width: 220px;
-}
-
-.inventory-inline-table .inventory-inline-locations {
-    white-space: normal;
     word-break: break-word;
     color: hsla(var(--foreground) / 0.92);
 }
