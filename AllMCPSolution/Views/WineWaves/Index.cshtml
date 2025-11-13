@@ -58,6 +58,25 @@
 
         return (primeLabel, descriptionText, "waves-legend-indicator--prime");
     }
+    string BuildDrinkingWindowRangeText(int? startYear, int? endYear)
+    {
+        if (startYear.HasValue && endYear.HasValue)
+        {
+            return $"{startYear.Value.ToString(CultureInfo.InvariantCulture)}–{endYear.Value.ToString(CultureInfo.InvariantCulture)}";
+        }
+
+        if (startYear.HasValue)
+        {
+            return $"From {startYear.Value.ToString(CultureInfo.InvariantCulture)} onward";
+        }
+
+        if (endYear.HasValue)
+        {
+            return $"Enjoy before {endYear.Value.ToString(CultureInfo.InvariantCulture)}";
+        }
+
+        return "Prime window unknown";
+    }
     var chartPayload = Model.Datasets.Select(dataset => new
     {
         id = dataset.WineVintageId,
@@ -264,6 +283,23 @@
             color: hsla(var(--foreground) / 0.64);
             font-size: 0.85rem;
             line-height: 1.5;
+        }
+
+        .waves-legend-window {
+            margin: 4px 0 0;
+            font-size: 0.82rem;
+            color: hsla(var(--foreground) / 0.7);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            display: inline-flex;
+            gap: 6px;
+            align-items: baseline;
+        }
+
+        .waves-legend-window-value {
+            font-weight: 600;
+            text-transform: none;
+            letter-spacing: normal;
         }
 
         .waves-legend-indicator {
@@ -643,10 +679,15 @@
                                         <p class="waves-legend-details">@dataset.Details</p>
                                     }
                                     @{ var indicator = BuildDrinkingWindowIndicator(dataset.DrinkingWindowStartYear, dataset.DrinkingWindowEndYear); }
+                                    @{ var drinkingWindowRange = BuildDrinkingWindowRangeText(dataset.DrinkingWindowStartYear, dataset.DrinkingWindowEndYear); }
                                     <div class="waves-legend-indicator @indicator.CssClass" title="@indicator.Description">
                                         <span class="waves-legend-indicator-dot" aria-hidden="true"></span>
                                         <span class="waves-legend-indicator-text">@indicator.Label</span>
                                     </div>
+                                    <p class="waves-legend-window">
+                                        <span>Prime window</span>
+                                        <span class="waves-legend-window-value">@drinkingWindowRange</span>
+                                    </p>
                                 </div>
                             </div>
                             <div class="waves-legend-actions">
