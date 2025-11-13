@@ -31,11 +31,13 @@ public sealed class WineWavesController : WineSurferControllerBase
     private readonly IChatGptService _chatGptService;
     private readonly IChatGptPromptService _chatGptPromptService;
     private readonly IThemeService _themeService;
+    private readonly IWineVintageUserDrinkingWindowRepository _drinkingWindowRepository;
     private readonly string _wineWavesModel;
 
     public WineWavesController(
         IWineVintageEvolutionScoreRepository evolutionScoreRepository,
         IBottleRepository bottleRepository,
+        IWineVintageUserDrinkingWindowRepository drinkingWindowRepository,
         IUserRepository userRepository,
         IWineSurferTopBarService topBarService,
         IChatGptService chatGptService,
@@ -46,6 +48,7 @@ public sealed class WineWavesController : WineSurferControllerBase
     {
         _evolutionScoreRepository = evolutionScoreRepository;
         _bottleRepository = bottleRepository;
+        _drinkingWindowRepository = drinkingWindowRepository;
         _topBarService = topBarService;
         _chatGptService = chatGptService;
         _chatGptPromptService = chatGptPromptService;
@@ -83,7 +86,21 @@ public sealed class WineWavesController : WineSurferControllerBase
             return Forbid();
         }
 
-        var scores = await _evolutionScoreRepository.GetForUserAsync(currentUserId.Value, cancellationToken);
+        var userId = currentUserId.Value;
+
+        var scores = await _evolutionScoreRepository.GetForUserAsync(userId, cancellationToken);
+        var drinkingWindows = await _drinkingWindowRepository.GetForUserAsync(userId, cancellationToken);
+        var drinkingWindowLookup = drinkingWindows
+            .GroupBy(window => window.WineVintageId)
+            .Select(group => new
+            {
+                VintageId = group.Key,
+                Window = group
+                    .OrderByDescending(window => window.GeneratedAtUtc ?? DateTime.MinValue)
+                    .FirstOrDefault()
+            })
+            .Where(entry => entry.Window is not null)
+            .ToDictionary(entry => entry.VintageId, entry => entry.Window!);
 
         var activePalette = _themeService.GetActivePalette();
         var datasetColors = activePalette?.ChartColors ?? Array.Empty<string>();
@@ -116,16 +133,22 @@ public sealed class WineWavesController : WineSurferControllerBase
                     ? datasetColors[index % datasetColorCount]
                     : (AppColorPalettes.DefaultPalettes.FirstOrDefault()?.ChartColors.FirstOrDefault() ?? string.Empty);
 
+                drinkingWindowLookup.TryGetValue(first.WineVintageId, out var drinkingWindow);
+                int? drinkingWindowStartYear = drinkingWindow?.StartingYear;
+                int? drinkingWindowEndYear = drinkingWindow?.EndingYear;
+
                 return new WineWavesDataset(
                     first.WineVintageId,
                     label,
                     detailText,
                     points,
-                    color);
+                    color,
+                    drinkingWindowStartYear,
+                    drinkingWindowEndYear);
             })
             .ToList();
 
-        var inventory = await BuildInventoryAsync(currentUserId.Value, cancellationToken);
+        var inventory = await BuildInventoryAsync(userId, cancellationToken);
 
         ViewData["WineSurferPageTitle"] = "Wine Waves";
         var viewModel = new WineWavesViewModel(datasets, inventory);
@@ -568,7 +591,9 @@ public sealed record WineWavesDataset(
     string Label,
     string? Details,
     IReadOnlyList<WineWavesPoint> Points,
-    string ColorHex);
+    string ColorHex,
+    int? DrinkingWindowStartYear,
+    int? DrinkingWindowEndYear);
 
 public sealed record WineWavesPoint(int Year, decimal Score);
 
