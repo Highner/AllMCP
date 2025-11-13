@@ -579,6 +579,7 @@ public sealed record ChatGptOptions
     public string? DefaultModel { get; init; }
     public string? SmallModel { get; init; }
     public string? WebSearchModel { get; init; }
+    public string? WineWavesModel { get; init; }
     public string? SurfEyeAnalysisModel { get; init; }
     public string? TasteProfileModel { get; init; }
     public string? DrinkingWindowWorkflowId { get; init; }

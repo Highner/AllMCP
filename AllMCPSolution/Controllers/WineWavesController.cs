@@ -60,7 +60,7 @@ public sealed class WineWavesController : WineSurferControllerBase
             ? options!.DefaultModel!
             : ChatGptOptions.FallbackModel;
 
-        _wineWavesModel = string.IsNullOrWhiteSpace(options?.WebSearchModel)
+        _wineWavesModel = string.IsNullOrWhiteSpace(options?.WineWavesModel)
             ? fallbackModel
             : options!.WebSearchModel!;
     }
