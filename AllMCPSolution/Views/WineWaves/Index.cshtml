@@ -236,7 +236,8 @@
 
         .waves-chart-wrapper {
             position: relative;
-            min-height: 360px;
+            /* Fix chart height so only width grows with available space */
+            height: 360px;
             width: 100%;
             min-width: 0;
             cursor: col-resize;
@@ -247,9 +248,10 @@
             transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
         }
 
-        /* Ensure chart uses full container width in normal mode */
+        /* Ensure chart fills container in responsive mode */
         .waves-chart-wrapper canvas {
             width: 100% !important;
+            height: 100% !important;
             display: block;
         }
 
@@ -1630,6 +1632,33 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             const chartCanvas = ctx;
             let isDragging = false;
             let activePointerId = null;
+
+            // Ensure chart resizes with its container and viewport changes
+            const scheduleResize = (() => {
+                let rafId = null;
+                return () => {
+                    if (rafId !== null) return;
+                    rafId = requestAnimationFrame(() => {
+                        rafId = null;
+                        try {
+                            window.wavesChart?.resize();
+                        } catch (_) {
+                            // ignore
+                        }
+                    });
+                };
+            })();
+
+            // Observe container resize
+            const wrapperEl = document.querySelector('[data-waves-chart-wrapper]');
+            if (wrapperEl && 'ResizeObserver' in window) {
+                const ro = new ResizeObserver(() => scheduleResize());
+                ro.observe(wrapperEl);
+            }
+
+            // Also resize on orientation/window changes
+            window.addEventListener('resize', scheduleResize);
+            window.addEventListener('orientationchange', scheduleResize);
 
             const getYearFromPointerEvent = (event) => {
                 const chart = window.wavesChart;

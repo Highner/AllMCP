@@ -1,16 +1,8 @@
-using System;
 using System.Collections;
 using System.ClientModel;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Text.Json;
 using System.Text.Json.Serialization;
-using OpenAI;
 using OpenAI.Chat;
 using OpenAI.Responses;
 
