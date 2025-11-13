@@ -135,7 +135,6 @@
     <style>
         :root {
             color-scheme: dark;
-            --waves-scroll-offset: 0px;
         }
 
         body {
@@ -150,36 +149,26 @@
         }
 
         .waves-layout {
-            display: grid;
-            grid-template-areas:
-                "wavesTop"
-                "wavesBottom";
-            grid-template-rows: auto minmax(0, 1fr);
+            display: flex;
+            flex-direction: column;
             gap: 32px;
             padding: 48px 20px 72px;
-            width: 100%;
-            /* Make Wine Waves content use full width like other main elements */
-            max-width: none;
-            margin: 0;
+            width: min(1200px, 100%);
+            margin: 0 auto;
             flex: 1;
             min-height: 0;
-            overflow: hidden;
         }
 
         .waves-chart-panel {
-            grid-area: wavesTop;
-            position: sticky;
-            top: calc(var(--wine-surfer-top-bar-height, 96px) + 16px);
-            z-index: 2;
+            position: relative;
+            z-index: 1;
         }
 
         .waves-scroll-region {
-            grid-area: wavesBottom;
             min-height: 0;
             display: flex;
             flex-direction: column;
             gap: 24px;
-            padding-top: var(--waves-scroll-offset);
             padding-bottom: 120px;
         }
 
@@ -248,8 +237,8 @@
         .waves-chart-wrapper {
             position: relative;
             min-height: 360px;
-            /* Default canvas width attribute is 300px; set wrapper min-width to 1200px so the chart renders twice as wide as before */
-            min-width: 1200px;
+            width: 100%;
+            min-width: 0;
             cursor: col-resize;
             border-radius: 20px;
             overflow: hidden;
@@ -1167,38 +1156,6 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                     }
                 });
             }
-        })();
-
-        (function () {
-            const main = document.querySelector('.waves-layout');
-            const chartPanel = document.querySelector('.waves-chart-panel');
-            const scrollRegion = document.querySelector('.waves-scroll-region');
-            if (!main || !chartPanel || !scrollRegion) {
-                return;
-            }
-
-            const getGapSize = () => {
-                const gapValue = window.getComputedStyle(main).gap || '0';
-                const parsed = Number.parseFloat(gapValue);
-                return Number.isFinite(parsed) ? parsed : 0;
-            };
-
-            const updateSpacing = () => {
-                const chartRect = chartPanel.getBoundingClientRect();
-                const scrollRect = scrollRegion.getBoundingClientRect();
-                const requiredOffset = Math.max(0, chartRect.bottom + getGapSize() - scrollRect.top);
-                scrollRegion.style.setProperty('--waves-scroll-offset', `${requiredOffset}px`);
-            };
-
-            if (typeof window.ResizeObserver === 'function') {
-                const observer = new ResizeObserver(updateSpacing);
-                observer.observe(chartPanel);
-            }
-
-            window.addEventListener('resize', updateSpacing);
-            window.addEventListener('load', updateSpacing);
-
-            updateSpacing();
         })();
 
         (function () {
