@@ -135,6 +135,7 @@
     <style>
         :root {
             color-scheme: dark;
+            --waves-scroll-offset: 0px;
         }
 
         body {
@@ -175,6 +176,7 @@
             display: flex;
             flex-direction: column;
             gap: 24px;
+            padding-top: var(--waves-scroll-offset);
             padding-right: 4px;
             padding-bottom: 120px;
             -webkit-overflow-scrolling: touch;
@@ -1144,6 +1146,38 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                     }
                 });
             }
+        })();
+
+        (function () {
+            const main = document.querySelector('main');
+            const chartPanel = document.querySelector('.waves-chart-panel');
+            const scrollRegion = document.querySelector('.waves-scroll-region');
+            if (!main || !chartPanel || !scrollRegion) {
+                return;
+            }
+
+            const getGapSize = () => {
+                const gapValue = window.getComputedStyle(main).gap || '0';
+                const parsed = Number.parseFloat(gapValue);
+                return Number.isFinite(parsed) ? parsed : 0;
+            };
+
+            const updateSpacing = () => {
+                const chartRect = chartPanel.getBoundingClientRect();
+                const scrollRect = scrollRegion.getBoundingClientRect();
+                const requiredOffset = Math.max(0, chartRect.bottom + getGapSize() - scrollRect.top);
+                scrollRegion.style.setProperty('--waves-scroll-offset', `${requiredOffset}px`);
+            };
+
+            if (typeof window.ResizeObserver === 'function') {
+                const observer = new ResizeObserver(updateSpacing);
+                observer.observe(chartPanel);
+            }
+
+            window.addEventListener('resize', updateSpacing);
+            window.addEventListener('load', updateSpacing);
+
+            updateSpacing();
         })();
 
         (function () {
