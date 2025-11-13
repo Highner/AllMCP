@@ -226,6 +226,13 @@
             flex: 1;
         }
 
+        .waves-legend-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
         .waves-legend-dot {
             width: 12px;
             height: 12px;
@@ -253,7 +260,7 @@
             line-height: 1.5;
         }
 
-        .waves-legend-delete-button {
+        .waves-legend-action-button {
             appearance: none;
             border: none;
             background: rgba(244, 241, 234, 0.06);
@@ -268,17 +275,35 @@
             transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
         }
 
-        .waves-legend-delete-button:hover,
-        .waves-legend-delete-button:focus-visible {
+        .waves-legend-action-button:hover,
+        .waves-legend-action-button:focus-visible {
             background: rgba(244, 241, 234, 0.16);
             color: rgba(244, 241, 234, 0.95);
             outline: none;
             transform: translateY(-1px);
         }
 
-        .waves-legend-delete-button svg {
+        .waves-legend-action-button svg {
             width: 16px;
             height: 16px;
+        }
+
+        .waves-legend-visibility-button[aria-pressed="true"] {
+            background: rgba(244, 241, 234, 0.14);
+            color: rgba(244, 241, 234, 0.9);
+        }
+
+        .waves-legend-visibility-icon {
+            display: block;
+        }
+
+        .waves-legend-visibility-button[aria-pressed="true"] .waves-legend-visibility-icon--visible,
+        .waves-legend-visibility-button:not([aria-pressed="true"]) .waves-legend-visibility-icon--hidden {
+            display: none;
+        }
+
+        .waves-legend-delete-button {
+            position: relative;
         }
 
         .waves-legend-delete-button.is-loading {
@@ -561,18 +586,44 @@
                                     }
                                 </div>
                             </div>
-                            <button type="button"
-                                    class="waves-legend-delete-button"
-                                    data-waves-delete-single
-                                    data-wine-vintage-id="@dataset.WineVintageId"
-                                    data-wine-label="@dataset.Label"
-                                    aria-label="Delete waves for @dataset.Label"
-                                    title="Delete waves">
-                                <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                                    <path d="M9 4.5h6M10.5 4.5l.447-1.341A1 1 0 0 1 11.904 2.5h2.192a1 1 0 0 1 .957.659L15.5 4.5M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7.5"
-                                          fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                            </button>
+                            <div class="waves-legend-actions">
+                                <button type="button"
+                                        class="waves-legend-action-button waves-legend-visibility-button"
+                                        data-waves-toggle-visibility
+                                        data-wine-vintage-id="@dataset.WineVintageId"
+                                        data-wine-label="@dataset.Label"
+                                        aria-pressed="false"
+                                        aria-label="Hide curve for @dataset.Label"
+                                        title="Hide curve">
+                                    <svg viewBox="0 0 24 24" role="img" aria-hidden="true" class="waves-legend-visibility-icon waves-legend-visibility-icon--visible">
+                                        <path d="M2.458 12C3.732 7.943 7.522 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7s-8.268-2.943-9.542-7Z"
+                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                        <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <svg viewBox="0 0 24 24" role="img" aria-hidden="true" class="waves-legend-visibility-icon waves-legend-visibility-icon--hidden">
+                                        <path d="M3.98 8.223A10.45 10.45 0 0 0 2.458 12C3.732 16.057 7.522 19 12 19c1.625 0 3.17-.36 4.57-1.012"
+                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                        <path d="M9.88 9.885A3 3 0 0 0 12 15a3 3 0 0 0 2.12-.879"
+                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                        <path d="m3 3 18 18"
+                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </button>
+                                <button type="button"
+                                        class="waves-legend-action-button waves-legend-delete-button"
+                                        data-waves-delete-single
+                                        data-wine-vintage-id="@dataset.WineVintageId"
+                                        data-wine-label="@dataset.Label"
+                                        aria-label="Delete waves for @dataset.Label"
+                                        title="Delete waves">
+                                    <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                                        <path d="M9 4.5h6M10.5 4.5l.447-1.341A1 1 0 0 1 11.904 2.5h2.192a1 1 0 0 1 .957.659L15.5 4.5
+M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7.5"
+                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </button>
+                            </div>
                         </article>
                     }
                 </div>
@@ -1135,6 +1186,7 @@
 
             const datasets = data.map(dataset => ({
                 label: dataset.label,
+                wineVintageId: dataset.id,
                 data: dataset.points.map(point => ({ x: point.year, y: point.score })),
                 borderColor: dataset.color,
                 backgroundColor: dataset.color,
@@ -1144,7 +1196,8 @@
                 pointHoverRadius: 0,
                 pointHitRadius: 10,
                 spanGaps: true,
-                fill: false
+                fill: false,
+                hidden: false
             }));
 
             // Create chart and store globally so we can force-resize after exiting fullscreen
@@ -1221,6 +1274,69 @@
                         }
                     }
                 }
+            });
+        })();
+
+        (function () {
+            const buttons = Array.from(document.querySelectorAll('[data-waves-toggle-visibility]'));
+            if (!buttons.length) {
+                return;
+            }
+
+            const findDataset = (chart, wineVintageId) => {
+                if (!chart || !wineVintageId) {
+                    return null;
+                }
+
+                return chart.data?.datasets?.find((dataset) => dataset.wineVintageId === wineVintageId) || null;
+            };
+
+            const updateButtonState = (button, isHidden) => {
+                const label = button.getAttribute('data-wine-label') || 'this vintage';
+                const action = isHidden ? 'Show' : 'Hide';
+                button.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+                button.setAttribute('aria-label', `${action} curve for ${label}`);
+                button.setAttribute('title', `${action} curve`);
+            };
+
+            const syncButton = (button) => {
+                const chart = window.wavesChart;
+                const wineVintageId = button.getAttribute('data-wine-vintage-id');
+                if (!chart || !wineVintageId) {
+                    return;
+                }
+
+                const dataset = findDataset(chart, wineVintageId);
+                if (!dataset) {
+                    return;
+                }
+
+                updateButtonState(button, dataset.hidden === true);
+            };
+
+            buttons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    const chart = window.wavesChart;
+                    const wineVintageId = button.getAttribute('data-wine-vintage-id');
+                    if (!chart || !wineVintageId) {
+                        return;
+                    }
+
+                    const dataset = findDataset(chart, wineVintageId);
+                    if (!dataset) {
+                        return;
+                    }
+
+                    const nextHidden = !(dataset.hidden === true);
+                    dataset.hidden = nextHidden;
+                    if (typeof chart.update === 'function') {
+                        chart.update();
+                    }
+
+                    updateButtonState(button, nextHidden);
+                });
+
+                syncButton(button);
             });
         })();
     </script>
