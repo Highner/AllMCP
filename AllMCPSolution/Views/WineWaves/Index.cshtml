@@ -217,6 +217,15 @@
             background: rgba(244, 241, 234, 0.04);
             border-radius: 14px;
             padding: 16px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .waves-legend-item.is-highlighted {
+            border-color: rgba(246, 198, 114, 0.6);
+            box-shadow: 0 6px 18px rgba(246, 198, 114, 0.18);
+            transform: translateY(-2px);
         }
 
         .waves-legend-info {
@@ -575,7 +584,7 @@
                 <div class="waves-legend">
                     @foreach (var dataset in Model.Datasets)
                     {
-                        <article class="waves-legend-item">
+                        <article class="waves-legend-item" data-waves-legend-item data-wine-vintage-id="@dataset.WineVintageId">
                             <div class="waves-legend-info">
                                 <span class="waves-legend-dot" style="background-color: @dataset.ColorHex"></span>
                                 <div class="waves-legend-content">
@@ -1142,6 +1151,43 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 return;
             }
 
+            const fallbackColor = '#f6c672';
+            const resolveColor = (value) => {
+                if (typeof value === 'string') {
+                    const trimmed = value.trim();
+                    if (trimmed.length > 0) {
+                        return trimmed;
+                    }
+                }
+
+                return fallbackColor;
+            };
+
+            const hexToRgba = (hex, alpha = 1) => {
+                if (typeof hex !== 'string') {
+                    return hex;
+                }
+
+                const normalized = hex.replace('#', '').trim();
+                if (normalized.length !== 3 && normalized.length !== 6) {
+                    return hex;
+                }
+
+                const expanded = normalized.length === 3
+                    ? normalized.split('').map((char) => char + char).join('')
+                    : normalized;
+
+                const r = Number.parseInt(expanded.slice(0, 2), 16);
+                const g = Number.parseInt(expanded.slice(2, 4), 16);
+                const b = Number.parseInt(expanded.slice(4, 6), 16);
+
+                if ([r, g, b].some((component) => Number.isNaN(component))) {
+                    return hex;
+                }
+
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            };
+
             const currentYear = new Date().getFullYear();
             const currentYearLinePlugin = {
                 id: 'currentYearLine',
@@ -1184,21 +1230,28 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
 
             Chart.register(currentYearLinePlugin);
 
-            const datasets = data.map(dataset => ({
-                label: dataset.label,
-                wineVintageId: dataset.id,
-                data: dataset.points.map(point => ({ x: point.year, y: point.score })),
-                borderColor: dataset.color,
-                backgroundColor: dataset.color,
-                tension: 0.35,
-                borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 0,
-                pointHitRadius: 10,
-                spanGaps: true,
-                fill: false,
-                hidden: false
-            }));
+            const datasets = data.map(dataset => {
+                const color = resolveColor(dataset.color);
+                const mutedColor = hexToRgba(color, 0.35);
+
+                return {
+                    label: dataset.label,
+                    wineVintageId: dataset.id,
+                    data: dataset.points.map(point => ({ x: point.year, y: point.score })),
+                    borderColor: color,
+                    backgroundColor: color,
+                    tension: 0.35,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    pointHitRadius: 10,
+                    spanGaps: true,
+                    fill: false,
+                    hidden: false,
+                    originalBorderColor: color,
+                    mutedBorderColor: mutedColor
+                };
+            });
 
             // Create chart and store globally so we can force-resize after exiting fullscreen
             window.wavesChart = new Chart(ctx, {
@@ -1275,6 +1328,88 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                     }
                 }
             });
+        })();
+
+        (function () {
+            const cards = Array.from(document.querySelectorAll('[data-waves-legend-item]'));
+            if (!cards.length) {
+                return;
+            }
+
+            let highlightedWineVintageId = null;
+
+            const updateCardState = () => {
+                cards.forEach((card) => {
+                    const cardId = card.getAttribute('data-wine-vintage-id');
+                    const isHighlighted = Boolean(highlightedWineVintageId && cardId === highlightedWineVintageId);
+                    card.classList.toggle('is-highlighted', isHighlighted);
+                });
+            };
+
+            const applyHighlightStyles = () => {
+                updateCardState();
+
+                const chart = window.wavesChart;
+                const datasets = chart?.data?.datasets;
+                if (!chart || !Array.isArray(datasets)) {
+                    return;
+                }
+
+                const shouldDimOthers = Boolean(highlightedWineVintageId);
+                datasets.forEach((dataset) => {
+                    const matchesHighlight = Boolean(highlightedWineVintageId && dataset.wineVintageId === highlightedWineVintageId);
+                    const originalColor = dataset.originalBorderColor || dataset.borderColor;
+                    const mutedColor = dataset.mutedBorderColor || originalColor;
+
+                    dataset.borderWidth = matchesHighlight ? 4 : 2;
+                    dataset.pointRadius = matchesHighlight ? 3 : 0;
+                    dataset.pointHoverRadius = matchesHighlight ? 5 : 0;
+
+                    if (matchesHighlight && dataset.hidden === true) {
+                        dataset.hidden = false;
+                    }
+
+                    if (!shouldDimOthers || matchesHighlight) {
+                        dataset.borderColor = originalColor;
+                        dataset.backgroundColor = originalColor;
+                    } else {
+                        dataset.borderColor = mutedColor;
+                        dataset.backgroundColor = mutedColor;
+                    }
+                });
+
+                if (typeof chart.update === 'function') {
+                    chart.update();
+                }
+            };
+
+            const toggleHighlight = (wineVintageId) => {
+                if (!wineVintageId) {
+                    highlightedWineVintageId = null;
+                } else {
+                    highlightedWineVintageId = highlightedWineVintageId === wineVintageId ? null : wineVintageId;
+                }
+
+                applyHighlightStyles();
+            };
+
+            cards.forEach((card) => {
+                card.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (target instanceof Element && target.closest('button')) {
+                        return;
+                    }
+
+                    const wineVintageId = card.getAttribute('data-wine-vintage-id');
+                    if (!wineVintageId) {
+                        return;
+                    }
+
+                    toggleHighlight(wineVintageId);
+                });
+            });
+
+            updateCardState();
         })();
 
         (function () {
