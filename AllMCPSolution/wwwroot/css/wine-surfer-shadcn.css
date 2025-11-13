@@ -3480,14 +3480,15 @@ tbody tr:hover:not(.summary-group-row):not(.summary-subtable-row) {
 
 .inventory-inline-table .inventory-inline-drinking-window-header,
 .inventory-inline-table .inventory-inline-drinking-window {
-    min-width: 128px;
-    width: 128px;
+    /* Let the column shrink down to the width of the header text */
+    width: 1%;
+    white-space: nowrap;
 }
 
 .inventory-inline-table .inventory-inline-surf-score-header,
 .inventory-inline-table .inventory-inline-surf-score {
-    min-width: 96px;
-    width: 96px;
+    width: 1%;
+    white-space: nowrap;
 }
 
 /* Inline inventory vintage table: storage locations column */
