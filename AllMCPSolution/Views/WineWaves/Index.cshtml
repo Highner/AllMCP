@@ -1163,9 +1163,8 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             };
 
             const updateSpacing = () => {
-                const chartRect = chartPanel.getBoundingClientRect();
-                const scrollRect = scrollRegion.getBoundingClientRect();
-                const requiredOffset = Math.max(0, chartRect.bottom + getGapSize() - scrollRect.top);
+                const chartHeight = chartPanel.getBoundingClientRect().height;
+                const requiredOffset = Math.max(0, chartHeight + getGapSize());
                 scrollRegion.style.setProperty('--waves-scroll-offset', `${requiredOffset}px`);
             };
 
