@@ -176,23 +176,17 @@
         .waves-scroll-region {
             grid-area: wavesBottom;
             min-height: 0;
-            overflow-y: auto;
             display: flex;
             flex-direction: column;
             gap: 24px;
             padding-top: var(--waves-scroll-offset);
-            padding-right: 4px;
             padding-bottom: 120px;
-            -webkit-overflow-scrolling: touch;
         }
 
-        .waves-scroll-region::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .waves-scroll-region::-webkit-scrollbar-thumb {
-            background: hsla(var(--foreground) / 0.25);
-            border-radius: 999px;
+        .waves-vintages {
+            flex: 1;
+            min-height: 0;
+            display: flex;
         }
 
         .waves-header {
@@ -227,33 +221,29 @@
             box-shadow: 0 30px 60px hsla(var(--background) / 0.55);
         }
 
-        .waves-actions {
+        .waves-chart-actions {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            margin-top: 8px;
+            gap: 12px;
+            margin-bottom: 24px;
         }
 
-        .waves-actions-buttons {
+        .waves-chart-actions .waves-actions-buttons {
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
+            justify-content: flex-start;
             gap: 12px;
         }
 
-        .waves-actions-buttons form {
+        .waves-chart-actions .waves-actions-buttons form {
             margin: 0;
         }
 
-
-        .waves-actions-help {
+        .waves-chart-actions .waves-actions-help {
             margin: 0;
             font-size: 0.85rem;
-            color: hsla(var(--foreground) / 0.6);
-            text-align: center;
+            color: hsla(var(--foreground) / 0.65);
         }
-
 
         .waves-chart-wrapper {
             position: relative;
@@ -288,6 +278,20 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 4px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .waves-legend::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .waves-legend::-webkit-scrollbar-thumb {
+            background: hsla(var(--foreground) / 0.25);
+            border-radius: 999px;
         }
 
         .waves-legend-item {
@@ -724,7 +728,7 @@
             overflow: hidden;
         }
 
-        body.waves-popover-open .waves-scroll-region {
+        body.waves-popover-open .waves-legend {
             overflow: hidden;
         }
 
@@ -757,6 +761,19 @@
                 padding: 24px;
             }
 
+            .waves-chart-actions {
+                align-items: stretch;
+                text-align: center;
+            }
+
+            .waves-chart-actions .waves-actions-buttons {
+                justify-content: center;
+            }
+
+            .waves-chart-actions .waves-actions-help {
+                text-align: center;
+            }
+
             .waves-popover-dialog {
                 padding: 24px;
             }
@@ -767,22 +784,7 @@
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main class="waves-layout">
         <section class="waves-chart-card waves-chart-panel" aria-live="polite">
-            @if (hasDatasets)
-            {
-                <div class="waves-chart-wrapper" data-waves-chart-wrapper>
-                    <canvas id="wineWavesChart" role="img" aria-label="Line chart of evolution scores by vintage"></canvas>
-                </div>
-                <p class="waves-chart-ordering-label" data-waves-ordering-label>
-                    Ordering wines by evolution score in <strong data-waves-ordering-year>@DateTime.UtcNow.Year</strong>. Drag the vertical line to change.
-                </p>
-            }
-            else
-            {
-                <p class="waves-empty">Start scoring your wines to see their evolution unfold here.</p>
-            }
-        </section>
-        <div class="waves-scroll-region">
-            <section class="waves-actions">
+            <div class="waves-chart-actions">
                 <div class="waves-actions-buttons">
                     @await Html.PartialAsync("_MakeWavesButton", hasInventory)
                     <form method="post" data-delete-waves-form>
@@ -801,10 +803,25 @@
                         ? "Select wines from your cellar to ask Wine Waves for new evolution scores."
                         : "Add wines to your inventory to generate fresh evolution scores.")
                 </p>
-            </section>
+            </div>
             @if (hasDatasets)
             {
-                <section aria-label="Wine Waves vintages">
+                <div class="waves-chart-wrapper" data-waves-chart-wrapper>
+                    <canvas id="wineWavesChart" role="img" aria-label="Line chart of evolution scores by vintage"></canvas>
+                </div>
+                <p class="waves-chart-ordering-label" data-waves-ordering-label>
+                    Ordering wines by evolution score in <strong data-waves-ordering-year>@DateTime.UtcNow.Year</strong>. Drag the vertical line to change.
+                </p>
+            }
+            else
+            {
+                <p class="waves-empty">Start scoring your wines to see their evolution unfold here.</p>
+            }
+        </section>
+        <div class="waves-scroll-region">
+            @if (hasDatasets)
+            {
+                <section class="waves-vintages" aria-label="Wine Waves vintages">
                     <div class="waves-legend" data-waves-legend>
                         @foreach (var dataset in Model.Datasets)
                         {
