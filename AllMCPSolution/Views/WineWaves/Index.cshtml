@@ -747,12 +747,10 @@
                 <div class="waves-legend" data-waves-legend>
                     @foreach (var dataset in Model.Datasets)
                     {
-                        @{ 
-                            var labelParts = SplitWineLabel(dataset.Label);
-                            var displayName = string.IsNullOrWhiteSpace(labelParts.Name) ? dataset.Label : labelParts.Name;
-                            var displayVintage = labelParts.Vintage;
-                            var showVintage = !string.IsNullOrWhiteSpace(displayVintage);
-                        }
+                        var labelParts = SplitWineLabel(dataset.Label);
+                        var displayName = string.IsNullOrWhiteSpace(labelParts.Name) ? dataset.Label : labelParts.Name;
+                        var displayVintage = labelParts.Vintage;
+                        var showVintage = !string.IsNullOrWhiteSpace(displayVintage);
                         <article class="waves-legend-item" data-waves-legend-item data-wine-vintage-id="@dataset.WineVintageId">
                             <div class="waves-legend-header">
                                 <div class="waves-legend-header-info">
