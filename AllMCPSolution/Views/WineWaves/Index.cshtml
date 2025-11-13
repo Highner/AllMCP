@@ -140,9 +140,12 @@
         body {
             margin: 0;
             min-height: 100vh;
+            height: 100vh;
             background: var(--wine-app-background);
             font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
             color: hsl(var(--foreground));
+            display: flex;
+            flex-direction: column;
         }
 
         main {
@@ -154,6 +157,36 @@
             /* Make Wine Waves content use full width like other main elements */
             max-width: none;
             margin: 0;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .waves-chart-panel {
+            position: sticky;
+            top: calc(var(--wine-surfer-top-bar-height, 96px) + 16px);
+            z-index: 2;
+        }
+
+        .waves-scroll-region {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            padding-right: 4px;
+            padding-bottom: 120px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .waves-scroll-region::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .waves-scroll-region::-webkit-scrollbar-thumb {
+            background: hsla(var(--foreground) / 0.25);
+            border-radius: 999px;
         }
 
         .waves-header {
@@ -685,6 +718,10 @@
             overflow: hidden;
         }
 
+        body.waves-popover-open .waves-scroll-region {
+            overflow: hidden;
+        }
+
         .waves-chart-ordering-label {
             margin: 12px 0 0;
             text-align: center;
@@ -702,6 +739,14 @@
                 padding: 32px 16px 64px;
             }
 
+            .waves-chart-panel {
+                top: calc(var(--wine-surfer-top-bar-height, 72px) + 8px);
+            }
+
+            .waves-scroll-region {
+                padding-bottom: 96px;
+            }
+
             .waves-chart-card {
                 padding: 24px;
             }
@@ -715,27 +760,7 @@
 <body class="wine-app wine-app--with-bottom-nav">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
     <main>
-        <section class="waves-actions">
-            <div class="waves-actions-buttons">
-                @await Html.PartialAsync("_MakeWavesButton", hasInventory)
-                <form method="post" data-delete-waves-form>
-                    @Html.AntiForgeryToken()
-                    <button type="submit"
-                            class="wine-surfer-button wine-surfer-button--red"
-                            data-delete-waves-trigger
-                            disabled="@deleteWavesDisabledAttribute"
-                            aria-disabled="@deleteWavesAriaDisabled">
-                        Delete all waves
-                    </button>
-                </form>
-            </div>
-            <p class="waves-actions-help">
-                @(hasInventory
-                    ? "Select wines from your cellar to ask Wine Waves for new evolution scores."
-                    : "Add wines to your inventory to generate fresh evolution scores.")
-            </p>
-        </section>
-        <section class="waves-chart-card" aria-live="polite">
+        <section class="waves-chart-card waves-chart-panel" aria-live="polite">
             @if (hasDatasets)
             {
                 <div class="waves-chart-wrapper" data-waves-chart-wrapper>
@@ -744,96 +769,124 @@
                 <p class="waves-chart-ordering-label" data-waves-ordering-label>
                     Ordering wines by evolution score in <strong data-waves-ordering-year>@DateTime.UtcNow.Year</strong>. Drag the vertical line to change.
                 </p>
-                <div class="waves-legend" data-waves-legend>
-                    @foreach (var dataset in Model.Datasets)
-                    {
-                        var labelParts = SplitWineLabel(dataset.Label);
-                        var displayName = string.IsNullOrWhiteSpace(labelParts.Name) ? dataset.Label : labelParts.Name;
-                        var displayVintage = labelParts.Vintage;
-                        var showVintage = !string.IsNullOrWhiteSpace(displayVintage);
-                        <article class="waves-legend-item" data-waves-legend-item data-wine-vintage-id="@dataset.WineVintageId">
-                            <div class="waves-legend-header">
-                                <div class="waves-legend-header-info">
-                                    <span class="waves-legend-dot" style="background-color: @dataset.ColorHex"></span>
-                                    <div class="waves-legend-title">
-                                        <h2 class="waves-legend-label">@displayName</h2>
-                                        @if (showVintage)
-                                        {
-                                            <span class="waves-legend-vintage">@displayVintage</span>
-                                        }
-                                    </div>
-                                </div>
-                                <div class="waves-legend-actions">
-                                    <button type="button"
-                                            class="waves-legend-action-button waves-legend-visibility-button"
-                                            data-waves-toggle-visibility
-                                            data-wine-vintage-id="@dataset.WineVintageId"
-                                            data-wine-label="@dataset.Label"
-                                            aria-pressed="false"
-                                            aria-label="Hide curve for @dataset.Label"
-                                            title="Hide curve">
-                                        <svg viewBox="0 0 24 24" role="img" aria-hidden="true" class="waves-legend-visibility-icon waves-legend-visibility-icon--visible">
-                                            <path d="M2.458 12C3.732 7.943 7.522 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7s-8.268-2.943-9.542-7Z"
-                                                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                            <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-                                                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                        <svg viewBox="0 0 24 24" role="img" aria-hidden="true" class="waves-legend-visibility-icon waves-legend-visibility-icon--hidden">
-                                            <path d="M3.98 8.223A10.45 10.45 0 0 0 2.458 12C3.732 16.057 7.522 19 12 19c1.625 0 3.17-.36 4.57-1.012"
-                                                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                            <path d="M9.88 9.885A3 3 0 0 0 12 15a3 3 0 0 0 2.12-.879"
-                                                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                            <path d="m3 3 18 18"
-                                                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="waves-legend-body">
-                                <div class="waves-legend-body-text">
-                                    @if (!string.IsNullOrWhiteSpace(dataset.Details))
-                                    {
-                                        <p class="waves-legend-details">@dataset.Details</p>
-                                    }
-                                    @{ var indicator = BuildDrinkingWindowIndicator(dataset.DrinkingWindowStartYear, dataset.DrinkingWindowEndYear); }
-                                    @{ var drinkingWindowRange = BuildDrinkingWindowRangeText(dataset.DrinkingWindowStartYear, dataset.DrinkingWindowEndYear); }
-                                    <div class="waves-legend-body-meta">
-                                        <div class="waves-legend-indicator @indicator.CssClass" title="@indicator.Description">
-                                            <span class="waves-legend-indicator-dot" aria-hidden="true"></span>
-                                            <span class="waves-legend-indicator-text">@indicator.Label</span>
-                                        </div>
-                                        <p class="waves-legend-window">
-                                            <span>Prime window</span>
-                                            <span class="waves-legend-window-value">@drinkingWindowRange</span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="waves-legend-secondary-actions">
-                                    <button type="button"
-                                            class="waves-legend-action-button waves-legend-delete-button"
-                                            data-waves-delete-single
-                                            data-wine-vintage-id="@dataset.WineVintageId"
-                                            data-wine-label="@dataset.Label"
-                                            aria-label="Delete waves for @dataset.Label"
-                                            title="Delete waves">
-                                        <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                                            <path d="M9 4.5h6M10.5 4.5l.447-1.341A1 1 0 0 1 11.904 2.5h2.192a1 1 0 0 1 .957.659L15.5 4.5
-M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7.5"
-                                                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </article>
-                    }
-                </div>
             }
             else
             {
                 <p class="waves-empty">Start scoring your wines to see their evolution unfold here.</p>
             }
         </section>
+        <div class="waves-scroll-region">
+            <section class="waves-actions">
+                <div class="waves-actions-buttons">
+                    @await Html.PartialAsync("_MakeWavesButton", hasInventory)
+                    <form method="post" data-delete-waves-form>
+                        @Html.AntiForgeryToken()
+                        <button type="submit"
+                                class="wine-surfer-button wine-surfer-button--red"
+                                data-delete-waves-trigger
+                                disabled="@deleteWavesDisabledAttribute"
+                                aria-disabled="@deleteWavesAriaDisabled">
+                            Delete all waves
+                        </button>
+                    </form>
+                </div>
+                <p class="waves-actions-help">
+                    @(hasInventory
+                        ? "Select wines from your cellar to ask Wine Waves for new evolution scores."
+                        : "Add wines to your inventory to generate fresh evolution scores.")
+                </p>
+            </section>
+            @if (hasDatasets)
+            {
+                <section aria-label="Wine Waves vintages">
+                    <div class="waves-legend" data-waves-legend>
+                        @foreach (var dataset in Model.Datasets)
+                        {
+                            var labelParts = SplitWineLabel(dataset.Label);
+                            var displayName = string.IsNullOrWhiteSpace(labelParts.Name) ? dataset.Label : labelParts.Name;
+                            var displayVintage = labelParts.Vintage;
+                            var showVintage = !string.IsNullOrWhiteSpace(displayVintage);
+                            <article class="waves-legend-item" data-waves-legend-item data-wine-vintage-id="@dataset.WineVintageId">
+                                <div class="waves-legend-header">
+                                    <div class="waves-legend-header-info">
+                                        <span class="waves-legend-dot" style="background-color: @dataset.ColorHex"></span>
+                                        <div class="waves-legend-title">
+                                            <h2 class="waves-legend-label">@displayName</h2>
+                                            @if (showVintage)
+                                            {
+                                                <span class="waves-legend-vintage">@displayVintage</span>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="waves-legend-actions">
+                                        <button type="button"
+                                                class="waves-legend-action-button waves-legend-visibility-button"
+                                                data-waves-toggle-visibility
+                                                data-wine-vintage-id="@dataset.WineVintageId"
+                                                data-wine-label="@dataset.Label"
+                                                aria-pressed="false"
+                                                aria-label="Hide curve for @dataset.Label"
+                                                title="Hide curve">
+                                            <svg viewBox="0 0 24 24" role="img" aria-hidden="true" class="waves-legend-visibility-icon waves-legend-visibility-icon--visible">
+                                                <path d="M2.458 12C3.732 7.943 7.522 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7s-8.268-2.943-9.542-7Z"
+                                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                            <svg viewBox="0 0 24 24" role="img" aria-hidden="true" class="waves-legend-visibility-icon waves-legend-visibility-icon--hidden">
+                                                <path d="M3.98 8.223A10.45 10.45 0 0 0 2.458 12C3.732 16.057 7.522 19 12 19c1.625 03.17-.36 4.57-1.012"
+                                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                <path d="M9.88 9.885A3 3 0 0 0 12 15a3 3 0 0 0 2.12-.879"
+                                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                <path d="m3 3 18 18"
+                                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="waves-legend-body">
+                                    <div class="waves-legend-body-text">
+                                        @if (!string.IsNullOrWhiteSpace(dataset.Details))
+                                        {
+                                            <p class="waves-legend-details">@dataset.Details</p>
+                                        }
+                                        @{ var indicator = BuildDrinkingWindowIndicator(dataset.DrinkingWindowStartYear, dataset.DrinkingWindowEndYear); }
+                                        @{ var drinkingWindowRange = BuildDrinkingWindowRangeText(dataset.DrinkingWindowStartYear, dataset.DrinkingWindowEndYear); }
+                                        <div class="waves-legend-body-meta">
+                                            <div class="waves-legend-indicator @indicator.CssClass" title="@indicator.Description">
+                                                <span class="waves-legend-indicator-dot" aria-hidden="true"></span>
+                                                <span class="waves-legend-indicator-text">@indicator.Label</span>
+                                            </div>
+                                            <p class="waves-legend-window">
+                                                <span>Prime window</span>
+                                                <span class="waves-legend-window-value">@drinkingWindowRange</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="waves-legend-secondary-actions">
+                                        <button type="button"
+                                                class="waves-legend-action-button waves-legend-delete-button"
+                                                data-waves-delete-single
+                                                data-wine-vintage-id="@dataset.WineVintageId"
+                                                data-wine-label="@dataset.Label"
+                                                aria-label="Delete waves for @dataset.Label"
+                                                title="Delete waves">
+                                            <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                                                <path d="M9 4.5h6M10.5 4.5l.447-1.341A1 1 0 0 1 11.904 2.5h2.192a1 1 0 0 1 .957.659L15.5 4.5
+M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7.5"
+                                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                </section>
+            }
+        </div>
     </main>
+
     @if (hasInventory)
     {
         <div class="waves-popover-backdrop" data-make-waves-popover hidden>
