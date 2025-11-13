@@ -287,9 +287,6 @@
                                 <span class="sort-icon" aria-hidden="true"></span>
                             </a>
                         </th>
-                        <th class="summary-header summary-header--actions">
-                            <span class="sr-only">Actions</span>
-                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -368,36 +365,13 @@
                                     </span>
                                 </td>
                                 <td class="summary-score" data-field="score">@(bottle.AverageScore.HasValue ? bottle.AverageScore.Value.ToString("0.0") : "—")</td>
-                                <td class="summary-actions">
-                                    <button type="button"
-                                            class="wine-surfer-button wine-surfer-button--ghost inventory-generate-button"
-                                            data-generate-drinking-windows
-                                            data-last-generated-at="@(bottle.DrinkingWindowGeneratedAtUtc?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty)"
-                                            aria-label="Generate drinking windows for @bottle.WineName">
-                                        <svg class="inventory-generate-icon"
-                                             viewBox="0 0 24 24"
-                                             aria-hidden="true"
-                                             focusable="false"
-                                             fill="none"
-                                             stroke="currentColor"
-                                             stroke-width="1.6"
-                                             stroke-linecap="round"
-                                             stroke-linejoin="round">
-                                            <path d="M4 12a8 8 0 0 1 12.9-6.3l1.8-1.8v6.1H12l2.2-2.2A5 5 0 1 0 17 12h3a8 8 0 1 1-16 0Z" />
-                                        </svg>
-                                        <span class="inventory-generate-button__date"
-                                              data-last-generated-label@(bottle.DrinkingWindowGeneratedAtUtc.HasValue ? string.Empty : " hidden")>@(bottle.DrinkingWindowGeneratedAtUtc.HasValue
-                                                ? bottle.DrinkingWindowGeneratedAtUtc.Value.ToLocalTime().ToString("d", CultureInfo.CurrentCulture)
-                                                : string.Empty)</span>
-                                    </button>
-                                </td>
                             </tr>
                         }
                     }
                     else
                     {
                         <tr class="crud-table__empty-row empty-row">
-                            <td colspan="10">No bottles yet. Add your first wine above to get started.</td>
+                            <td colspan="9">No bottles yet. Add your first wine above to get started.</td>
                         </tr>
                     }
                 </tbody>
