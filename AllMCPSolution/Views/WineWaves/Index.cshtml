@@ -58,6 +58,32 @@
 
         return (primeLabel, descriptionText, "waves-legend-indicator--prime");
     }
+    (string Name, string? Vintage) SplitWineLabel(string? label)
+    {
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            return ("Unnamed wine", null);
+        }
+
+        var trimmed = label.Trim();
+        var lastSpaceIndex = trimmed.LastIndexOf(' ');
+        if (lastSpaceIndex > 0)
+        {
+            var possibleVintage = trimmed[(lastSpaceIndex + 1)..];
+            if (int.TryParse(possibleVintage, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
+                && possibleVintage.Length >= 2
+                && possibleVintage.Length <= 4)
+            {
+                var namePart = trimmed[..lastSpaceIndex].Trim();
+                if (namePart.Length > 0)
+                {
+                    return (namePart, possibleVintage);
+                }
+            }
+        }
+
+        return (trimmed, null);
+    }
     string BuildDrinkingWindowRangeText(int? startYear, int? endYear)
     {
         if (startYear.HasValue && endYear.HasValue)
@@ -227,11 +253,11 @@
 
         .waves-legend-item {
             display: flex;
-            gap: 12px;
-            align-items: flex-start;
+            flex-direction: column;
+            gap: 6px;
             background: var(--wine-surface-gradient);
             border-radius: 14px;
-            padding: 16px;
+            padding: 12px 14px;
             border: 1px solid var(--wine-surface-border);
             box-shadow: 0 12px 24px hsla(var(--background) / 0.35);
             cursor: pointer;
@@ -245,56 +271,108 @@
             transform: translateY(-2px);
         }
 
-        .waves-legend-info {
+        .waves-legend-header {
             display: flex;
+            align-items: center;
+            justify-content: space-between;
             gap: 12px;
-            align-items: flex-start;
+            width: 100%;
+            min-height: 32px;
+        }
+
+        .waves-legend-header-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             flex: 1;
+            min-width: 0;
         }
 
         .waves-legend-actions {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             gap: 8px;
-            align-items: flex-end;
+            align-items: center;
         }
 
         .waves-legend-dot {
             width: 12px;
             height: 12px;
             border-radius: 999px;
-            margin-top: 4px;
             flex-shrink: 0;
         }
 
-        .waves-legend-content {
+        .waves-legend-title {
             display: flex;
-            flex-direction: column;
-            gap: 4px;
+            align-items: baseline;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
         }
 
         .waves-legend-label {
             margin: 0;
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 0.92rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .waves-legend-vintage {
+            font-size: 0.8rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: hsla(var(--foreground) / 0.7);
+            white-space: nowrap;
+        }
+
+        .waves-legend-body {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .waves-legend-body-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .waves-legend-body-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .waves-legend-secondary-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
         }
 
         .waves-legend-details {
             margin: 0;
             color: hsla(var(--foreground) / 0.64);
-            font-size: 0.85rem;
-            line-height: 1.5;
+            font-size: 0.82rem;
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .waves-legend-window {
-            margin: 4px 0 0;
-            font-size: 0.82rem;
+            margin: 0;
+            font-size: 0.78rem;
             color: hsla(var(--foreground) / 0.7);
             letter-spacing: 0.04em;
             text-transform: uppercase;
             display: inline-flex;
             gap: 6px;
-            align-items: baseline;
+            align-items: center;
         }
 
         .waves-legend-window-value {
@@ -306,14 +384,13 @@
         .waves-legend-indicator {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             border-radius: 999px;
-            padding: 6px 12px;
-            font-size: 0.78rem;
+            padding: 4px 10px;
+            font-size: 0.72rem;
             font-weight: 600;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            margin-top: 8px;
             width: fit-content;
             transition: background 0.2s ease, color 0.2s ease;
         }
@@ -670,64 +747,84 @@
                 <div class="waves-legend" data-waves-legend>
                     @foreach (var dataset in Model.Datasets)
                     {
+                        @{ 
+                            var labelParts = SplitWineLabel(dataset.Label);
+                            var displayName = string.IsNullOrWhiteSpace(labelParts.Name) ? dataset.Label : labelParts.Name;
+                            var displayVintage = labelParts.Vintage;
+                            var showVintage = !string.IsNullOrWhiteSpace(displayVintage);
+                        }
                         <article class="waves-legend-item" data-waves-legend-item data-wine-vintage-id="@dataset.WineVintageId">
-                            <div class="waves-legend-info">
-                                <span class="waves-legend-dot" style="background-color: @dataset.ColorHex"></span>
-                                <div class="waves-legend-content">
-                                    <h2 class="waves-legend-label">@dataset.Label</h2>
+                            <div class="waves-legend-header">
+                                <div class="waves-legend-header-info">
+                                    <span class="waves-legend-dot" style="background-color: @dataset.ColorHex"></span>
+                                    <div class="waves-legend-title">
+                                        <h2 class="waves-legend-label">@displayName</h2>
+                                        @if (showVintage)
+                                        {
+                                            <span class="waves-legend-vintage">@displayVintage</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="waves-legend-actions">
+                                    <button type="button"
+                                            class="waves-legend-action-button waves-legend-visibility-button"
+                                            data-waves-toggle-visibility
+                                            data-wine-vintage-id="@dataset.WineVintageId"
+                                            data-wine-label="@dataset.Label"
+                                            aria-pressed="false"
+                                            aria-label="Hide curve for @dataset.Label"
+                                            title="Hide curve">
+                                        <svg viewBox="0 0 24 24" role="img" aria-hidden="true" class="waves-legend-visibility-icon waves-legend-visibility-icon--visible">
+                                            <path d="M2.458 12C3.732 7.943 7.522 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7s-8.268-2.943-9.542-7Z"
+                                                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                                                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <svg viewBox="0 0 24 24" role="img" aria-hidden="true" class="waves-legend-visibility-icon waves-legend-visibility-icon--hidden">
+                                            <path d="M3.98 8.223A10.45 10.45 0 0 0 2.458 12C3.732 16.057 7.522 19 12 19c1.625 0 3.17-.36 4.57-1.012"
+                                                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M9.88 9.885A3 3 0 0 0 12 15a3 3 0 0 0 2.12-.879"
+                                                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m3 3 18 18"
+                                                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="waves-legend-body">
+                                <div class="waves-legend-body-text">
                                     @if (!string.IsNullOrWhiteSpace(dataset.Details))
                                     {
                                         <p class="waves-legend-details">@dataset.Details</p>
                                     }
                                     @{ var indicator = BuildDrinkingWindowIndicator(dataset.DrinkingWindowStartYear, dataset.DrinkingWindowEndYear); }
                                     @{ var drinkingWindowRange = BuildDrinkingWindowRangeText(dataset.DrinkingWindowStartYear, dataset.DrinkingWindowEndYear); }
-                                    <div class="waves-legend-indicator @indicator.CssClass" title="@indicator.Description">
-                                        <span class="waves-legend-indicator-dot" aria-hidden="true"></span>
-                                        <span class="waves-legend-indicator-text">@indicator.Label</span>
+                                    <div class="waves-legend-body-meta">
+                                        <div class="waves-legend-indicator @indicator.CssClass" title="@indicator.Description">
+                                            <span class="waves-legend-indicator-dot" aria-hidden="true"></span>
+                                            <span class="waves-legend-indicator-text">@indicator.Label</span>
+                                        </div>
+                                        <p class="waves-legend-window">
+                                            <span>Prime window</span>
+                                            <span class="waves-legend-window-value">@drinkingWindowRange</span>
+                                        </p>
                                     </div>
-                                    <p class="waves-legend-window">
-                                        <span>Prime window</span>
-                                        <span class="waves-legend-window-value">@drinkingWindowRange</span>
-                                    </p>
                                 </div>
-                            </div>
-                            <div class="waves-legend-actions">
-                                <button type="button"
-                                        class="waves-legend-action-button waves-legend-visibility-button"
-                                        data-waves-toggle-visibility
-                                        data-wine-vintage-id="@dataset.WineVintageId"
-                                        data-wine-label="@dataset.Label"
-                                        aria-pressed="false"
-                                        aria-label="Hide curve for @dataset.Label"
-                                        title="Hide curve">
-                                    <svg viewBox="0 0 24 24" role="img" aria-hidden="true" class="waves-legend-visibility-icon waves-legend-visibility-icon--visible">
-                                        <path d="M2.458 12C3.732 7.943 7.522 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7s-8.268-2.943-9.542-7Z"
-                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                        <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                    </svg>
-                                    <svg viewBox="0 0 24 24" role="img" aria-hidden="true" class="waves-legend-visibility-icon waves-legend-visibility-icon--hidden">
-                                        <path d="M3.98 8.223A10.45 10.45 0 0 0 2.458 12C3.732 16.057 7.522 19 12 19c1.625 0 3.17-.36 4.57-1.012"
-                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                        <path d="M9.88 9.885A3 3 0 0 0 12 15a3 3 0 0 0 2.12-.879"
-                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                        <path d="m3 3 18 18"
-                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                    </svg>
-                                </button>
-                                <button type="button"
-                                        class="waves-legend-action-button waves-legend-delete-button"
-                                        data-waves-delete-single
-                                        data-wine-vintage-id="@dataset.WineVintageId"
-                                        data-wine-label="@dataset.Label"
-                                        aria-label="Delete waves for @dataset.Label"
-                                        title="Delete waves">
-                                    <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                                        <path d="M9 4.5h6M10.5 4.5l.447-1.341A1 1 0 0 1 11.904 2.5h2.192a1 1 0 0 1 .957.659L15.5 4.5
+                                <div class="waves-legend-secondary-actions">
+                                    <button type="button"
+                                            class="waves-legend-action-button waves-legend-delete-button"
+                                            data-waves-delete-single
+                                            data-wine-vintage-id="@dataset.WineVintageId"
+                                            data-wine-label="@dataset.Label"
+                                            aria-label="Delete waves for @dataset.Label"
+                                            title="Delete waves">
+                                        <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                                            <path d="M9 4.5h6M10.5 4.5l.447-1.341A1 1 0 0 1 11.904 2.5h2.192a1 1 0 0 1 .957.659L15.5 4.5
 M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7.5"
-                                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                    </svg>
-                                </button>
+                                                  fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                         </article>
                     }
