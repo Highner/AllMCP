@@ -149,9 +149,12 @@
             flex-direction: column;
         }
 
-        main {
-            display: flex;
-            flex-direction: column;
+        .waves-layout {
+            display: grid;
+            grid-template-areas:
+                "wavesTop"
+                "wavesBottom";
+            grid-template-rows: auto minmax(0, 1fr);
             gap: 32px;
             padding: 48px 20px 72px;
             width: 100%;
@@ -164,13 +167,14 @@
         }
 
         .waves-chart-panel {
+            grid-area: wavesTop;
             position: sticky;
             top: calc(var(--wine-surfer-top-bar-height, 96px) + 16px);
             z-index: 2;
         }
 
         .waves-scroll-region {
-            flex: 1;
+            grid-area: wavesBottom;
             min-height: 0;
             overflow-y: auto;
             display: flex;
@@ -737,7 +741,7 @@
         }
 
         @@media (max-width: 720px) {
-            main {
+            .waves-layout {
                 padding: 32px 16px 64px;
             }
 
@@ -761,7 +765,7 @@
 </head>
 <body class="wine-app wine-app--with-bottom-nav">
     @await Html.PartialAsync("_WineSurferTopBar", topBarModel)
-    <main>
+    <main class="waves-layout">
         <section class="waves-chart-card waves-chart-panel" aria-live="polite">
             @if (hasDatasets)
             {
@@ -1149,7 +1153,7 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
         })();
 
         (function () {
-            const main = document.querySelector('main');
+            const main = document.querySelector('.waves-layout');
             const chartPanel = document.querySelector('.waves-chart-panel');
             const scrollRegion = document.querySelector('.waves-scroll-region');
             if (!main || !chartPanel || !scrollRegion) {
