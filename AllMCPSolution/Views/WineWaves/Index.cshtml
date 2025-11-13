@@ -133,7 +133,7 @@
             min-height: 360px;
             /* Default canvas width attribute is 300px; set wrapper min-width to 600px to make it twice as wide */
             min-width: 600px;
-            cursor: zoom-in;
+            cursor: col-resize;
             border-radius: 20px;
             overflow: hidden;
             border: 1px solid var(--wine-surface-border);
@@ -153,59 +153,8 @@
             border-color: var(--wine-surface-border-strong);
         }
 
-        .waves-chart-wrapper.is-fullscreen {
-            position: fixed;
-            inset: 0;
-            z-index: 1200;
-            min-height: 0;
-            width: 100vw;
-            height: 100vh;
-            background: hsla(var(--background) / 0.96);
-            box-shadow: 0 40px 80px hsla(var(--background) / 0.65);
-            border-radius: 0;
-            border-color: var(--wine-surface-border-strong);
-            cursor: default;
-            transform: none;
-        }
-
-        .waves-chart-wrapper.is-fullscreen:hover {
-            box-shadow: 0 40px 80px hsla(var(--background) / 0.65);
-        }
-
-        .waves-chart-wrapper.is-fullscreen canvas {
-            width: 100% !important;
-            height: 100% !important;
-        }
-
-        .waves-chart-close {
-            position: absolute;
-            top: 18px;
-            right: 18px;
-            width: 36px;
-            height: 36px;
-            border-radius: 999px;
-            border: none;
-            background: hsla(var(--foreground) / 0.14);
-            color: hsl(var(--foreground));
-            font-size: 1.1rem;
-            font-weight: 600;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: background 0.2s ease, transform 0.2s ease;
-            z-index: 1;
-        }
-
-        .waves-chart-close:hover,
-        .waves-chart-close:focus-visible {
-            background: hsla(var(--foreground) / 0.24);
-            transform: scale(1.05);
-            outline: none;
-        }
-
-        .waves-chart-wrapper.is-fullscreen .waves-chart-close {
-            display: inline-flex;
+        .waves-chart-wrapper canvas {
+            cursor: inherit;
         }
 
         .waves-legend {
@@ -537,8 +486,16 @@
             overflow: hidden;
         }
 
-        body.waves-chart-fullscreen-open {
-            overflow: hidden;
+        .waves-chart-ordering-label {
+            margin: 12px 0 0;
+            text-align: center;
+            color: hsla(var(--foreground) / 0.7);
+            font-size: 0.95rem;
+        }
+
+        .waves-chart-ordering-label strong {
+            font-weight: 600;
+            color: hsl(var(--foreground));
         }
 
         @@media (max-width: 720px) {
@@ -582,11 +539,13 @@
         <section class="waves-chart-card" aria-live="polite">
             @if (hasDatasets)
             {
-                <div class="waves-chart-wrapper" data-waves-chart-wrapper aria-expanded="false">
-                    <button type="button" class="waves-chart-close" data-waves-chart-close aria-label="Close full screen chart">×</button>
+                <div class="waves-chart-wrapper" data-waves-chart-wrapper>
                     <canvas id="wineWavesChart" role="img" aria-label="Line chart of evolution scores by vintage"></canvas>
                 </div>
-                <div class="waves-legend">
+                <p class="waves-chart-ordering-label" data-waves-ordering-label>
+                    Ordering wines by evolution score in <strong data-waves-ordering-year>@DateTime.UtcNow.Year</strong>. Drag the vertical line to change.
+                </p>
+                <div class="waves-legend" data-waves-legend>
                     @foreach (var dataset in Model.Datasets)
                     {
                         <article class="waves-legend-item" data-waves-legend-item data-wine-vintage-id="@dataset.WineVintageId">
@@ -1061,90 +1020,6 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
         })();
 
         (function () {
-            const wrapper = document.querySelector('[data-waves-chart-wrapper]');
-            if (!wrapper) {
-                return;
-            }
-
-            const closeButton = wrapper.querySelector('[data-waves-chart-close]');
-            const body = document.body;
-            let lastFocusedElement = null;
-
-            const exitFullScreen = () => {
-                if (!wrapper.classList.contains('is-fullscreen')) {
-                    return;
-                }
-
-                wrapper.classList.remove('is-fullscreen');
-                wrapper.setAttribute('aria-expanded', 'false');
-                body.classList.remove('waves-chart-fullscreen-open');
-
-                // Reset canvas dimensions so it returns to its prior responsive width
-                const canvas = wrapper.querySelector('canvas');
-                if (canvas) {
-                    // Remove inline styles and attributes that Chart.js may have applied
-                    canvas.style.removeProperty('width');
-                    canvas.style.removeProperty('height');
-                    canvas.removeAttribute('width');
-                    canvas.removeAttribute('height');
-                }
-
-                // Restore focus to the last focused element before fullscreen
-                if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
-                    lastFocusedElement.focus();
-                }
-
-                // Trigger layout recalculation and explicitly resize the chart instance if available
-                window.dispatchEvent(new Event('resize'));
-                if (window.wavesChart && typeof window.wavesChart.resize === 'function') {
-                    // Use a microtask to ensure DOM has applied class changes
-                    setTimeout(() => window.wavesChart.resize(), 0);
-                }
-            };
-
-            const enterFullScreen = () => {
-                if (wrapper.classList.contains('is-fullscreen')) {
-                    return;
-                }
-
-                lastFocusedElement = document.activeElement;
-                wrapper.classList.add('is-fullscreen');
-                wrapper.setAttribute('aria-expanded', 'true');
-                body.classList.add('waves-chart-fullscreen-open');
-                window.dispatchEvent(new Event('resize'));
-
-                if (closeButton && typeof closeButton.focus === 'function') {
-                    setTimeout(() => closeButton.focus(), 0);
-                }
-            };
-
-            wrapper.addEventListener('click', (event) => {
-                if (wrapper.classList.contains('is-fullscreen')) {
-                    return;
-                }
-
-                if (closeButton && event.target === closeButton) {
-                    return;
-                }
-
-                enterFullScreen();
-            });
-
-            if (closeButton) {
-                closeButton.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                    exitFullScreen();
-                });
-            }
-
-            document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape') {
-                    exitFullScreen();
-                }
-            });
-        })();
-
-        (function () {
             const data = @Html.Raw(chartDataJson);
             const hasData = Array.isArray(data) && data.length > 0;
             if (!hasData) {
@@ -1155,6 +1030,10 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             if (!ctx) {
                 return;
             }
+
+            const legendContainer = document.querySelector('[data-waves-legend]');
+            const orderingLabel = document.querySelector('[data-waves-ordering-label]');
+            const orderingYearElement = orderingLabel?.querySelector('[data-waves-ordering-year]');
 
             const fallbackColor = '#f6c672';
             const resolveColor = (value) => {
@@ -1193,18 +1072,46 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 return `rgba(${r}, ${g}, ${b}, ${alpha})`;
             };
 
-            const currentYear = new Date().getFullYear();
-            const currentYearLinePlugin = {
-                id: 'currentYearLine',
+            const allYears = data.flatMap(dataset => dataset.points?.map(point => Number(point.year)) ?? [])
+                .filter(value => Number.isFinite(value));
+            if (!allYears.length) {
+                return;
+            }
+
+            const minYear = Math.min(...allYears);
+            const maxYear = Math.max(...allYears);
+            const clampYear = (value) => {
+                const numeric = Number(value);
+                if (!Number.isFinite(numeric)) {
+                    return minYear;
+                }
+
+                return Math.min(Math.max(numeric, minYear), maxYear);
+            };
+
+            let activeYear = clampYear(new Date().getFullYear());
+
+            const formatYearForDisplay = (value) => {
+                if (!Number.isFinite(value)) {
+                    return '';
+                }
+
+                return Number.isInteger(value) ? value.toString() : value.toFixed(1);
+            };
+
+            const datasetPointMap = new Map();
+
+            const draggableYearLinePlugin = {
+                id: 'draggableYearLine',
                 afterDraw(chart, args, pluginOptions) {
-                    const { ctx, chartArea, scales } = chart;
+                    const { ctx: chartContext, chartArea, scales } = chart;
                     if (!chartArea || !scales?.x) {
                         return;
                     }
 
                     const { left, right, top, bottom } = chartArea;
                     const xScale = scales.x;
-                    const lineYear = pluginOptions?.value ?? currentYear;
+                    const lineYear = pluginOptions?.value ?? activeYear;
 
                     if (lineYear < xScale.min || lineYear > xScale.max) {
                         return;
@@ -1215,34 +1122,39 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                         return;
                     }
 
-                    const color = pluginOptions?.color ?? 'rgba(246, 198, 114, 0.6)';
+                    const color = pluginOptions?.color ?? 'rgba(246, 198, 114, 0.75)';
                     const lineWidth = pluginOptions?.lineWidth ?? 2;
                     const dash = Array.isArray(pluginOptions?.dash) ? pluginOptions.dash : [6, 6];
 
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.strokeStyle = color;
-                    ctx.lineWidth = lineWidth;
-                    ctx.setLineDash(dash);
-                    ctx.moveTo(x, top);
-                    ctx.lineTo(x, bottom);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    ctx.restore();
+                    chartContext.save();
+                    chartContext.beginPath();
+                    chartContext.strokeStyle = color;
+                    chartContext.lineWidth = lineWidth;
+                    chartContext.setLineDash(dash);
+                    chartContext.moveTo(x, top);
+                    chartContext.lineTo(x, bottom);
+                    chartContext.stroke();
+                    chartContext.setLineDash([]);
+                    chartContext.restore();
                 }
             };
 
-            Chart.register(currentYearLinePlugin);
+            Chart.register(draggableYearLinePlugin);
 
             const datasets = data.map(dataset => {
                 const color = resolveColor(dataset.color);
                 const mutedColor = hexToRgba(color, 0.35);
+                const sortedPoints = (dataset.points || [])
+                    .map(point => ({ x: Number(point.year), y: Number(point.score) }))
+                    .filter(point => Number.isFinite(point.x) && Number.isFinite(point.y))
+                    .sort((a, b) => a.x - b.x);
+
+                datasetPointMap.set(dataset.id, sortedPoints);
 
                 return {
                     label: dataset.label,
                     wineVintageId: dataset.id,
-                    data: dataset.points.map(point => ({ x: point.year, y: point.score })),
+                    data: sortedPoints,
                     borderColor: color,
                     backgroundColor: color,
                     tension: 0.35,
@@ -1258,7 +1170,93 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 };
             });
 
-            // Create chart and store globally so we can force-resize after exiting fullscreen
+            const getScoreAtYear = (points, year) => {
+                if (!Array.isArray(points) || !points.length) {
+                    return Number.NEGATIVE_INFINITY;
+                }
+
+                if (year <= points[0].x) {
+                    return points[0].y;
+                }
+
+                const lastPoint = points[points.length - 1];
+                if (year >= lastPoint.x) {
+                    return lastPoint.y;
+                }
+
+                for (let index = 0; index < points.length - 1; index += 1) {
+                    const left = points[index];
+                    const right = points[index + 1];
+                    if (year >= left.x && year <= right.x) {
+                        if (right.x === left.x) {
+                            return left.y;
+                        }
+
+                        const ratio = (year - left.x) / (right.x - left.x);
+                        return left.y + ratio * (right.y - left.y);
+                    }
+                }
+
+                return lastPoint.y;
+            };
+
+            const reorderCardsByYear = (year) => {
+                if (!legendContainer) {
+                    return;
+                }
+
+                const cards = Array.from(legendContainer.querySelectorAll('[data-waves-legend-item]'));
+                if (!cards.length) {
+                    return;
+                }
+
+                const scoredCards = cards.map((card) => {
+                    const id = card.getAttribute('data-wine-vintage-id');
+                    const points = id ? datasetPointMap.get(id) : null;
+                    const score = points ? getScoreAtYear(points, year) : Number.NEGATIVE_INFINITY;
+                    card.setAttribute('data-waves-order-score', Number.isFinite(score) ? score.toFixed(1) : '');
+                    return { card, score };
+                });
+
+                scoredCards
+                    .sort((a, b) => (Number.isFinite(b.score) ? b.score : Number.NEGATIVE_INFINITY) - (Number.isFinite(a.score) ? a.score : Number.NEGATIVE_INFINITY))
+                    .forEach(({ card }) => legendContainer.appendChild(card));
+            };
+
+            const updateOrderingLabel = (year) => {
+                if (!orderingLabel || !orderingYearElement) {
+                    return;
+                }
+
+                orderingYearElement.textContent = formatYearForDisplay(year);
+            };
+
+            const updateChartMarker = (year) => {
+                const chartInstance = window.wavesChart;
+                if (!chartInstance?.options?.plugins?.draggableYearLine) {
+                    return;
+                }
+
+                chartInstance.options.plugins.draggableYearLine.value = year;
+                chartInstance.update('none');
+            };
+
+            const setActiveYear = (year, { updateChart = true } = {}) => {
+                const clamped = clampYear(year);
+                if (!Number.isFinite(clamped) || Math.abs(clamped - activeYear) < 0.001) {
+                    return;
+                }
+
+                activeYear = clamped;
+                updateOrderingLabel(activeYear);
+                reorderCardsByYear(activeYear);
+
+                if (updateChart) {
+                    updateChartMarker(activeYear);
+                }
+            };
+
+            // Create chart and store globally so we can update the marker position as the user drags
             window.wavesChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -1287,8 +1285,8 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                                 }
                             }
                         },
-                        currentYearLine: {
-                            value: currentYear,
+                        draggableYearLine: {
+                            value: activeYear,
                             color: 'rgba(246, 198, 114, 0.75)',
                             lineWidth: 2,
                             dash: [6, 6]
@@ -1332,6 +1330,93 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                         }
                     }
                 }
+            });
+
+            updateOrderingLabel(activeYear);
+            reorderCardsByYear(activeYear);
+
+            const chartCanvas = ctx;
+            let isDragging = false;
+            let activePointerId = null;
+
+            const getYearFromPointerEvent = (event) => {
+                const chart = window.wavesChart;
+                const xScale = chart?.scales?.x;
+                const chartArea = chart?.chartArea;
+                if (!chart || !xScale || !chartArea) {
+                    return null;
+                }
+
+                const rect = chartCanvas.getBoundingClientRect();
+                const relativeX = event.clientX - rect.left;
+                const relativeY = event.clientY - rect.top;
+
+                if (relativeX < chartArea.left || relativeX > chartArea.right || relativeY < chartArea.top || relativeY > chartArea.bottom) {
+                    return null;
+                }
+
+                const value = xScale.getValueForPixel(relativeX);
+                if (!Number.isFinite(value)) {
+                    return null;
+                }
+
+                return clampYear(value);
+            };
+
+            const stopDragging = () => {
+                isDragging = false;
+                if (activePointerId !== null && typeof chartCanvas.releasePointerCapture === 'function') {
+                    try {
+                        chartCanvas.releasePointerCapture(activePointerId);
+                    } catch (error) {
+                        // Ignore release errors
+                    }
+                }
+
+                activePointerId = null;
+            };
+
+            chartCanvas.addEventListener('pointerdown', (event) => {
+                const year = getYearFromPointerEvent(event);
+                if (year === null) {
+                    return;
+                }
+
+                event.preventDefault();
+                isDragging = true;
+                activePointerId = event.pointerId;
+
+                if (typeof chartCanvas.setPointerCapture === 'function') {
+                    chartCanvas.setPointerCapture(event.pointerId);
+                }
+
+                setActiveYear(year);
+            });
+
+            chartCanvas.addEventListener('pointermove', (event) => {
+                if (!isDragging) {
+                    return;
+                }
+
+                const year = getYearFromPointerEvent(event);
+                if (year === null) {
+                    return;
+                }
+
+                event.preventDefault();
+                setActiveYear(year);
+            });
+
+            chartCanvas.addEventListener('pointerup', () => {
+                stopDragging();
+            });
+
+            chartCanvas.addEventListener('pointercancel', () => {
+                stopDragging();
+            });
+
+            chartCanvas.addEventListener('pointerleave', () => {
+                stopDragging();
             });
         })();
 
