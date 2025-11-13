@@ -152,7 +152,7 @@
             display: flex;
             flex-direction: column;
             gap: 32px;
-            padding: 32px 20px 72px;
+            padding: 48px 20px 72px;
             width: 100%;
             /* Make Wine Waves content use full width like other main elements */
             max-width: none;
@@ -164,16 +164,20 @@
 
         .waves-chart-panel {
             position: sticky;
-            top: calc(var(--wine-surfer-top-bar-height, 96px) + 8px);
+            top: calc(var(--wine-surfer-top-bar-height, 96px) + 16px);
             z-index: 2;
         }
 
         .waves-scroll-region {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
             gap: 24px;
             padding-right: 4px;
             padding-bottom: 120px;
+            -webkit-overflow-scrolling: touch;
         }
 
         .waves-scroll-region::-webkit-scrollbar {
@@ -732,11 +736,11 @@
 
         @@media (max-width: 720px) {
             main {
-                padding: 24px 16px 64px;
+                padding: 32px 16px 64px;
             }
 
             .waves-chart-panel {
-                top: calc(var(--wine-surfer-top-bar-height, 72px) + 4px);
+                top: calc(var(--wine-surfer-top-bar-height, 72px) + 8px);
             }
 
             .waves-scroll-region {
