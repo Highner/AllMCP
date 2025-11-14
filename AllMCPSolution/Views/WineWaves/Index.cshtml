@@ -661,10 +661,6 @@
             opacity: 0.65;
         }
 
-        .waves-popover-option--unavailable input[type="checkbox"] {
-            cursor: not-allowed;
-        }
-
         .waves-popover-empty {
             margin: 8px 0 0;
             font-size: 0.9rem;
@@ -926,8 +922,8 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                                     ? "1 bottle available"
                                     : $"{item.AvailableBottleCount} bottles available")
                                 : "Not currently available";
-                            <label class="@optionClasses" for="@optionId" data-make-waves-option data-available="@isAvailable.ToString().ToLowerInvariant()"@(isAvailable ? string.Empty : " aria-disabled=\"true\"")>
-                                <input type="checkbox" id="@optionId" name="wineVintageIds" value="@item.WineVintageId" data-make-waves-checkbox data-initial-disabled="@(!isAvailable).ToString().ToLowerInvariant()" @(isAvailable ? string.Empty : "disabled") />
+                            <label class="@optionClasses" for="@optionId" data-make-waves-option data-available="@isAvailable.ToString().ToLowerInvariant()">
+                                <input type="checkbox" id="@optionId" name="wineVintageIds" value="@item.WineVintageId" data-make-waves-checkbox />
                                 <span class="waves-popover-option-content">
                                     <span class="waves-popover-option-label" data-make-waves-option-label>@item.Label</span>
                                     @if (!string.IsNullOrWhiteSpace(item.Details))
@@ -1049,12 +1045,11 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
 
                         const checkbox = option.querySelector('[data-make-waves-checkbox]');
                         if (checkbox) {
-                            const initiallyDisabled = checkbox.dataset.initialDisabled === 'true';
                             if (!matches) {
                                 checkbox.disabled = true;
                                 checkbox.checked = false;
                             } else {
-                                checkbox.disabled = initiallyDisabled;
+                                checkbox.disabled = false;
                             }
                         }
 
