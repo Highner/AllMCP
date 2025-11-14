@@ -15,6 +15,7 @@ public interface IWineVintageEvolutionScoreRepository
     Task RemoveByPairsAsync(Guid userId, IEnumerable<(Guid WineVintageId, int Year)> pairs, CancellationToken ct = default);
     Task ReplaceForWineAsync(Guid userId, Guid wineId, IReadOnlyCollection<WineVintageEvolutionScore> desiredScores, CancellationToken ct = default);
     Task RemoveForWineVintageAsync(Guid userId, Guid wineVintageId, CancellationToken ct = default);
+    Task RemoveForWineVintagesAsync(Guid userId, IEnumerable<Guid> wineVintageIds, CancellationToken ct = default);
     Task RemoveAllForUserAsync(Guid userId, CancellationToken ct = default);
 }
 
@@ -191,6 +192,31 @@ public sealed class WineVintageEvolutionScoreRepository : IWineVintageEvolutionS
 
         var entities = await _db.WineVintageEvolutionScores
             .Where(ev => ev.WineVintageId == wineVintageId && ev.UserId == userId)
+            .ToListAsync(ct);
+
+        if (entities.Count == 0)
+        {
+            return;
+        }
+
+        _db.WineVintageEvolutionScores.RemoveRange(entities);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task RemoveForWineVintagesAsync(Guid userId, IEnumerable<Guid> wineVintageIds, CancellationToken ct = default)
+    {
+        var wineVintageIdList = wineVintageIds
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        if (wineVintageIdList.Count == 0)
+        {
+            return;
+        }
+
+        var entities = await _db.WineVintageEvolutionScores
+            .Where(ev => ev.UserId == userId && wineVintageIdList.Contains(ev.WineVintageId))
             .ToListAsync(ct);
 
         if (entities.Count == 0)

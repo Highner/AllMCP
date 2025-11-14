@@ -342,12 +342,18 @@ public sealed class WineWavesController : WineSurferControllerBase
             aggregatedScores.AddRange(vintageScores);
         }
 
-        await _evolutionScoreRepository.UpsertRangeAsync(userId, aggregatedScores, cancellationToken);
-
-        var affectedVintageCount = aggregatedScores
+        var affectedVintageIds = aggregatedScores
             .Select(score => score.WineVintageId)
             .Distinct()
-            .Count();
+            .ToList();
+
+        if (affectedVintageIds.Count > 0)
+        {
+            await _evolutionScoreRepository.RemoveForWineVintagesAsync(userId, affectedVintageIds, cancellationToken);
+            await _evolutionScoreRepository.UpsertRangeAsync(userId, aggregatedScores, cancellationToken);
+        }
+
+        var affectedVintageCount = affectedVintageIds.Count;
 
         var successMessage = affectedVintageCount switch
         {
