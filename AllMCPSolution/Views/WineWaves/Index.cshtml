@@ -1,8 +1,10 @@
 @using System
+@using System.Collections.Generic
 @using System.Globalization
 @using System.Linq
 @using System.Text.Json
 @using AllMCPSolution.Controllers
+@using AllMCPSolution.Models
 @model AllMCPSolution.Controllers.WineWavesViewModel
 @{
     Layout = null;
@@ -13,8 +15,49 @@
     var hasDatasets = Model.Datasets.Any();
     var hasInventory = Model.Inventory.Any();
     var deleteWavesDisabled = !hasDatasets;
-    var deleteWavesDisabledAttribute = deleteWavesDisabled ? "disabled" : null;
-    var deleteWavesAriaDisabled = deleteWavesDisabled ? "true" : null;
+    var makeWavesAttributes = new Dictionary<string, string>
+    {
+        ["data-make-waves-trigger"] = string.Empty
+    };
+    if (!hasInventory)
+    {
+        makeWavesAttributes["disabled"] = "disabled";
+        makeWavesAttributes["aria-disabled"] = "true";
+    }
+    var deleteWavesFormAttributes = new Dictionary<string, string>
+    {
+        ["data-delete-waves-form"] = string.Empty
+    };
+    var deleteWavesButtonAttributes = new Dictionary<string, string>
+    {
+        ["data-delete-waves-trigger"] = string.Empty
+    };
+    if (deleteWavesDisabled)
+    {
+        deleteWavesButtonAttributes["disabled"] = "disabled";
+        deleteWavesButtonAttributes["aria-disabled"] = "true";
+    }
+    var deleteWavesEndpoint = Url.Action("DeleteAllWaves", "WineWaves") ?? "/wine-surfer/wine-waves/delete";
+    var wavesActionsMenu = new ActionMenuButtonModel(
+        MenuId: "wine-waves-actions-menu",
+        TriggerAriaLabel: "Open Wine Waves actions",
+        MenuLabel: "Wine Waves actions",
+        Edit: new ActionMenuButtonEditOption(
+            Label: "Make waves",
+            Attributes: makeWavesAttributes
+        ),
+        Delete: new ActionMenuButtonDeleteOption(
+            Label: "Delete all waves",
+            FormAction: deleteWavesEndpoint,
+            HiddenFields: Array.Empty<KeyValuePair<string, string>>(),
+            ConfirmMessage: "Delete all Wine Waves evolution scores? This cannot be undone.",
+            ButtonCssClass: "action-menu__button--danger",
+            FormCssClass: "inline-form action-menu__form waves-delete-waves-form",
+            IncludeAntiforgery: true,
+            FormAttributes: deleteWavesFormAttributes,
+            ButtonAttributes: deleteWavesButtonAttributes
+        )
+    );
     var indicatorCurrentYear = DateTime.UtcNow.Year;
     (string Label, string Description, string CssClass) BuildDrinkingWindowIndicator(int? startYear, int? endYear)
     {
@@ -217,9 +260,8 @@
 
         .waves-chart-actions {
             display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 24px;
+            justify-content: flex-end;
+            margin-bottom: 8px;
         }
 
         .waves-filter {
@@ -318,23 +360,6 @@
             margin: 0;
             font-size: 0.95rem;
             color: rgba(244, 241, 234, 0.75);
-        }
-
-        .waves-chart-actions .waves-actions-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: flex-start;
-            gap: 12px;
-        }
-
-        .waves-chart-actions .waves-actions-buttons form {
-            margin: 0;
-        }
-
-        .waves-chart-actions .waves-actions-help {
-            margin: 0;
-            font-size: 0.85rem;
-            color: hsla(var(--foreground) / 0.65);
         }
 
         .waves-chart-wrapper {
@@ -1016,19 +1041,6 @@
                 padding: 24px;
             }
 
-            .waves-chart-actions {
-                align-items: stretch;
-                text-align: center;
-            }
-
-            .waves-chart-actions .waves-actions-buttons {
-                justify-content: center;
-            }
-
-            .waves-chart-actions .waves-actions-help {
-                text-align: center;
-            }
-
             .waves-filter {
                 margin-top: 16px;
             }
@@ -1044,19 +1056,7 @@
     <main class="waves-layout">
         <section class="waves-chart-card waves-chart-panel" aria-live="polite">
             <div class="waves-chart-actions">
-                <div class="waves-actions-buttons">
-                    @await Html.PartialAsync("_MakeWavesButton", hasInventory)
-                    <form method="post" data-delete-waves-form>
-                        @Html.AntiForgeryToken()
-                        <button type="submit"
-                                class="wine-surfer-button wine-surfer-button--red"
-                                data-delete-waves-trigger
-                                disabled="@deleteWavesDisabledAttribute"
-                                aria-disabled="@deleteWavesAriaDisabled">
-                            Delete all waves
-                        </button>
-                    </form>
-                </div>
+                @await Html.PartialAsync("_ActionMenuButton", wavesActionsMenu)
             </div>
             @if (hasDatasets)
             {
@@ -1475,7 +1475,7 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 return;
             }
 
-            const endpoint = '/wine-surfer/wine-waves/delete';
+            const endpoint = form.getAttribute('action') || '/wine-surfer/wine-waves/delete';
 
             form.addEventListener('submit', async (event) => {
                 event.preventDefault();
