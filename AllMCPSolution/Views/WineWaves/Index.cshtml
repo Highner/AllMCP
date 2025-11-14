@@ -221,6 +221,38 @@
             margin-bottom: 24px;
         }
 
+        .waves-filter {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .waves-filter-label {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: hsl(var(--muted-foreground));
+        }
+
+        .waves-filter-input {
+            border-radius: 999px;
+            border: 1px solid rgba(244, 241, 234, 0.15);
+            background-color: rgba(5, 5, 5, 0.6);
+            padding: 10px 20px;
+            color: hsl(var(--foreground));
+            font-size: 1rem;
+        }
+
+        .waves-filter-input::placeholder {
+            color: rgba(244, 241, 234, 0.55);
+        }
+
+        .waves-filter-empty {
+            margin: 0;
+            font-size: 0.95rem;
+            color: rgba(244, 241, 234, 0.75);
+        }
+
         .waves-chart-actions .waves-actions-buttons {
             display: flex;
             flex-wrap: wrap;
@@ -930,6 +962,10 @@
                 text-align: center;
             }
 
+            .waves-filter {
+                margin-top: 16px;
+            }
+
             .waves-popover-dialog {
                 padding: 24px;
             }
@@ -957,6 +993,19 @@
             </div>
             @if (hasDatasets)
             {
+                <div class="waves-filter">
+                    <label class="waves-filter-label" for="wavesFilterInput">Filter wines</label>
+                    <input type="search"
+                           id="wavesFilterInput"
+                           name="wavesFilterInput"
+                           class="waves-filter-input"
+                           placeholder="Search by name, region, appellation"
+                           autocomplete="off"
+                           data-waves-filter-input />
+                    <p class="waves-filter-empty" data-waves-filter-empty hidden role="status" aria-live="polite">
+                        No wines match your filter.
+                    </p>
+                </div>
                 <div class="waves-chart-wrapper" data-waves-chart-wrapper>
                     <canvas id="wineWavesChart" role="img" aria-label="Line chart of evolution scores by vintage"></canvas>
                 </div>
@@ -1502,6 +1551,8 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             const urgencyYearElement = document.querySelector('[data-waves-urgency-year]');
             const orderingLabel = document.querySelector('[data-waves-ordering-label]');
             const orderingYearElement = orderingLabel?.querySelector('[data-waves-ordering-year]');
+            const filterInput = document.querySelector('[data-waves-filter-input]');
+            const filterEmptyState = document.querySelector('[data-waves-filter-empty]');
 
             const fallbackColor = '#f6c672';
             const resolveColor = (value) => {
@@ -1569,6 +1620,15 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
 
             const datasetPointMap = new Map();
             const datasetStatsMap = new Map();
+            let visibleDatasetIds = new Set(data.map(dataset => dataset.id));
+
+            const datasetFilterText = new Map();
+            data.forEach((dataset) => {
+                const searchableParts = [dataset.label, dataset.details]
+                    .filter((value) => typeof value === 'string' && value.trim().length > 0)
+                    .map((value) => value.trim().toLowerCase());
+                datasetFilterText.set(dataset.id, searchableParts.join(' '));
+            });
 
             const clamp01 = (value) => {
                 if (!Number.isFinite(value)) {
@@ -1690,6 +1750,8 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                     spanGaps: true,
                     fill: false,
                     hidden: false,
+                    userHidden: false,
+                    filterHidden: false,
                     originalBorderColor: color,
                     mutedBorderColor: mutedColor
                 };
@@ -1763,6 +1825,10 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
 
                 const entries = data
                     .map((dataset) => {
+                        if (!visibleDatasetIds.has(dataset.id)) {
+                            return null;
+                        }
+
                         const points = datasetPointMap.get(dataset.id);
                         const stats = datasetStatsMap.get(dataset.id);
                         if (!points || !stats) {
@@ -1896,6 +1962,67 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 document.dispatchEvent(new Event('waves:refresh-highlights'));
             };
 
+            const updateLegendVisibilityForFilter = () => {
+                if (!legendContainer) {
+                    return;
+                }
+
+                const cards = legendContainer.querySelectorAll('[data-waves-legend-item]');
+                cards.forEach((card) => {
+                    const id = card.getAttribute('data-wine-vintage-id');
+                    const matches = !id || visibleDatasetIds.has(id);
+
+                    if (!matches) {
+                        card.setAttribute('hidden', 'hidden');
+                        card.setAttribute('aria-hidden', 'true');
+                    } else {
+                        card.removeAttribute('hidden');
+                        card.removeAttribute('aria-hidden');
+                    }
+                });
+            };
+
+            const syncChartFilterState = () => {
+                const chartInstance = window.wavesChart;
+                if (!chartInstance?.data?.datasets) {
+                    return;
+                }
+
+                chartInstance.data.datasets.forEach((datasetConfig) => {
+                    datasetConfig.filterHidden = !visibleDatasetIds.has(datasetConfig.wineVintageId);
+                    datasetConfig.hidden = datasetConfig.userHidden || datasetConfig.filterHidden;
+                });
+
+                if (typeof chartInstance.update === 'function') {
+                    chartInstance.update('none');
+                }
+            };
+
+            const applyFilter = () => {
+                const query = (filterInput?.value ?? '').trim().toLowerCase();
+                const matches = new Set();
+
+                data.forEach((dataset) => {
+                    const searchable = datasetFilterText.get(dataset.id) ?? '';
+                    if (!query || searchable.includes(query)) {
+                        matches.add(dataset.id);
+                    }
+                });
+
+                visibleDatasetIds = matches;
+                updateLegendVisibilityForFilter();
+                reorderCardsByYear(activeYear);
+                updateUrgencyList(activeYear);
+                syncChartFilterState();
+
+                if (filterEmptyState) {
+                    filterEmptyState.hidden = matches.size !== 0;
+                }
+
+                document.dispatchEvent(new Event('waves:update-visibility-buttons'));
+                document.dispatchEvent(new Event('waves:refresh-highlights'));
+            };
+
             const updateOrderingLabel = (year) => {
                 if (!orderingLabel || !orderingYearElement) {
                     return;
@@ -2009,6 +2136,23 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             updateOrderingLabel(activeYear);
             reorderCardsByYear(activeYear);
             updateUrgencyList(activeYear);
+
+            if (filterInput) {
+                const handleFilterChange = () => {
+                    applyFilter();
+                };
+
+                filterInput.addEventListener('input', handleFilterChange);
+                filterInput.addEventListener('search', handleFilterChange);
+                filterInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape' && filterInput.value) {
+                        filterInput.value = '';
+                        applyFilter();
+                    }
+                });
+            }
+
+            applyFilter();
 
             const chartCanvas = ctx;
             let isDragging = false;
@@ -2157,7 +2301,7 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                     dataset.pointRadius = matchesHighlight ? 3 : 0;
                     dataset.pointHoverRadius = matchesHighlight ? 5 : 0;
 
-                    if (matchesHighlight && dataset.hidden === true) {
+                    if (matchesHighlight && dataset.hidden === true && dataset.filterHidden !== true) {
                         dataset.hidden = false;
                     }
 
@@ -2261,15 +2405,23 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                     }
 
                     const nextHidden = !(dataset.hidden === true);
-                    dataset.hidden = nextHidden;
+                    dataset.userHidden = nextHidden;
+                    dataset.hidden = dataset.userHidden || dataset.filterHidden;
                     if (typeof chart.update === 'function') {
                         chart.update();
                     }
 
                     updateButtonState(button, nextHidden);
+                    document.dispatchEvent(new Event('waves:update-visibility-buttons'));
                 });
 
                 syncButton(button);
+            });
+
+            document.addEventListener('waves:update-visibility-buttons', () => {
+                buttons.forEach((button) => {
+                    syncButton(button);
+                });
             });
         })();
     </script>
