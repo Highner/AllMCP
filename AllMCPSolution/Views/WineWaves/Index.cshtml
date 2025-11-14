@@ -234,17 +234,54 @@
             color: hsl(var(--muted-foreground));
         }
 
+        .waves-filter-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
         .waves-filter-input {
             border-radius: 999px;
             border: 1px solid rgba(244, 241, 234, 0.15);
             background-color: rgba(5, 5, 5, 0.6);
-            padding: 10px 20px;
+            padding: 10px 42px 10px 20px;
             color: hsl(var(--foreground));
             font-size: 1rem;
+            width: 100%;
         }
 
         .waves-filter-input::placeholder {
             color: rgba(244, 241, 234, 0.55);
+        }
+
+        .waves-filter-clear {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            border: none;
+            background: transparent;
+            color: rgba(244, 241, 234, 0.7);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .waves-filter-clear:hover,
+        .waves-filter-clear:focus-visible {
+            background-color: rgba(244, 241, 234, 0.12);
+            color: hsl(var(--foreground));
+        }
+
+        .waves-filter-clear:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 2px hsla(var(--ring) / 0.35);
         }
 
         .waves-filter-empty {
@@ -995,13 +1032,22 @@
             {
                 <div class="waves-filter">
                     <label class="waves-filter-label" for="wavesFilterInput">Filter wines</label>
-                    <input type="search"
-                           id="wavesFilterInput"
-                           name="wavesFilterInput"
-                           class="waves-filter-input"
-                           placeholder="Search by name, region, appellation"
-                           autocomplete="off"
-                           data-waves-filter-input />
+                    <div class="waves-filter-input-wrapper">
+                        <input type="search"
+                               id="wavesFilterInput"
+                               name="wavesFilterInput"
+                               class="waves-filter-input"
+                               placeholder="Search by name, region, appellation"
+                               autocomplete="off"
+                               data-waves-filter-input />
+                        <button type="button"
+                                class="waves-filter-clear"
+                                aria-label="Clear filter"
+                                data-waves-filter-clear
+                                hidden>
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
                     <p class="waves-filter-empty" data-waves-filter-empty hidden role="status" aria-live="polite">
                         No wines match your filter.
                     </p>
@@ -1552,7 +1598,16 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             const orderingLabel = document.querySelector('[data-waves-ordering-label]');
             const orderingYearElement = orderingLabel?.querySelector('[data-waves-ordering-year]');
             const filterInput = document.querySelector('[data-waves-filter-input]');
+            const filterClearButton = document.querySelector('[data-waves-filter-clear]');
             const filterEmptyState = document.querySelector('[data-waves-filter-empty]');
+            const updateFilterClearButtonVisibility = () => {
+                if (!filterInput || !filterClearButton) {
+                    return;
+                }
+
+                const hasValue = filterInput.value.trim().length > 0;
+                filterClearButton.hidden = !hasValue;
+            };
 
             const fallbackColor = '#f6c672';
             const resolveColor = (value) => {
@@ -2139,6 +2194,7 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
 
             if (filterInput) {
                 const handleFilterChange = () => {
+                    updateFilterClearButtonVisibility();
                     applyFilter();
                 };
 
@@ -2147,12 +2203,30 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 filterInput.addEventListener('keydown', (event) => {
                     if (event.key === 'Escape' && filterInput.value) {
                         filterInput.value = '';
+                        updateFilterClearButtonVisibility();
                         applyFilter();
                     }
                 });
             }
 
+            if (filterInput && filterClearButton) {
+                filterClearButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+
+                    if (!filterInput.value) {
+                        filterInput.focus();
+                        return;
+                    }
+
+                    filterInput.value = '';
+                    updateFilterClearButtonVisibility();
+                    applyFilter();
+                    filterInput.focus();
+                });
+            }
+
             applyFilter();
+            updateFilterClearButtonVisibility();
 
             const chartCanvas = ctx;
             let isDragging = false;
