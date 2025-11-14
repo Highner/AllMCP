@@ -1011,6 +1011,48 @@
             color: hsl(var(--foreground));
         }
 
+        .waves-chart-ordering-controls {
+            margin: 12px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .waves-show-now-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: hsla(var(--foreground) / 0.85);
+            font-size: 0.95rem;
+        }
+
+        .waves-show-now-toggle-input {
+            width: 1rem;
+            height: 1rem;
+            accent-color: hsl(var(--foreground));
+        }
+
+        .waves-jump-to-now-button {
+            border: 1px solid hsla(var(--foreground) / 0.35);
+            border-radius: 999px;
+            background: transparent;
+            color: hsl(var(--foreground));
+            font-size: 0.9rem;
+            padding: 6px 14px;
+            cursor: pointer;
+            transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+        }
+
+        .waves-jump-to-now-button:hover,
+        .waves-jump-to-now-button:focus-visible {
+            background: hsla(var(--foreground) / 0.08);
+            border-color: hsla(var(--foreground) / 0.55);
+            color: hsl(var(--foreground));
+            outline: none;
+        }
+
         @@media (max-width: 960px) {
             .waves-vintages {
                 flex-direction: column;
@@ -1101,6 +1143,21 @@
                 <p class="waves-chart-ordering-label" data-waves-ordering-label>
                     Ordering wines by evolution score in <strong data-waves-ordering-year>@DateTime.UtcNow.Year</strong>. Drag the vertical line to change.
                 </p>
+                <div class="waves-chart-ordering-controls">
+                    <label class="waves-show-now-toggle" for="wavesShowNowToggle">
+                        <input type="checkbox"
+                               id="wavesShowNowToggle"
+                               class="waves-show-now-toggle-input"
+                               data-waves-show-now-toggle
+                               checked />
+                        <span>Show now</span>
+                    </label>
+                    <button type="button"
+                            class="waves-jump-to-now-button"
+                            data-waves-jump-to-now>
+                        Jump to now
+                    </button>
+                </div>
             }
             else
             {
@@ -1734,6 +1791,13 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             const filterClearButton = document.querySelector('[data-waves-filter-clear]');
             const filterEmptyState = document.querySelector('[data-waves-filter-empty]');
             const inventoryToggle = document.querySelector('[data-waves-inventory-toggle]');
+            const showNowToggle = document.querySelector('[data-waves-show-now-toggle]');
+            const jumpToNowButton = document.querySelector('[data-waves-jump-to-now]');
+            let isYearLineVisible = true;
+
+            if (showNowToggle instanceof HTMLInputElement) {
+                isYearLineVisible = showNowToggle.checked;
+            }
             const updateFilterClearButtonVisibility = () => {
                 if (!filterInput || !filterClearButton) {
                     return;
@@ -1797,7 +1861,8 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 return Math.min(Math.max(numeric, minYear), maxYear);
             };
 
-            let activeYear = clampYear(new Date().getFullYear());
+            const nowYear = clampYear(new Date().getFullYear());
+            let activeYear = nowYear;
 
             const formatYearForDisplay = (value) => {
                 if (!Number.isFinite(value)) {
@@ -1876,6 +1941,10 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 afterDraw(chart, args, pluginOptions) {
                     const { ctx: chartContext, chartArea, scales } = chart;
                     if (!chartArea || !scales?.x) {
+                        return;
+                    }
+
+                    if (pluginOptions?.enabled === false) {
                         return;
                     }
 
@@ -2234,6 +2303,16 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 chartInstance.update('none');
             };
 
+            const syncYearLineVisibility = () => {
+                const chartInstance = window.wavesChart;
+                if (!chartInstance?.options?.plugins?.draggableYearLine) {
+                    return;
+                }
+
+                chartInstance.options.plugins.draggableYearLine.enabled = isYearLineVisible;
+                chartInstance.update('none');
+            };
+
             const setActiveYear = (year, { updateChart = true } = {}) => {
                 const clamped = clampYear(year);
                 if (!Number.isFinite(clamped) || Math.abs(clamped - activeYear) < 0.001) {
@@ -2283,7 +2362,8 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                             value: activeYear,
                             color: 'rgba(246, 198, 114, 0.75)',
                             lineWidth: 2,
-                            dash: [6, 6]
+                            dash: [6, 6],
+                            enabled: isYearLineVisible
                         }
                     },
                     scales: {
@@ -2366,6 +2446,19 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             if (inventoryToggle) {
                 inventoryToggle.addEventListener('change', () => {
                     applyFilter();
+                });
+            }
+
+            if (showNowToggle instanceof HTMLInputElement) {
+                showNowToggle.addEventListener('change', () => {
+                    isYearLineVisible = showNowToggle.checked;
+                    syncYearLineVisibility();
+                });
+            }
+
+            if (jumpToNowButton) {
+                jumpToNowButton.addEventListener('click', () => {
+                    setActiveYear(nowYear);
                 });
             }
 
