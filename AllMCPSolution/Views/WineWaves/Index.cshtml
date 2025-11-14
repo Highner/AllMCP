@@ -260,21 +260,27 @@
 
         .waves-chart-actions {
             display: flex;
-            justify-content: flex-end;
+            align-items: flex-start;
+            gap: 16px;
             margin-bottom: 8px;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .waves-chart-actions .waves-filter {
+            flex: 1;
+            min-width: 240px;
+            margin-top: 0;
+        }
+
+        .waves-chart-actions .action-menu {
+            flex-shrink: 0;
         }
 
         .waves-filter {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            margin-top: 4px;
-        }
-
-        .waves-filter-label {
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: hsl(var(--muted-foreground));
         }
 
         .waves-filter-input-wrapper {
@@ -1041,10 +1047,6 @@
                 padding: 24px;
             }
 
-            .waves-filter {
-                margin-top: 16px;
-            }
-
             .waves-popover-dialog {
                 padding: 24px;
             }
@@ -1056,40 +1058,43 @@
     <main class="waves-layout">
         <section class="waves-chart-card waves-chart-panel" aria-live="polite">
             <div class="waves-chart-actions">
+                @if (hasDatasets)
+                {
+                    <div class="waves-filter">
+                        <div class="waves-filter-input-wrapper">
+                            <input type="search"
+                                   id="wavesFilterInput"
+                                   name="wavesFilterInput"
+                                   class="waves-filter-input"
+                                   placeholder="Search by name, region, appellation"
+                                   autocomplete="off"
+                                   aria-label="Filter wines"
+                                   data-waves-filter-input />
+                            <button type="button"
+                                    class="waves-filter-clear"
+                                    aria-label="Clear filter"
+                                    data-waves-filter-clear
+                                    hidden>
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="waves-filter-options">
+                            <label class="waves-filter-toggle">
+                                <input type="checkbox"
+                                       class="waves-filter-toggle-input"
+                                       data-waves-inventory-toggle />
+                                <span class="waves-filter-toggle-label">Hide wines no longer in your inventory</span>
+                            </label>
+                        </div>
+                        <p class="waves-filter-empty" data-waves-filter-empty hidden role="status" aria-live="polite">
+                            No wines match your filter or inventory selection.
+                        </p>
+                    </div>
+                }
                 @await Html.PartialAsync("_ActionMenuButton", wavesActionsMenu)
             </div>
             @if (hasDatasets)
             {
-                <div class="waves-filter">
-                    <label class="waves-filter-label" for="wavesFilterInput">Filter wines</label>
-                    <div class="waves-filter-input-wrapper">
-                        <input type="search"
-                               id="wavesFilterInput"
-                               name="wavesFilterInput"
-                               class="waves-filter-input"
-                               placeholder="Search by name, region, appellation"
-                               autocomplete="off"
-                               data-waves-filter-input />
-                        <button type="button"
-                                class="waves-filter-clear"
-                                aria-label="Clear filter"
-                                data-waves-filter-clear
-                                hidden>
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="waves-filter-options">
-                        <label class="waves-filter-toggle">
-                            <input type="checkbox"
-                                   class="waves-filter-toggle-input"
-                                   data-waves-inventory-toggle />
-                            <span class="waves-filter-toggle-label">Hide wines no longer in your inventory</span>
-                        </label>
-                    </div>
-                    <p class="waves-filter-empty" data-waves-filter-empty hidden role="status" aria-live="polite">
-                        No wines match your filter or inventory selection.
-                    </p>
-                </div>
                 <div class="waves-chart-wrapper" data-waves-chart-wrapper>
                     <canvas id="wineWavesChart" role="img" aria-label="Line chart of evolution scores by vintage"></canvas>
                 </div>
