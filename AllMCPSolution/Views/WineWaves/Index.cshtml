@@ -176,6 +176,8 @@
             flex: 1;
             min-height: 0;
             display: flex;
+            gap: 24px;
+            align-items: flex-start;
         }
 
         .waves-header {
@@ -274,6 +276,150 @@
             overflow-y: auto;
             padding-right: 4px;
             -webkit-overflow-scrolling: touch;
+        }
+
+        .waves-urgency-panel {
+            width: min(360px, 100%);
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-left: 16px;
+            background: var(--wine-surface-gradient-strong);
+            border-radius: 18px;
+            border: 1px solid var(--wine-surface-border-strong);
+            padding: 20px;
+            box-shadow: 0 18px 40px hsla(var(--background) / 0.45);
+            position: sticky;
+            top: calc(var(--wine-surfer-top-bar-height, 72px) + 16px);
+            max-height: calc(100vh - 160px);
+        }
+
+        .waves-urgency-panel:focus-within,
+        .waves-urgency-panel:hover {
+            border-color: hsla(var(--accent) / 0.6);
+        }
+
+        .waves-urgency-header {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .waves-urgency-title {
+            margin: 0;
+            font-size: 1.1rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+
+        .waves-urgency-description {
+            margin: 0;
+            font-size: 0.9rem;
+            color: hsla(var(--foreground) / 0.75);
+        }
+
+        .waves-urgency-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .waves-urgency-empty {
+            margin: 0;
+            font-size: 0.9rem;
+            color: hsla(var(--foreground) / 0.7);
+        }
+
+        .waves-urgency-item {
+            border-radius: 14px;
+            border: 1px solid var(--wine-surface-border);
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--wine-surface-gradient);
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .waves-urgency-item.is-highlighted {
+            border-color: hsla(var(--primary) / 0.65);
+            box-shadow: 0 8px 18px hsla(var(--primary) / 0.25);
+            transform: translateY(-2px);
+        }
+
+        .waves-urgency-item__heading {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .waves-urgency-item__text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .waves-urgency-rank {
+            margin: 0;
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: hsla(var(--foreground) / 0.6);
+        }
+
+        .waves-urgency-label {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .waves-urgency-meta {
+            margin: 0;
+            font-size: 0.85rem;
+            color: hsla(var(--foreground) / 0.7);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .waves-urgency-score {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .waves-urgency-score-value {
+            font-size: 1.4rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+        }
+
+        .waves-urgency-score-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: hsla(var(--foreground) / 0.6);
+        }
+
+        .waves-urgency-reason {
+            margin: 0;
+            font-size: 0.9rem;
+            color: hsla(var(--foreground) / 0.75);
+            line-height: 1.5;
         }
 
         .waves-legend::-webkit-scrollbar {
@@ -731,6 +877,19 @@
             color: hsl(var(--foreground));
         }
 
+        @@media (max-width: 960px) {
+            .waves-vintages {
+                flex-direction: column;
+            }
+
+            .waves-urgency-panel {
+                width: 100%;
+                margin-left: 0;
+                position: static;
+                max-height: none;
+            }
+        }
+
         @@media (max-width: 720px) {
             .waves-layout {
                 padding: 32px 16px 64px;
@@ -808,7 +967,7 @@
         <div class="waves-scroll-region">
             @if (hasDatasets)
             {
-                <section class="waves-vintages" aria-label="Wine Waves vintages">
+                <section class="waves-vintages" aria-label="Wine Waves vintages and urgency">
                     <div class="waves-legend" data-waves-legend>
                         @foreach (var dataset in Model.Datasets)
                         {
@@ -816,7 +975,7 @@
                             var displayName = string.IsNullOrWhiteSpace(labelParts.Name) ? dataset.Label : labelParts.Name;
                             var displayVintage = labelParts.Vintage;
                             var showVintage = !string.IsNullOrWhiteSpace(displayVintage);
-                            <article class="waves-legend-item" data-waves-legend-item data-wine-vintage-id="@dataset.WineVintageId">
+                            <article class="waves-legend-item" data-waves-legend-item data-waves-highlight-card data-wine-vintage-id="@dataset.WineVintageId">
                                 <div class="waves-legend-header">
                                     <div class="waves-legend-header-info">
                                         <span class="waves-legend-dot" style="background-color: @dataset.ColorHex"></span>
@@ -892,6 +1051,18 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                             </article>
                         }
                     </div>
+                    <aside class="waves-urgency-panel" aria-label="Drink-now radar">
+                        <div class="waves-urgency-header">
+                            <h2 class="waves-urgency-title">Drink-now radar</h2>
+                            <p class="waves-urgency-description">
+                                Ranking urgency for <span data-waves-urgency-year>@DateTime.UtcNow.Year</span>.
+                            </p>
+                        </div>
+                        <ol class="waves-urgency-list" data-waves-urgency-list aria-live="polite"></ol>
+                        <p class="waves-urgency-empty" data-waves-urgency-empty>
+                            Drag the vertical year marker to see which wines should be opened first.
+                        </p>
+                    </aside>
                 </section>
             }
         </div>
@@ -1321,6 +1492,9 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             }
 
             const legendContainer = document.querySelector('[data-waves-legend]');
+            const urgencyList = document.querySelector('[data-waves-urgency-list]');
+            const urgencyEmptyState = document.querySelector('[data-waves-urgency-empty]');
+            const urgencyYearElement = document.querySelector('[data-waves-urgency-year]');
             const orderingLabel = document.querySelector('[data-waves-ordering-label]');
             const orderingYearElement = orderingLabel?.querySelector('[data-waves-ordering-year]');
 
@@ -1389,6 +1563,59 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             };
 
             const datasetPointMap = new Map();
+            const datasetStatsMap = new Map();
+
+            const clamp01 = (value) => {
+                if (!Number.isFinite(value)) {
+                    return 0;
+                }
+
+                return Math.min(Math.max(value, 0), 1);
+            };
+
+            const formatYearDifference = (value) => {
+                if (!Number.isFinite(value) || value <= 0) {
+                    return 'under a year';
+                }
+
+                if (value < 1) {
+                    return 'under a year';
+                }
+
+                const rounded = Math.max(1, Math.round(value));
+                return `${rounded} ${rounded === 1 ? 'year' : 'years'}`;
+            };
+
+            const computeDatasetStats = (points) => {
+                if (!Array.isArray(points) || points.length === 0) {
+                    return null;
+                }
+
+                let minScore = Number.POSITIVE_INFINITY;
+                let maxScore = Number.NEGATIVE_INFINITY;
+                let peakYear = points[0].x;
+                let peakScore = points[0].y;
+
+                points.forEach((point) => {
+                    if (point.y < minScore) {
+                        minScore = point.y;
+                    }
+
+                    if (point.y > maxScore || (point.y === maxScore && point.x < peakYear)) {
+                        maxScore = point.y;
+                        peakYear = point.x;
+                        peakScore = point.y;
+                    }
+                });
+
+                return {
+                    minScore,
+                    maxScore,
+                    peakYear,
+                    peakScore,
+                    span: Math.max(maxScore - minScore, 0)
+                };
+            };
 
             const draggableYearLinePlugin = {
                 id: 'draggableYearLine',
@@ -1439,6 +1666,10 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                     .sort((a, b) => a.x - b.x);
 
                 datasetPointMap.set(dataset.id, sortedPoints);
+                const stats = computeDatasetStats(sortedPoints);
+                if (stats) {
+                    datasetStatsMap.set(dataset.id, stats);
+                }
 
                 return {
                     label: dataset.label,
@@ -1512,6 +1743,154 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                     .forEach(({ card }) => legendContainer.appendChild(card));
             };
 
+            const updateUrgencyList = (year) => {
+                if (!urgencyList) {
+                    if (urgencyYearElement) {
+                        urgencyYearElement.textContent = formatYearForDisplay(year);
+                    }
+
+                    return;
+                }
+
+                if (urgencyYearElement) {
+                    urgencyYearElement.textContent = formatYearForDisplay(year);
+                }
+
+                const entries = data
+                    .map((dataset) => {
+                        const points = datasetPointMap.get(dataset.id);
+                        const stats = datasetStatsMap.get(dataset.id);
+                        if (!points || !stats) {
+                            return null;
+                        }
+
+                        const currentScore = getScoreAtYear(points, year);
+                        if (!Number.isFinite(currentScore)) {
+                            return null;
+                        }
+
+                        const nextScore = getScoreAtYear(points, year + 1);
+                        const previousScore = getScoreAtYear(points, year - 1);
+                        const yearsPastPeak = Math.max(0, year - stats.peakYear);
+                        const yearsUntilPeak = Math.max(0, stats.peakYear - year);
+                        const dropFromPeak = Math.max(0, stats.peakScore - currentScore);
+                        const normalizedDrop = stats.span > 0 ? clamp01(dropFromPeak / stats.span) : 0;
+                        const normalizedPast = clamp01(yearsPastPeak / 5);
+                        const normalizedApproach = yearsUntilPeak > 0 ? clamp01(1 - (yearsUntilPeak / 4)) : 0;
+                        const slopeAhead = Number.isFinite(nextScore) ? currentScore - nextScore : 0;
+                        const slopeBehind = Number.isFinite(previousScore) ? currentScore - previousScore : 0;
+                        const normalizedSlope = clamp01((Math.max(0, slopeAhead) + Math.max(0, slopeBehind)) / 2);
+
+                        const urgencyScore = (normalizedPast * 0.6)
+                            + (normalizedDrop * 0.25)
+                            + (normalizedSlope * 0.15)
+                            + (yearsPastPeak <= 0 ? normalizedApproach * 0.1 : 0);
+
+                        const dropText = dropFromPeak > 0.2
+                            ? `down ${dropFromPeak.toFixed(1)} pts from the high`
+                            : 'just starting to ease off the peak';
+
+                        const status = yearsPastPeak > 0.5
+                            ? 'Past prime'
+                            : yearsPastPeak > 0
+                                ? 'At peak'
+                                : yearsUntilPeak <= 1
+                                    ? 'Approaching prime'
+                                    : 'Aging gracefully';
+
+                        const reason = (() => {
+                            if (yearsPastPeak >= 1) {
+                                return `Peaked around ${stats.peakYear} (${formatYearDifference(yearsPastPeak)} ago) and ${dropText}.`;
+                            }
+
+                            if (yearsPastPeak > 0) {
+                                return `Prime hit around ${stats.peakYear} and it's ${dropText}.`;
+                            }
+
+                            if (yearsUntilPeak <= 1) {
+                                return `Prime window opens by ${stats.peakYear}. Scores are about to crest.`;
+                            }
+
+                            return `Prime window expected near ${stats.peakYear}. Still building toward its peak.`;
+                        })();
+
+                        return {
+                            id: dataset.id,
+                            label: dataset.label,
+                            status,
+                            reason,
+                            urgencyScore
+                        };
+                    })
+                    .filter(Boolean)
+                    .sort((a, b) => b.urgencyScore - a.urgencyScore);
+
+                urgencyList.replaceChildren();
+
+                if (!entries.length) {
+                    if (urgencyEmptyState) {
+                        urgencyEmptyState.hidden = false;
+                    }
+
+                    document.dispatchEvent(new Event('waves:refresh-highlights'));
+                    return;
+                }
+
+                if (urgencyEmptyState) {
+                    urgencyEmptyState.hidden = true;
+                }
+
+                entries.slice(0, 6).forEach((entry, index) => {
+                    const item = document.createElement('li');
+                    item.className = 'waves-urgency-item';
+                    item.setAttribute('data-wine-vintage-id', entry.id);
+                    item.setAttribute('data-waves-highlight-card', '');
+
+                    const heading = document.createElement('div');
+                    heading.className = 'waves-urgency-item__heading';
+
+                    const text = document.createElement('div');
+                    text.className = 'waves-urgency-item__text';
+
+                    const rank = document.createElement('p');
+                    rank.className = 'waves-urgency-rank';
+                    rank.textContent = `#${index + 1}`;
+
+                    const label = document.createElement('p');
+                    label.className = 'waves-urgency-label';
+                    label.textContent = entry.label || 'Unnamed vintage';
+
+                    const meta = document.createElement('p');
+                    meta.className = 'waves-urgency-meta';
+                    meta.textContent = entry.status;
+
+                    text.append(rank, label, meta);
+
+                    const scoreContainer = document.createElement('div');
+                    scoreContainer.className = 'waves-urgency-score';
+
+                    const scoreValue = document.createElement('span');
+                    scoreValue.className = 'waves-urgency-score-value';
+                    scoreValue.textContent = `${Math.round(clamp01(entry.urgencyScore) * 100)}%`;
+
+                    const scoreLabel = document.createElement('span');
+                    scoreLabel.className = 'waves-urgency-score-label';
+                    scoreLabel.textContent = 'urgency';
+
+                    scoreContainer.append(scoreValue, scoreLabel);
+                    heading.append(text, scoreContainer);
+
+                    const reason = document.createElement('p');
+                    reason.className = 'waves-urgency-reason';
+                    reason.textContent = entry.reason;
+
+                    item.append(heading, reason);
+                    urgencyList.appendChild(item);
+                });
+
+                document.dispatchEvent(new Event('waves:refresh-highlights'));
+            };
+
             const updateOrderingLabel = (year) => {
                 if (!orderingLabel || !orderingYearElement) {
                     return;
@@ -1539,6 +1918,7 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 activeYear = clamped;
                 updateOrderingLabel(activeYear);
                 reorderCardsByYear(activeYear);
+                updateUrgencyList(activeYear);
 
                 if (updateChart) {
                     updateChartMarker(activeYear);
@@ -1623,6 +2003,7 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
 
             updateOrderingLabel(activeYear);
             reorderCardsByYear(activeYear);
+            updateUrgencyList(activeYear);
 
             const chartCanvas = ctx;
             let isDragging = false;
@@ -1737,15 +2118,15 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
         })();
 
         (function () {
-            const cards = Array.from(document.querySelectorAll('[data-waves-legend-item]'));
-            if (!cards.length) {
+            const getHighlightCards = () => Array.from(document.querySelectorAll('[data-waves-highlight-card]'));
+            if (!getHighlightCards().length) {
                 return;
             }
 
             let highlightedWineVintageId = null;
 
             const updateCardState = () => {
-                cards.forEach((card) => {
+                getHighlightCards().forEach((card) => {
                     const cardId = card.getAttribute('data-wine-vintage-id');
                     const isHighlighted = Boolean(highlightedWineVintageId && cardId === highlightedWineVintageId);
                     card.classList.toggle('is-highlighted', isHighlighted);
@@ -1799,23 +2180,29 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 applyHighlightStyles();
             };
 
-            cards.forEach((card) => {
-                card.addEventListener('click', (event) => {
-                    const target = event.target;
-                    if (target instanceof Element && target.closest('button')) {
-                        return;
-                    }
+            document.addEventListener('click', (event) => {
+                const card = event.target.closest('[data-waves-highlight-card]');
+                if (!card) {
+                    return;
+                }
 
-                    const wineVintageId = card.getAttribute('data-wine-vintage-id');
-                    if (!wineVintageId) {
-                        return;
-                    }
+                if (event.target instanceof Element && event.target.closest('button')) {
+                    return;
+                }
 
-                    toggleHighlight(wineVintageId);
-                });
+                const wineVintageId = card.getAttribute('data-wine-vintage-id');
+                if (!wineVintageId) {
+                    return;
+                }
+
+                toggleHighlight(wineVintageId);
             });
 
-            updateCardState();
+            document.addEventListener('waves:refresh-highlights', () => {
+                applyHighlightStyles();
+            });
+
+            applyHighlightStyles();
         })();
 
         (function () {
