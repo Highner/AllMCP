@@ -204,18 +204,14 @@
         }
 
         .waves-chart-card {
-            --waves-chart-card-padding: 32px;
             background: var(--wine-surface-gradient-strong);
             border: 1px solid var(--wine-surface-border-strong);
             border-radius: 24px;
-            padding: var(--waves-chart-card-padding);
+            padding: 32px;
             display: flex;
             flex-direction: column;
             gap: 24px;
             box-shadow: 0 30px 60px hsla(var(--background) / 0.55);
-            width: 100%;
-            max-width: none;
-            align-self: stretch;
         }
 
         .waves-chart-actions {
@@ -246,9 +242,7 @@
             position: relative;
             /* Fix chart height so only width grows with available space */
             height: 360px;
-            width: calc(100% + (var(--waves-chart-card-padding, 32px) * 2));
-            margin-left: calc(var(--waves-chart-card-padding, 32px) * -1);
-            margin-right: calc(var(--waves-chart-card-padding, 32px) * -1);
+            width: 100%;
             min-width: 0;
             cursor: col-resize;
             border-radius: 20px;
@@ -920,8 +914,7 @@
             }
 
             .waves-chart-card {
-                --waves-chart-card-padding: 24px;
-                padding: var(--waves-chart-card-padding);
+                padding: 24px;
             }
 
             .waves-chart-actions {
