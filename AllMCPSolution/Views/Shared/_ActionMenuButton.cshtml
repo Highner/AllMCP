@@ -86,8 +86,8 @@
                 }
                 @{ var deleteButtonClass = BuildButtonClass(string.IsNullOrWhiteSpace(Model.Delete.ButtonCssClass)
                     ? "action-menu__button--danger"
-                    : Model.Delete.ButtonCssClass); }
-                var deleteButtonAttributes = BuildAttributes(Model.Delete.ButtonAttributes);
+                    : Model.Delete.ButtonCssClass);
+                   var deleteButtonAttributes = BuildAttributes(Model.Delete.ButtonAttributes); }
                 <button type="submit"
                         class="@deleteButtonClass"
                         data-action-menu-item
