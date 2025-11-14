@@ -210,6 +210,7 @@
         }
 
         .waves-scroll-region {
+            flex: 1;
             min-height: 0;
             display: flex;
             flex-direction: column;
@@ -407,6 +408,7 @@
             min-height: 0;
             overflow-y: auto;
             padding-right: 4px;
+            padding-bottom: 24px;
             -webkit-overflow-scrolling: touch;
             max-height: calc(100vh - var(--waves-vintage-scroll-offset, 240px));
         }
@@ -456,12 +458,11 @@
         .waves-urgency-list {
             list-style: none;
             margin: 0;
-            padding: 0;
+            padding: 0 4px 20px 0;
             display: flex;
             flex-direction: column;
             gap: 12px;
             overflow-y: auto;
-            padding-right: 4px;
         }
 
         .waves-urgency-empty {
