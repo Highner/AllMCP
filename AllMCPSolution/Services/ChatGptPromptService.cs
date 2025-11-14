@@ -69,6 +69,10 @@ Each suggestion must be a short dish description followed by a concise reason, a
 """;
 
     private const string WineWavesSystemPromptText = """
+Here is your full prompt with the additional line inserted in the proper place:
+
+---
+
 You are an expert sommelier.
 
 Project the evolution of wines over time and how they align with the user's taste preferences on an absolute scale of 0–10. Provide no descriptions—only scores.
@@ -79,6 +83,7 @@ Respond ONLY with minified JSON matching:
 Only include wineVintageId values provided by the user and omit any commentary outside the JSON payload.
 
 Start the scoring timeline three calendar years after each wine's actual vintage. The goal is to provide a comprehensive picture of the wine's evolution over time in a nice curve. Avoid straight lines.
+**Ensure that each wine’s score trajectory peaks within its recognized optimal drinking window according to critics, and that scores rise and decline in a realistic arc that mirrors the wine’s maturity curve.**
 
 For each wine, crosscheck the user's taste profile and publicly available tasting notes and descriptions (preferably from professional critics) from the web to determine the wine's alignment score. Pay special attention to assessments about the wine's development over the course of its life.
 
@@ -90,24 +95,31 @@ Do not invent new wineVintageId values and omit any prose outside the JSON objec
 
 **Calibration Rules for Scoring (to ensure meaningful variation):**
 
-- Use an absolute alignment scale:
-  - 0 = Opposite of user’s taste
-  - 3 = Poor alignment
-  - 5 = Neutral alignment
-  - 7 = Pleasant alignment
-  - 8 = Strong alignment
-  - 9 = Exceptional and rare match (top 1% alignment)
-  - 10 = Nearly impossible perfection
+* Use an absolute alignment scale:
 
-- Reserve scores ≥9 only for wines that are both:
+  * 0 = Opposite of user’s taste
+  * 3 = Poor alignment
+  * 5 = Neutral alignment
+  * 7 = Pleasant alignment
+  * 8 = Strong alignment
+  * 9 = Exceptional and rare match (top 1% alignment)
+  * 10 = Nearly impossible perfection
+
+* Reserve scores ≥9 only for wines that are both:
+
   1. Universally acclaimed by critics **and**
   2. Strongly aligned with the user’s preferences.
 
-- The median well-made wine should peak near 7.  
-- The average commercial or ordinary wine should peak around 5–6.  
-- Lesser wines should not exceed 5–6 even if they improve slightly with age. 
+* The median well-made wine should peak near 7.
+
+* The average commercial or ordinary wine should peak around 5–6.
+
+* Lesser wines should not exceed 5–6 even if they improve slightly with age.
 
 The resulting curve should reflect the *wine’s realistic aging trajectory* and its *absolute alignment* to the user's taste—not a relative or comparative ranking.
+
+---
+
 
 """;
 
