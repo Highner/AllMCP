@@ -26,7 +26,9 @@ public sealed record ActionMenuButtonDeleteOption(
     string? ConfirmMessage,
     string? ButtonCssClass = null,
     string? FormCssClass = null,
-    bool IncludeAntiforgery = true
+    bool IncludeAntiforgery = true,
+    IReadOnlyDictionary<string, string>? FormAttributes = null,
+    IReadOnlyDictionary<string, string>? ButtonAttributes = null
 );
 
 public sealed record ActionMenuButtonItem(
@@ -39,7 +41,8 @@ public sealed record ActionMenuButtonItem(
     string? ConfirmMessage = null,
     string? Method = "post",
     string? FormCssClass = null,
-    bool IncludeAntiforgery = true
+    bool IncludeAntiforgery = true,
+    IReadOnlyDictionary<string, string>? FormAttributes = null
 );
 
 public enum ActionMenuButtonItemKind

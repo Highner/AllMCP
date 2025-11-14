@@ -69,11 +69,13 @@
         }
         @if (Model.ShowDelete)
         {
+            var deleteFormAttributes = BuildAttributes(Model.Delete.FormAttributes);
             <form method="post"
                   action="@Model.Delete.FormAction"
                   class="@BuildFormClass(Model.Delete.FormCssClass)"
                   role="none"
-                  @(string.IsNullOrWhiteSpace(Model.Delete.ConfirmMessage) ? null : $"onsubmit=\"return confirm('{Model.Delete.ConfirmMessage}');\"")>
+                  @(string.IsNullOrWhiteSpace(Model.Delete.ConfirmMessage) ? null : $"onsubmit=\"return confirm('{Model.Delete.ConfirmMessage}');\"")
+                  @Html.Raw(deleteFormAttributes)>
                 @if (Model.Delete.IncludeAntiforgery)
                 {
                     @Html.AntiForgeryToken()
@@ -85,10 +87,12 @@
                 @{ var deleteButtonClass = BuildButtonClass(string.IsNullOrWhiteSpace(Model.Delete.ButtonCssClass)
                     ? "action-menu__button--danger"
                     : Model.Delete.ButtonCssClass); }
+                var deleteButtonAttributes = BuildAttributes(Model.Delete.ButtonAttributes);
                 <button type="submit"
                         class="@deleteButtonClass"
                         data-action-menu-item
-                        role="menuitem">
+                        role="menuitem"
+                        @Html.Raw(deleteButtonAttributes)>
                     @Model.Delete.Label
                 </button>
             </form>
@@ -109,11 +113,13 @@
                 else if (item.Kind == AllMCPSolution.Models.ActionMenuButtonItemKind.Form && !string.IsNullOrWhiteSpace(item.FormAction))
                 {
                     var method = string.IsNullOrWhiteSpace(item.Method) ? "post" : item.Method;
+                    var itemFormAttributes = BuildAttributes(item.FormAttributes);
                     <form method="@method"
                           action="@item.FormAction"
                           class="@BuildFormClass(item.FormCssClass)"
                           role="none"
-                          @(string.IsNullOrWhiteSpace(item.ConfirmMessage) ? null : $"onsubmit=\"return confirm('{item.ConfirmMessage}');\"")>
+                          @(string.IsNullOrWhiteSpace(item.ConfirmMessage) ? null : $"onsubmit=\"return confirm('{item.ConfirmMessage}');\"")
+                          @Html.Raw(itemFormAttributes)>
                         @if (item.IncludeAntiforgery && string.Equals(method, "post", System.StringComparison.OrdinalIgnoreCase))
                         {
                             @Html.AntiForgeryToken()
