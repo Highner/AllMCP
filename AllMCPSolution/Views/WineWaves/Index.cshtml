@@ -413,8 +413,9 @@
             max-height: calc(100vh - var(--waves-vintage-scroll-offset, 240px));
         }
 
-        .waves-urgency-panel {
-            width: min(420px, 100%);
+        .waves-urgency-panel,
+        .waves-peak-panel {
+            width: min(360px, 100%);
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
@@ -432,7 +433,9 @@
         }
 
         .waves-urgency-panel:focus-within,
-        .waves-urgency-panel:hover {
+        .waves-urgency-panel:hover,
+        .waves-peak-panel:focus-within,
+        .waves-peak-panel:hover {
             border-color: hsla(var(--accent) / 0.6);
         }
 
@@ -1037,7 +1040,8 @@
                 max-height: none;
             }
 
-            .waves-urgency-panel {
+            .waves-urgency-panel,
+            .waves-peak-panel {
                 width: 100%;
                 margin-left: 0;
                 position: static;
@@ -1229,6 +1233,18 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                         <ol class="waves-urgency-list" data-waves-urgency-list aria-live="polite"></ol>
                         <p class="waves-urgency-empty" data-waves-urgency-empty>
                             Drag the vertical year marker to see which wines should be opened first.
+                        </p>
+                    </aside>
+                    <aside class="waves-peak-panel" aria-label="Peak readiness list">
+                        <div class="waves-urgency-header">
+                            <h2 class="waves-urgency-title">Prime-time watchlist</h2>
+                            <p class="waves-urgency-description">
+                                Closest to peak for <span data-waves-peak-year>@DateTime.UtcNow.Year</span>.
+                            </p>
+                        </div>
+                        <ol class="waves-urgency-list waves-peak-list" data-waves-peak-list aria-live="polite"></ol>
+                        <p class="waves-urgency-empty waves-peak-empty" data-waves-peak-empty>
+                            Drag the vertical year marker to see which vintages are cresting now.
                         </p>
                     </aside>
                 </section>
@@ -1753,6 +1769,9 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             const urgencyList = document.querySelector('[data-waves-urgency-list]');
             const urgencyEmptyState = document.querySelector('[data-waves-urgency-empty]');
             const urgencyYearElement = document.querySelector('[data-waves-urgency-year]');
+            const peakList = document.querySelector('[data-waves-peak-list]');
+            const peakEmptyState = document.querySelector('[data-waves-peak-empty]');
+            const peakYearElement = document.querySelector('[data-waves-peak-year]');
             const orderingLabel = document.querySelector('[data-waves-ordering-label]');
             const orderingYearElement = orderingLabel?.querySelector('[data-waves-ordering-year]');
             const filterInput = document.querySelector('[data-waves-filter-input]');
@@ -2030,6 +2049,85 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                     .forEach(({ card }) => legendContainer.appendChild(card));
             };
 
+            const renderInsightList = ({ container, entries, emptyState, scoreLabelText }) => {
+                if (!Array.isArray(entries)) {
+                    entries = [];
+                }
+
+                if (!container) {
+                    if (emptyState) {
+                        emptyState.hidden = entries.length !== 0;
+                    }
+
+                    return;
+                }
+
+                container.replaceChildren();
+
+                if (!entries.length) {
+                    if (emptyState) {
+                        emptyState.hidden = false;
+                    }
+
+                    document.dispatchEvent(new Event('waves:refresh-highlights'));
+                    return;
+                }
+
+                if (emptyState) {
+                    emptyState.hidden = true;
+                }
+
+                entries.slice(0, 6).forEach((entry, index) => {
+                    const item = document.createElement('li');
+                    item.className = 'waves-urgency-item';
+                    item.setAttribute('data-wine-vintage-id', entry.id);
+                    item.setAttribute('data-waves-highlight-card', '');
+
+                    const heading = document.createElement('div');
+                    heading.className = 'waves-urgency-item__heading';
+
+                    const text = document.createElement('div');
+                    text.className = 'waves-urgency-item__text';
+
+                    const rank = document.createElement('p');
+                    rank.className = 'waves-urgency-rank';
+                    rank.textContent = `#${index + 1}`;
+
+                    const label = document.createElement('p');
+                    label.className = 'waves-urgency-label';
+                    label.textContent = entry.label || 'Unnamed vintage';
+
+                    const meta = document.createElement('p');
+                    meta.className = 'waves-urgency-meta';
+                    meta.textContent = entry.status;
+
+                    text.append(rank, label, meta);
+
+                    const scoreContainer = document.createElement('div');
+                    scoreContainer.className = 'waves-urgency-score';
+
+                    const scoreValue = document.createElement('span');
+                    scoreValue.className = 'waves-urgency-score-value';
+                    scoreValue.textContent = `${Math.round(clamp01(entry.score) * 100)}%`;
+
+                    const scoreLabel = document.createElement('span');
+                    scoreLabel.className = 'waves-urgency-score-label';
+                    scoreLabel.textContent = scoreLabelText;
+
+                    scoreContainer.append(scoreValue, scoreLabel);
+                    heading.append(text, scoreContainer);
+
+                    const reason = document.createElement('p');
+                    reason.className = 'waves-urgency-reason';
+                    reason.textContent = entry.reason;
+
+                    item.append(heading, reason);
+                    container.appendChild(item);
+                });
+
+                document.dispatchEvent(new Event('waves:refresh-highlights'));
+            };
+
             const updateUrgencyList = (year) => {
                 if (!urgencyList) {
                     if (urgencyYearElement) {
@@ -2110,76 +2208,94 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                             label: dataset.label,
                             status,
                             reason,
-                            urgencyScore
+                            score: clamp01(urgencyScore)
                         };
                     })
                     .filter(Boolean)
-                    .sort((a, b) => b.urgencyScore - a.urgencyScore);
+                    .sort((a, b) => b.score - a.score);
 
-                urgencyList.replaceChildren();
+                renderInsightList({
+                    container: urgencyList,
+                    entries,
+                    emptyState: urgencyEmptyState,
+                    scoreLabelText: 'urgency'
+                });
+            };
 
-                if (!entries.length) {
-                    if (urgencyEmptyState) {
-                        urgencyEmptyState.hidden = false;
-                    }
+            const updatePeakList = (year) => {
+                if (peakYearElement) {
+                    peakYearElement.textContent = formatYearForDisplay(year);
+                }
 
-                    document.dispatchEvent(new Event('waves:refresh-highlights'));
+                if (!peakList) {
                     return;
                 }
 
-                if (urgencyEmptyState) {
-                    urgencyEmptyState.hidden = true;
-                }
+                const entries = data
+                    .map((dataset) => {
+                        if (!visibleDatasetIds.has(dataset.id)) {
+                            return null;
+                        }
 
-                entries.slice(0, 6).forEach((entry, index) => {
-                    const item = document.createElement('li');
-                    item.className = 'waves-urgency-item';
-                    item.setAttribute('data-wine-vintage-id', entry.id);
-                    item.setAttribute('data-waves-highlight-card', '');
+                        const points = datasetPointMap.get(dataset.id);
+                        const stats = datasetStatsMap.get(dataset.id);
+                        if (!points || !stats) {
+                            return null;
+                        }
 
-                    const heading = document.createElement('div');
-                    heading.className = 'waves-urgency-item__heading';
+                        const currentScore = getScoreAtYear(points, year);
+                        if (!Number.isFinite(currentScore)) {
+                            return null;
+                        }
 
-                    const text = document.createElement('div');
-                    text.className = 'waves-urgency-item__text';
+                        const yearDelta = stats.peakYear - year;
+                        const yearsFromPeak = Math.abs(yearDelta);
+                        const scoreGap = Math.abs(stats.peakScore - currentScore);
+                        const normalizedYearProximity = clamp01(1 - (yearsFromPeak / 6));
+                        const normalizedScoreProximity = stats.span > 0
+                            ? clamp01(1 - (scoreGap / stats.span))
+                            : 1;
 
-                    const rank = document.createElement('p');
-                    rank.className = 'waves-urgency-rank';
-                    rank.textContent = `#${index + 1}`;
+                        const readinessScore = (normalizedYearProximity * 0.55)
+                            + (normalizedScoreProximity * 0.45);
 
-                    const label = document.createElement('p');
-                    label.className = 'waves-urgency-label';
-                    label.textContent = entry.label || 'Unnamed vintage';
+                        const closenessText = Number.isFinite(scoreGap)
+                            ? (scoreGap <= 0.15
+                                ? 'hugging its top score'
+                                : `within ${scoreGap.toFixed(1)} pts of the high`)
+                            : 'tracking near its high score';
 
-                    const meta = document.createElement('p');
-                    meta.className = 'waves-urgency-meta';
-                    meta.textContent = entry.status;
+                        let status;
+                        let reason;
 
-                    text.append(rank, label, meta);
+                        if (yearsFromPeak < 0.4) {
+                            status = 'Peak right now';
+                            reason = `Prime score cresting this year (${stats.peakYear}) and ${closenessText}.`;
+                        } else if (yearDelta > 0) {
+                            status = 'Peak ahead';
+                            reason = `About ${formatYearDifference(yearDelta)} until the ${stats.peakYear} peak; still ${closenessText}.`;
+                        } else {
+                            status = 'Peak fading';
+                            reason = `Peaked ${formatYearDifference(Math.abs(yearDelta))} ago (${stats.peakYear}) yet remains ${closenessText}.`;
+                        }
 
-                    const scoreContainer = document.createElement('div');
-                    scoreContainer.className = 'waves-urgency-score';
+                        return {
+                            id: dataset.id,
+                            label: dataset.label,
+                            status,
+                            reason,
+                            score: clamp01(readinessScore)
+                        };
+                    })
+                    .filter(Boolean)
+                    .sort((a, b) => b.score - a.score);
 
-                    const scoreValue = document.createElement('span');
-                    scoreValue.className = 'waves-urgency-score-value';
-                    scoreValue.textContent = `${Math.round(clamp01(entry.urgencyScore) * 100)}%`;
-
-                    const scoreLabel = document.createElement('span');
-                    scoreLabel.className = 'waves-urgency-score-label';
-                    scoreLabel.textContent = 'urgency';
-
-                    scoreContainer.append(scoreValue, scoreLabel);
-                    heading.append(text, scoreContainer);
-
-                    const reason = document.createElement('p');
-                    reason.className = 'waves-urgency-reason';
-                    reason.textContent = entry.reason;
-
-                    item.append(heading, reason);
-                    urgencyList.appendChild(item);
+                renderInsightList({
+                    container: peakList,
+                    entries,
+                    emptyState: peakEmptyState,
+                    scoreLabelText: 'prime'
                 });
-
-                document.dispatchEvent(new Event('waves:refresh-highlights'));
             };
 
             const updateLegendVisibilityForFilter = () => {
@@ -2237,6 +2353,7 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 updateLegendVisibilityForFilter();
                 reorderCardsByYear(activeYear);
                 updateUrgencyList(activeYear);
+                updatePeakList(activeYear);
                 syncChartFilterState();
 
                 if (filterEmptyState) {
@@ -2275,6 +2392,7 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                 updateOrderingLabel(activeYear);
                 reorderCardsByYear(activeYear);
                 updateUrgencyList(activeYear);
+                updatePeakList(activeYear);
 
                 if (updateChart) {
                     updateChartMarker(activeYear);
@@ -2361,6 +2479,7 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             updateOrderingLabel(activeYear);
             reorderCardsByYear(activeYear);
             updateUrgencyList(activeYear);
+            updatePeakList(activeYear);
 
             if (filterInput) {
                 const handleFilterChange = () => {
