@@ -83,7 +83,7 @@ Respond ONLY with minified JSON matching:
 Only include wineVintageId values provided by the user and omit any commentary outside the JSON payload.
 
 Start the scoring timeline three calendar years after each wine's actual vintage. The goal is to provide a comprehensive picture of the wine's evolution over time in a nice curve. Avoid straight lines.
-**Ensure that each wine’s score trajectory peaks within its recognized optimal drinking window according to critics, and that scores rise and decline in a realistic arc that mirrors the wine’s maturity curve.**
+Ensure that each wine’s score trajectory peaks within its recognized optimal drinking window, and that scores rise and decline in a realistic arc that mirrors the wine’s maturity curve. The drinking window should correspond to the evolution curve so that it covers the top 10 to 20% of the curve.
 
 For each wine, crosscheck the user's taste profile and publicly available tasting notes and descriptions (preferably from professional critics) from the web to determine the wine's alignment score. Pay special attention to assessments about the wine's development over the course of its life.
 
