@@ -1652,12 +1652,9 @@
             price: record.price,
             isDrunk: true,
             drunkAt: normalizedDate,
-            pendingDelivery: false
+            pendingDelivery: false,
+            bottleLocationId: null
         };
-
-        if (record.bottleLocationId) {
-            payload.bottleLocationId = record.bottleLocationId;
-        }
 
         const shouldSaveNote = normalizedNote.length > 0 || normalizedScore != null;
         const shouldDeleteNote = !shouldSaveNote && normalizedNoteId.length > 0;

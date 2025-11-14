@@ -2714,8 +2714,12 @@ public partial class WineInventoryController : Controller
         bottle.IsDrunk = request.IsDrunk;
         bottle.DrunkAt = NormalizeDrunkAt(request.IsDrunk, request.DrunkAt);
         bottle.PendingDelivery = request.IsDrunk ? false : request.PendingDelivery;
-        bottle.BottleLocationId = bottleLocation?.Id;
-        bottle.BottleLocation = null; // ensure EF does not reapply a stale navigation when updating
+        // Drinking a bottle should always leave it without a storage assignment.
+        // Even if the client passes along a stale BottleLocationId we explicitly
+        // clear both the FK and navigation to avoid EF reattaching the previous
+        // location when saving changes.
+        bottle.BottleLocationId = null;
+        bottle.BottleLocation = null;
 
         _logger.LogInformation("DrinkBottle persisting bottle {BottleId} with location {BottleLocationId}, price {Price}, pending delivery {PendingDelivery}, is drunk {IsDrunk}.", bottle.Id, bottle.BottleLocationId, bottle.Price, bottle.PendingDelivery, bottle.IsDrunk);
 
