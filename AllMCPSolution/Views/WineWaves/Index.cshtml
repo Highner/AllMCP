@@ -1012,7 +1012,8 @@
             color: hsl(var(--foreground));
         }
 
-        .waves-jump-to-now-button {
+        .waves-jump-to-now-button,
+        .waves-reset-zoom-button {
             border: 1px solid hsla(var(--foreground) / 0.35);
             border-radius: 999px;
             background: transparent;
@@ -1024,11 +1025,18 @@
         }
 
         .waves-jump-to-now-button:hover,
-        .waves-jump-to-now-button:focus-visible {
+        .waves-jump-to-now-button:focus-visible,
+        .waves-reset-zoom-button:hover,
+        .waves-reset-zoom-button:focus-visible {
             background: hsla(var(--foreground) / 0.08);
             border-color: hsla(var(--foreground) / 0.55);
             color: hsl(var(--foreground));
             outline: none;
+        }
+
+        .waves-reset-zoom-button[disabled] {
+            opacity: 0.55;
+            cursor: not-allowed;
         }
 
         @@media (max-width: 960px) {
@@ -1109,6 +1117,13 @@
                                     class="waves-jump-to-now-button"
                                     data-waves-jump-to-now>
                                 Jump to now
+                            </button>
+                            <button type="button"
+                                    class="waves-reset-zoom-button"
+                                    data-waves-reset-zoom
+                                    aria-disabled="true"
+                                    disabled>
+                                Reset zoom
                             </button>
                         </div>
                         <p class="waves-filter-empty" data-waves-filter-empty hidden role="status" aria-live="polite">
@@ -1285,6 +1300,7 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
         </div>
     }
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@4.4.1/dist/chartjs-plugin-zoom.umd.min.js"></script>
     <script>
         (function initializeWavesActionMenu() {
             const menus = Array.from(document.querySelectorAll('[data-action-menu]'));
@@ -1760,6 +1776,7 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             const filterEmptyState = document.querySelector('[data-waves-filter-empty]');
             const inventoryToggle = document.querySelector('[data-waves-inventory-toggle]');
             const jumpToNowButton = document.querySelector('[data-waves-jump-to-now]');
+            const resetZoomButton = document.querySelector('[data-waves-reset-zoom]');
             const updateFilterClearButtonVisibility = () => {
                 if (!filterInput || !filterClearButton) {
                     return;
@@ -1941,6 +1958,37 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             };
 
             Chart.register(draggableYearLinePlugin);
+
+            const chartZoomPlugin = window?.ChartZoom || window?.chartjsPluginZoom || window?.ChartjsPluginZoom;
+            if (chartZoomPlugin && typeof Chart !== 'undefined' && typeof Chart.register === 'function') {
+                Chart.register(chartZoomPlugin);
+            }
+
+            const setResetZoomState = (isEnabled) => {
+                if (!resetZoomButton) {
+                    return;
+                }
+
+                if (isEnabled) {
+                    resetZoomButton.removeAttribute('disabled');
+                    resetZoomButton.setAttribute('aria-disabled', 'false');
+                } else {
+                    resetZoomButton.setAttribute('disabled', 'disabled');
+                    resetZoomButton.setAttribute('aria-disabled', 'true');
+                }
+            };
+
+            setResetZoomState(false);
+
+            if (resetZoomButton) {
+                resetZoomButton.addEventListener('click', () => {
+                    const chart = window.wavesChart;
+                    if (chart?.resetZoom) {
+                        chart.resetZoom();
+                        setResetZoomState(false);
+                    }
+                });
+            }
 
             const datasets = data.map(dataset => {
                 const color = resolveColor(dataset.color);
@@ -2316,6 +2364,40 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                             lineWidth: 2,
                             dash: [6, 6],
                             enabled: true
+                        },
+                        zoom: {
+                            limits: {
+                                x: {
+                                    min: minYear,
+                                    max: maxYear
+                                }
+                            },
+                            pan: {
+                                enabled: true,
+                                mode: 'x',
+                                modifierKey: 'shift',
+                                onPanComplete() {
+                                    setResetZoomState(true);
+                                }
+                            },
+                            zoom: {
+                                wheel: {
+                                    enabled: true
+                                },
+                                pinch: {
+                                    enabled: true
+                                },
+                                drag: {
+                                    enabled: true,
+                                    borderColor: 'rgba(246, 198, 114, 0.65)',
+                                    backgroundColor: 'rgba(246, 198, 114, 0.12)',
+                                    borderWidth: 1
+                                },
+                                mode: 'x',
+                                onZoomComplete() {
+                                    setResetZoomState(true);
+                                }
+                            }
                         }
                     },
                     scales: {
