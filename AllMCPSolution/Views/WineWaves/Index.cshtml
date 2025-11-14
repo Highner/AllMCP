@@ -108,6 +108,7 @@
         id = dataset.WineVintageId,
         label = dataset.Label,
         details = dataset.Details,
+        inInventory = dataset.IsInInventory,
         color = dataset.ColorHex,
         points = dataset.Points
             .OrderBy(point => point.Year)
@@ -238,6 +239,35 @@
             position: relative;
             display: flex;
             align-items: center;
+        }
+
+        .waves-filter-options {
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .waves-filter-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: hsla(var(--foreground) / 0.75);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .waves-filter-toggle-input {
+            width: 18px;
+            height: 18px;
+            accent-color: hsl(var(--primary));
+            flex-shrink: 0;
+        }
+
+        .waves-filter-toggle-label {
+            line-height: 1.4;
         }
 
         .waves-filter-input {
@@ -1048,8 +1078,16 @@
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
+                    <div class="waves-filter-options">
+                        <label class="waves-filter-toggle">
+                            <input type="checkbox"
+                                   class="waves-filter-toggle-input"
+                                   data-waves-inventory-toggle />
+                            <span class="waves-filter-toggle-label">Hide wines no longer in your inventory</span>
+                        </label>
+                    </div>
                     <p class="waves-filter-empty" data-waves-filter-empty hidden role="status" aria-live="polite">
-                        No wines match your filter.
+                        No wines match your filter or inventory selection.
                     </p>
                 </div>
                 <div class="waves-chart-wrapper" data-waves-chart-wrapper>
@@ -1600,6 +1638,7 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
             const filterInput = document.querySelector('[data-waves-filter-input]');
             const filterClearButton = document.querySelector('[data-waves-filter-clear]');
             const filterEmptyState = document.querySelector('[data-waves-filter-empty]');
+            const inventoryToggle = document.querySelector('[data-waves-inventory-toggle]');
             const updateFilterClearButtonVisibility = () => {
                 if (!filterInput || !filterClearButton) {
                     return;
@@ -2055,11 +2094,15 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
 
             const applyFilter = () => {
                 const query = (filterInput?.value ?? '').trim().toLowerCase();
+                const hideMissingInventory = inventoryToggle?.checked ?? false;
                 const matches = new Set();
 
                 data.forEach((dataset) => {
                     const searchable = datasetFilterText.get(dataset.id) ?? '';
-                    if (!query || searchable.includes(query)) {
+                    const matchesQuery = !query || searchable.includes(query);
+                    const matchesInventory = !hideMissingInventory || dataset.inInventory === true;
+
+                    if (matchesQuery && matchesInventory) {
                         matches.add(dataset.id);
                     }
                 });
@@ -2222,6 +2265,12 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
                     updateFilterClearButtonVisibility();
                     applyFilter();
                     filterInput.focus();
+                });
+            }
+
+            if (inventoryToggle) {
+                inventoryToggle.addEventListener('change', () => {
+                    applyFilter();
                 });
             }
 

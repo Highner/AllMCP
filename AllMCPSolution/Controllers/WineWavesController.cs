@@ -152,6 +152,13 @@ public sealed class WineWavesController : WineSurferControllerBase
             datasetColorCount = datasetColors.Count;
         }
 
+        var inventory = await BuildInventoryAsync(userId, cancellationToken);
+        var inventoryAvailabilityLookup = inventory.Count == 0
+            ? new Dictionary<Guid, bool>()
+            : inventory.ToDictionary(
+                item => item.WineVintageId,
+                item => item.AvailableBottleCount > 0);
+
         var datasets = scores
             .GroupBy(score => score.WineVintageId)
             .OrderBy(group => group.First().WineVintage.Wine.Name)
@@ -176,6 +183,8 @@ public sealed class WineWavesController : WineSurferControllerBase
                 drinkingWindowLookup.TryGetValue(first.WineVintageId, out var drinkingWindow);
                 int? drinkingWindowStartYear = drinkingWindow?.StartingYear;
                 int? drinkingWindowEndYear = drinkingWindow?.EndingYear;
+                var hasInventory = inventoryAvailabilityLookup.TryGetValue(first.WineVintageId, out var available)
+                    && available;
 
                 return new WineWavesDataset(
                     first.WineVintageId,
@@ -184,11 +193,10 @@ public sealed class WineWavesController : WineSurferControllerBase
                     points,
                     color,
                     drinkingWindowStartYear,
-                    drinkingWindowEndYear);
+                    drinkingWindowEndYear,
+                    hasInventory);
             })
             .ToList();
-
-        var inventory = await BuildInventoryAsync(userId, cancellationToken);
 
         ViewData["WineSurferPageTitle"] = "Wine Waves";
         var viewModel = new WineWavesViewModel(datasets, inventory);
@@ -1027,7 +1035,8 @@ public sealed record WineWavesDataset(
     IReadOnlyList<WineWavesPoint> Points,
     string ColorHex,
     int? DrinkingWindowStartYear,
-    int? DrinkingWindowEndYear);
+    int? DrinkingWindowEndYear,
+    bool IsInInventory);
 
 public sealed record WineWavesPoint(int Year, decimal Score);
 
