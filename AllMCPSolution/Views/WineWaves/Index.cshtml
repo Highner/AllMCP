@@ -1261,6 +1261,96 @@ M5 7.5h14m-1 0-.732 11.246A2 2 0 0 1 15.272 20.5H8.728a2 2 0 0 1-1.996-1.754L6 7
     }
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        (function initializeWavesActionMenu() {
+            const menus = Array.from(document.querySelectorAll('[data-action-menu]'));
+            if (menus.length === 0) {
+                return;
+            }
+
+            let activeMenu = null;
+
+            const closeMenu = (menu, { focusTrigger = false } = {}) => {
+                if (!menu || !menu.hasAttribute('data-open')) {
+                    return;
+                }
+
+                const trigger = menu.querySelector('[data-action-menu-trigger]');
+                const content = menu.querySelector('[data-action-menu-content]');
+
+                if (content) {
+                    content.setAttribute('hidden', '');
+                }
+
+                if (trigger) {
+                    trigger.setAttribute('aria-expanded', 'false');
+                    if (focusTrigger) {
+                        window.requestAnimationFrame(() => trigger.focus());
+                    }
+                }
+
+                menu.removeAttribute('data-open');
+
+                if (activeMenu === menu) {
+                    activeMenu = null;
+                }
+            };
+
+            const closeAllMenus = (focusTrigger = false) => {
+                menus.forEach(menu => closeMenu(menu, { focusTrigger: focusTrigger && menu === activeMenu }));
+            };
+
+            menus.forEach(menu => {
+                const trigger = menu.querySelector('[data-action-menu-trigger]');
+                const content = menu.querySelector('[data-action-menu-content]');
+
+                if (!trigger || !content) {
+                    return;
+                }
+
+                trigger.addEventListener('click', event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const isOpen = menu.hasAttribute('data-open');
+                    closeAllMenus();
+
+                    if (!isOpen) {
+                        menu.setAttribute('data-open', '');
+                        trigger.setAttribute('aria-expanded', 'true');
+                        content.removeAttribute('hidden');
+                        activeMenu = menu;
+                    }
+                });
+
+                content.addEventListener('click', event => {
+                    event.stopPropagation();
+
+                    const target = event.target instanceof Element
+                        ? event.target.closest('[data-action-menu-item]')
+                        : null;
+
+                    if (target) {
+                        closeMenu(menu);
+                    }
+                });
+            });
+
+            document.addEventListener('click', event => {
+                const target = event.target instanceof Element ? event.target : null;
+                menus.forEach(menu => {
+                    if (!menu.contains(target)) {
+                        closeMenu(menu);
+                    }
+                });
+            });
+
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    closeAllMenus(true);
+                }
+            });
+        })();
+
         (function () {
             const trigger = document.querySelector('[data-make-waves-trigger]');
             const popover = document.querySelector('[data-make-waves-popover]');
